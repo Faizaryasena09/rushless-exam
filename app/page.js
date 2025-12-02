@@ -30,10 +30,8 @@ export default function LoginPage() {
         throw new Error(data.message || 'Something went wrong');
       }
 
-      setSuccess('Login successful! Welcome.');
-      // In a real app, you'd redirect to a protected dashboard page
-      // For now, we'll just show a success message.
-      // router.push('/dashboard'); 
+      setSuccess('Login successful! Redirecting...');
+      router.push('/dashboard'); 
 
     } catch (error) {
       setError(error.message);
