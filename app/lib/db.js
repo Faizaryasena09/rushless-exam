@@ -55,6 +55,17 @@ export async function setupDatabase() {
         `);
         console.log('Table "users" created or already exists.');
 
+        // Create the 'rhs_exams' table
+        await dbConnection.query(`
+            CREATE TABLE IF NOT EXISTS rhs_exams (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              exam_name VARCHAR(255) NOT NULL,
+              description TEXT,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('Table "rhs_exams" created or already exists.');
+
         await dbConnection.end();
         return { success: true };
 
