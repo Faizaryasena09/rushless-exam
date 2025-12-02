@@ -35,7 +35,7 @@ export async function POST(request) {
     session.user = {
       id: user.id,
       username: user.username,
-      role: user.role,
+      roleName: user.role, // Directly use the 'role' column from rhs_users
     };
     await session.save();
 

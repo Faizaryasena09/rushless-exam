@@ -81,7 +81,7 @@ export default function Header({ toggleSidebar }) {
               <div className="flex items-center gap-3 pl-2 sm:pl-0">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-semibold text-slate-700 leading-none mb-1">{user.username}</p>
-                  <p className="text-[10px] uppercase tracking-wider font-medium text-slate-400">Student Account</p>
+                  <p className="text-[10px] uppercase tracking-wider font-medium text-slate-400">{user.roleName || ''}</p>
                 </div>
                 
                 <div className="relative group cursor-pointer">

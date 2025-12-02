@@ -7,10 +7,17 @@ import { query } from '@/app/lib/db';
 async function checkAdmin(request) {
   const cookieStore = await cookies();
   const session = await getIronSession(cookieStore, sessionOptions);
-  return session.user && session.user.role === 'admin';
+  return session.user && session.user.roleName === 'admin';
 }
 
-export async function GET() {
+export async function GET(request) {
+  const cookieStore = await cookies();
+  const session = await getIronSession(cookieStore, sessionOptions);
+
+  if (!session.user) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const classes = await query({ query: 'SELECT * FROM rhs_classes' });
     return NextResponse.json(classes);

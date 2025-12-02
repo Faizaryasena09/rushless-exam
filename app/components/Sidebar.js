@@ -3,51 +3,122 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+// Definisi Ikon Sederhana (SVG) agar kode tetap rapi
+const Icons = {
+  Dashboard: () => (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+    </svg>
+  ),
+  Users: () => (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  ),
+  Classes: () => (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+    </svg>
+  ),
+  Exams: () => (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    </svg>
+  )
+};
+
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const pathname = usePathname();
 
   const navLinks = [
-    { href: '/dashboard', label: 'Dashboard' },
-    { href: '/dashboard/users', label: 'Manage Users' },
-    { href: '/dashboard/classes', label: 'Manage Classes' },
-    { href: '/dashboard/exams', label: 'Manage Exams' },
+    { href: '/dashboard', label: 'Dashboard', icon: Icons.Dashboard },
+    { href: '/dashboard/users', label: 'Manage Users', icon: Icons.Users },
+    { href: '/dashboard/classes', label: 'Manage Classes', icon: Icons.Classes },
+    { href: '/dashboard/exams', label: 'Manage Exams', icon: Icons.Exams },
   ];
 
   return (
-    <aside
-      className={`fixed top-0 left-0 z-40 w-64 h-screen bg-gray-800 text-white transform transition-transform duration-300 ease-in-out ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}
-    >
-      <div className="flex items-center justify-between h-16 bg-gray-900 px-4">
-        <span className="text-xl font-bold">Rushless Exam</span>
-        <button
+    <>
+      {/* Mobile Backdrop (Optional UX improvement: close when clicking outside) */}
+      {sidebarOpen && (
+        <div 
           onClick={() => setSidebarOpen(false)}
-          className="lg:hidden text-gray-400 hover:text-white"
-          aria-label="Close sidebar"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-      <nav className="flex-grow p-4">
-        <ul>
-          {navLinks.map((link) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                className={`flex items-center p-2 my-2 text-sm rounded-lg hover:bg-gray-700 ${
-                  pathname === link.href ? 'bg-gray-700' : ''
-                }`}
-              >
-                {link.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    </aside>
+          className="fixed inset-0 z-30 bg-slate-900/50 backdrop-blur-sm lg:hidden transition-opacity"
+        />
+      )}
+
+      <aside
+        className={`fixed top-0 left-0 z-40 w-64 h-screen bg-white border-r border-slate-200 transform transition-transform duration-300 ease-out shadow-xl lg:shadow-none ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Header Sidebar */}
+        <div className="flex items-center justify-between h-16 px-6 border-b border-slate-100">
+           <Link href="/" className="flex items-center gap-2">
+            <div className="bg-indigo-600 rounded-lg p-1">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <span className="text-lg font-bold tracking-tight text-slate-800">
+              Rushless<span className="text-indigo-600">Exam</span>
+            </span>
+          </Link>
+
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+            aria-label="Close sidebar"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-grow p-4 mt-2 overflow-y-auto">
+          <ul className="space-y-1">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href;
+              const Icon = link.icon;
+
+              return (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className={`group flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
+                      isActive
+                        ? 'bg-indigo-50 text-indigo-600 shadow-sm ring-1 ring-indigo-200'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <span className={`transition-colors duration-200 ${
+                      isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
+                    }`}>
+                      <Icon />
+                    </span>
+                    {link.label}
+                    
+                    {/* Active Indicator Dot */}
+                    {isActive && (
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* Footer Sidebar (Optional Space) */}
+        <div className="p-4 border-t border-slate-100">
+          <p className="text-xs text-center text-slate-400">
+            v1.0.0 Dashboard
+          </p>
+        </div>
+      </aside>
+    </>
   );
 };
 

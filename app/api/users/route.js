@@ -8,18 +8,46 @@ import bcrypt from 'bcryptjs';
 async function checkAdmin(request) {
   const cookieStore = await cookies();
   const session = await getIronSession(cookieStore, sessionOptions);
-  return session.user && session.user.role === 'admin';
+  return session.user && session.user.roleName === 'admin';
 }
 
-export async function GET() {
-  if (!await checkAdmin()) {
+export async function GET(request) {
+  if (!await checkAdmin(request)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
   try {
+    const { searchParams } = new URL(request.url);
+    const classId = searchParams.get('classId');
+    const search = searchParams.get('search');
+
+    let baseQuery = `
+      SELECT u.id, u.username, u.role, c.class_name
+      FROM rhs_users u
+      LEFT JOIN rhs_classes c ON u.class_id = c.id
+    `;
+    const whereClauses = [];
+    const values = [];
+
+    if (classId) {
+      whereClauses.push('u.class_id = ?');
+      values.push(classId);
+    }
+
+    if (search) {
+      whereClauses.push('u.username LIKE ?');
+      values.push(`%${search}%`);
+    }
+
+    if (whereClauses.length > 0) {
+      baseQuery += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
     const users = await query({
-      query: 'SELECT id, username, role, class_id FROM rhs_users',
+      query: baseQuery,
+      values,
     });
+    
     return NextResponse.json(users);
   } catch (error) {
     return NextResponse.json({ message: 'Failed to retrieve users', error: error.message }, { status: 500 });
