@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const Sidebar = () => {
+const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const pathname = usePathname();
 
   const navLinks = [
@@ -14,9 +14,22 @@ const Sidebar = () => {
   ];
 
   return (
-    <div className="flex flex-col w-64 bg-gray-800 text-white">
-      <div className="flex items-center justify-center h-16 bg-gray-900">
+    <aside
+      className={`fixed top-0 left-0 z-40 w-64 h-screen bg-gray-800 text-white transform transition-transform duration-300 ease-in-out ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
+    >
+      <div className="flex items-center justify-between h-16 bg-gray-900 px-4">
         <span className="text-xl font-bold">Rushless Exam</span>
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="lg:hidden text-gray-400 hover:text-white"
+          aria-label="Close sidebar"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
       <nav className="flex-grow p-4">
         <ul>
@@ -34,7 +47,7 @@ const Sidebar = () => {
           ))}
         </ul>
       </nav>
-    </div>
+    </aside>
   );
 };
 
