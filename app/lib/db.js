@@ -45,12 +45,25 @@ export async function setupDatabase() {
         // 3. Connect to the specific database and create the table
         const dbConnection = await mysql.createConnection({ ...dbConfig, database: 'RUSHLESSEXAM' });
         
+        await dbConnection.query(`DROP TABLE IF EXISTS users`);
+
+        await dbConnection.query(`
+            CREATE TABLE IF NOT EXISTS rhs_classes (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              class_name VARCHAR(255) NOT NULL UNIQUE
+            )
+        `);
+        console.log('Table "rhs_classes" created or already exists.');
+
         await dbConnection.query(`
             CREATE TABLE IF NOT EXISTS users (
               id INT AUTO_INCREMENT PRIMARY KEY,
               username VARCHAR(255) NOT NULL UNIQUE,
               password VARCHAR(255) NOT NULL,
-              createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              role ENUM('admin', 'teacher', 'student') NOT NULL,
+              class_id INT,
+              createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              FOREIGN KEY (class_id) REFERENCES rhs_classes(id) ON DELETE SET NULL
             )
         `);
         console.log('Table "users" created or already exists.');

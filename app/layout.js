@@ -1,5 +1,4 @@
-import Header from './components/Header';
-import Footer from './components/Footer';
+import LayoutWrapper from './components/LayoutWrapper';
 import "./globals.css";
 
 export const metadata = {
@@ -10,12 +9,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className="flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-grow container mx-auto p-4">
+      <body>
+        <LayoutWrapper>
           {children}
-        </main>
-        <Footer />
+        </LayoutWrapper>
       </body>
     </html>
   );
