@@ -31,6 +31,7 @@ export async function GET(request) {
         SELECT 
           e.id as exam_id, 
           e.exam_name, 
+          e.description,
           s.start_time, 
           s.end_time 
         FROM rhs_exams e

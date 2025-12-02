@@ -83,3 +83,30 @@ export async function DELETE(request) {
       return NextResponse.json({ message: 'Failed to delete question', error: error.message }, { status: 500 });
     }
   }
+
+// PUT handler to update a question
+export async function PUT(request) {
+  if (!await checkAdmin(request)) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { id, questionText, options, correctOption } = await request.json();
+    if (!id || !questionText || !options || !correctOption) {
+      return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
+    }
+
+    const result = await query({
+      query: 'UPDATE rhs_exam_questions SET question_text = ?, options = ?, correct_option = ? WHERE id = ?',
+      values: [questionText, JSON.stringify(options), correctOption, id],
+    });
+
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ message: 'Question not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: 'Question updated successfully' });
+  } catch (error) {
+    return NextResponse.json({ message: 'Failed to update question', error: error.message }, { status: 500 });
+  }
+}
