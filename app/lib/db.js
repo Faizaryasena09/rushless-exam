@@ -45,7 +45,7 @@ export async function setupDatabase() {
         // 3. Connect to the specific database and create the table
         const dbConnection = await mysql.createConnection({ ...dbConfig, database: 'RUSHLESSEXAM' });
         
-        await dbConnection.query(`DROP TABLE IF EXISTS rhs_users`);
+        
 
         await dbConnection.query(`
             CREATE TABLE IF NOT EXISTS rhs_classes (
@@ -78,6 +78,35 @@ export async function setupDatabase() {
             )
         `);
         console.log('Table "rhs_exams" created or already exists.');
+
+        // Create the 'rhs_exam_settings' table
+        await dbConnection.query(`
+            CREATE TABLE IF NOT EXISTS rhs_exam_settings (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              exam_id INT NOT NULL UNIQUE,
+              start_time DATETIME,
+              end_time DATETIME,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE
+            )
+        `);
+        console.log('Table "rhs_exam_settings" created or already exists.');
+
+        // Create the 'rhs_exam_questions' table
+        await dbConnection.query(`
+            CREATE TABLE IF NOT EXISTS rhs_exam_questions (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              exam_id INT NOT NULL,
+              question_text TEXT NOT NULL,
+              options JSON,
+              correct_option VARCHAR(1) NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE
+            )
+        `);
+        console.log('Table "rhs_exam_questions" created or already exists.');
 
         await dbConnection.end();
         return { success: true };
