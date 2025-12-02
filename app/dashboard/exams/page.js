@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default function UjianPage() {
+export default function ExamsPage() {
   const router = useRouter();
   const [loadingSession, setLoadingSession] = useState(true);
   const [exams, setExams] = useState([]);
@@ -73,7 +73,7 @@ export default function UjianPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Daftar Ujian</h1>
         <Link
-          href="/dashboard/ujian/baru"
+          href="/dashboard/exams/baru"
           className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
         >
           + Buat Ujian Baru

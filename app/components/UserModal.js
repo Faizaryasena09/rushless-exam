@@ -38,66 +38,68 @@ const UserModal = ({ user, onClose, onSave }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-      <div className="bg-white p-6 rounded-lg w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4">{user ? 'Edit User' : 'Add User'}</h2>
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center">
+      <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
+        <h2 className="text-2xl font-bold mb-6">{user ? 'Edit User' : 'Add New User'}</h2>
         <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-gray-700">Username</label>
-            <input
-              type="text"
-              className="w-full p-2 border rounded"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
+          <div className="grid grid-cols-1 gap-6">
+            <div className="col-span-1">
+              <label className="block text-sm font-medium text-gray-700">Username</label>
+              <input
+                type="text"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+            <div className="col-span-1">
+              <label className="block text-sm font-medium text-gray-700">Password</label>
+              <input
+                type="password"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={user ? 'Leave blank to keep current password' : ''}
+              />
+            </div>
+            <div className="col-span-1">
+              <label className="block text-sm font-medium text-gray-700">Role</label>
+              <select
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              >
+                <option value="admin">Admin</option>
+                <option value="teacher">Teacher</option>
+                <option value="student">Student</option>
+              </select>
+            </div>
+            <div className="col-span-1">
+              <label className="block text-sm font-medium text-gray-700">Class</label>
+              <select
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                value={classId}
+                onChange={(e) => setClassId(e.target.value)}
+              >
+                <option value="">Select a class</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.class_name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="mb-4">
-            <label className="block text-gray-700">Password</label>
-            <input
-              type="password"
-              className="w-full p-2 border rounded"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={user ? 'Leave blank to keep current password' : ''}
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700">Role</label>
-            <select
-              className="w-full p-2 border rounded"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
-              <option value="admin">Admin</option>
-              <option value="teacher">Teacher</option>
-              <option value="student">Student</option>
-            </select>
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700">Class</label>
-            <select
-              className="w-full p-2 border rounded"
-              value={classId}
-              onChange={(e) => setClassId(e.target.value)}
-            >
-              <option value="">Select a class</option>
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.class_name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex justify-end">
+          <div className="flex justify-end mt-6">
             <button
               type="button"
-              className="bg-gray-500 text-white p-2 rounded mr-2"
+              className="py-2 px-4 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
               onClick={onClose}
             >
               Cancel
             </button>
-            <button type="submit" className="bg-blue-500 text-white p-2 rounded">
+            <button type="submit" className="ml-3 py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
               Save
             </button>
           </div>

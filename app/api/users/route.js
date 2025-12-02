@@ -18,7 +18,7 @@ export async function GET() {
 
   try {
     const users = await query({
-      query: 'SELECT id, username, role, class_id FROM users',
+      query: 'SELECT id, username, role, class_id FROM rhs_users',
     });
     return NextResponse.json(users);
   } catch (error) {
@@ -38,7 +38,7 @@ export async function POST(request) {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await query({
-      query: 'INSERT INTO users (username, password, role, class_id) VALUES (?, ?, ?, ?)',
+      query: 'INSERT INTO rhs_users (username, password, role, class_id) VALUES (?, ?, ?, ?)',
       values: [username, hashedPassword, role, class_id],
     });
     return NextResponse.json({ id: result.insertId, username, role, class_id }, { status: 201 });
@@ -58,7 +58,7 @@ export async function PUT(request) {
       return NextResponse.json({ message: 'ID, username, and role are required' }, { status: 400 });
     }
 
-    let q = 'UPDATE users SET username = ?, role = ?, class_id = ?';
+    let q = 'UPDATE rhs_users SET username = ?, role = ?, class_id = ?';
     const values = [username, role, class_id];
 
     if (password) {
@@ -88,7 +88,7 @@ export async function DELETE(request) {
       return NextResponse.json({ message: 'ID is required' }, { status: 400 });
     }
     await query({
-      query: 'DELETE FROM users WHERE id = ?',
+      query: 'DELETE FROM rhs_users WHERE id = ?',
       values: [id],
     });
     return NextResponse.json({ message: 'User deleted successfully' });

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default function NewUjianPage() {
+export default function NewExamPage() {
   const router = useRouter();
   const [examName, setExamName] = useState('');
   const [description, setDescription] = useState('');
@@ -31,7 +31,7 @@ export default function NewUjianPage() {
       }
 
       // Redirect to the exam list on success
-      router.push('/dashboard/ujian');
+      router.push('/dashboard/exams');
 
     } catch (err) {
       setError(err.message);
@@ -45,7 +45,7 @@ export default function NewUjianPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Buat Ujian Baru</h1>
         <Link
-          href="/dashboard/ujian"
+          href="/dashboard/exams"
           className="text-sm text-blue-500 hover:underline"
         >
           &larr; Kembali ke Daftar Ujian

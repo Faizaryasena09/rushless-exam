@@ -29,7 +29,7 @@ export async function GET() {
 
     // 4. Check if the admin user already exists
     const users = await query({
-      query: 'SELECT * FROM users WHERE username = ?',
+      query: 'SELECT * FROM rhs_users WHERE username = ?',
       values: ['admin'],
     });
 
@@ -37,7 +37,7 @@ export async function GET() {
     if (users.length === 0) {
       const hashedPassword = await bcrypt.hash('password', 10);
       await query({
-        query: 'INSERT INTO users (username, password, role, class_id) VALUES (?, ?, ?, ?)',
+        query: 'INSERT INTO rhs_users (username, password, role, class_id) VALUES (?, ?, ?, ?)',
         values: ['admin', hashedPassword, 'admin', defaultClassId],
       });
       return NextResponse.json({ message: 'Database, table, and admin user are all set up!' }, { status: 200 });

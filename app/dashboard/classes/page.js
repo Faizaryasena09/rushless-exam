@@ -92,32 +92,39 @@ const ManageClassesPage = () => {
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Manage Classes</h1>
-      <button onClick={handleAddClass} className="bg-blue-500 text-white p-2 rounded mb-4">
-        Add Class
-      </button>
-      <table className="min-w-full bg-white">
-        <thead>
-          <tr>
-            <th className="py-2 px-4 border-b">ID</th>
-            <th className="py-2 px-4 border-b">Class Name</th>
-            <th className="py-2 px-4 border-b">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {classes.map((c) => (
-            <tr key={c.id}>
-              <td className="py-2 px-4 border-b">{c.id}</td>
-              <td className="py-2 px-4 border-b">{c.class_name}</td>
-              <td className="py-2 px-4 border-b">
-                <button onClick={() => handleEditClass(c)} className="text-blue-500 hover:underline">Edit</button>
-                <button onClick={() => handleDeleteClass(c.id)} className="text-red-500 hover:underline ml-4">Delete</button>
-              </td>
+    <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h1 className="text-2xl font-bold">Manage Classes</h1>
+          <p className="text-gray-500">A list of all the classes in your account.</p>
+        </div>
+        <button onClick={handleAddClass} className="bg-blue-500 text-white p-2 rounded">
+          Add Class
+        </button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+              <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class Name</th>
+              <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {classes.map((c) => (
+              <tr key={c.id} className="hover:bg-gray-50">
+                <td className="py-4 px-6 whitespace-nowrap">{c.id}</td>
+                <td className="py-4 px-6 whitespace-nowrap">{c.class_name}</td>
+                <td className="py-4 px-6 whitespace-nowrap text-right">
+                  <button onClick={() => handleEditClass(c)} className="text-indigo-600 hover:text-indigo-900">Edit</button>
+                  <button onClick={() => handleDeleteClass(c.id)} className="text-red-600 hover:text-red-900 ml-4">Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
           <div className="bg-white p-6 rounded-lg w-full max-w-md">
