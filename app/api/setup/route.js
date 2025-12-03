@@ -1,51 +1,75 @@
 import { NextResponse } from 'next/server';
-import { query, setupDatabase } from '@/app/lib/db';
-import bcrypt from 'bcryptjs';
+import { getIronSession } from 'iron-session';
+import { cookies } from 'next/headers';
+import { sessionOptions } from '@/app/lib/session';
+import { query } from '@/app/lib/db';
 
-export async function GET() {
+async function getSession(request) {
+  const cookieStore = await cookies();
+  return await getIronSession(cookieStore, sessionOptions);
+}
+
+// This function checks if a column exists in a table.
+async function columnExists(tableName, columnName) {
+  // Note: Both tableName and columnName are hardcoded constants from within this route, 
+  // so it's safe to use them in a template literal. Do not use user-provided input here
+  // without strict validation to prevent SQL injection.
+  const result = await query({
+    query: `SHOW COLUMNS FROM \`${tableName}\` LIKE '${columnName}'`,
+    values: [], // No parameters needed for this specific query
+  });
+  return result.length > 0;
+}
+
+// GET handler to perform database setup/migration
+export async function GET(request) {
+  const session = await getSession(request);
+
+  // IMPORTANT: Protect this endpoint, only admins should run it.
+  if (!session.user || session.user.roleName !== 'admin') {
+    return NextResponse.json({ message: 'Unauthorized: Admin role required.' }, { status: 401 });
+  }
+
   try {
-    // 1. Ensure database and table exist
-    await setupDatabase();
+    const tableName = 'rhs_exams';
+    let messages = [];
 
-    // 2. Check if the default class already exists
-    let classes = await query({
-      query: 'SELECT * FROM rhs_classes WHERE class_name = ?',
-      values: ['Default Class'],
-    });
-
-    // 3. If not, create the default class
-    if (classes.length === 0) {
+    // --- Check and add 'shuffle_questions' column ---
+    const hasShuffleQuestions = await columnExists(tableName, 'shuffle_questions');
+    if (!hasShuffleQuestions) {
       await query({
-        query: 'INSERT INTO rhs_classes (class_name) VALUES (?)',
-        values: ['Default Class'],
+        query: `ALTER TABLE ${tableName} ADD COLUMN shuffle_questions BOOLEAN NOT NULL DEFAULT FALSE;`,
+        values: [],
       });
-      classes = await query({
-        query: 'SELECT * FROM rhs_classes WHERE class_name = ?',
-        values: ['Default Class'],
-      });
-    }
-
-    const defaultClassId = classes[0].id;
-
-    // 4. Check if the admin user already exists
-    const users = await query({
-      query: 'SELECT * FROM rhs_users WHERE username = ?',
-      values: ['admin'],
-    });
-
-    // 5. If not, create the admin user
-    if (users.length === 0) {
-      const hashedPassword = await bcrypt.hash('password', 10);
-      await query({
-        query: 'INSERT INTO rhs_users (username, password, role, class_id) VALUES (?, ?, ?, ?)',
-        values: ['admin', hashedPassword, 'admin', defaultClassId],
-      });
-      return NextResponse.json({ message: 'Database, table, and admin user are all set up!' }, { status: 200 });
+      messages.push(`Column 'shuffle_questions' created successfully in '${tableName}'.`);
     } else {
-      return NextResponse.json({ message: 'Setup was already complete. Admin user exists.' }, { status: 200 });
+      messages.push(`Column 'shuffle_questions' already exists in '${tableName}'.`);
     }
+
+    // --- Check and add 'shuffle_answers' column ---
+    const hasShuffleAnswers = await columnExists(tableName, 'shuffle_answers');
+    if (!hasShuffleAnswers) {
+      await query({
+        query: `ALTER TABLE ${tableName} ADD COLUMN shuffle_answers BOOLEAN NOT NULL DEFAULT FALSE;`,
+        values: [],
+      });
+      messages.push(`Column 'shuffle_answers' created successfully in '${tableName}'.`);
+    } else {
+      messages.push(`Column 'shuffle_answers' already exists in '${tableName}'.`);
+    }
+
+    return NextResponse.json({ 
+        status: 'success',
+        message: 'Database setup check completed.',
+        details: messages 
+    });
 
   } catch (error) {
-    return NextResponse.json({ error: `Setup failed: ${error.message}` }, { status: 500 });
+    console.error('Database setup failed:', error);
+    return NextResponse.json({ 
+        status: 'error',
+        message: 'An error occurred during database setup.', 
+        error: error.message 
+    }, { status: 500 });
   }
 }

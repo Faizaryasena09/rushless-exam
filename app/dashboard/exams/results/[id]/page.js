@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -23,6 +23,8 @@ export default function ExamResultsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedStudent, setSelectedStudent] = useState(null);
+    const [nameFilter, setNameFilter] = useState('');
+    const [classFilter, setClassFilter] = useState('all');
 
     useEffect(() => {
         if (!examId) return;
@@ -46,6 +48,21 @@ export default function ExamResultsPage() {
         fetchResults();
     }, [examId]);
 
+    const classOptions = useMemo(() => {
+        if (!resultsData) return [];
+        const classes = new Set(resultsData.results.map(r => r.className));
+        return ['all', ...Array.from(classes)];
+    }, [resultsData]);
+
+    const filteredResults = useMemo(() => {
+        if (!resultsData) return [];
+        return resultsData.results.filter(student => {
+            const nameMatch = student.studentName.toLowerCase().includes(nameFilter.toLowerCase());
+            const classMatch = classFilter === 'all' || student.className === classFilter;
+            return nameMatch && classMatch;
+        });
+    }, [resultsData, nameFilter, classFilter]);
+
     const getScoreColor = (score) => {
         if (score >= 80) return 'text-emerald-600 bg-emerald-50';
         if (score >= 60) return 'text-amber-600 bg-amber-50';
@@ -53,8 +70,10 @@ export default function ExamResultsPage() {
     };
 
     const handleRowClick = (student) => {
+        if (student.status !== 'Completed') return;
+        
         if (selectedStudent?.studentId === student.studentId) {
-            setSelectedStudent(null); // Toggle off if already selected
+            setSelectedStudent(null);
         } else {
             setSelectedStudent(student);
         }
@@ -78,13 +97,13 @@ export default function ExamResultsPage() {
                         Back to Exams
                     </Link>
                     <h1 className="text-3xl font-bold text-slate-900">{resultsData.examName}</h1>
-                    <p className="text-sm text-slate-500 mt-1">Select a student to view their detailed answer analysis.</p>
+                    <p className="text-sm text-slate-500 mt-1">Select a student who completed the exam to view their analysis.</p>
                 </div>
                 <div className="flex gap-4">
                      <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center gap-3">
                         <Icons.UserGroup className="text-slate-400" />
                         <div>
-                            <div className="text-xs text-slate-500">Participants</div>
+                            <div className="text-xs text-slate-500">Total Students</div>
                             <div className="text-base font-bold text-slate-800">{resultsData.results.length}</div>
                         </div>
                     </div>
@@ -98,12 +117,32 @@ export default function ExamResultsPage() {
                 </div>
             </div>
 
+            {/* Filter Controls */}
+            <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
+                <input 
+                    type="text"
+                    placeholder="Filter by name..."
+                    value={nameFilter}
+                    onChange={(e) => setNameFilter(e.target.value)}
+                    className="w-full md:w-1/3 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                />
+                <select
+                    value={classFilter}
+                    onChange={(e) => setClassFilter(e.target.value)}
+                    className="w-full md:w-auto px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition bg-white"
+                >
+                    {classOptions.map(c => (
+                        <option key={c} value={c}>{c === 'all' ? 'All Classes' : c}</option>
+                    ))}
+                </select>
+            </div>
+
             {/* Results Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                {resultsData.results.length === 0 ? (
+                {filteredResults.length === 0 ? (
                     <div className="text-center py-20">
-                        <h3 className="text-lg font-semibold text-slate-800">No Submissions Yet</h3>
-                        <p className="mt-1 text-sm text-slate-500">No students have completed this exam.</p>
+                        <h3 className="text-lg font-semibold text-slate-800">No Matching Results</h3>
+                        <p className="mt-1 text-sm text-slate-500">Try adjusting your filters.</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -111,34 +150,60 @@ export default function ExamResultsPage() {
                             <thead className="text-xs text-slate-700 uppercase bg-slate-50/50">
                                 <tr>
                                     <th scope="col" className="px-6 py-3">Student Name</th>
+                                    <th scope="col" className="px-6 py-3">Class</th>
+                                    <th scope="col" className="px-6 py-3 text-center">Status</th>
                                     <th scope="col" className="px-6 py-3 text-center">Correct</th>
                                     <th scope="col" className="px-6 py-3 text-center">Incorrect</th>
+                                    <th scope="col" className="px-6 py-3 text-center">Not Answered</th>
                                     <th scope="col" className="px-6 py-3 text-center">Score</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {resultsData.results.map((student) => (
-                                    <tr 
-                                        key={student.studentId} 
-                                        className={`border-b cursor-pointer transition-colors ${selectedStudent?.studentId === student.studentId ? 'bg-indigo-50' : 'bg-white hover:bg-slate-50'}`}
-                                        onClick={() => handleRowClick(student)}
-                                    >
-                                        <th scope="row" className="px-6 py-4 font-bold text-slate-900 whitespace-nowrap">
-                                            {student.studentName}
-                                        </th>
-                                        <td className="px-6 py-4 text-center text-emerald-600 font-semibold">
-                                            {student.correctCount}
-                                        </td>
-                                        <td className="px-6 py-4 text-center text-red-600 font-semibold">
-                                            {student.incorrectCount}
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className={`font-bold text-base px-2 py-1 rounded-md ${getScoreColor(student.score)}`}>
-                                                {student.score}%
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {filteredResults.map((student) => {
+                                    const isCompleted = student.status === 'Completed';
+                                    const notAnsweredCount = resultsData.totalQuestions - (student.correctCount + student.incorrectCount);
+                                    return (
+                                        <tr 
+                                            key={student.studentId} 
+                                            className={`border-b transition-colors ${
+                                                isCompleted 
+                                                    ? (selectedStudent?.studentId === student.studentId ? 'bg-indigo-50' : 'bg-white hover:bg-slate-50 cursor-pointer')
+                                                    : 'bg-slate-50 text-slate-500'
+                                            }`}
+                                            onClick={() => handleRowClick(student)}
+                                        >
+                                            <th scope="row" className={`px-6 py-4 font-bold whitespace-nowrap ${isCompleted ? 'text-slate-900' : ''}`}>
+                                                {student.studentName}
+                                            </th>
+                                            <td className="px-6 py-4">{student.className}</td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
+                                                    isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                                                }`}>
+                                                    {student.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center font-semibold">
+                                                {isCompleted ? <span className="text-emerald-600">{student.correctCount}</span> : '-'}
+                                            </td>
+                                            <td className="px-6 py-4 text-center font-semibold">
+                                                {isCompleted ? <span className="text-red-600">{student.incorrectCount}</span> : '-'}
+                                            </td>
+                                            <td className="px-6 py-4 text-center font-semibold">
+                                                {isCompleted ? <span className="text-slate-500">{notAnsweredCount}</span> : '-'}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                {isCompleted ? (
+                                                    <span className={`font-bold text-base px-2 py-1 rounded-md ${getScoreColor(student.score)}`}>
+                                                        {student.score}%
+                                                    </span>
+                                                ) : (
+                                                    <span className="font-bold text-slate-500">-</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

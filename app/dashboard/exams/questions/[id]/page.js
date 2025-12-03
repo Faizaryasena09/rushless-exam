@@ -106,7 +106,11 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
 const EditQuestionForm = ({ question, onSave, onCancel }) => {
     const editor = useRef(null);
     const [questionText, setQuestionText] = useState(question.question_text);
-    const [options, setOptions] = useState(JSON.parse(question.options));
+    const [options, setOptions] = useState(
+        question.options && typeof question.options === 'string'
+            ? JSON.parse(question.options)
+            : question.options || {}
+    );
     const [correctOption, setCorrectOption] = useState(question.correct_option);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -279,7 +283,44 @@ export default function ManageQuestionsPage() {
             const res = await fetch(`/api/exams/questions?examId=${examId}`);
             if (!res.ok) throw new Error('Failed to fetch questions');
             const data = await res.json();
-            setQuestions(data);
+            
+            const normalizedData = data.map(q => {
+                const optionsRaw = q.options && typeof q.options === 'string'
+                    ? JSON.parse(q.options)
+                    : q.options || {};
+
+                const optionValues = Object.values(optionsRaw);
+                const letterKeys = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+                const reKeyedOptions = optionValues.reduce((acc, value, index) => {
+                    const letterKey = letterKeys[index];
+                    if (letterKey) { // Ensure we don't run out of letters
+                        let optionText = value;
+                        if (value && typeof value === 'object' && value.hasOwnProperty('text')) {
+                            optionText = value.text;
+                        }
+                        acc[letterKey] = optionText;
+                    }
+                    return acc;
+                }, {});
+
+                // Also update correct_option if it's numeric
+                let newCorrectOption = q.correct_option;
+                if (q.correct_option && typeof q.correct_option === 'string' && /^\d+$/.test(q.correct_option)) {
+                    const numericIndex = parseInt(q.correct_option, 10);
+                    if (numericIndex >= 0 && numericIndex < letterKeys.length) {
+                        newCorrectOption = letterKeys[numericIndex];
+                    }
+                } else if (q.correct_option && typeof q.correct_option === 'number') {
+                    if (q.correct_option >= 0 && q.correct_option < letterKeys.length) {
+                        newCorrectOption = letterKeys[q.correct_option];
+                    }
+                }
+
+                return { ...q, options: reKeyedOptions, correct_option: newCorrectOption };
+            });
+
+            setQuestions(normalizedData);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -371,26 +412,29 @@ export default function ManageQuestionsPage() {
                                             <p className="text-slate-500">No questions have been added yet.</p>
                                         </div>
                                     ) : (
-                                        questions.map((q, index) => (
-                                            <div key={q.id} className="p-4 border border-slate-200 rounded-lg">
-                                                <div className="flex justify-between items-start">
-                                                    <div className="prose max-w-none">
-                                                        <p className="font-semibold text-slate-800">Q{index + 1}: <span dangerouslySetInnerHTML={{ __html: q.question_text }} /></p>
+                                        questions.map((q, index) => {
+                                            const options = q.options && typeof q.options === 'string' ? JSON.parse(q.options) : q.options || {};
+                                            return (
+                                                <div key={q.id} className="p-4 border border-slate-200 rounded-lg">
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="prose max-w-none">
+                                                            <p className="font-semibold text-slate-800">Q{index + 1}: <span dangerouslySetInnerHTML={{ __html: q.question_text }} /></p>
+                                                        </div>
+                                                        <div className="flex gap-2 flex-shrink-0">
+                                                            <button onClick={() => setEditingQuestion(q)} className="text-blue-500 hover:text-blue-700 p-1 rounded-full hover:bg-blue-50"><Icons.Edit /></button>
+                                                            <button onClick={() => handleDelete(q.id)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50"><Icons.Trash /></button>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex gap-2 flex-shrink-0">
-                                                        <button onClick={() => setEditingQuestion(q)} className="text-blue-500 hover:text-blue-700 p-1 rounded-full hover:bg-blue-50"><Icons.Edit /></button>
-                                                        <button onClick={() => handleDelete(q.id)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50"><Icons.Trash /></button>
+                                                    <div className="mt-2 space-y-1 text-sm">
+                                                        {Object.entries(options).map(([key, value]) => (
+                                                            <p key={key} className={`pl-4 ${key === q.correct_option ? 'font-bold text-green-700' : 'text-slate-600'}`}>
+                                                                {key}. {value} {key === q.correct_option && '✓'}
+                                                            </p>
+                                                        ))}
                                                     </div>
                                                 </div>
-                                                <div className="mt-2 space-y-1 text-sm">
-                                                    {Object.entries(JSON.parse(q.options)).map(([key, value]) => (
-                                                        <p key={key} className={`pl-4 ${key === q.correct_option ? 'font-bold text-green-700' : 'text-slate-600'}`}>
-                                                            {key}. {value} {key === q.correct_option && '✓'}
-                                                        </p>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))
+                                            );
+                                        })
                                     )}
                                 </div>
                             )}

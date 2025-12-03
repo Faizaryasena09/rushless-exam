@@ -39,68 +39,100 @@ export async function GET(request) {
             values: [examId]
         });
 
-        // Query 3: Get all student answers for this exam
+        // Query 3: Get all users with 'student' role, joined with their class
+        const allStudents = await query({
+            query: `
+                SELECT u.id, u.username, c.class_name 
+                FROM rhs_users u 
+                LEFT JOIN rhs_classes c ON u.class_id = c.id 
+                WHERE u.role = 'student' 
+                ORDER BY c.class_name, u.username ASC
+            `,
+        });
+
+        // Query 4: Get all submitted answers for this exam
         const allStudentAnswers = await query({
             query: `
-                SELECT sa.user_id, u.username, sa.question_id, sa.selected_option, sa.is_correct
+                SELECT sa.user_id, sa.question_id, sa.selected_option, sa.is_correct
                 FROM rhs_student_answer sa
-                JOIN rhs_users u ON sa.user_id = u.id
                 WHERE sa.exam_id = ?
             `,
             values: [examId]
         });
 
-        // Group answers by student for efficient lookup
+        // Group submitted answers by student for efficient lookup
         const answersByStudent = allStudentAnswers.reduce((acc, ans) => {
             if (!acc[ans.user_id]) {
-                acc[ans.user_id] = {
-                    studentInfo: { id: ans.user_id, name: ans.username },
-                    answers: {}
-                };
+                acc[ans.user_id] = {};
             }
-            acc[ans.user_id].answers[ans.question_id] = {
+            acc[ans.user_id][ans.question_id] = {
                 selectedOption: ans.selected_option,
                 isCorrect: Boolean(ans.is_correct)
             };
             return acc;
         }, {});
 
-        // Build the final, detailed results structure
-        const detailedResults = Object.values(answersByStudent).map(studentData => {
-            let correctCount = 0;
-            let incorrectCount = 0;
-            
-            const studentAnswersAnalysis = allQuestions.map(question => {
-                const studentAnswer = studentData.answers[question.id];
-                const isCorrect = studentAnswer ? studentAnswer.isCorrect : false;
+        // Build results by iterating through ALL students
+        const detailedResults = allStudents.map(student => {
+            const studentSubmittedAnswers = answersByStudent[student.id];
+            const className = student.class_name || 'No Class';
 
-                if (studentAnswer) { // Only count if the student provided an answer
-                    if (isCorrect) {
-                        correctCount++;
-                    } else {
-                        incorrectCount++;
+            if (studentSubmittedAnswers) {
+                // This student took the exam, process their results
+                let correctCount = 0;
+                let incorrectCount = 0;
+                
+                const studentAnswersAnalysis = allQuestions.map(question => {
+                    const studentAnswer = studentSubmittedAnswers[question.id];
+                    const isCorrect = studentAnswer ? studentAnswer.isCorrect : false;
+
+                    if (studentAnswer) {
+                        if (isCorrect) correctCount++;
+                        else incorrectCount++;
                     }
-                }
+
+                    return {
+                        questionId: question.id,
+                        questionText: question.question_text,
+                        correctAnswer: question.correct_option,
+                        studentAnswer: studentAnswer ? studentAnswer.selectedOption : null,
+                        isCorrect: isCorrect
+                    };
+                });
+                
+                const score = allQuestions.length > 0 ? Math.round((correctCount / allQuestions.length) * 100) : 0;
 
                 return {
+                    studentId: student.id,
+                    studentName: student.username,
+                    className: className,
+                    status: 'Completed',
+                    correctCount: correctCount,
+                    incorrectCount: incorrectCount,
+                    score: score,
+                    answers: studentAnswersAnalysis
+                };
+            } else {
+                // This student has NOT taken the exam
+                const unansweredAnalysis = allQuestions.map(question => ({
                     questionId: question.id,
                     questionText: question.question_text,
                     correctAnswer: question.correct_option,
-                    studentAnswer: studentAnswer ? studentAnswer.selectedOption : null,
-                    isCorrect: isCorrect
-                };
-            });
-            
-            const score = allQuestions.length > 0 ? Math.round((correctCount / allQuestions.length) * 100) : 0;
+                    studentAnswer: null,
+                    isCorrect: false
+                }));
 
-            return {
-                studentId: studentData.studentInfo.id,
-                studentName: studentData.studentInfo.name,
-                correctCount: correctCount,
-                incorrectCount: incorrectCount,
-                score: score,
-                answers: studentAnswersAnalysis
-            };
+                return {
+                    studentId: student.id,
+                    studentName: student.username,
+                    className: className,
+                    status: 'Not Taken',
+                    correctCount: 0,
+                    incorrectCount: 0,
+                    score: 0,
+                    answers: unansweredAnalysis
+                };
+            }
         });
 
         const responsePayload = {

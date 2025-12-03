@@ -361,31 +361,30 @@ export default function ExamTakingPage() {
 
                     {/* Options */}
                     <div className="space-y-3">
-                      {['option_a', 'option_b', 'option_c', 'option_d', 'option_e'].map((opt, idx) => {
-                        if (!currentQuestion[opt]) return null;
-                        
-                        const optionLetter = String.fromCharCode(65 + idx); // A, B, C...
-                        const isSelected = answers[currentQuestion.id] === opt;
+                      {currentQuestion.options && currentQuestion.options.map((option, idx) => {
+                        const optionLabel = String.fromCharCode(65 + idx); // 'A', 'B', 'C'...
+                        const isSelected = answers[currentQuestion.id] === option.originalKey;
 
                         return (
                           <div
-                            key={opt}
-                            onClick={() => handleAnswerSelect(currentQuestion.id, opt)}
+                            key={option.originalKey} // Use the stable original key for React's key
+                            onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)}
                             className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${
                               isSelected
                                 ? 'bg-indigo-50 border-indigo-500 shadow-sm ring-1 ring-indigo-500'
                                 : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                             }`}
                           >
-                             {/* Badge A/B/C/D */}
+                             {/* Badge A/B/C/D - Always in order */}
                             <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${
                                 isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
                             }`}>
-                                {optionLetter}
+                                {optionLabel}
                             </div>
                             
+                            {/* Shuffled answer text */}
                             <span className={`text-base font-medium ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>
-                                {currentQuestion[opt]}
+                                {option.text}
                             </span>
 
                             {/* Selection Checkmark */}

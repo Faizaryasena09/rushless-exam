@@ -32,6 +32,8 @@ async function getSession(request) {
             e.id as exam_id, 
             e.exam_name, 
             e.description,
+            e.shuffle_questions,
+            e.shuffle_answers,
             s.start_time, 
             s.end_time 
           FROM rhs_exams e
@@ -45,7 +47,14 @@ async function getSession(request) {
         return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
       }
   
-      return NextResponse.json(results[0]);
+      // Convert TINYINT(1) from DB to boolean
+      const examData = {
+        ...results[0],
+        shuffle_questions: Boolean(results[0].shuffle_questions),
+        shuffle_answers: Boolean(results[0].shuffle_answers),
+      };
+
+      return NextResponse.json(examData);
     } catch (error) {
       return NextResponse.json({ message: 'Failed to retrieve exam settings', error: error.message }, { status: 500 });
     }
@@ -60,12 +69,23 @@ async function getSession(request) {
     }
   
     try {
-      const { examId, startTime, endTime } = await request.json();
+      const { examId, startTime, endTime, shuffleQuestions, shuffleAnswers } = await request.json();
       if (!examId) {
         return NextResponse.json({ message: 'Exam ID is required' }, { status: 400 });
       }
   
-      const result = await query({
+      // Update exam shuffle settings on the main exams table
+      const shufflePromise = query({
+        query: `
+          UPDATE rhs_exams 
+          SET shuffle_questions = ?, shuffle_answers = ?
+          WHERE id = ?
+        `,
+        values: [shuffleQuestions, shuffleAnswers, examId],
+      });
+
+      // Update exam time settings
+      const settingsPromise = query({
         query: `
           INSERT INTO rhs_exam_settings (exam_id, start_time, end_time)
           VALUES (?, ?, ?)
@@ -73,8 +93,11 @@ async function getSession(request) {
         `,
         values: [examId, startTime, endTime],
       });
+
+      // Run both queries
+      await Promise.all([shufflePromise, settingsPromise]);
   
-      return NextResponse.json({ message: 'Settings saved successfully', affectedRows: result.affectedRows });
+      return NextResponse.json({ message: 'Settings saved successfully' });
     } catch (error) {
       return NextResponse.json({ message: 'Failed to save settings', error: error.message }, { status: 500 });
     }

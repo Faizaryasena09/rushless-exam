@@ -3,17 +3,18 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
+import { seededShuffle } from '@/app/lib/utils'; // <-- Import the shuffle utility
 
 async function getSession(request) {
   const cookieStore = await cookies();
   return await getIronSession(cookieStore, sessionOptions);
 }
 
-// GET handler to fetch all questions for an exam
+// GET handler to fetch all questions for an exam, with shuffling logic
 export async function GET(request) {
   const session = await getSession(request);
 
-  if (!session.user) {
+  if (!session.user || !session.user.id) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
@@ -25,40 +26,78 @@ export async function GET(request) {
   }
 
   try {
-    const questions = await query({
+    // 1. Fetch exam settings first
+    const examSettings = await query({
+      query: 'SELECT shuffle_questions, shuffle_answers FROM rhs_exams WHERE id = ?',
+      values: [examId],
+    });
+
+    if (examSettings.length === 0) {
+      return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
+    }
+    const { shuffle_questions, shuffle_answers } = examSettings[0];
+
+    // 2. Fetch all questions for the exam
+    let questions = await query({
       query: `
         SELECT id, exam_id, question_text, options, correct_option 
         FROM rhs_exam_questions 
-        WHERE exam_id = ? 
-        ORDER BY created_at ASC
+        WHERE exam_id = ?
       `,
       values: [examId],
     });
 
-    // Parse options for each question and transform keys before sending
+    // 3. Create a deterministic seed for this user and exam
+    const seed = `${session.user.id}-${examId}`;
+
+    // 4. Shuffle questions if enabled only for students
+    if (shuffle_questions && session.user.roleName === 'student') {
+      seededShuffle(questions, seed);
+    }
+
+    // 5. Process questions: parse options, and shuffle answers if enabled
     const processedQuestions = questions.map(question => {
+      let parsedOptions;
       try {
-        const parsedOptions = JSON.parse(question.options || '{}');
-        const transformedOptions = {};
-        // Transform keys from A, B, C, D, E to option_a, option_b, etc.
-        if (parsedOptions.A) transformedOptions.option_a = parsedOptions.A;
-        if (parsedOptions.B) transformedOptions.option_b = parsedOptions.B;
-        if (parsedOptions.C) transformedOptions.option_c = parsedOptions.C;
-        if (parsedOptions.D) transformedOptions.option_d = parsedOptions.D;
-        if (parsedOptions.E) transformedOptions.option_e = parsedOptions.E; // Assuming E might exist
-        
-        return {
-          ...question,
-          ...transformedOptions, // Spread the transformed options into the question object
-        };
+        parsedOptions = JSON.parse(question.options || '{}');
       } catch (e) {
-        console.error(`Failed to parse or transform options for question ${question.id}:`, question.options, e);
-        return { ...question }; // Return original question on error
+        console.error(`Failed to parse options for question ${question.id}:`, e);
+        return {
+          id: question.id,
+          exam_id: question.exam_id,
+          question_text: question.question_text,
+          correct_option: question.correct_option,
+          options: [], 
+        };
       }
+      
+      // Convert options object to an array of { originalKey, text }
+      // This is crucial for shuffling text while preserving the correct answer key.
+      let optionsArray = Object.entries(parsedOptions).map(([key, text]) => ({
+        originalKey: key,
+        text,
+      }));
+
+      // Shuffle the answers array if enabled only for students
+      if (shuffle_answers && session.user.roleName === 'student') {
+        // Use a question-specific seed to ensure different answer shuffles per question
+        const answerSeed = `${seed}-q${question.id}`;
+        seededShuffle(optionsArray, answerSeed);
+      }
+
+      // Return the new, robust question structure
+      return {
+        id: question.id,
+        exam_id: question.exam_id,
+        question_text: question.question_text,
+        correct_option: question.correct_option, // This still refers to the originalKey
+        options: optionsArray, // The frontend will now receive this array and must adapt
+      };
     });
 
     return NextResponse.json(processedQuestions);
   } catch (error) {
+    console.error('Error fetching questions:', error);
     return NextResponse.json({ message: 'Failed to retrieve questions', error: error.message }, { status: 500 });
   }
 }

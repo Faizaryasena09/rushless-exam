@@ -16,6 +16,29 @@ const toDateTimeLocal = (dateString) => {
   }
 };
 
+// --- Reusable Switch Component ---
+const Switch = ({ id, label, description, checked, onChange, disabled }) => (
+    <label htmlFor={id} className="flex items-center justify-between cursor-pointer p-4 rounded-lg transition-colors hover:bg-slate-100">
+        <div>
+            <span className="text-sm font-medium text-slate-800">{label}</span>
+            {description && <p className="text-xs text-slate-500 mt-1">{description}</p>}
+        </div>
+        <div className="relative">
+            <input 
+                id={id}
+                type="checkbox" 
+                className="sr-only" 
+                checked={checked}
+                onChange={onChange}
+                disabled={disabled}
+            />
+            <div className={`block w-14 h-8 rounded-full transition-colors ${checked ? 'bg-indigo-600' : 'bg-slate-300'}`}></div>
+            <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${checked ? 'transform translate-x-6' : ''}`}></div>
+        </div>
+    </label>
+);
+
+
 export default function ManageExamPage() {
   const { id: examId } = useParams();
   
@@ -23,6 +46,8 @@ export default function ManageExamPage() {
   const [description, setDescription] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  const [shuffleQuestions, setShuffleQuestions] = useState(false); // <-- Separate state for questions
+  const [shuffleAnswers, setShuffleAnswers] = useState(false);   // <-- Separate state for answers
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -43,6 +68,8 @@ export default function ManageExamPage() {
       setDescription(data.description || '');
       setStartTime(toDateTimeLocal(data.start_time));
       setEndTime(toDateTimeLocal(data.end_time));
+      setShuffleQuestions(data.shuffle_questions || false); // <-- Fetch shuffle questions status
+      setShuffleAnswers(data.shuffle_answers || false);   // <-- Fetch shuffle answers status
     } catch (err) {
       setError(err.message);
     } finally {
@@ -77,6 +104,8 @@ export default function ManageExamPage() {
         examId,
         startTime: startTime || null,
         endTime: endTime || null,
+        shuffleQuestions: shuffleQuestions, // <-- Send shuffle questions status
+        shuffleAnswers: shuffleAnswers,     // <-- Send shuffle answers status
       }),
     });
 
@@ -91,8 +120,6 @@ export default function ManageExamPage() {
       }
       
       setSuccess('Exam details and settings saved successfully!');
-      // Refetch data to ensure consistency if needed, though not strictly necessary here
-      // fetchExamData(); 
     } catch (err) {
       setError(err.message);
     } finally {
@@ -124,7 +151,6 @@ export default function ManageExamPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         
-        {/* Main content */}
         <div className="md:col-span-2">
             <form onSubmit={handleSaveAll} className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 space-y-6">
               <h2 className="text-2xl font-bold text-slate-800 border-b border-slate-200 pb-4">Exam Details</h2>
@@ -155,6 +181,25 @@ export default function ManageExamPage() {
 
               <h2 className="text-2xl font-bold text-slate-800 border-b border-slate-200 pb-4 pt-4">Exam Settings</h2>
               
+              <div className="space-y-2 bg-slate-50 rounded-lg border border-slate-200 divide-y divide-slate-200">
+                <Switch
+                    id="shuffle-questions"
+                    label="Acak Urutan Soal"
+                    description="Setiap siswa akan mendapatkan urutan soal yang berbeda."
+                    checked={shuffleQuestions}
+                    onChange={() => setShuffleQuestions(!shuffleQuestions)}
+                    disabled={saving}
+                />
+                <Switch
+                    id="shuffle-answers"
+                    label="Acak Urutan Jawaban"
+                    description="Opsi jawaban pada soal pilihan ganda akan diacak."
+                    checked={shuffleAnswers}
+                    onChange={() => setShuffleAnswers(!shuffleAnswers)}
+                    disabled={saving}
+                />
+              </div>
+
               <div>
                 <label htmlFor="startTime" className="block text-sm font-medium text-slate-700 mb-1">Start Time</label>
                 <input
@@ -196,7 +241,6 @@ export default function ManageExamPage() {
             </form>
         </div>
 
-        {/* Sidebar for actions */}
         <div className="md:col-span-1">
           <div className="space-y-6 sticky top-24">
             <div className="p-6 bg-sky-50 border border-sky-200 rounded-2xl text-center">
