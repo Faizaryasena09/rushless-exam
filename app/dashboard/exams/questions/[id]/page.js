@@ -16,38 +16,64 @@ const Icons = {
 const ManualInputForm = ({ examId, onQuestionAdded }) => {
     const editor = useRef(null);
     const [questionText, setQuestionText] = useState('');
-    const [options, setOptions] = useState({ A: '', B: '', C: '', D: '', E: '' });
+    const [options, setOptions] = useState([
+        { id: 1, key: 'A', value: '' },
+        { id: 2, key: 'B', value: '' },
+    ]);
     const [correctOption, setCorrectOption] = useState('A');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const nextOptionId = useRef(3);
 
     const config = useMemo(() => ({ readonly: false }), []);
 
-    const handleOptionChange = (key, value) => {
-        setOptions(prev => ({ ...prev, [key]: value }));
+    const handleOptionChange = (id, value) => {
+        setOptions(prevOptions => 
+            prevOptions.map(opt => opt.id === id ? { ...opt, value } : opt)
+        );
+    };
+
+    const addOption = () => {
+        setOptions(prev => {
+            const nextKey = String.fromCharCode(65 + prev.length); // 65 is 'A'
+            return [...prev, { id: nextOptionId.current++, key: nextKey, value: '' }];
+        });
+    };
+
+    const removeOption = (id) => {
+        setOptions(prev => prev.filter(opt => opt.id !== id));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!questionText.trim() || Object.values(options).some(o => !o.trim())) {
+        if (!questionText.trim() || options.some(o => !o.value.trim())) {
             setError('Please fill out the question and all options.');
             return;
         }
         setError('');
         setLoading(true);
 
+        const optionsForApi = options.reduce((acc, opt) => {
+            acc[opt.key] = opt.value;
+            return acc;
+        }, {});
+
         try {
             const res = await fetch('/api/exams/questions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ examId, questionText, options, correctOption }),
+                body: JSON.stringify({ examId, questionText, options: optionsForApi, correctOption }),
             });
             if (!res.ok) {
                 const data = await res.json();
                 throw new Error(data.message || 'Failed to add question');
             }
             setQuestionText('');
-            setOptions({ A: '', B: '', C: '', D: '', E: '' });
+            setOptions([
+                { id: 1, key: 'A', value: '' },
+                { id: 2, key: 'B', value: '' },
+            ]);
+            nextOptionId.current = 3;
             setCorrectOption('A');
             onQuestionAdded();
         } catch (err) {
@@ -69,18 +95,39 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                     onBlur={newContent => setQuestionText(newContent)}
                 />
             </div>
-            {Object.keys(options).map(key => (
-                <div key={key}>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Option {key}</label>
-                    <input
-                        type="text"
-                        value={options[key]}
-                        onChange={(e) => handleOptionChange(key, e.target.value)}
-                        className="w-full p-2 border border-slate-300 rounded-md"
-                        required
-                    />
+            {options.map((opt, index) => (
+                <div key={opt.id} className="flex items-center gap-2">
+                    <div className="flex-grow">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Option {opt.key}</label>
+                        <input
+                            type="text"
+                            value={opt.value}
+                            onChange={(e) => handleOptionChange(opt.id, e.target.value)}
+                            className="w-full p-2 border border-slate-300 rounded-md"
+                            required
+                        />
+                    </div>
+                    {options.length > 2 && (
+                         <button 
+                            type="button" 
+                            onClick={() => removeOption(opt.id)}
+                            className="mt-6 p-2 text-red-500 hover:bg-red-100 rounded-full"
+                            title={`Remove option ${opt.key}`}
+                        >
+                            <Icons.Trash />
+                        </button>
+                    )}
                 </div>
             ))}
+            <div className="text-left">
+                <button 
+                    type="button" 
+                    onClick={addOption}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 rounded-md"
+                >
+                    <Icons.Plus /> Add Option
+                </button>
+            </div>
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Correct Answer</label>
                 <select
@@ -88,8 +135,8 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                     onChange={(e) => setCorrectOption(e.target.value)}
                     className="w-full p-2 border border-slate-300 rounded-md bg-white"
                 >
-                    {Object.keys(options).map(key => (
-                        <option key={key} value={key}>{key}</option>
+                    {options.map(opt => (
+                        <option key={opt.id} value={opt.key}>{opt.key}</option>
                     ))}
                 </select>
             </div>
