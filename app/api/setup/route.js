@@ -58,6 +58,47 @@ export async function GET(request) {
       messages.push(`Column 'shuffle_answers' already exists in '${tableName}'.`);
     }
 
+    // --- Check and add 'timer_mode' column ---
+    const hasTimerMode = await columnExists(tableName, 'timer_mode');
+    if (!hasTimerMode) {
+      await query({
+        query: `ALTER TABLE ${tableName} ADD COLUMN timer_mode ENUM('sync', 'async') NOT NULL DEFAULT 'sync';`,
+        values: [],
+      });
+      messages.push(`Column 'timer_mode' created successfully in '${tableName}'.`);
+    } else {
+      messages.push(`Column 'timer_mode' already exists in '${tableName}'.`);
+    }
+
+    // --- Check and add 'duration_minutes' column ---
+    const hasDurationMinutes = await columnExists(tableName, 'duration_minutes');
+    if (!hasDurationMinutes) {
+      await query({
+        query: `ALTER TABLE ${tableName} ADD COLUMN duration_minutes INT DEFAULT 60;`,
+        values: [],
+      });
+      messages.push(`Column 'duration_minutes' created successfully in '${tableName}'.`);
+    } else {
+      messages.push(`Column 'duration_minutes' already exists in '${tableName}'.`);
+    }
+    
+    // --- Create 'rhs_exam_attempts' table if it doesn't exist ---
+    const attemptsTableName = 'rhs_exam_attempts';
+    await query({
+        query: `
+            CREATE TABLE IF NOT EXISTS ${attemptsTableName} (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                exam_id INT NOT NULL,
+                start_time DATETIME NOT NULL,
+                status ENUM('in_progress', 'completed') NOT NULL DEFAULT 'in_progress',
+                INDEX (user_id, exam_id)
+            );
+        `,
+        values: []
+    });
+    messages.push(`Table '${attemptsTableName}' checked/created successfully.`);
+
     return NextResponse.json({ 
         status: 'success',
         message: 'Database setup check completed.',

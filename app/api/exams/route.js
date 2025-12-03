@@ -15,7 +15,18 @@ async function GET() {
 
   try {
     const exams = await query({
-      query: 'SELECT id, exam_name, description, created_at FROM rhs_exams ORDER BY created_at DESC',
+      query: `
+        SELECT 
+          e.id, 
+          e.exam_name, 
+          e.description, 
+          e.created_at,
+          s.start_time,
+          s.end_time
+        FROM rhs_exams e
+        LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
+        ORDER BY e.created_at DESC
+      `,
       values: [],
     });
     return NextResponse.json({ exams }, { status: 200 });

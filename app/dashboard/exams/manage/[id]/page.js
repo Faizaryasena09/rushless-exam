@@ -18,9 +18,9 @@ const toDateTimeLocal = (dateString) => {
 
 // --- Reusable Switch Component ---
 const Switch = ({ id, label, description, checked, onChange, disabled }) => (
-    <label htmlFor={id} className="flex items-center justify-between cursor-pointer p-4 rounded-lg transition-colors hover:bg-slate-100">
+    <label htmlFor={id} className={`flex items-center justify-between p-4 rounded-lg transition-colors ${disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-slate-100'}`}>
         <div>
-            <span className="text-sm font-medium text-slate-800">{label}</span>
+            <span className={`text-sm font-medium ${disabled ? 'text-slate-400' : 'text-slate-800'}`}>{label}</span>
             {description && <p className="text-xs text-slate-500 mt-1">{description}</p>}
         </div>
         <div className="relative">
@@ -32,10 +32,32 @@ const Switch = ({ id, label, description, checked, onChange, disabled }) => (
                 onChange={onChange}
                 disabled={disabled}
             />
-            <div className={`block w-14 h-8 rounded-full transition-colors ${checked ? 'bg-indigo-600' : 'bg-slate-300'}`}></div>
+            <div className={`block w-14 h-8 rounded-full transition-colors ${checked ? (disabled ? 'bg-indigo-300' : 'bg-indigo-600') : (disabled ? 'bg-slate-200' : 'bg-slate-300')}`}></div>
             <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${checked ? 'transform translate-x-6' : ''}`}></div>
         </div>
     </label>
+);
+
+// --- Reusable Segmented Control ---
+const SegmentedControl = ({ name, options, value, onChange }) => (
+    <div className="flex items-center p-1 bg-slate-200 rounded-lg">
+        {options.map(option => (
+            <label key={option.value} className={`flex-1 text-center relative ${option.disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                <input 
+                    type="radio" 
+                    name={name}
+                    value={option.value}
+                    checked={value === option.value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className="sr-only"
+                    disabled={option.disabled}
+                />
+                <span className={`block w-full py-1.5 text-sm font-semibold rounded-md transition-all ${option.disabled ? 'text-slate-400' : (value === option.value ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:bg-slate-200/50')}`}>
+                    {option.label}
+                </span>
+            </label>
+        ))}
+    </div>
 );
 
 
@@ -46,13 +68,24 @@ export default function ManageExamPage() {
   const [description, setDescription] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
-  const [shuffleQuestions, setShuffleQuestions] = useState(false); // <-- Separate state for questions
-  const [shuffleAnswers, setShuffleAnswers] = useState(false);   // <-- Separate state for answers
-  
+  const [shuffleQuestions, setShuffleQuestions] = useState(false);
+  const [shuffleAnswers, setShuffleAnswers] = useState(false);
+  const [timerMode, setTimerMode] = useState('sync'); // 'sync' or 'async'
+  const [durationMinutes, setDurationMinutes] = useState(60);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState('');
+
+  const isScheduled = startTime && endTime;
+
+  // Effect to enforce async mode if exam is not scheduled
+  useEffect(() => {
+    if (!isScheduled) {
+        setTimerMode('async');
+    }
+  }, [isScheduled]);
 
   const fetchExamData = useCallback(async () => {
     if (!examId) return;
@@ -68,8 +101,10 @@ export default function ManageExamPage() {
       setDescription(data.description || '');
       setStartTime(toDateTimeLocal(data.start_time));
       setEndTime(toDateTimeLocal(data.end_time));
-      setShuffleQuestions(data.shuffle_questions || false); // <-- Fetch shuffle questions status
-      setShuffleAnswers(data.shuffle_answers || false);   // <-- Fetch shuffle answers status
+      setShuffleQuestions(data.shuffle_questions || false);
+      setShuffleAnswers(data.shuffle_answers || false);
+      setTimerMode(data.timer_mode || 'sync');
+      setDurationMinutes(data.duration_minutes || 60);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -104,8 +139,10 @@ export default function ManageExamPage() {
         examId,
         startTime: startTime || null,
         endTime: endTime || null,
-        shuffleQuestions: shuffleQuestions, // <-- Send shuffle questions status
-        shuffleAnswers: shuffleAnswers,     // <-- Send shuffle answers status
+        shuffleQuestions: shuffleQuestions,
+        shuffleAnswers: shuffleAnswers,
+        timerMode: timerMode,
+        durationMinutes: durationMinutes,
       }),
     });
 
@@ -181,6 +218,42 @@ export default function ManageExamPage() {
 
               <h2 className="text-2xl font-bold text-slate-800 border-b border-slate-200 pb-4 pt-4">Exam Settings</h2>
               
+              <div className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Timer Mode</label>
+                    <SegmentedControl 
+                        name="timer-mode"
+                        options={[
+                            { label: 'Synchronous', value: 'sync', disabled: !isScheduled || saving },
+                            { label: 'Asynchronous', value: 'async', disabled: saving },
+                        ]}
+                        value={timerMode}
+                        onChange={setTimerMode}
+                    />
+                     <p className="text-xs text-slate-500 mt-2">
+                        {timerMode === 'sync' 
+                            ? 'All students have the same start and end time. Duration is fixed by the schedule.' 
+                            : 'Each student gets a fixed duration from when they start. If a schedule is set, it acts as an availability window.'
+                        }
+                    </p>
+                </div>
+
+                {(timerMode === 'async' || !isScheduled) && (
+                    <div>
+                        <label htmlFor="duration" className="block text-sm font-medium text-slate-700 mb-1">Exam Duration (minutes)</label>
+                        <input
+                        id="duration"
+                        type="number"
+                        value={durationMinutes}
+                        onChange={(e) => setDurationMinutes(parseInt(e.target.value, 10))}
+                        className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        disabled={saving}
+                        min="1"
+                        />
+                    </div>
+                )}
+              </div>
+
               <div className="space-y-2 bg-slate-50 rounded-lg border border-slate-200 divide-y divide-slate-200">
                 <Switch
                     id="shuffle-questions"
@@ -201,7 +274,9 @@ export default function ManageExamPage() {
               </div>
 
               <div>
-                <label htmlFor="startTime" className="block text-sm font-medium text-slate-700 mb-1">Start Time</label>
+                <label htmlFor="startTime" className="block text-sm font-medium text-slate-700 mb-1">
+                    Availability Start Time (Optional)
+                </label>
                 <input
                   id="startTime"
                   type="datetime-local"
@@ -213,7 +288,9 @@ export default function ManageExamPage() {
               </div>
 
               <div>
-                <label htmlFor="endTime" className="block text-sm font-medium text-slate-700 mb-1">End Time</label>
+                <label htmlFor="endTime" className="block text-sm font-medium text-slate-700 mb-1">
+                    Availability End Time (Optional)
+                </label>
                 <input
                   id="endTime"
                   type="datetime-local"

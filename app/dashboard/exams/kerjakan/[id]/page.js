@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 // --- Icons Component ---
@@ -47,12 +47,35 @@ const Icons = {
   )
 };
 
+// --- Timer Component ---
+const Timer = ({ timeLeft }) => {
+    const formatTime = (seconds) => {
+        if (seconds === null || seconds < 0) return '00:00:00';
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        return [h, m, s].map(v => v.toString().padStart(2, '0')).join(':');
+    };
+
+    const isCritical = timeLeft !== null && timeLeft <= 300; // 5 minutes
+
+    return (
+        <div className={`flex items-center gap-2 font-mono px-3 py-1.5 rounded-lg ${isCritical ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>
+            <Icons.Clock />
+            <span className="text-sm font-semibold tracking-wider">{formatTime(timeLeft)}</span>
+        </div>
+    );
+};
+
+
 export default function ExamTakingPage() {
   const router = useRouter();
   const params = useParams();
   const examId = params.id;
 
   const [examDetails, setExamDetails] = useState(null);
+  const [attemptDetails, setAttemptDetails] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -60,6 +83,7 @@ export default function ExamTakingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
+  const finishExamHandled = useRef(false);
 
   // Calculate Progress
   const progressPercentage = useMemo(() => {
@@ -75,26 +99,75 @@ export default function ExamTakingPage() {
     });
   }, [router]);
 
-  // Fetch exam details, questions, and temporary answers
+  const handleFinishExam = useCallback(async (isAutoSubmit = false) => {
+    if (finishExamHandled.current) return;
+    finishExamHandled.current = true;
+
+    if (!isAutoSubmit) {
+        const answeredCount = Object.keys(answers).length;
+        const confirmationMessage = answeredCount < questions.length
+          ? `Anda belum menjawab semua pertanyaan. Apakah Anda yakin ingin menyelesaikan ujian ini?`
+          : 'Apakah Anda yakin ingin menyelesaikan ujian ini? Anda tidak dapat mengubah jawaban Anda setelah ini.';
+
+        const isConfirmed = window.confirm(confirmationMessage);
+        if (!isConfirmed) {
+            finishExamHandled.current = false;
+            return;
+        }
+    } else {
+        alert('Waktu habis! Jawaban Anda akan dikumpulkan secara otomatis.');
+    }
+    
+    try {
+      const response = await fetch('/api/exams/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ examId, answers }),
+      });
+
+      if (response.ok) {
+        alert('Ujian berhasil diselesaikan!');
+        router.push('/dashboard/exams');
+      } else {
+        const result = await response.json();
+        throw new Error(result.message || 'Gagal menyelesaikan ujian.');
+      }
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+      finishExamHandled.current = false;
+    }
+  }, [examId, answers, questions, router]);
+
+  // Fetch exam data and start attempt
   useEffect(() => {
     if (!examId) return;
 
     async function getExamData() {
       try {
         setLoading(true);
-        // Fetch settings
+        // Step 1: Fetch settings
         const settingsRes = await fetch(`/api/exams/settings?exam_id=${examId}`);
-        if (!settingsRes.ok) throw new Error('Could not fetch exam settings.');
+        if (!settingsRes.ok) throw new Error((await settingsRes.json()).message || 'Could not fetch exam settings.');
         const settingsData = await settingsRes.json();
         setExamDetails(settingsData);
 
-        // Fetch questions
+        // Step 2: Start or resume attempt
+        const attemptRes = await fetch('/api/exams/start-attempt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ examId }),
+        });
+        if (!attemptRes.ok) throw new Error((await attemptRes.json()).message || 'Could not start exam.');
+        const attemptData = await attemptRes.json();
+        setAttemptDetails(attemptData);
+
+        // Step 3: Fetch questions
         const questionsRes = await fetch(`/api/exams/questions?exam_id=${examId}`);
-        if (!questionsRes.ok) throw new Error('Could not fetch questions.');
+        if (!questionsRes.ok) throw new Error((await questionsRes.json()).message || 'Could not fetch questions.');
         const questionsData = await questionsRes.json();
         setQuestions(questionsData);
 
-        // After fetching questions, fetch temporary answers
+        // Step 4: Fetch any existing temporary answers
         const tempAnswersRes = await fetch(`/api/exams/temporary-answer?exam_id=${examId}`);
         if (tempAnswersRes.ok) {
           const tempAnswersData = await tempAnswersRes.json();
@@ -110,6 +183,38 @@ export default function ExamTakingPage() {
     getExamData();
   }, [examId]);
 
+  // Timer countdown effect
+  useEffect(() => {
+    if (!attemptDetails || !examDetails) return;
+
+    const getExamEndTime = () => {
+        if (examDetails.timer_mode === 'async') {
+            const startTime = new Date(attemptDetails.start_time).getTime();
+            return startTime + (examDetails.duration_minutes * 60 * 1000);
+        }
+        // Default to sync mode
+        return new Date(examDetails.end_time).getTime();
+    };
+
+    const examEndTime = getExamEndTime();
+
+    const interval = setInterval(() => {
+        const now = new Date().getTime();
+        const distance = examEndTime - now;
+        
+        if (distance < 0) {
+            setTimeLeft(0);
+            clearInterval(interval);
+            handleFinishExam(true); // Auto-submit
+        } else {
+            setTimeLeft(Math.floor(distance / 1000));
+        }
+    }, 1000);
+
+    return () => clearInterval(interval);
+
+  }, [attemptDetails, examDetails, handleFinishExam]);
+
   const handleAnswerSelect = async (questionId, option) => {
     setAnswers((prev) => ({ ...prev, [questionId]: option }));
     try {
@@ -120,7 +225,6 @@ export default function ExamTakingPage() {
       });
     } catch (error) {
       console.error('Failed to save temporary answer:', error);
-      // Optionally, handle UI feedback here
     }
   };
 
@@ -138,7 +242,6 @@ export default function ExamTakingPage() {
       });
     } catch (error) {
       console.error('Failed to clear temporary answer:', error);
-      // Optionally, handle UI feedback here
     }
   };
 
@@ -160,35 +263,6 @@ export default function ExamTakingPage() {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex((prev) => prev - 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const handleFinishExam = async () => {
-    const answeredCount = Object.keys(answers).length;
-    const confirmationMessage = answeredCount < questions.length
-      ? `Anda belum menjawab semua pertanyaan. Apakah Anda yakin ingin menyelesaikan ujian ini?`
-      : 'Apakah Anda yakin ingin menyelesaikan ujian ini? Anda tidak dapat mengubah jawaban Anda setelah ini.';
-
-    const isConfirmed = window.confirm(confirmationMessage);
-    
-    if (isConfirmed) {
-      try {
-        const response = await fetch('/api/exams/submit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ examId, answers }),
-        });
-
-        if (response.ok) {
-          alert('Ujian berhasil diselesaikan!');
-          router.push('/dashboard/exams');
-        } else {
-          const result = await response.json();
-          throw new Error(result.message || 'Gagal menyelesaikan ujian.');
-        }
-      } catch (err) {
-        alert(`Error: ${err.message}`);
-      }
     }
   };
 
@@ -219,8 +293,8 @@ export default function ExamTakingPage() {
           <div className="text-red-500 mb-4 mx-auto w-12 h-12 flex items-center justify-center bg-red-50 rounded-full">!</div>
           <h3 className="text-lg font-bold text-slate-800 mb-2">Terjadi Kesalahan</h3>
           <p className="text-slate-600 mb-6">{error}</p>
-          <button onClick={() => router.push('/')} className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors">
-            Kembali ke Beranda
+          <button onClick={() => router.push('/dashboard/exams')} className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors">
+            Kembali ke Daftar Ujian
           </button>
         </div>
       </div>
@@ -292,24 +366,11 @@ export default function ExamTakingPage() {
             </button>
             <div>
               <h1 className="text-base md:text-lg font-bold text-slate-800 line-clamp-1">{examDetails?.exam_name}</h1>
-              <div className="flex items-center gap-2">
-                  {/* Progress Bar Label */}
-                  <span className="text-xs text-slate-500 font-medium hidden md:inline-block">
-                    Progress: {progressPercentage}%
-                  </span>
-              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-             {/* Progress Bar (Visual) */}
-            <div className="hidden md:block w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div 
-                    className="h-full bg-indigo-600 transition-all duration-500 ease-out" 
-                    style={{ width: `${progressPercentage}%` }}
-                ></div>
-            </div>
-
+          <div className="flex items-center gap-4">
+             <Timer timeLeft={timeLeft} />
             <button
               onClick={() => setIsSidebarVisible(!isSidebarVisible)}
               className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg border border-slate-200"
@@ -424,7 +485,7 @@ export default function ExamTakingPage() {
 
                         {currentQuestionIndex === questions.length - 1 ? (
                             <button
-                            onClick={handleFinishExam}
+                            onClick={() => handleFinishExam(false)}
                             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-100"
                             >
                             <Icons.CheckCircle />

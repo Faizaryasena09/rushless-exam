@@ -34,6 +34,8 @@ async function getSession(request) {
             e.description,
             e.shuffle_questions,
             e.shuffle_answers,
+            e.timer_mode,
+            e.duration_minutes,
             s.start_time, 
             s.end_time 
           FROM rhs_exams e
@@ -69,19 +71,26 @@ async function getSession(request) {
     }
   
     try {
-      const { examId, startTime, endTime, shuffleQuestions, shuffleAnswers } = await request.json();
+      const { examId, startTime, endTime, shuffleQuestions, shuffleAnswers, timerMode, durationMinutes } = await request.json();
       if (!examId) {
         return NextResponse.json({ message: 'Exam ID is required' }, { status: 400 });
       }
+
+      // If no start or end time is provided, force the mode to async
+      const finalTimerMode = (!startTime || !endTime) ? 'async' : timerMode;
   
-      // Update exam shuffle settings on the main exams table
+      // Update exam shuffle and timer settings on the main exams table
       const shufflePromise = query({
         query: `
           UPDATE rhs_exams 
-          SET shuffle_questions = ?, shuffle_answers = ?
+          SET 
+            shuffle_questions = ?, 
+            shuffle_answers = ?,
+            timer_mode = ?,
+            duration_minutes = ?
           WHERE id = ?
         `,
-        values: [shuffleQuestions, shuffleAnswers, examId],
+        values: [shuffleQuestions, shuffleAnswers, finalTimerMode, durationMinutes, examId],
       });
 
       // Update exam time settings
