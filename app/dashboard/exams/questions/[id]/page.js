@@ -13,8 +13,45 @@ const Icons = {
     Edit: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg>,
 };
 
+// --- Editor Configuration ---
+const useJoditConfig = () => {
+    return useMemo(() => ({
+        readonly: false,
+        height: 'auto',
+        minHeight: 100,
+        uploader: {
+            url: '/api/upload/image', // The new API endpoint
+            format: 'json',
+            pathVariableName: () => 'path',
+            filesVariableName: () => 'files',
+            insertImageAsBase64URL: false,
+            prepareData: (formData) => formData,
+            isSuccess: (resp) => resp.success,
+            getFiles: (resp) => resp.files,
+            process: (resp) => {
+                return {
+                    files: resp.files.map(file => file.url),
+                    path: resp.path,
+                    baseurl: resp.baseurl,
+                    error: resp.error,
+                    msg: resp.msg
+                };
+            },
+            defaultHandlerSuccess: function (data) {
+                const editor = this.jodit;
+                if (data.files && data.files.length) {
+                    data.files.forEach(function (url) {
+                        editor.s.insertImage(url, null, editor.options.imageDefaultWidth);
+                    });
+                }
+            },
+        },
+        buttons: 'bold,italic,underline,strikethrough,|,ul,ol,|,outdent,indent,|,font,fontsize,brush,paragraph,|,image,video,table,link,|,align,undo,redo,\n,cut,hr,eraser,copyformat,|,symbol,fullsize,print,about'
+    }), []);
+};
+
+
 const ManualInputForm = ({ examId, onQuestionAdded }) => {
-    const editor = useRef(null);
     const [questionText, setQuestionText] = useState('');
     const [options, setOptions] = useState([
         { id: 1, key: 'A', value: '' },
@@ -24,8 +61,7 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const nextOptionId = useRef(3);
-
-    const config = useMemo(() => ({ readonly: false }), []);
+    const editorConfig = useJoditConfig();
 
     const handleOptionChange = (id, value) => {
         setOptions(prevOptions => 
@@ -35,14 +71,28 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
 
     const addOption = () => {
         setOptions(prev => {
-            const nextKey = String.fromCharCode(65 + prev.length); // 65 is 'A'
+            const nextKey = String.fromCharCode(65 + prev.length);
             return [...prev, { id: nextOptionId.current++, key: nextKey, value: '' }];
         });
     };
 
     const removeOption = (id) => {
+        const optionToRemove = options.find(opt => opt.id === id);
+        if (optionToRemove && correctOption === optionToRemove.key) {
+            setCorrectOption(options[0].key);
+        }
         setOptions(prev => prev.filter(opt => opt.id !== id));
     };
+    
+    const resetForm = () => {
+        setQuestionText('');
+        setOptions([
+            { id: 1, key: 'A', value: '' },
+            { id: 2, key: 'B', value: '' },
+        ]);
+        nextOptionId.current = 3;
+        setCorrectOption('A');
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -64,18 +114,11 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ examId, questionText, options: optionsForApi, correctOption }),
             });
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.message || 'Failed to add question');
-            }
-            setQuestionText('');
-            setOptions([
-                { id: 1, key: 'A', value: '' },
-                { id: 2, key: 'B', value: '' },
-            ]);
-            nextOptionId.current = 3;
-            setCorrectOption('A');
+            if (!res.ok) throw new Error((await res.json()).message || 'Failed to add question');
+            
+            resetForm();
             onQuestionAdded();
+
         } catch (err) {
             setError(err.message);
         } finally {
@@ -88,53 +131,36 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Question</label>
                 <JoditEditor
-                    ref={editor}
                     value={questionText}
-                    config={config}
-                    tabIndex={1}
+                    config={editorConfig}
                     onBlur={newContent => setQuestionText(newContent)}
                 />
             </div>
             {options.map((opt, index) => (
-                <div key={opt.id} className="flex items-center gap-2">
-                    <div className="flex-grow">
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Option {opt.key}</label>
-                        <input
-                            type="text"
-                            value={opt.value}
-                            onChange={(e) => handleOptionChange(opt.id, e.target.value)}
-                            className="w-full p-2 border border-slate-300 rounded-md"
-                            required
-                        />
+                <div key={opt.id} className="space-y-1">
+                    <div className="flex justify-between items-center">
+                        <label className="text-sm font-medium text-slate-700">Option {opt.key}</label>
+                        {options.length > 2 && (
+                            <button type="button" onClick={() => removeOption(opt.id)} className="p-1 text-red-500 hover:bg-red-100 rounded-full" title={`Remove option ${opt.key}`}>
+                                <Icons.Trash />
+                            </button>
+                        )}
                     </div>
-                    {options.length > 2 && (
-                         <button 
-                            type="button" 
-                            onClick={() => removeOption(opt.id)}
-                            className="mt-6 p-2 text-red-500 hover:bg-red-100 rounded-full"
-                            title={`Remove option ${opt.key}`}
-                        >
-                            <Icons.Trash />
-                        </button>
-                    )}
+                    <JoditEditor
+                        value={opt.value}
+                        config={editorConfig}
+                        onBlur={newContent => handleOptionChange(opt.id, newContent)}
+                    />
                 </div>
             ))}
-            <div className="text-left">
-                <button 
-                    type="button" 
-                    onClick={addOption}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 rounded-md"
-                >
+            <div className="text-left pt-2">
+                <button type="button" onClick={addOption} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 rounded-md">
                     <Icons.Plus /> Add Option
                 </button>
             </div>
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Correct Answer</label>
-                <select
-                    value={correctOption}
-                    onChange={(e) => setCorrectOption(e.target.value)}
-                    className="w-full p-2 border border-slate-300 rounded-md bg-white"
-                >
+                <select value={correctOption} onChange={(e) => setCorrectOption(e.target.value)} className="w-full p-2 border border-slate-300 rounded-md bg-white">
                     {options.map(opt => (
                         <option key={opt.id} value={opt.key}>{opt.key}</option>
                     ))}
@@ -151,34 +177,65 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
 };
 
 const EditQuestionForm = ({ question, onSave, onCancel }) => {
-    const editor = useRef(null);
+    const editorConfig = useJoditConfig();
     const [questionText, setQuestionText] = useState(question.question_text);
-    const [options, setOptions] = useState(
-        question.options && typeof question.options === 'string'
-            ? JSON.parse(question.options)
-            : question.options || {}
-    );
+    
+    // Initialize options state from potentially stringified JSON
+    const initialOptions = useMemo(() => {
+        let parsedOpts = {};
+        try {
+            parsedOpts = typeof question.options === 'string' ? JSON.parse(question.options) : (question.options || {});
+        } catch (e) { console.error("Failed to parse options for editing:", e) }
+        
+        return Object.entries(parsedOpts).map(([key, value], index) => ({
+            id: index + 1, // Simple ID generation for the edit session
+            key,
+            value
+        }));
+    }, [question.options]);
+
+    const [options, setOptions] = useState(initialOptions);
     const [correctOption, setCorrectOption] = useState(question.correct_option);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const nextOptionId = useRef(options.length + 1);
 
-    const config = useMemo(() => ({ readonly: false }), []);
+    const handleOptionChange = (id, value) => {
+        setOptions(prev => prev.map(opt => opt.id === id ? { ...opt, value } : opt));
+    };
+    
+    const addOption = () => {
+        setOptions(prev => {
+            const nextKey = String.fromCharCode(65 + prev.length);
+            return [...prev, { id: nextOptionId.current++, key: nextKey, value: '' }];
+        });
+    };
 
-    const handleOptionChange = (key, value) => {
-        setOptions(prev => ({ ...prev, [key]: value }));
+    const removeOption = (id) => {
+        const optionToRemove = options.find(opt => opt.id === id);
+        if (optionToRemove && correctOption === optionToRemove.key) {
+            setCorrectOption(options[0].key);
+        }
+        setOptions(prev => prev.filter(opt => opt.id !== id));
     };
 
     const handleSave = async () => {
-        if (!questionText.trim() || Object.values(options).some(o => !o.trim())) {
+        if (!questionText.trim() || options.some(o => !o.value.trim())) {
             setError('Please fill out the question and all options.');
             return;
         }
         setLoading(true);
         setError('');
+
+        const optionsForApi = options.reduce((acc, opt) => {
+            acc[opt.key] = opt.value;
+            return acc;
+        }, {});
+
         await onSave({
             id: question.id,
             questionText,
-            options,
+            options: optionsForApi,
             correctOption,
         });
         setLoading(false);
@@ -186,48 +243,42 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
                 <h2 className="text-xl font-bold text-slate-800 mb-4">Edit Question</h2>
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Question</label>
-                        <JoditEditor
-                            ref={editor}
-                            value={questionText}
-                            config={config}
-                            tabIndex={1}
-                            onBlur={newContent => setQuestionText(newContent)}
-                        />
+                        <JoditEditor value={questionText} config={editorConfig} onBlur={newContent => setQuestionText(newContent)} />
                     </div>
-                    {Object.keys(options).map(key => (
-                        <div key={key}>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Option {key}</label>
-                            <input
-                                type="text"
-                                value={options[key]}
-                                onChange={(e) => handleOptionChange(key, e.target.value)}
-                                className="w-full p-2 border border-slate-300 rounded-md"
-                                required
-                            />
+                    {options.map((opt, index) => (
+                        <div key={opt.id} className="space-y-1">
+                             <div className="flex justify-between items-center">
+                                <label className="text-sm font-medium text-slate-700">Option {opt.key}</label>
+                                {options.length > 2 && (
+                                    <button type="button" onClick={() => removeOption(opt.id)} className="p-1 text-red-500 hover:bg-red-100 rounded-full" title={`Remove option ${opt.key}`}>
+                                        <Icons.Trash />
+                                    </button>
+                                )}
+                            </div>
+                            <JoditEditor value={opt.value} config={editorConfig} onBlur={newContent => handleOptionChange(opt.id, newContent)} />
                         </div>
                     ))}
+                    <div className="text-left pt-2">
+                        <button type="button" onClick={addOption} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 rounded-md">
+                            <Icons.Plus /> Add Option
+                        </button>
+                    </div>
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Correct Answer</label>
-                        <select
-                            value={correctOption}
-                            onChange={(e) => setCorrectOption(e.target.value)}
-                            className="w-full p-2 border border-slate-300 rounded-md bg-white"
-                        >
-                            {Object.keys(options).map(key => (
-                                <option key={key} value={key}>{key}</option>
+                        <select value={correctOption} onChange={(e) => setCorrectOption(e.target.value)} className="w-full p-2 border border-slate-300 rounded-md bg-white">
+                            {options.map(opt => (
+                                <option key={opt.id} value={opt.key}>{opt.key}</option>
                             ))}
                         </select>
                     </div>
                     {error && <p className="text-sm text-red-600">{error}</p>}
                     <div className="flex justify-end gap-4">
-                        <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">
-                            Cancel
-                        </button>
+                        <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
                         <button onClick={handleSave} disabled={loading} className="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg disabled:bg-indigo-300">
                             {loading ? 'Saving...' : 'Save Changes'}
                         </button>
@@ -240,7 +291,6 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
 
 
 const ImportWordForm = ({ examId, onQuestionAdded }) => {
-    // ... (rest of the component is unchanged)
     const [file, setFile] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -283,7 +333,7 @@ const ImportWordForm = ({ examId, onQuestionAdded }) => {
             setSuccess(data.message);
             setFile(null);
             e.target.reset();
-            onQuestionAdded(); // Refresh the questions list
+            onQuestionAdded();
         } catch (err) {
             setError(err.message);
         } finally {
@@ -332,35 +382,28 @@ export default function ManageQuestionsPage() {
             const data = await res.json();
             
             const normalizedData = data.map(q => {
-                const optionsRaw = q.options && typeof q.options === 'string'
-                    ? JSON.parse(q.options)
-                    : q.options || {};
+                let optionsObject;
+                try {
+                    optionsObject = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || {});
+                } catch { optionsObject = {} }
 
-                const optionValues = Object.values(optionsRaw);
+                const optionValues = Object.values(optionsObject);
                 const letterKeys = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
                 const reKeyedOptions = optionValues.reduce((acc, value, index) => {
                     const letterKey = letterKeys[index];
-                    if (letterKey) { // Ensure we don't run out of letters
-                        let optionText = value;
-                        if (value && typeof value === 'object' && value.hasOwnProperty('text')) {
-                            optionText = value.text;
-                        }
+                    if (letterKey) {
+                        let optionText = (value && typeof value === 'object' && value.hasOwnProperty('text')) ? value.text : value;
                         acc[letterKey] = optionText;
                     }
                     return acc;
                 }, {});
 
-                // Also update correct_option if it's numeric
                 let newCorrectOption = q.correct_option;
-                if (q.correct_option && typeof q.correct_option === 'string' && /^\d+$/.test(q.correct_option)) {
+                if (q.correct_option && /^\\d+\\$/.test(String(q.correct_option))) {
                     const numericIndex = parseInt(q.correct_option, 10);
                     if (numericIndex >= 0 && numericIndex < letterKeys.length) {
                         newCorrectOption = letterKeys[numericIndex];
-                    }
-                } else if (q.correct_option && typeof q.correct_option === 'number') {
-                    if (q.correct_option >= 0 && q.correct_option < letterKeys.length) {
-                        newCorrectOption = letterKeys[q.correct_option];
                     }
                 }
 
@@ -381,17 +424,13 @@ export default function ManageQuestionsPage() {
     
     const handleDelete = async (questionId) => {
         if (!window.confirm('Are you sure you want to delete this question?')) return;
-        
         try {
             const res = await fetch('/api/exams/questions', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: questionId }),
             });
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.message || 'Failed to delete question');
-            }
+            if (!res.ok) throw new Error((await res.json()).message || 'Failed to delete question');
             fetchQuestions();
         } catch (err) {
             setError(err.message);
@@ -405,14 +444,10 @@ export default function ManageQuestionsPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updatedQuestion),
             });
-             if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.message || 'Failed to update question');
-            }
+             if (!res.ok) throw new Error((await res.json()).message || 'Failed to update question');
             setEditingQuestion(null);
             fetchQuestions();
         } catch (err) {
-            // This error will be shown in the Edit modal
             alert(`Error updating question: ${err.message}`);
         }
     };
@@ -459,29 +494,22 @@ export default function ManageQuestionsPage() {
                                             <p className="text-slate-500">No questions have been added yet.</p>
                                         </div>
                                     ) : (
-                                        questions.map((q, index) => {
-                                            const options = q.options && typeof q.options === 'string' ? JSON.parse(q.options) : q.options || {};
-                                            return (
-                                                <div key={q.id} className="p-4 border border-slate-200 rounded-lg">
-                                                    <div className="flex justify-between items-start">
-                                                        <div className="prose max-w-none">
-                                                            <p className="font-semibold text-slate-800">Q{index + 1}: <span dangerouslySetInnerHTML={{ __html: q.question_text }} /></p>
-                                                        </div>
-                                                        <div className="flex gap-2 flex-shrink-0">
-                                                            <button onClick={() => setEditingQuestion(q)} className="text-blue-500 hover:text-blue-700 p-1 rounded-full hover:bg-blue-50"><Icons.Edit /></button>
-                                                            <button onClick={() => handleDelete(q.id)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50"><Icons.Trash /></button>
-                                                        </div>
-                                                    </div>
-                                                    <div className="mt-2 space-y-1 text-sm">
-                                                        {Object.entries(options).map(([key, value]) => (
-                                                            <p key={key} className={`pl-4 ${key === q.correct_option ? 'font-bold text-green-700' : 'text-slate-600'}`}>
-                                                                {key}. {value} {key === q.correct_option && '✓'}
-                                                            </p>
-                                                        ))}
+                                        questions.map((q, index) => (
+                                            <div key={q.id} className="p-4 border border-slate-200 rounded-lg">
+                                                <div className="flex justify-between items-start">
+                                                    <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: `<p><strong>Q${index + 1}:</strong> ${q.question_text}</p>` }} />
+                                                    <div className="flex gap-2 flex-shrink-0 ml-4">
+                                                        <button onClick={() => setEditingQuestion(q)} className="text-blue-500 hover:text-blue-700 p-1 rounded-full hover:bg-blue-50"><Icons.Edit /></button>
+                                                        <button onClick={() => handleDelete(q.id)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50"><Icons.Trash /></button>
                                                     </div>
                                                 </div>
-                                            );
-                                        })
+                                                <div className="mt-2 space-y-1 text-sm prose prose-slate max-w-none">
+                                                    {Object.entries(q.options).map(([key, value]) => (
+                                                        <div key={key} className={`pl-4 ${key === q.correct_option ? 'font-bold text-green-700' : 'text-slate-600'}`} dangerouslySetInnerHTML={{ __html: `${key}. ${value} ${key === q.correct_option ? '✓' : ''}`}} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))
                                     )}
                                 </div>
                             )}
