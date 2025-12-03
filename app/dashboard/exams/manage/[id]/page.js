@@ -72,6 +72,7 @@ export default function ManageExamPage() {
   const [shuffleAnswers, setShuffleAnswers] = useState(false);
   const [timerMode, setTimerMode] = useState('sync'); // 'sync' or 'async'
   const [durationMinutes, setDurationMinutes] = useState(60);
+  const [minTimeMinutes, setMinTimeMinutes] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -105,6 +106,7 @@ export default function ManageExamPage() {
       setShuffleAnswers(data.shuffle_answers || false);
       setTimerMode(data.timer_mode || 'sync');
       setDurationMinutes(data.duration_minutes || 60);
+      setMinTimeMinutes(data.min_time_minutes || 0);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -143,6 +145,7 @@ export default function ManageExamPage() {
         shuffleAnswers: shuffleAnswers,
         timerMode: timerMode,
         durationMinutes: durationMinutes,
+        minTimeMinutes: minTimeMinutes,
       }),
     });
 
@@ -252,6 +255,22 @@ export default function ManageExamPage() {
                         />
                     </div>
                 )}
+
+                <div>
+                    <label htmlFor="minTime" className="block text-sm font-medium text-slate-700 mb-1">Submission Lockout from End (minutes)</label>
+                    <input
+                    id="minTime"
+                    type="number"
+                    value={minTimeMinutes}
+                    onChange={(e) => setMinTimeMinutes(parseInt(e.target.value, 10))}
+                    className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    disabled={saving}
+                    min="0"
+                    />
+                    <p className="text-xs text-slate-500 mt-2">
+                        Set to 0 to disable. Disables submission in the final minutes of the exam. E.g., for a 10-minute exam, a setting of '1' means submission is disabled during the last minute.
+                    </p>
+                </div>
               </div>
 
               <div className="space-y-2 bg-slate-50 rounded-lg border border-slate-200 divide-y divide-slate-200">

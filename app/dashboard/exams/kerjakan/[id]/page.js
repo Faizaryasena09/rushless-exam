@@ -76,6 +76,7 @@ export default function ExamTakingPage() {
   const [examDetails, setExamDetails] = useState(null);
   const [attemptDetails, setAttemptDetails] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
+  const [canSubmit, setCanSubmit] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -85,14 +86,12 @@ export default function ExamTakingPage() {
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const finishExamHandled = useRef(false);
 
-  // Calculate Progress
   const progressPercentage = useMemo(() => {
     if (questions.length === 0) return 0;
     const answeredCount = Object.keys(answers).length;
     return Math.round((answeredCount / questions.length) * 100);
   }, [answers, questions.length]);
 
-  // Basic session check
   useEffect(() => {
     fetch('/api/user-session').then((res) => {
       if (!res.ok) router.push('/');
@@ -138,37 +137,41 @@ export default function ExamTakingPage() {
     }
   }, [examId, answers, questions, router]);
 
-  // Fetch exam data and start attempt
   useEffect(() => {
     if (!examId) return;
 
     async function getExamData() {
       try {
         setLoading(true);
-        // Step 1: Fetch settings
-        const settingsRes = await fetch(`/api/exams/settings?exam_id=${examId}`);
+        const [settingsRes, attemptRes] = await Promise.all([
+            fetch(`/api/exams/settings?exam_id=${examId}`),
+            fetch('/api/exams/start-attempt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ examId }),
+            })
+        ]);
+
         if (!settingsRes.ok) throw new Error((await settingsRes.json()).message || 'Could not fetch exam settings.');
-        const settingsData = await settingsRes.json();
-        setExamDetails(settingsData);
-
-        // Step 2: Start or resume attempt
-        const attemptRes = await fetch('/api/exams/start-attempt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ examId }),
-        });
         if (!attemptRes.ok) throw new Error((await attemptRes.json()).message || 'Could not start exam.');
-        const attemptData = await attemptRes.json();
-        setAttemptDetails(attemptData);
 
-        // Step 3: Fetch questions
-        const questionsRes = await fetch(`/api/exams/questions?exam_id=${examId}`);
+        const settingsData = await settingsRes.json();
+        const { attempt, initial_seconds_left } = await attemptRes.json();
+        
+        setExamDetails(settingsData);
+        setAttemptDetails(attempt);
+        setTimeLeft(initial_seconds_left);
+        
+        const [questionsRes, tempAnswersRes] = await Promise.all([
+            fetch(`/api/exams/questions?exam_id=${examId}`),
+            fetch(`/api/exams/temporary-answer?exam_id=${examId}`)
+        ]);
+
         if (!questionsRes.ok) throw new Error((await questionsRes.json()).message || 'Could not fetch questions.');
+        
         const questionsData = await questionsRes.json();
         setQuestions(questionsData);
 
-        // Step 4: Fetch any existing temporary answers
-        const tempAnswersRes = await fetch(`/api/exams/temporary-answer?exam_id=${examId}`);
         if (tempAnswersRes.ok) {
           const tempAnswersData = await tempAnswersRes.json();
           setAnswers(tempAnswersData);
@@ -183,38 +186,31 @@ export default function ExamTakingPage() {
     getExamData();
   }, [examId]);
 
-  // Timer countdown effect
   useEffect(() => {
-    if (!attemptDetails || !examDetails) return;
+    if (timeLeft === null) return;
 
-    const getExamEndTime = () => {
-        if (examDetails.timer_mode === 'async') {
-            const startTime = new Date(attemptDetails.start_time).getTime();
-            return startTime + (examDetails.duration_minutes * 60 * 1000);
+    if (timeLeft <= 0) {
+      if (!finishExamHandled.current) handleFinishExam(true);
+      return;
+    }
+
+    const minTimeLockoutSeconds = (examDetails?.min_time_minutes || 0) * 60;
+    if (minTimeLockoutSeconds === 0) {
+        if(!canSubmit) setCanSubmit(true);
+    } else {
+        const shouldBeAbleToSubmit = timeLeft <= minTimeLockoutSeconds;
+        if (shouldBeAbleToSubmit !== canSubmit) {
+            setCanSubmit(shouldBeAbleToSubmit);
         }
-        // Default to sync mode
-        return new Date(examDetails.end_time).getTime();
-    };
-
-    const examEndTime = getExamEndTime();
+    }
 
     const interval = setInterval(() => {
-        const now = new Date().getTime();
-        const distance = examEndTime - now;
-        
-        if (distance < 0) {
-            setTimeLeft(0);
-            clearInterval(interval);
-            handleFinishExam(true); // Auto-submit
-        } else {
-            setTimeLeft(Math.floor(distance / 1000));
-        }
+        setTimeLeft(prevTime => prevTime > 0 ? prevTime - 1 : 0);
     }, 1000);
 
     return () => clearInterval(interval);
-
-  }, [attemptDetails, examDetails, handleFinishExam]);
-
+  }, [timeLeft, canSubmit, examDetails, handleFinishExam]);
+  
   const handleAnswerSelect = async (questionId, option) => {
     setAnswers((prev) => ({ ...prev, [questionId]: option }));
     try {
@@ -268,9 +264,6 @@ export default function ExamTakingPage() {
 
   const currentQuestion = questions[currentQuestionIndex];
 
-  // --- Components ---
-
-  // Loading Skeleton
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto p-6 space-y-6 animate-pulse">
@@ -339,7 +332,6 @@ export default function ExamTakingPage() {
           })}
         </div>
         
-        {/* Legend */}
         <div className="mt-6 space-y-2 text-xs text-slate-500 border-t border-slate-100 pt-4">
             <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-emerald-100 border border-emerald-300 rounded"></div> Dijawab
@@ -357,7 +349,6 @@ export default function ExamTakingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-20">
-      {/* Top Bar / Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -368,7 +359,6 @@ export default function ExamTakingPage() {
               <h1 className="text-base md:text-lg font-bold text-slate-800 line-clamp-1">{examDetails?.exam_name}</h1>
             </div>
           </div>
-
           <div className="flex items-center gap-4">
              <Timer timeLeft={timeLeft} />
             <button
@@ -380,7 +370,6 @@ export default function ExamTakingPage() {
           </div>
         </div>
         
-        {/* Mobile Progress Bar */}
         <div className="h-1 w-full bg-slate-100 md:hidden">
             <div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${progressPercentage}%` }}></div>
         </div>
@@ -389,10 +378,8 @@ export default function ExamTakingPage() {
       <div className="max-w-7xl mx-auto p-4 md:p-8">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
           
-          {/* Main Content Area */}
           <div className="md:col-span-8 lg:col-span-9 space-y-6">
             
-            {/* Question Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[500px] flex flex-col">
               {currentQuestion ? (
                 <>
@@ -415,20 +402,18 @@ export default function ExamTakingPage() {
                         </button>
                     </div>
 
-                    {/* Question Text */}
                     <div className="prose prose-slate max-w-none mb-8">
                       <p className="text-lg md:text-xl font-medium text-slate-800 leading-relaxed" dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }} />
                     </div>
 
-                    {/* Options */}
                     <div className="space-y-3">
                       {currentQuestion.options && currentQuestion.options.map((option, idx) => {
-                        const optionLabel = String.fromCharCode(65 + idx); // 'A', 'B', 'C'...
+                        const optionLabel = String.fromCharCode(65 + idx);
                         const isSelected = answers[currentQuestion.id] === option.originalKey;
 
                         return (
                           <div
-                            key={option.originalKey} // Use the stable original key for React's key
+                            key={option.originalKey}
                             onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)}
                             className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${
                               isSelected
@@ -436,19 +421,16 @@ export default function ExamTakingPage() {
                                 : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                             }`}
                           >
-                             {/* Badge A/B/C/D - Always in order */}
                             <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${
                                 isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
                             }`}>
                                 {optionLabel}
                             </div>
                             
-                            {/* Shuffled answer text */}
                             <span className={`text-base font-medium ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>
                                 {option.text}
                             </span>
 
-                            {/* Selection Checkmark */}
                              {isSelected && (
                                 <div className="absolute right-4 text-indigo-600">
                                     <Icons.CheckCircle />
@@ -460,7 +442,6 @@ export default function ExamTakingPage() {
                     </div>
                   </div>
 
-                  {/* Footer Actions */}
                   <div className="bg-slate-50 p-4 md:p-6 border-t border-slate-200 flex flex-col-reverse md:flex-row justify-between items-center gap-4">
                      <button
                         onClick={() => handleClearAnswer(currentQuestion.id)}
@@ -485,11 +466,13 @@ export default function ExamTakingPage() {
 
                         {currentQuestionIndex === questions.length - 1 ? (
                             <button
-                            onClick={() => handleFinishExam(false)}
-                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-100"
+                                onClick={() => handleFinishExam(false)}
+                                disabled={!canSubmit}
+                                title={!canSubmit ? `Submission is locked until the final ${examDetails?.min_time_minutes} minute(s).` : 'Finish and submit your answers'}
+                                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-100 disabled:bg-emerald-300 disabled:cursor-not-allowed"
                             >
-                            <Icons.CheckCircle />
-                            Selesai Ujian
+                                <Icons.CheckCircle />
+                                Selesai Ujian
                             </button>
                         ) : (
                             <button
@@ -515,7 +498,6 @@ export default function ExamTakingPage() {
             </div>
           </div>
 
-          {/* Right Sidebar - Desktop */}
           <div className="hidden md:block md:col-span-4 lg:col-span-3">
             <QuestionNavigation
               questions={questions}
@@ -528,16 +510,13 @@ export default function ExamTakingPage() {
         </div>
       </div>
 
-      {/* Mobile Sidebar - Drawer Overlay */}
       {isSidebarVisible && (
         <div className="fixed inset-0 z-50 md:hidden">
-            {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" 
             onClick={() => setIsSidebarVisible(false)}
           ></div>
           
-          {/* Drawer Panel */}
           <div className="absolute right-0 top-0 h-full w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <h3 className="font-bold text-slate-800">Daftar Soal</h3>
@@ -550,14 +529,13 @@ export default function ExamTakingPage() {
                  <div className="grid grid-cols-5 gap-2">
                     {questions.map((q, index) => {
                         const isAnswered = answers[q.id] !== undefined;
-                        // PERBAIKAN: doubtful -> doubtfulAnswers
                         const isDoubtful = doubtfulAnswers[q.id]; 
                         const isActive = index === currentQuestionIndex;
 
                         let buttonClass = 'h-10 rounded-lg text-sm font-bold transition-all border ';
                         if (isActive) buttonClass += 'bg-indigo-600 text-white border-indigo-600';
                         else if (isDoubtful) buttonClass += 'bg-amber-100 text-amber-800 border-amber-200';
-                        else if (isAnswered) buttonClass += 'bg-emerald-100 tex t-emerald-800 border-emerald-200';
+                        else if (isAnswered) buttonClass += 'bg-emerald-100 text-emerald-800 border-emerald-200';
                         else buttonClass += 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50';
 
                         return (

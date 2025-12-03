@@ -81,6 +81,18 @@ export async function GET(request) {
     } else {
       messages.push(`Column 'duration_minutes' already exists in '${tableName}'.`);
     }
+
+    // --- Check and add 'min_time_minutes' column ---
+    const hasMinTimeMinutes = await columnExists(tableName, 'min_time_minutes');
+    if (!hasMinTimeMinutes) {
+      await query({
+        query: `ALTER TABLE ${tableName} ADD COLUMN min_time_minutes INT DEFAULT 0;`,
+        values: [],
+      });
+      messages.push(`Column 'min_time_minutes' created successfully in '${tableName}'.`);
+    } else {
+      messages.push(`Column 'min_time_minutes' already exists in '${tableName}'.`);
+    }
     
     // --- Create 'rhs_exam_attempts' table if it doesn't exist ---
     const attemptsTableName = 'rhs_exam_attempts';
