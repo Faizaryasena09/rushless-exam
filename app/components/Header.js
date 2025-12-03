@@ -1,38 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-export default function Header({ toggleSidebar }) {
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+export default function Header({ user, isLoading, toggleSidebar, showToggleButton }) {
   const router = useRouter();
-
-  const fetchUserSession = async () => {
-    try {
-      const res = await fetch('/api/user-session');
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
-      } else {
-        setUser(null);
-      }
-    } catch (error) {
-      console.error('Failed to fetch user session:', error);
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUserSession();
-  }, []);
 
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST' });
-    setUser(null);
+    // In a real app, you'd likely want to trigger a state update in the parent
+    // to reflect the logged-out state globally, maybe via a context or callback.
+    // For now, we just redirect.
     router.push('/');
   };
 
@@ -44,11 +22,13 @@ export default function Header({ toggleSidebar }) {
     <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-lg border-b border-slate-200/60 shadow-sm transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
         <div className="flex items-center">
-          <button onClick={toggleSidebar} className="text-gray-500 hover:text-gray-600 focus:outline-none focus:text-gray-600 mr-4" aria-label="Toggle sidebar">
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
+          {showToggleButton && (
+            <button onClick={toggleSidebar} className="text-gray-500 hover:text-gray-600 focus:outline-none focus:text-gray-600 mr-4" aria-label="Toggle sidebar">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          )}
           {/* --- Logo Section --- */}
           <Link href="/" className="group flex items-center gap-2.5 outline-none">
             <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-300">

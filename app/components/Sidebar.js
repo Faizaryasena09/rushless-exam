@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 // Definisi Ikon Sederhana (SVG) agar kode tetap rapi
 const Icons = {
@@ -29,13 +30,33 @@ const Icons = {
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const pathname = usePathname();
+  const [userRole, setUserRole] = useState(null);
 
-  const navLinks = [
-    { href: '/dashboard', label: 'Dashboard', icon: Icons.Dashboard },
-    { href: '/dashboard/users', label: 'Manage Users', icon: Icons.Users },
-    { href: '/dashboard/classes', label: 'Manage Classes', icon: Icons.Classes },
-    { href: '/dashboard/exams', label: 'Manage Exams', icon: Icons.Exams },
+  useEffect(() => {
+    // Fetch user session to get the role
+    const fetchUserSession = async () => {
+      try {
+        const response = await fetch('/api/user-session');
+        if (response.ok) {
+          const data = await response.json();
+          setUserRole(data.user?.roleName);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user session:', error);
+      }
+    };
+
+    fetchUserSession();
+  }, []);
+
+  const allNavLinks = [
+    { href: '/dashboard', label: 'Dashboard', icon: Icons.Dashboard, roles: ['admin', 'teacher', 'students'] },
+    { href: '/dashboard/users', label: 'Manage Users', icon: Icons.Users, roles: ['admin'] },
+    { href: '/dashboard/classes', label: 'Manage Classes', icon: Icons.Classes, roles: ['admin', 'teacher'] },
+    { href: '/dashboard/exams', label: 'Manage Exams', icon: Icons.Exams, roles: ['admin', 'teacher', 'students'] },
   ];
+
+  const navLinks = allNavLinks.filter(link => link.roles.includes(userRole));
 
   return (
     <>
