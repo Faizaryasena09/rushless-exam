@@ -111,6 +111,30 @@ export async function GET(request) {
     });
     messages.push(`Table '${attemptsTableName}' checked/created successfully.`);
 
+    // --- Check and add 'doubtful_questions' column to attempts table ---
+    const hasDoubtful = await columnExists(attemptsTableName, 'doubtful_questions');
+    if (!hasDoubtful) {
+      await query({
+        query: `ALTER TABLE ${attemptsTableName} ADD COLUMN doubtful_questions JSON;`,
+        values: [],
+      });
+      messages.push(`Column 'doubtful_questions' created successfully in '${attemptsTableName}'.`);
+    } else {
+      messages.push(`Column 'doubtful_questions' already exists in '${attemptsTableName}'.`);
+    }
+
+    // --- Check and add 'last_question_index' column to attempts table ---
+    const hasLastIndex = await columnExists(attemptsTableName, 'last_question_index');
+    if (!hasLastIndex) {
+      await query({
+        query: `ALTER TABLE ${attemptsTableName} ADD COLUMN last_question_index INT NOT NULL DEFAULT 0;`,
+        values: [],
+      });
+      messages.push(`Column 'last_question_index' created successfully in '${attemptsTableName}'.`);
+    } else {
+      messages.push(`Column 'last_question_index' already exists in '${attemptsTableName}'.`);
+    }
+
     return NextResponse.json({ 
         status: 'success',
         message: 'Database setup check completed.',

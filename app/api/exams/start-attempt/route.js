@@ -63,7 +63,7 @@ export async function POST(request) {
     // 2. Check for an existing 'in_progress' attempt
     const existingAttempts = await query({
         query: `
-            SELECT id, user_id, exam_id, UNIX_TIMESTAMP(start_time) as start_time_ts, status 
+            SELECT *, UNIX_TIMESTAMP(start_time) as start_time_ts
             FROM rhs_exam_attempts 
             WHERE user_id = ? AND exam_id = ? AND status = 'in_progress'
         `,
@@ -88,18 +88,16 @@ export async function POST(request) {
             } else {
                 // Attempt is still valid, return it and the calculated remaining time.
                 const initial_seconds_left = calculateRemainingSeconds(settings, attempt, now_ts);
-                const originalAttempt = await query({ query: `SELECT * from rhs_exam_attempts WHERE id = ?`, values: [attempt.id]});
                 return NextResponse.json({
-                    attempt: originalAttempt[0],
+                    attempt: attempt,
                     initial_seconds_left: initial_seconds_left
                 });
             }
         } else {
             // For sync mode, the attempt is always valid until the global end time.
             const initial_seconds_left = calculateRemainingSeconds(settings, attempt, now_ts);
-            const originalAttempt = await query({ query: `SELECT * from rhs_exam_attempts WHERE id = ?`, values: [attempt.id]});
             return NextResponse.json({
-                attempt: originalAttempt[0],
+                attempt: attempt,
                 initial_seconds_left: initial_seconds_left
             });
         }
@@ -126,26 +124,23 @@ export async function POST(request) {
     });
 
     // Fetch the newly created record and the current server time to return it
-    const [newAttempt, finalNowResult] = await Promise.all([
-        query({
-            query: `
-                SELECT id, user_id, exam_id, UNIX_TIMESTAMP(start_time) as start_time_ts, status
-                FROM rhs_exam_attempts
-                WHERE id = ?
-            `,
-            values: [result.insertId]
-        }),
-        query({ query: `SELECT UNIX_TIMESTAMP(NOW()) as server_now_ts` })
-    ]);
-    
-    const attempt = newAttempt[0];
+    const newAttemptResult = await query({
+        query: `
+            SELECT *, UNIX_TIMESTAMP(start_time) as start_time_ts
+            FROM rhs_exam_attempts
+            WHERE id = ?
+        `,
+        values: [result.insertId]
+    });
+    const attempt = newAttemptResult[0];
+
+    const finalNowResult = await query({ query: `SELECT UNIX_TIMESTAMP(NOW()) as server_now_ts` });
     const final_now_ts = finalNowResult[0].server_now_ts;
-    const initial_seconds_left = calculateRemainingSeconds(settings, attempt, final_now_ts);
     
-    const originalNewAttempt = await query({ query: `SELECT * from rhs_exam_attempts WHERE id = ?`, values: [attempt.id]});
+    const initial_seconds_left = calculateRemainingSeconds(settings, attempt, final_now_ts);
 
     return NextResponse.json({
-        attempt: originalNewAttempt[0],
+        attempt: attempt,
         initial_seconds_left: initial_seconds_left
     }, { status: 201 });
 
