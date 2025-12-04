@@ -37,14 +37,6 @@ const useJoditConfig = () => {
                     msg: resp.msg
                 };
             },
-            defaultHandlerSuccess: function (data) {
-                const editor = this.jodit;
-                if (data.files && data.files.length) {
-                    data.files.forEach(function (url) {
-                        editor.s.insertImage(url, null, editor.options.imageDefaultWidth);
-                    });
-                }
-            },
         },
         buttons: 'bold,italic,underline,strikethrough,|,ul,ol,|,outdent,indent,|,font,fontsize,brush,paragraph,|,image,video,table,link,|,align,undo,redo,\n,cut,hr,eraser,copyformat,|,symbol,fullsize,print,about'
     }), []);
