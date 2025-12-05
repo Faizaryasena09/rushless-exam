@@ -37,6 +37,7 @@ async function getSession(request) {
             e.timer_mode,
             e.duration_minutes,
             e.min_time_minutes,
+            e.max_attempts,
             s.start_time, 
             s.end_time 
           FROM rhs_exams e
@@ -72,7 +73,7 @@ async function getSession(request) {
     }
   
     try {
-      const { examId, startTime, endTime, shuffleQuestions, shuffleAnswers, timerMode, durationMinutes, minTimeMinutes } = await request.json();
+      const { examId, startTime, endTime, shuffleQuestions, shuffleAnswers, timerMode, durationMinutes, minTimeMinutes, maxAttempts } = await request.json();
       if (!examId) {
         return NextResponse.json({ message: 'Exam ID is required' }, { status: 400 });
       }
@@ -89,10 +90,11 @@ async function getSession(request) {
             shuffle_answers = ?,
             timer_mode = ?,
             duration_minutes = ?,
-            min_time_minutes = ?
+            min_time_minutes = ?,
+            max_attempts = ?
           WHERE id = ?
         `,
-        values: [shuffleQuestions, shuffleAnswers, finalTimerMode, durationMinutes, minTimeMinutes, examId],
+        values: [shuffleQuestions, shuffleAnswers, finalTimerMode, durationMinutes, minTimeMinutes, maxAttempts, examId],
       });
 
       // Update exam time settings

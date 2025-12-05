@@ -109,17 +109,31 @@ export async function setupDatabase() {
         console.log('Table "rhs_exam_questions" created or already exists.');
 
         await dbConnection.query(`
+            CREATE TABLE IF NOT EXISTS rhs_exam_attempts (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                exam_id INT NOT NULL,
+                start_time DATETIME NOT NULL,
+                status ENUM('in_progress', 'completed') NOT NULL DEFAULT 'in_progress',
+                INDEX (user_id, exam_id)
+            );
+        `);
+        console.log('Table "rhs_exam_attempts" created or already exists.');
+
+        await dbConnection.query(`
             CREATE TABLE IF NOT EXISTS rhs_student_answer (
               id INT AUTO_INCREMENT PRIMARY KEY,
               user_id INT NOT NULL,
               exam_id INT NOT NULL,
+              attempt_id INT NOT NULL,
               question_id INT NOT NULL,
               selected_option VARCHAR(255) NOT NULL,
               is_correct BOOLEAN NOT NULL,
               submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               FOREIGN KEY (user_id) REFERENCES rhs_users(id) ON DELETE CASCADE,
               FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE,
-              FOREIGN KEY (question_id) REFERENCES rhs_exam_questions(id) ON DELETE CASCADE
+              FOREIGN KEY (question_id) REFERENCES rhs_exam_questions(id) ON DELETE CASCADE,
+              FOREIGN KEY (attempt_id) REFERENCES rhs_exam_attempts(id) ON DELETE CASCADE
             )
         `);
         console.log('Table "rhs_student_answer" created or already exists.');

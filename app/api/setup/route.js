@@ -94,24 +94,8 @@ export async function GET(request) {
       messages.push(`Column 'min_time_minutes' already exists in '${tableName}'.`);
     }
     
-    // --- Create 'rhs_exam_attempts' table if it doesn't exist ---
-    const attemptsTableName = 'rhs_exam_attempts';
-    await query({
-        query: `
-            CREATE TABLE IF NOT EXISTS ${attemptsTableName} (
-                id INT PRIMARY KEY AUTO_INCREMENT,
-                user_id INT NOT NULL,
-                exam_id INT NOT NULL,
-                start_time DATETIME NOT NULL,
-                status ENUM('in_progress', 'completed') NOT NULL DEFAULT 'in_progress',
-                INDEX (user_id, exam_id)
-            );
-        `,
-        values: []
-    });
-    messages.push(`Table '${attemptsTableName}' checked/created successfully.`);
-
     // --- Check and add 'doubtful_questions' column to attempts table ---
+    const attemptsTableName = 'rhs_exam_attempts';
     const hasDoubtful = await columnExists(attemptsTableName, 'doubtful_questions');
     if (!hasDoubtful) {
       await query({
@@ -133,6 +117,55 @@ export async function GET(request) {
       messages.push(`Column 'last_question_index' created successfully in '${attemptsTableName}'.`);
     } else {
       messages.push(`Column 'last_question_index' already exists in '${attemptsTableName}'.`);
+    }
+
+    // --- Check and add 'max_attempts' column to exams table ---
+    const hasMaxAttempts = await columnExists(tableName, 'max_attempts');
+    if (!hasMaxAttempts) {
+        await query({
+            query: `ALTER TABLE ${tableName} ADD COLUMN max_attempts INT DEFAULT 1;`,
+            values: [],
+        });
+        messages.push(`Column 'max_attempts' created successfully in '${tableName}'.`);
+    } else {
+        messages.push(`Column 'max_attempts' already exists in '${tableName}'.`);
+    }
+
+    // --- Check and add 'end_time' column to attempts table ---
+    const hasEndTime = await columnExists(attemptsTableName, 'end_time');
+    if (!hasEndTime) {
+        await query({
+            query: `ALTER TABLE ${attemptsTableName} ADD COLUMN end_time DATETIME;`,
+            values: [],
+        });
+        messages.push(`Column 'end_time' created successfully in '${attemptsTableName}'.`);
+    } else {
+        messages.push(`Column 'end_time' already exists in '${attemptsTableName}'.`);
+    }
+
+    // --- Check and add 'score' column to attempts table ---
+    const hasScore = await columnExists(attemptsTableName, 'score');
+    if (!hasScore) {
+        await query({
+            query: `ALTER TABLE ${attemptsTableName} ADD COLUMN score FLOAT;`,
+            values: [],
+        });
+        messages.push(`Column 'score' created successfully in '${attemptsTableName}'.`);
+    } else {
+        messages.push(`Column 'score' already exists in '${attemptsTableName}'.`);
+    }
+
+    // --- Check and add 'attempt_id' column to student_answer table ---
+    const studentAnswerTableName = 'rhs_student_answer';
+    const hasAttemptIdInAnswers = await columnExists(studentAnswerTableName, 'attempt_id');
+    if (!hasAttemptIdInAnswers) {
+        await query({
+            query: `ALTER TABLE ${studentAnswerTableName} ADD COLUMN attempt_id INT AFTER exam_id;`,
+            values: [],
+        });
+        messages.push(`Column 'attempt_id' created successfully in '${studentAnswerTableName}'.`);
+    } else {
+        messages.push(`Column 'attempt_id' already exists in '${studentAnswerTableName}'.`);
     }
 
     return NextResponse.json({ 

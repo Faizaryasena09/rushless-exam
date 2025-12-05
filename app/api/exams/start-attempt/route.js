@@ -44,7 +44,7 @@ export async function POST(request) {
     const examSettingsResult = await query({
         query: `
             SELECT 
-                e.timer_mode, e.duration_minutes,
+                e.timer_mode, e.duration_minutes, e.max_attempts,
                 UNIX_TIMESTAMP(s.start_time) as start_time_ts, 
                 UNIX_TIMESTAMP(s.end_time) as end_time_ts
             FROM rhs_exams e
@@ -104,7 +104,20 @@ export async function POST(request) {
     }
 
     // 3. No existing attempt, so create a new one
-    // First, verify the exam is within its availability window
+    // First, check if user has reached max attempts
+    if (settings.max_attempts > 0) { // A setting of 0 or less means infinite attempts
+        const allAttemptsResult = await query({
+            query: `SELECT COUNT(*) as attempt_count FROM rhs_exam_attempts WHERE user_id = ? AND exam_id = ?`,
+            values: [userId, examId]
+        });
+        const attemptCount = allAttemptsResult[0].attempt_count;
+
+        if (attemptCount >= settings.max_attempts) {
+            return NextResponse.json({ message: 'You have reached the maximum number of attempts for this exam.' }, { status: 403 });
+        }
+    }
+    
+    // Then, verify the exam is within its availability window
     if (settings.start_time_ts && settings.end_time_ts) {
         if (now_ts < settings.start_time_ts) {
             return NextResponse.json({ message: 'Exam has not started yet.' }, { status: 403 });

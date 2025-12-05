@@ -14,21 +14,45 @@ async function GET() {
   }
 
   try {
-    const exams = await query({
-      query: `
+    const examsQuery = `
         SELECT 
           e.id, 
           e.exam_name, 
           e.description, 
           e.created_at,
+          e.max_attempts,
           s.start_time,
           s.end_time
         FROM rhs_exams e
         LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
         ORDER BY e.created_at DESC
-      `,
-      values: [],
-    });
+    `;
+    const exams = await query({ query: examsQuery, values: [] });
+
+    if (session.user.roleName === 'student') {
+        const allUserAttempts = await query({
+            query: `SELECT exam_id, status FROM rhs_exam_attempts WHERE user_id = ?`,
+            values: [session.user.id]
+        });
+        
+        const attemptsInfo = allUserAttempts.reduce((acc, attempt) => {
+            if (!acc[attempt.exam_id]) {
+                acc[attempt.exam_id] = { count: 0, hasInProgress: false };
+            }
+            acc[attempt.exam_id].count++;
+            if (attempt.status === 'in_progress') {
+                acc[attempt.exam_id].hasInProgress = true;
+            }
+            return acc;
+        }, {});
+
+        exams.forEach(exam => {
+            const info = attemptsInfo[exam.id];
+            exam.user_attempts = info ? info.count : 0;
+            exam.has_in_progress = info ? info.hasInProgress : false;
+        });
+    }
+
     return NextResponse.json({ exams }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ message: 'Database error', error: error.message }, { status: 500 });

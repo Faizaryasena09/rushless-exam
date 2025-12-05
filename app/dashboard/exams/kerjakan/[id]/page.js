@@ -131,7 +131,7 @@ export default function ExamTakingPage() {
       const response = await fetch('/api/exams/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ examId, answers }),
+        body: JSON.stringify({ examId, answers, attemptId: attemptDetails.id }),
       });
       if (!response.ok) throw new Error((await response.json()).message || 'Failed to submit exam.');
       alert('Exam submitted successfully!');

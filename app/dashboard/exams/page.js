@@ -21,35 +21,48 @@ const StudentExamActions = ({ exam }) => {
     const startTime = exam.start_time ? new Date(exam.start_time) : null;
     const endTime = exam.end_time ? new Date(exam.end_time) : null;
 
-    // If the exam is not scheduled, it's always available.
-    if (!startTime || !endTime) {
+    // 1. Check for an in-progress exam first
+    if (exam.has_in_progress) {
         return (
-            <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 hover:text-green-800 transition-colors">
+            <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors">
                 <div className="flex items-center gap-2">
                     <Icons.Play />
-                    <span>Mulai Kerjakan</span>
+                    <span>Lanjutkan Ujian</span>
                 </div>
                 <Icons.ChevronRight className="transition-transform group-hover:translate-x-1" />
             </Link>
         );
     }
+
+    // 2. Check if max attempts have been reached
+    if (exam.max_attempts > 0 && exam.user_attempts >= exam.max_attempts) {
+        return (
+            <div className="w-full text-center py-2 text-sm font-semibold text-slate-500 bg-slate-100 rounded-lg">
+                Max attempts reached
+            </div>
+        );
+    }
+
+    // 3. Check against schedule
+    if (startTime && endTime) {
+        if (now < startTime) {
+            return (
+                <div className="w-full text-center py-2 text-sm font-semibold text-amber-600 bg-amber-100 rounded-lg">
+                    Ujian belum bisa dimulai
+                </div>
+            );
+        }
     
-    if (now < startTime) {
-        return (
-            <div className="w-full text-center py-2 text-sm font-semibold text-amber-600 bg-amber-100 rounded-lg">
-                Ujian belum bisa dimulai
-            </div>
-        );
+        if (now > endTime) {
+            return (
+                <div className="w-full text-center py-2 text-sm font-semibold text-red-600 bg-red-100 rounded-lg">
+                    Ujian selesai
+                </div>
+            );
+        }
     }
 
-    if (now > endTime) {
-        return (
-            <div className="w-full text-center py-2 text-sm font-semibold text-red-600 bg-red-100 rounded-lg">
-                Ujian selesai
-            </div>
-        );
-    }
-
+    // 4. If all checks pass, it's available to start
     return (
         <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 hover:text-green-800 transition-colors">
             <div className="flex items-center gap-2">

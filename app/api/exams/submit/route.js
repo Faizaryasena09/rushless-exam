@@ -18,52 +18,84 @@ export async function POST(request) {
   }
 
   try {
-    const { examId, answers } = await request.json();
+    const { examId, answers, attemptId } = await request.json();
 
-    if (!examId || !answers) {
-      return NextResponse.json({ message: 'Missing examId or answers' }, { status: 400 });
+    if (!examId || !answers || !attemptId) {
+      return NextResponse.json({ message: 'Missing examId, answers, or attemptId' }, { status: 400 });
     }
 
-    const receivedQuestionIds = Object.keys(answers).filter(id => answers[id] !== null);
-
-    if (receivedQuestionIds.length === 0) {
-      await query({
-        query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
-        values: [session.user.id, examId],
-      });
-      return NextResponse.json({ message: 'Exam submitted with no answers.' });
-    }
-
-    const placeholders = receivedQuestionIds.map(() => '?').join(',');
-    const validQuestions = await query({
-      query: `SELECT id, correct_option FROM rhs_exam_questions WHERE id IN (${placeholders})`,
-      values: receivedQuestionIds,
+    // 1. Get all questions for the exam to get the total number and correct options
+    const allQuestions = await query({
+      query: 'SELECT id, correct_option FROM rhs_exam_questions WHERE exam_id = ?',
+      values: [examId],
     });
 
-    if (validQuestions.length > 0) {
-      const valueTuples = validQuestions.map(() => '(?, ?, ?, ?, ?)').join(', ');
+    if (allQuestions.length === 0) {
+      // No questions in the exam, so score is 0.
+      await query({
+        query: `
+          UPDATE rhs_exam_attempts 
+          SET status = 'completed', end_time = NOW(), score = 0 
+          WHERE id = ? AND user_id = ?
+        `,
+        values: [attemptId, session.user.id],
+      });
+      return NextResponse.json({ message: 'Exam submitted. No questions found, score is 0.' });
+    }
+    
+    // 2. Calculate score
+    let correctCount = 0;
+    const correctOptionsMap = allQuestions.reduce((acc, q) => {
+      acc[q.id] = q.correct_option;
+      return acc;
+    }, {});
+
+    for (const questionId in answers) {
+      if (answers[questionId] === correctOptionsMap[questionId]) {
+        correctCount++;
+      }
+    }
+
+    const totalQuestions = allQuestions.length;
+    const score = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
+
+    // 3. Update the attempt record
+    await query({
+      query: `
+        UPDATE rhs_exam_attempts 
+        SET status = 'completed', end_time = NOW(), score = ? 
+        WHERE id = ? AND user_id = ?
+      `,
+      values: [score, attemptId, session.user.id],
+    });
+
+    // 4. Save the answers to the permanent student_answer table
+    const receivedQuestionIds = Object.keys(answers).filter(id => answers[id] !== null);
+    if (receivedQuestionIds.length > 0) {
+      const valueTuples = receivedQuestionIds.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
       const flattenedValues = [];
-      validQuestions.forEach(q => {
-        const selectedOption = answers[q.id];
-        const isCorrect = q.correct_option === selectedOption;
-        flattenedValues.push(session.user.id, examId, q.id, selectedOption, isCorrect);
+      receivedQuestionIds.forEach(qId => {
+        const selectedOption = answers[qId];
+        const isCorrect = correctOptionsMap[qId] === selectedOption;
+        flattenedValues.push(session.user.id, examId, attemptId, qId, selectedOption, isCorrect);
       });
 
       await query({
         query: `
-          INSERT INTO rhs_student_answer (user_id, exam_id, question_id, selected_option, is_correct) 
+          INSERT INTO rhs_student_answer (user_id, exam_id, attempt_id, question_id, selected_option, is_correct) 
           VALUES ${valueTuples}
         `,
         values: flattenedValues,
       });
     }
 
+    // 5. Clean up temporary answers
     await query({
       query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
       values: [session.user.id, examId],
     });
 
-    return NextResponse.json({ message: 'Exam submitted successfully' });
+    return NextResponse.json({ message: 'Exam submitted successfully', score: score });
 
   } catch (error) {
     console.error('Submit Error:', error);

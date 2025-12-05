@@ -33,13 +33,89 @@ export async function GET(request) {
             return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
         }
 
-        // Query 2: Get all questions for the exam
+        // Query 2: Get all questions for the exam to get total count
         const allQuestions = await query({
-            query: 'SELECT id, question_text, correct_option FROM rhs_exam_questions WHERE exam_id = ? ORDER BY id ASC',
+            query: 'SELECT id FROM rhs_exam_questions WHERE exam_id = ?',
+            values: [examId]
+        });
+        const totalQuestions = allQuestions.length;
+
+        // Query 3: Get answer counts per attempt
+        const answerCountsByAttempt = await query({
+            query: `
+                SELECT 
+                    attempt_id,
+                    COUNT(id) as answeredCount,
+                    SUM(is_correct = 1) as correctCount
+                FROM rhs_student_answer
+                WHERE exam_id = ?
+                GROUP BY attempt_id
+            `,
+            values: [examId]
+        });
+        const countsMap = answerCountsByAttempt.reduce((acc, row) => {
+            acc[row.attempt_id] = {
+                correctCount: Number(row.correctCount) || 0,
+                answeredCount: Number(row.answeredCount) || 0,
+                incorrectCount: (Number(row.answeredCount) || 0) - (Number(row.correctCount) || 0),
+                notAnsweredCount: totalQuestions - (Number(row.answeredCount) || 0)
+            };
+            return acc;
+        }, {});
+
+        // Query 4: Get all completed attempts for this exam, with user info, ordered by best score first
+        const allAttempts = await query({
+            query: `
+                SELECT 
+                    a.id as attemptId, 
+                    a.user_id as studentId, 
+                    a.score, 
+                    a.start_time, 
+                    a.end_time,
+                    u.username as studentName,
+                    c.class_name as className
+                FROM rhs_exam_attempts a
+                JOIN rhs_users u ON a.user_id = u.id
+                LEFT JOIN rhs_classes c ON u.class_id = c.id
+                WHERE a.exam_id = ? AND a.status = 'completed'
+                ORDER BY a.user_id, a.score DESC
+            `,
             values: [examId]
         });
 
-        // Query 3: Get all users with 'student' role, joined with their class
+        // Process attempts to get best score and all attempts per student
+        const resultsByStudent = allAttempts.reduce((acc, attempt) => {
+            const attemptCounts = countsMap[attempt.attemptId] || { correctCount: 0, incorrectCount: 0, notAnsweredCount: totalQuestions };
+            const attemptWithCounts = {
+                attemptId: attempt.attemptId,
+                score: attempt.score,
+                startTime: attempt.start_time,
+                endTime: attempt.end_time,
+                ...attemptCounts
+            };
+
+            if (!acc[attempt.studentId]) {
+                // First time seeing this student, this is their best attempt due to ORDER BY
+                acc[attempt.studentId] = {
+                    studentId: attempt.studentId,
+                    studentName: attempt.studentName,
+                    className: attempt.className || 'No Class',
+                    status: 'Completed',
+                    bestScore: attempt.score,
+                    // We also include counts for the best attempt at the top level for the main table display
+                    correctCount: attemptCounts.correctCount,
+                    incorrectCount: attemptCounts.incorrectCount,
+                    notAnsweredCount: attemptCounts.notAnsweredCount,
+                    attempts: [attemptWithCounts]
+                };
+            } else {
+                // Student already in map, just add the attempt
+                acc[attempt.studentId].attempts.push(attemptWithCounts);
+            }
+            return acc;
+        }, {});
+
+        // Query 5: Get all students to include those who haven't taken the exam
         const allStudents = await query({
             query: `
                 SELECT u.id, u.username, c.class_name 
@@ -50,94 +126,27 @@ export async function GET(request) {
             `,
         });
 
-        // Query 4: Get all submitted answers for this exam
-        const allStudentAnswers = await query({
-            query: `
-                SELECT sa.user_id, sa.question_id, sa.selected_option, sa.is_correct
-                FROM rhs_student_answer sa
-                WHERE sa.exam_id = ?
-            `,
-            values: [examId]
-        });
-
-        // Group submitted answers by student for efficient lookup
-        const answersByStudent = allStudentAnswers.reduce((acc, ans) => {
-            if (!acc[ans.user_id]) {
-                acc[ans.user_id] = {};
-            }
-            acc[ans.user_id][ans.question_id] = {
-                selectedOption: ans.selected_option,
-                isCorrect: Boolean(ans.is_correct)
-            };
-            return acc;
-        }, {});
-
-        // Build results by iterating through ALL students
-        const detailedResults = allStudents.map(student => {
-            const studentSubmittedAnswers = answersByStudent[student.id];
-            const className = student.class_name || 'No Class';
-
-            if (studentSubmittedAnswers) {
-                // This student took the exam, process their results
-                let correctCount = 0;
-                let incorrectCount = 0;
-                
-                const studentAnswersAnalysis = allQuestions.map(question => {
-                    const studentAnswer = studentSubmittedAnswers[question.id];
-                    const isCorrect = studentAnswer ? studentAnswer.isCorrect : false;
-
-                    if (studentAnswer) {
-                        if (isCorrect) correctCount++;
-                        else incorrectCount++;
-                    }
-
-                    return {
-                        questionId: question.id,
-                        questionText: question.question_text,
-                        correctAnswer: question.correct_option,
-                        studentAnswer: studentAnswer ? studentAnswer.selectedOption : null,
-                        isCorrect: isCorrect
-                    };
-                });
-                
-                const score = allQuestions.length > 0 ? Math.round((correctCount / allQuestions.length) * 100) : 0;
-
-                return {
+        allStudents.forEach(student => {
+            if (!resultsByStudent[student.id]) {
+                resultsByStudent[student.id] = {
                     studentId: student.id,
                     studentName: student.username,
-                    className: className,
-                    status: 'Completed',
-                    correctCount: correctCount,
-                    incorrectCount: incorrectCount,
-                    score: score,
-                    answers: studentAnswersAnalysis
-                };
-            } else {
-                // This student has NOT taken the exam
-                const unansweredAnalysis = allQuestions.map(question => ({
-                    questionId: question.id,
-                    questionText: question.question_text,
-                    correctAnswer: question.correct_option,
-                    studentAnswer: null,
-                    isCorrect: false
-                }));
-
-                return {
-                    studentId: student.id,
-                    studentName: student.username,
-                    className: className,
+                    className: student.class_name || 'No Class',
                     status: 'Not Taken',
+                    bestScore: 0,
                     correctCount: 0,
                     incorrectCount: 0,
-                    score: 0,
-                    answers: unansweredAnalysis
+                    notAnsweredCount: totalQuestions,
+                    attempts: []
                 };
             }
         });
+
+        const detailedResults = Object.values(resultsByStudent);
 
         const responsePayload = {
             examName: examDetails[0].exam_name,
-            totalQuestions: allQuestions.length,
+            totalQuestions: totalQuestions,
             results: detailedResults,
         };
 
@@ -148,3 +157,4 @@ export async function GET(request) {
         return NextResponse.json({ message: 'Failed to retrieve exam results', error: error.message }, { status: 500 });
     }
 }
+

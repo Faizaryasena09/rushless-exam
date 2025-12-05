@@ -152,16 +152,16 @@ export default function ExamResultsPage() {
                                     <th scope="col" className="px-6 py-3">Student Name</th>
                                     <th scope="col" className="px-6 py-3">Class</th>
                                     <th scope="col" className="px-6 py-3 text-center">Status</th>
+                                    <th scope="col" className="px-6 py-3 text-center">Attempts</th>
                                     <th scope="col" className="px-6 py-3 text-center">Correct</th>
                                     <th scope="col" className="px-6 py-3 text-center">Incorrect</th>
                                     <th scope="col" className="px-6 py-3 text-center">Not Answered</th>
-                                    <th scope="col" className="px-6 py-3 text-center">Score</th>
+                                    <th scope="col" className="px-6 py-3 text-center">Best Score</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredResults.map((student) => {
                                     const isCompleted = student.status === 'Completed';
-                                    const notAnsweredCount = resultsData.totalQuestions - (student.correctCount + student.incorrectCount);
                                     return (
                                         <tr 
                                             key={student.studentId} 
@@ -184,18 +184,21 @@ export default function ExamResultsPage() {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-center font-semibold">
+                                                {isCompleted ? <span className="text-slate-600">{student.attempts.length}</span> : '-'}
+                                            </td>
+                                            <td className="px-6 py-4 text-center font-semibold">
                                                 {isCompleted ? <span className="text-emerald-600">{student.correctCount}</span> : '-'}
                                             </td>
                                             <td className="px-6 py-4 text-center font-semibold">
                                                 {isCompleted ? <span className="text-red-600">{student.incorrectCount}</span> : '-'}
                                             </td>
                                             <td className="px-6 py-4 text-center font-semibold">
-                                                {isCompleted ? <span className="text-slate-500">{notAnsweredCount}</span> : '-'}
+                                                {isCompleted ? <span className="text-slate-500">{student.notAnsweredCount}</span> : '-'}
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 {isCompleted ? (
-                                                    <span className={`font-bold text-base px-2 py-1 rounded-md ${getScoreColor(student.score)}`}>
-                                                        {student.score}%
+                                                    <span className={`font-bold text-base px-2 py-1 rounded-md ${getScoreColor(student.bestScore)}`}>
+                                                        {student.bestScore}%
                                                     </span>
                                                 ) : (
                                                     <span className="font-bold text-slate-500">-</span>
@@ -222,39 +225,139 @@ export default function ExamResultsPage() {
 }
 
 function StudentAnalysisDetail({ student, onClose }) {
+    const [selectedAttemptId, setSelectedAttemptId] = useState(null);
+
+    // Helper to format date
+    const formatDateTime = (dateTimeString) => {
+        if (!dateTimeString) return 'N/A';
+        return new Date(dateTimeString).toLocaleString('en-US', { 
+            dateStyle: 'medium', 
+            timeStyle: 'short' 
+        });
+    };
+    
+    const getScoreColor = (score) => {
+        if (score >= 80) return 'text-emerald-600 bg-emerald-50';
+        if (score >= 60) return 'text-amber-600 bg-amber-50';
+        return 'text-red-600 bg-red-50';
+    };
+
+    if (selectedAttemptId) {
+        return <AttemptAnalysisDetail attemptId={selectedAttemptId} onClose={() => setSelectedAttemptId(null)} studentName={student.studentName} />
+    }
+
     return (
-        <div className="space-y-4 fixed inset-0 bg-black bg-opacity-30 z-50 flex justify-center items-center p-4" onClick={onClose}>
-            <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="space-y-4 fixed inset-0 bg-black bg-opacity-30 z-50 flex justify-center items-start p-4 pt-16" onClick={onClose}>
+            <div className="relative w-full max-w-7xl max-h-[80vh] bg-white rounded-2xl shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
                 <div className="p-6 border-b border-slate-200 sticky top-0 bg-white rounded-t-2xl">
-                    <h2 className="text-2xl font-bold text-slate-900">Analysis for {student.studentName}</h2>
-                    <p className="text-sm text-slate-500">Review of all questions and answers.</p>
+                    <h2 className="text-2xl font-bold text-slate-900">Attempt History for {student.studentName}</h2>
+                    <p className="text-sm text-slate-500">Showing all completed attempts. Click an attempt to see details.</p>
                      <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 transition-colors">
                         <svg className="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
-                <div className="p-6 space-y-4 overflow-y-auto">
-                    {student.answers.map((ans, index) => (
-                        <div key={ans.questionId} className="p-4 border rounded-xl bg-slate-50/50">
-                            <div className="flex items-start justify-between gap-4">
-                                <p className="font-semibold text-slate-800 flex-1">
-                                    <span className="font-bold mr-2">{index + 1}.</span>
-                                    <span dangerouslySetInnerHTML={{ __html: ans.questionText }} />
-                                </p>
-                                {ans.isCorrect ? <Icons.CheckCircle /> : (ans.studentAnswer ? <Icons.XCircle /> : <Icons.MinusCircle />)}
-                            </div>
-                            <div className="mt-3 pl-6 border-l-2 ml-2 space-y-2">
-                                <p className={`text-sm font-medium ${ans.isCorrect ? 'text-emerald-700' : 'text-red-700'}`}>
-                                    Your Answer: <span className="font-bold">{ans.studentAnswer || 'Not Answered'}</span>
-                                </p>
-                                {!ans.isCorrect && (
-                                    <p className="text-sm font-medium text-slate-600">
-                                        Correct Answer: <span className="font-bold">{ans.correctAnswer}</span>
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                <div className="overflow-y-auto">
+                    <table className="w-full text-sm text-left text-slate-500">
+                        <thead className="text-xs text-slate-700 uppercase bg-slate-50/50 sticky top-0">
+                            <tr>
+                                <th scope="col" className="px-6 py-3 text-center">Attempt</th>
+                                <th scope="col" className="px-6 py-3 text-center">Score</th>
+                                <th scope="col" className="px-6 py-3 text-center">Correct</th>
+                                <th scope="col" className="px-6 py-3 text-center">Incorrect</th>
+                                <th scope="col" className="px-6 py-3 text-center">Not Answered</th>
+                                <th scope="col" className="px-6 py-3">Start Time</th>
+                                <th scope="col" className="px-6 py-3">End Time</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-slate-200">
+                            {student.attempts.map((attempt, index) => (
+                                <tr key={attempt.attemptId} className="hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedAttemptId(attempt.attemptId)}>
+                                    <td className="px-6 py-4 text-center font-bold text-slate-700">{index + 1}</td>
+                                    <td className="px-6 py-4 text-center">
+                                        <span className={`font-bold text-base px-2 py-1 rounded-md ${getScoreColor(attempt.score)}`}>
+                                            {Math.round(attempt.score)}%
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-center font-semibold text-emerald-600">{attempt.correctCount}</td>
+                                    <td className="px-6 py-4 text-center font-semibold text-red-600">{attempt.incorrectCount}</td>
+                                    <td className="px-6 py-4 text-center font-semibold text-slate-500">{attempt.notAnsweredCount}</td>
+                                    <td className="px-6 py-4">{formatDateTime(attempt.startTime)}</td>
+                                    <td className="px-6 py-4">{formatDateTime(attempt.endTime)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
+    const [analysis, setAnalysis] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        if (!attemptId) return;
+        async function fetchAnalysis() {
+            try {
+                setLoading(true);
+                const res = await fetch(`/api/exams/attempt-details?attemptId=${attemptId}`);
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.message || 'Failed to fetch attempt details');
+                }
+                const data = await res.json();
+                setAnalysis(data);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchAnalysis();
+    }, [attemptId]);
+
+    return (
+        <div className="space-y-4 fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center p-4" onClick={onClose}>
+            <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-200 sticky top-0 bg-white rounded-t-2xl">
+                    <h2 className="text-2xl font-bold text-slate-900">Analysis for {studentName}</h2>
+                    <p className="text-sm text-slate-500">Review of all questions and answers for this attempt.</p>
+                     <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 transition-colors">
+                        <svg className="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                {loading && <div className="text-center p-20">Loading analysis...</div>}
+                {error && <div className="text-center p-20 text-red-500">Error: {error}</div>}
+                
+                {analysis && (
+                    <div className="p-6 space-y-4 overflow-y-auto">
+                        {analysis.map((ans, index) => (
+                            <div key={ans.questionId} className="p-4 border rounded-xl bg-slate-50/50">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="font-semibold text-slate-800 flex-1">
+                                        <span className="font-bold mr-2">{index + 1}.</span>
+                                        <div className="inline-block" dangerouslySetInnerHTML={{ __html: ans.questionText }} />
+                                    </div>
+                                    {ans.isCorrect ? <Icons.CheckCircle /> : (ans.studentAnswer ? <Icons.XCircle /> : <Icons.MinusCircle />)}
+                                </div>
+                                <div className="mt-3 pl-6 border-l-2 ml-2 space-y-2">
+                                    <p className={`text-sm font-medium ${ans.isCorrect ? 'text-emerald-700' : 'text-red-700'}`}>
+                                        Your Answer: <span className="font-bold">{ans.studentAnswer || 'Not Answered'}</span>
+                                    </p>
+                                    {!ans.isCorrect && (
+                                        <p className="text-sm font-medium text-slate-600">
+                                            Correct Answer: <span className="font-bold">{ans.correctAnswer}</span>
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
