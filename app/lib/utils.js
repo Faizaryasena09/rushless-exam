@@ -1,3 +1,42 @@
+export const uploadBase64Images = async (htmlContent) => {
+    if (!htmlContent || typeof window === 'undefined') {
+        return htmlContent;
+    }
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+    const images = doc.querySelectorAll('img[src^="data:image"]');
+
+    if (images.length === 0) {
+        return htmlContent;
+    }
+
+    const uploads = Array.from(images).map(async (img) => {
+        const base64 = img.src;
+        try {
+            const res = await fetch('/api/upload/base64', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: base64 }),
+            });
+            if (res.ok) {
+                const { url } = await res.json();
+                img.src = url; // Replace src
+            } else {
+                 console.error("Failed to upload base64 image: Server responded with status " + res.status);
+            }
+        } catch (e) {
+            console.error("Failed to upload base64 image", e);
+        }
+    });
+
+    await Promise.all(uploads);
+
+    // Return the modified HTML, preserving the full document structure if needed
+    // For Jodit content, returning only the body's innerHTML is usually correct.
+    return doc.body.innerHTML;
+};
+
 /**
  * Creates a pseudo-random number generator function from a seed.
  * This is a simple Mulberry32 implementation.
