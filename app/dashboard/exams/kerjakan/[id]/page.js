@@ -98,6 +98,7 @@ export default function ExamTakingPage() {
   const [error, setError] = useState(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const finishExamHandled = useRef(false);
+  const initExamRef = useRef(false);
   
   const debouncedQuestionIndex = useDebounce(currentQuestionIndex, 1000);
 
@@ -140,10 +141,12 @@ export default function ExamTakingPage() {
       alert(`Error: ${err.message}`);
       finishExamHandled.current = false;
     }
-  }, [examId, answers, router]);
+  }, [examId, answers, router, attemptDetails]); // Added attemptDetails dependency
 
   useEffect(() => {
-    if (!examId) return;
+    if (!examId || initExamRef.current) return;
+    initExamRef.current = true;
+
     async function getExamData() {
       try {
         setLoading(true);
@@ -187,6 +190,8 @@ export default function ExamTakingPage() {
 
       } catch (err) {
         setError(err.message);
+        // If initialization fails, allow retrying (e.g., if network error)
+        initExamRef.current = false;
       } finally {
         setLoading(false);
       }

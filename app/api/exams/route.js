@@ -21,6 +21,8 @@ async function GET() {
           e.description, 
           e.created_at,
           e.max_attempts,
+          e.timer_mode,
+          e.duration_minutes,
           s.start_time,
           s.end_time
         FROM rhs_exams e
@@ -29,19 +31,51 @@ async function GET() {
     `;
     const exams = await query({ query: examsQuery, values: [] });
 
+    // Create a map of exam settings for easy lookup
+    const examsMap = exams.reduce((acc, exam) => {
+        acc[exam.id] = exam;
+        return acc;
+    }, {});
+
     if (session.user.roleName === 'student') {
         const allUserAttempts = await query({
-            query: `SELECT exam_id, status FROM rhs_exam_attempts WHERE user_id = ?`,
+            query: `SELECT exam_id, status, UNIX_TIMESTAMP(start_time) as start_time_ts FROM rhs_exam_attempts WHERE user_id = ?`,
             values: [session.user.id]
         });
         
+        const now_ts = Math.floor(Date.now() / 1000);
+
         const attemptsInfo = allUserAttempts.reduce((acc, attempt) => {
             if (!acc[attempt.exam_id]) {
                 acc[attempt.exam_id] = { count: 0, hasInProgress: false };
             }
             acc[attempt.exam_id].count++;
+
             if (attempt.status === 'in_progress') {
-                acc[attempt.exam_id].hasInProgress = true;
+                const exam = examsMap[attempt.exam_id];
+                let isExpired = false;
+
+                if (exam) {
+                    if (exam.timer_mode === 'async') {
+                        const durationSeconds = (exam.duration_minutes || 0) * 60;
+                        const endTime = attempt.start_time_ts + durationSeconds;
+                        if (now_ts > endTime) {
+                            isExpired = true;
+                        }
+                    } else {
+                        // Sync mode: check against global end time
+                        if (exam.end_time) {
+                            const globalEndTime = Math.floor(new Date(exam.end_time).getTime() / 1000);
+                            if (now_ts > globalEndTime) {
+                                isExpired = true;
+                            }
+                        }
+                    }
+                }
+
+                if (!isExpired) {
+                    acc[attempt.exam_id].hasInProgress = true;
+                }
             }
             return acc;
         }, {});

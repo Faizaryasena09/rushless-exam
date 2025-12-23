@@ -101,27 +101,44 @@ export default function ExamsPage() {
     checkSession();
   }, [router]);
 
-  // Fetch exams logic
+  // Fetch exams logic with polling
   useEffect(() => {
-    if (!loadingSession) {
-      async function fetchExams() {
-        try {
-          const res = await fetch('/api/exams');
-          if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.message || 'Failed to fetch exams');
-          }
+    if (loadingSession) return;
+
+    let isMounted = true;
+
+    async function fetchExams() {
+      try {
+        const res = await fetch('/api/exams');
+        if (!res.ok) {
           const data = await res.json();
-          setExams(data.exams);
-        } catch (err) {
-          setErrorExams(err.message);
-        } finally {
-          setLoadingExams(false);
+          throw new Error(data.message || 'Failed to fetch exams');
+        }
+        const data = await res.json();
+        if (isMounted) {
+            setExams(data.exams);
+            setLoadingExams(false);
+        }
+      } catch (err) {
+        if (isMounted) {
+            console.error("Failed to fetch exams:", err);
+            // Only show error on full page load if we have no exams yet
+            if (loadingExams) {
+                setErrorExams(err.message);
+                setLoadingExams(false);
+            }
         }
       }
-      fetchExams();
     }
-  }, [loadingSession]);
+
+    fetchExams(); // Initial fetch
+    const intervalId = setInterval(fetchExams, 5000); // Poll every 5 seconds
+
+    return () => {
+        isMounted = false;
+        clearInterval(intervalId);
+    };
+  }, [loadingSession, loadingExams]);
 
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };

@@ -4,36 +4,64 @@ const dbConfig = {
   host: '127.0.0.1',
   user: 'root',
   password: '1234',
+  database: 'RUSHLESSEXAM',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 };
 
-// Function to connect to the MySQL server without selecting a database
-async function connectToServer() {
-  return await mysql.createConnection(dbConfig);
-}
+const pool = mysql.createPool(dbConfig);
 
-// Function to execute queries within the RUSHLESSEXAM database
+// Function to execute single queries using the pool
 export async function query({ query, values = [] }) {
-  const dbconnection = await mysql.createConnection({
-    ...dbConfig,
-    database: 'RUSHLESSEXAM',
-  });
-
+  let connection;
   try {
-    const [results] = await dbconnection.execute(query, values);
-    dbconnection.end();
+    connection = await pool.getConnection();
+    const [results] = await connection.execute(query, values);
     return results;
   } catch (error) {
     // Re-throw the error to be caught by the calling function
     throw new Error(error.message);
+  } finally {
+    if (connection) connection.release();
   }
 }
+
+// Function to execute a transaction
+export async function transaction(callback) {
+  const connection = await pool.getConnection();
+  await connection.beginTransaction();
+
+  try {
+    // The callback will receive a special query function that uses the transaction's connection
+    const transactionQuery = async ({ query, values = [] }) => {
+      const [results] = await connection.execute(query, values);
+      return results;
+    };
+    
+    const result = await callback(transactionQuery);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    // Re-throw the error to be handled by the calling function
+    throw new Error(error.message);
+  } finally {
+    connection.release();
+  }
+}
+
 
 // Special function for the one-time setup
 export async function setupDatabase() {
     let serverConnection;
     try {
         // 1. Connect to the server
-        serverConnection = await connectToServer();
+        serverConnection = await mysql.createConnection({
+            host: '127.0.0.1',
+            user: 'root',
+            password: '1234',
+        });
         
         // 2. Create the database if it doesn't exist
         await serverConnection.query(`CREATE DATABASE IF NOT EXISTS RUSHLESSEXAM`);
@@ -42,12 +70,10 @@ export async function setupDatabase() {
         // Close server connection
         await serverConnection.end();
 
-        // 3. Connect to the specific database and create the table
-        const dbConnection = await mysql.createConnection({ ...dbConfig, database: 'RUSHLESSEXAM' });
+        // 3. Use the pool for setting up tables
+        const connection = await pool.getConnection();
         
-        
-
-        await dbConnection.query(`
+        await connection.query(`
             CREATE TABLE IF NOT EXISTS rhs_classes (
               id INT AUTO_INCREMENT PRIMARY KEY,
               class_name VARCHAR(255) NOT NULL UNIQUE
@@ -55,7 +81,7 @@ export async function setupDatabase() {
         `);
         console.log('Table "rhs_classes" created or already exists.');
 
-        await dbConnection.query(`
+        await connection.query(`
             CREATE TABLE IF NOT EXISTS rhs_users (
               id INT AUTO_INCREMENT PRIMARY KEY,
               username VARCHAR(255) NOT NULL UNIQUE,
@@ -69,7 +95,7 @@ export async function setupDatabase() {
         console.log('Table "rhs_users" created or already exists.');
 
         // Create the 'rhs_exams' table
-        await dbConnection.query(`
+        await connection.query(`
             CREATE TABLE IF NOT EXISTS rhs_exams (
               id INT AUTO_INCREMENT PRIMARY KEY,
               exam_name VARCHAR(255) NOT NULL,
@@ -80,12 +106,14 @@ export async function setupDatabase() {
         console.log('Table "rhs_exams" created or already exists.');
 
         // Create the 'rhs_exam_settings' table
-        await dbConnection.query(`
+        await connection.query(`
             CREATE TABLE IF NOT EXISTS rhs_exam_settings (
               id INT AUTO_INCREMENT PRIMARY KEY,
               exam_id INT NOT NULL UNIQUE,
               start_time DATETIME,
               end_time DATETIME,
+              duration INT,
+              max_attempts INT DEFAULT 1,
               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
               FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE
@@ -94,7 +122,7 @@ export async function setupDatabase() {
         console.log('Table "rhs_exam_settings" created or already exists.');
 
         // Create the 'rhs_exam_questions' table
-        await dbConnection.query(`
+        await connection.query(`
             CREATE TABLE IF NOT EXISTS rhs_exam_questions (
               id INT AUTO_INCREMENT PRIMARY KEY,
               exam_id INT NOT NULL,
@@ -108,19 +136,22 @@ export async function setupDatabase() {
         `);
         console.log('Table "rhs_exam_questions" created or already exists.');
 
-        await dbConnection.query(`
+        await connection.query(`
             CREATE TABLE IF NOT EXISTS rhs_exam_attempts (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 user_id INT NOT NULL,
                 exam_id INT NOT NULL,
                 start_time DATETIME NOT NULL,
+                end_time DATETIME,
                 status ENUM('in_progress', 'completed') NOT NULL DEFAULT 'in_progress',
-                INDEX (user_id, exam_id)
+                INDEX (user_id, exam_id),
+                FOREIGN KEY (user_id) REFERENCES rhs_users(id) ON DELETE CASCADE,
+                FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE
             );
         `);
         console.log('Table "rhs_exam_attempts" created or already exists.');
 
-        await dbConnection.query(`
+        await connection.query(`
             CREATE TABLE IF NOT EXISTS rhs_student_answer (
               id INT AUTO_INCREMENT PRIMARY KEY,
               user_id INT NOT NULL,
@@ -138,7 +169,7 @@ export async function setupDatabase() {
         `);
         console.log('Table "rhs_student_answer" created or already exists.');
 
-        await dbConnection.query(`
+        await connection.query(`
             CREATE TABLE IF NOT EXISTS rhs_temporary_answer (
               id INT AUTO_INCREMENT PRIMARY KEY,
               user_id INT NOT NULL,
@@ -155,7 +186,7 @@ export async function setupDatabase() {
         `);
         console.log('Table "rhs_temporary_answer" created or already exists.');
 
-        await dbConnection.end();
+        connection.release();
         return { success: true };
 
     } catch (error) {
