@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { seededShuffle } from '@/app/lib/utils'; // <-- Import the shuffle utility
+import { validateUserSession } from '@/app/lib/auth';
 
 async function getSession(request) {
   const cookieStore = await cookies();
@@ -14,7 +15,7 @@ async function getSession(request) {
 export async function GET(request) {
   const session = await getSession(request);
 
-  if (!session.user || !session.user.id) {
+  if (!session.user || !session.user.id || !await validateUserSession(session)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 

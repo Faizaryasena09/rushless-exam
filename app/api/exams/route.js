@@ -3,14 +3,17 @@ import { query } from '@/app/lib/db';
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
+import { validateUserSession } from '@/app/lib/auth';
+import { unlink } from 'fs/promises';
+import path from 'path';
 
 async function GET() {
   // Check for active session to protect the route
   const cookieStore = await cookies();
   const session = await getIronSession(cookieStore, sessionOptions);
 
-  if (!session.user) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!session.user || !await validateUserSession(session)) {
+    return NextResponse.json({ message: 'Unauthorized or Session Expired' }, { status: 401 });
   }
 
   try {
@@ -206,9 +209,6 @@ async function PUT(request) {
     return NextResponse.json({ message: 'Database error', error: error.message }, { status: 500 });
   }
 }
-
-import { unlink } from 'fs/promises';
-import path from 'path';
 
 async function DELETE(request) {
   const cookieStore = await cookies();

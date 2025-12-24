@@ -168,6 +168,31 @@ export async function GET(request) {
         messages.push(`Column 'attempt_id' already exists in '${studentAnswerTableName}'.`);
     }
 
+    // --- Check and add 'session_id' column to users table ---
+    const usersTableName = 'rhs_users';
+    const hasSessionId = await columnExists(usersTableName, 'session_id');
+    if (!hasSessionId) {
+        await query({
+            query: `ALTER TABLE ${usersTableName} ADD COLUMN session_id VARCHAR(255);`,
+            values: [],
+        });
+        messages.push(`Column 'session_id' created successfully in '${usersTableName}'.`);
+    } else {
+        messages.push(`Column 'session_id' already exists in '${usersTableName}'.`);
+    }
+
+    // --- Check and add 'last_activity' column to users table ---
+    const hasLastActivity = await columnExists(usersTableName, 'last_activity');
+    if (!hasLastActivity) {
+        await query({
+            query: `ALTER TABLE ${usersTableName} ADD COLUMN last_activity DATETIME;`,
+            values: [],
+        });
+        messages.push(`Column 'last_activity' created successfully in '${usersTableName}'.`);
+    } else {
+        messages.push(`Column 'last_activity' already exists in '${usersTableName}'.`);
+    }
+
     // --- Check and create 'rhs_exam_classes' table (Junction table) ---
     const examClassesTableName = 'rhs_exam_classes';
     // We can't easily check for table existence with columnExists, so we use CREATE TABLE IF NOT EXISTS

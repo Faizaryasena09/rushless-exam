@@ -3,6 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
+import { validateUserSession } from '@/app/lib/auth';
 
 async function getSession() {
   const cookieStore = await cookies();
@@ -13,7 +14,7 @@ async function getSession() {
 export async function POST(request) {
   const session = await getSession();
 
-  if (!session.user) {
+  if (!session.user || !await validateUserSession(session)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 

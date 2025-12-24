@@ -3,6 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { transaction } from '@/app/lib/db'; // Import transaction instead of query
+import { validateUserSession } from '@/app/lib/auth';
 
 async function getSession() {
   const cookieStore = await cookies();
@@ -26,8 +27,8 @@ function calculateRemainingSeconds(settings, attempt, now_ts) {
 export async function POST(request) {
   const session = await getSession();
 
-  if (!session.user || !session.user.id) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!session.user || !session.user.id || !await validateUserSession(session)) {
+    return NextResponse.json({ message: 'Unauthorized or Session Expired' }, { status: 401 });
   }
 
   try {
