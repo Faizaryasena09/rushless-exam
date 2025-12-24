@@ -168,6 +168,23 @@ export async function GET(request) {
         messages.push(`Column 'attempt_id' already exists in '${studentAnswerTableName}'.`);
     }
 
+    // --- Check and create 'rhs_exam_classes' table (Junction table) ---
+    const examClassesTableName = 'rhs_exam_classes';
+    // We can't easily check for table existence with columnExists, so we use CREATE TABLE IF NOT EXISTS
+    await query({
+        query: `
+            CREATE TABLE IF NOT EXISTS rhs_exam_classes (
+                exam_id INT NOT NULL,
+                class_id INT NOT NULL,
+                PRIMARY KEY (exam_id, class_id),
+                FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE,
+                FOREIGN KEY (class_id) REFERENCES rhs_classes(id) ON DELETE CASCADE
+            )
+        `,
+        values: [],
+    });
+    messages.push(`Table '${examClassesTableName}' created or already exists.`);
+
     return NextResponse.json({ 
         status: 'success',
         message: 'Database setup check completed.',

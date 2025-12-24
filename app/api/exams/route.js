@@ -14,7 +14,7 @@ async function GET() {
   }
 
   try {
-    const examsQuery = `
+    let examsQuery = `
         SELECT 
           e.id, 
           e.exam_name, 
@@ -27,9 +27,23 @@ async function GET() {
           s.end_time
         FROM rhs_exams e
         LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
-        ORDER BY e.created_at DESC
     `;
-    const exams = await query({ query: examsQuery, values: [] });
+    
+    let queryValues = [];
+
+    if (session.user.roleName === 'student') {
+        // Students only see exams assigned to their class
+        examsQuery += `
+            INNER JOIN rhs_exam_classes ec ON e.id = ec.exam_id
+            WHERE ec.class_id = ?
+        `;
+        // If student has no class_id, they see nothing (pass null or -1 which matches nothing)
+        queryValues.push(session.user.class_id || -1);
+    }
+
+    examsQuery += ` ORDER BY e.created_at DESC`;
+
+    const exams = await query({ query: examsQuery, values: queryValues });
 
     // Create a map of exam settings for easy lookup
     const examsMap = exams.reduce((acc, exam) => {

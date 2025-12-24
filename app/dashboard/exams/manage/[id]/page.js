@@ -74,6 +74,8 @@ export default function ManageExamPage() {
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [minTimeMinutes, setMinTimeMinutes] = useState(0);
   const [maxAttempts, setMaxAttempts] = useState(1);
+  const [availableClasses, setAvailableClasses] = useState([]);
+  const [selectedClasses, setSelectedClasses] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -93,12 +95,23 @@ export default function ManageExamPage() {
     if (!examId) return;
     try {
       setLoading(true);
-      const res = await fetch(`/api/exams/settings?examId=${examId}`);
-      if (!res.ok) {
-        const data = await res.json();
+      const [settingsRes, classesRes] = await Promise.all([
+          fetch(`/api/exams/settings?examId=${examId}`),
+          fetch('/api/classes')
+      ]);
+
+      if (!settingsRes.ok) {
+        const data = await settingsRes.json();
         throw new Error(data.message || 'Failed to fetch exam data');
       }
-      const data = await res.json();
+      const data = await settingsRes.json();
+      
+      if (classesRes.ok) {
+          const classesData = await classesRes.json();
+          // API returns array directly
+          setAvailableClasses(Array.isArray(classesData) ? classesData : []);
+      }
+
       setExamName(data.exam_name || '');
       setDescription(data.description || '');
       setStartTime(toDateTimeLocal(data.start_time));
@@ -109,6 +122,8 @@ export default function ManageExamPage() {
       setDurationMinutes(data.duration_minutes || 60);
       setMinTimeMinutes(data.min_time_minutes || 0);
       setMaxAttempts(data.max_attempts || 1);
+      setSelectedClasses(data.allowed_classes || []);
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -119,6 +134,16 @@ export default function ManageExamPage() {
   useEffect(() => {
     fetchExamData();
   }, [fetchExamData]);
+
+  const handleToggleClass = (classId) => {
+    setSelectedClasses(prev => {
+        if (prev.includes(classId)) {
+            return prev.filter(id => id !== classId);
+        } else {
+            return [...prev, classId];
+        }
+    });
+  };
 
   const handleSaveAll = async (e) => {
     e.preventDefault();
@@ -149,6 +174,7 @@ export default function ManageExamPage() {
         durationMinutes: durationMinutes,
         minTimeMinutes: minTimeMinutes,
         maxAttempts: maxAttempts,
+        allowedClasses: selectedClasses
       }),
     });
 
@@ -225,6 +251,27 @@ export default function ManageExamPage() {
               <h2 className="text-2xl font-bold text-slate-800 border-b border-slate-200 pb-4 pt-4">Exam Settings</h2>
               
               <div className="space-y-4">
+                {/* --- Assign Classes Section --- */}
+                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Assign to Classes</label>
+                    <p className="text-xs text-slate-500 mb-3">Select the classes eligible to take this exam. If no class is selected, the exam will be hidden from all students.</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {availableClasses.map((cls) => (
+                            <label key={cls.id} className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                    type="checkbox"
+                                    checked={selectedClasses.includes(cls.id)}
+                                    onChange={() => handleToggleClass(cls.id)}
+                                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                                    disabled={saving}
+                                />
+                                <span className="text-sm text-slate-700 font-medium">{cls.class_name}</span>
+                            </label>
+                        ))}
+                        {availableClasses.length === 0 && <p className="text-xs text-red-500 italic col-span-3">No classes found. Please create classes first.</p>}
+                    </div>
+                </div>
+
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Timer Mode</label>
                     <SegmentedControl 

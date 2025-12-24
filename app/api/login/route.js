@@ -14,7 +14,7 @@ export async function POST(request) {
 
     // Find the user in the database
     const users = await query({
-      query: 'SELECT id, username, password, role FROM rhs_users WHERE username = ?',
+      query: 'SELECT id, username, password, role, class_id FROM rhs_users WHERE username = ?',
       values: [username],
     });
 
@@ -36,6 +36,7 @@ export async function POST(request) {
       id: user.id,
       username: user.username,
       roleName: user.role, // Directly use the 'role' column from rhs_users
+      class_id: user.class_id,
     };
     await session.save();
 
