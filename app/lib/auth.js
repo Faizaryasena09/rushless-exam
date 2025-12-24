@@ -20,12 +20,18 @@ export async function validateUserSession(session) {
     try {
         // 1. Fetch user status from DB
         const users = await query({
-            query: 'SELECT session_id, UNIX_TIMESTAMP(last_activity) as last_activity_ts FROM rhs_users WHERE id = ?',
+            query: 'SELECT session_id, is_locked, UNIX_TIMESTAMP(last_activity) as last_activity_ts FROM rhs_users WHERE id = ?',
             values: [userId]
         });
 
         if (users.length === 0) return false;
         const user = users[0];
+
+        // CHECK 0: Account Locked
+        if (user.is_locked) {
+            console.log(`Access denied for locked user ${userId}`);
+            return false;
+        }
 
         // CHECK 1: Single Device Enforcement
         if (user.session_id !== cookieSessionId) {

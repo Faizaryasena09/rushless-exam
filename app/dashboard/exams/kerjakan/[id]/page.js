@@ -199,6 +199,9 @@ export default function ExamTakingPage() {
     getExamData();
   }, [examId]);
 
+  const [showTimeAddedAlert, setShowTimeAddedAlert] = useState(false);
+
+  // 1. Logic for 1-second decrement
   useEffect(() => {
     if (timeLeft === null) return;
     if (timeLeft <= 0) {
@@ -208,6 +211,36 @@ export default function ExamTakingPage() {
     const interval = setInterval(() => setTimeLeft(prev => prev > 0 ? prev - 1 : 0), 1000);
     return () => clearInterval(interval);
   }, [timeLeft, handleFinishExam]);
+
+  // 2. Logic for 5-second server sync
+  useEffect(() => {
+    if (!examId) return;
+
+    const syncInterval = setInterval(async () => {
+        try {
+            const res = await fetch(`/api/exams/attempt-details?exam_id=${examId}`);
+            if (res.ok) {
+                const data = await res.json();
+                
+                // Use functional update to compare with LATEST timeLeft safely
+                setTimeLeft(prevTime => {
+                    // If server time is significantly ahead (>10s), show alert
+                    if (data.seconds_left > prevTime + 10) {
+                        setShowTimeAddedAlert(true);
+                        setTimeout(() => setShowTimeAddedAlert(false), 5000);
+                    }
+                    return data.seconds_left;
+                });
+            } else if (res.status === 401 || res.status === 404) {
+                router.push('/dashboard/exams');
+            }
+        } catch (e) {
+            console.error("Timer sync failed", e);
+        }
+    }, 5000);
+
+    return () => clearInterval(syncInterval);
+  }, [examId, router]); // Only depend on examId and router
   
   const updateAttemptState = useCallback(async (dataToUpdate) => {
     if (!attemptDetails?.id) return;
@@ -333,6 +366,16 @@ export default function ExamTakingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-20">
+      {/* Time Added Notification */}
+      {showTimeAddedAlert && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-bounce">
+            <div className="bg-indigo-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-white">
+                <Icons.Clock />
+                <span className="font-bold">Waktu ujian telah ditambahkan oleh pengawas!</span>
+            </div>
+        </div>
+      )}
+
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">

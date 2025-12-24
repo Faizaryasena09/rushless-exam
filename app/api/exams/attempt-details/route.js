@@ -3,87 +3,88 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
+import { validateUserSession } from '@/app/lib/auth';
 
 async function getSession() {
-    const cookieStore = await cookies();
-    return await getIronSession(cookieStore, sessionOptions);
+  const cookieStore = await cookies();
+  return getIronSession(cookieStore, sessionOptions);
+}
+
+// Helper to calculate remaining time, consistent with start-attempt
+function calculateRemainingSeconds(settings, attempt, now_ts) {
+    let examEndTime_ts;
+    if (settings.timer_mode === 'async') {
+        examEndTime_ts = attempt.start_time_ts + (settings.duration_minutes * 60) + ((attempt.time_extension || 0) * 60);
+    } else {
+        examEndTime_ts = settings.end_time_ts + ((attempt.time_extension || 0) * 60);
+    }
+    const remaining = Math.floor(examEndTime_ts - now_ts);
+    return remaining > 0 ? remaining : 0;
 }
 
 export async function GET(request) {
-    const session = await getSession();
-    // Allow student to view their own results, but API should check ownership.
-    // For now, only admin/teacher can view any result.
-    if (!session.user || session.user.roleName === 'student') {
-        // This check needs to be more granular if students are to see their own results.
-        // For now, keeping it simple.
-        // A better check would be: if role is student, they must be the owner of the attempt.
-        return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const session = await getSession();
+
+  if (!session.user || !await validateUserSession(session)) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const examId = searchParams.get('exam_id');
+
+  if (!examId) {
+    return NextResponse.json({ message: 'Exam ID required' }, { status: 400 });
+  }
+
+  try {
+    const userId = session.user.id;
+
+    // 1. Get current time
+    const nowResult = await query({ query: `SELECT UNIX_TIMESTAMP(NOW()) as server_now_ts` });
+    const now_ts = nowResult[0].server_now_ts;
+
+    // 2. Get settings
+    const examSettingsResult = await query({
+        query: `
+            SELECT 
+                e.id, e.timer_mode, e.duration_minutes,
+                UNIX_TIMESTAMP(s.start_time) as start_time_ts, 
+                UNIX_TIMESTAMP(s.end_time) as end_time_ts
+            FROM rhs_exams e
+            LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
+            WHERE e.id = ?
+        `,
+        values: [examId]
+    });
+
+    if (examSettingsResult.length === 0) return NextResponse.json({ message: 'Not found' }, { status: 404 });
+    const settings = examSettingsResult[0];
+
+    // 3. Get current active attempt
+    const attemptResult = await query({
+        query: `
+            SELECT id, status, UNIX_TIMESTAMP(start_time) as start_time_ts, time_extension
+            FROM rhs_exam_attempts 
+            WHERE user_id = ? AND exam_id = ? AND status = 'in_progress'
+        `,
+        values: [userId, examId]
+    });
+
+    if (attemptResult.length === 0) {
+        return NextResponse.json({ message: 'No active attempt' }, { status: 404 });
     }
+    const attempt = attemptResult[0];
 
-    const { searchParams } = new URL(request.url);
-    const attemptId = searchParams.get('attemptId');
+    const seconds_left = calculateRemainingSeconds(settings, attempt, now_ts);
 
-    if (!attemptId) {
-        return NextResponse.json({ message: 'Attempt ID is required' }, { status: 400 });
-    }
+    return NextResponse.json({ 
+        seconds_left,
+        time_extension: attempt.time_extension,
+        status: attempt.status
+    });
 
-    try {
-        // Query 1: Get Attempt Info to find exam_id and user_id
-        const attemptInfo = await query({
-            query: `SELECT exam_id, user_id FROM rhs_exam_attempts WHERE id = ?`,
-            values: [attemptId]
-        });
-
-        if (attemptInfo.length === 0) {
-            return NextResponse.json({ message: 'Attempt not found' }, { status: 404 });
-        }
-        const { exam_id, user_id } = attemptInfo[0];
-        
-        // Add ownership check for students here in the future if needed
-        // if (session.user.roleName === 'student' && session.user.id !== user_id) {
-        //     return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-        // }
-
-        // Query 2: Get all questions for the exam
-        const allQuestions = await query({
-            query: 'SELECT id, question_text, correct_option FROM rhs_exam_questions WHERE exam_id = ? ORDER BY id ASC',
-            values: [exam_id]
-        });
-
-        // Query 3: Get the student's answers for this specific attempt
-        const studentAnswers = await query({
-            query: `
-                SELECT question_id, selected_option, is_correct
-                FROM rhs_student_answer
-                WHERE attempt_id = ?
-            `,
-            values: [attemptId]
-        });
-
-        const answersMap = studentAnswers.reduce((acc, ans) => {
-            acc[ans.question_id] = {
-                selectedOption: ans.selected_option,
-                isCorrect: Boolean(ans.is_correct)
-            };
-            return acc;
-        }, {});
-
-        // Combine data to create the analysis
-        const analysis = allQuestions.map(question => {
-            const studentAnswer = answersMap[question.id];
-            return {
-                questionId: question.id,
-                questionText: question.question_text,
-                correctAnswer: question.correct_option,
-                studentAnswer: studentAnswer ? studentAnswer.selectedOption : null,
-                isCorrect: studentAnswer ? studentAnswer.isCorrect : false
-            };
-        });
-
-        return NextResponse.json(analysis);
-
-    } catch (error) {
-        console.error('Failed to get attempt details:', error);
-        return NextResponse.json({ message: 'Failed to retrieve attempt details', error: error.message }, { status: 500 });
-    }
+  } catch (error) {
+    console.error('Error fetching attempt details:', error);
+    return NextResponse.json({ message: 'Error', error: error.message }, { status: 500 });
+  }
 }

@@ -15,7 +15,7 @@ export async function POST(request) {
 
     // Find the user in the database
     const users = await query({
-      query: 'SELECT id, username, password, role, class_id, session_id, UNIX_TIMESTAMP(last_activity) as last_activity_ts FROM rhs_users WHERE username = ?',
+      query: 'SELECT id, username, password, role, class_id, session_id, is_locked, UNIX_TIMESTAMP(last_activity) as last_activity_ts FROM rhs_users WHERE username = ?',
       values: [username],
     });
 
@@ -24,6 +24,10 @@ export async function POST(request) {
     }
 
     const user = users[0];
+
+    if (user.is_locked) {
+        return NextResponse.json({ message: 'Username Anda dikunci oleh admin. Mohon hubungi pengawas.' }, { status: 403 });
+    }
 
     // Compare the provided password with the stored hash
     const isPasswordValid = await bcrypt.compare(password, user.password);

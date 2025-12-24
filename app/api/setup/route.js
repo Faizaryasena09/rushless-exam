@@ -193,6 +193,30 @@ export async function GET(request) {
         messages.push(`Column 'last_activity' already exists in '${usersTableName}'.`);
     }
 
+    // --- Check and add 'is_locked' column to users table ---
+    const hasIsLocked = await columnExists(usersTableName, 'is_locked');
+    if (!hasIsLocked) {
+        await query({
+            query: `ALTER TABLE ${usersTableName} ADD COLUMN is_locked BOOLEAN NOT NULL DEFAULT FALSE;`,
+            values: [],
+        });
+        messages.push(`Column 'is_locked' created successfully in '${usersTableName}'.`);
+    } else {
+        messages.push(`Column 'is_locked' already exists in '${usersTableName}'.`);
+    }
+
+    // --- Check and add 'time_extension' column to exam attempts table ---
+    const hasTimeExtension = await columnExists(attemptsTableName, 'time_extension');
+    if (!hasTimeExtension) {
+        await query({
+            query: `ALTER TABLE ${attemptsTableName} ADD COLUMN time_extension INT NOT NULL DEFAULT 0;`,
+            values: [],
+        });
+        messages.push(`Column 'time_extension' created successfully in '${attemptsTableName}'.`);
+    } else {
+        messages.push(`Column 'time_extension' already exists in '${attemptsTableName}'.`);
+    }
+
     // --- Check and create 'rhs_exam_classes' table (Junction table) ---
     const examClassesTableName = 'rhs_exam_classes';
     // We can't easily check for table existence with columnExists, so we use CREATE TABLE IF NOT EXISTS

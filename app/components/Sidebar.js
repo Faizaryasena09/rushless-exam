@@ -30,6 +30,11 @@ const Icons = {
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 20c4.478 0 8.268-2.943 9.542-7m-1.214-6.306A10.038 10.038 0 0120 12c0 .397-.023.78-.067 1.157m-1.967-3.07l-.093.104A10.003 10.003 0 0112 14c-4.478 0-8.268-2.943-9.542-7m1.214-6.306A10.038 10.038 0 014 12c0 .397.023.78.067 1.157m1.967-3.07l.093-.104A10.003 10.003 0 0112 10c4.478 0 8.268 2.943 9.542 7" />
     </svg>
+  ),
+  Control: () => (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+    </svg>
   )
 };
 
@@ -58,6 +63,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { href: '/dashboard', label: 'Dashboard', icon: Icons.Dashboard, roles: ['admin', 'teacher', 'students'] },
     { href: '/dashboard/users', label: 'Manage Users', icon: Icons.Users, roles: ['admin'] },
     { href: '/dashboard/teachers-classes', label: 'Teacher Classes', icon: Icons.TeacherClasses, roles: ['admin'] },
+    { href: '/dashboard/control', label: 'Exam Control', icon: Icons.Control, roles: ['admin'] },
     { href: '/dashboard/classes', label: 'Manage Classes', icon: Icons.Classes, roles: ['admin', 'teacher'] },
     { href: '/dashboard/exams', label: 'Manage Exams', icon: Icons.Exams, roles: ['admin', 'teacher', 'students'] },
   ];
@@ -82,11 +88,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         {/* Header Sidebar */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-slate-100">
            <Link href="/" className="flex items-center gap-2">
-            <div className="bg-indigo-600 rounded-lg p-1">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
             <span className="text-lg font-bold tracking-tight text-slate-800">
               Rushless<span className="text-indigo-600">Exam</span>
             </span>
