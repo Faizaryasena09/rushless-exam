@@ -207,4 +207,64 @@ async function PUT(request) {
   }
 }
 
-export { GET, POST, PUT };
+import { unlink } from 'fs/promises';
+import path from 'path';
+
+async function DELETE(request) {
+  const cookieStore = await cookies();
+  const session = await getIronSession(cookieStore, sessionOptions);
+
+  if (!session.user || (session.user.roleName !== 'admin' && session.user.roleName !== 'teacher')) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+
+  if (!id) {
+    return NextResponse.json({ message: 'Exam ID is required' }, { status: 400 });
+  }
+
+  try {
+    // 1. Find images to delete
+    const questions = await query({
+        query: 'SELECT question_text FROM rhs_exam_questions WHERE exam_id = ?',
+        values: [id]
+    });
+
+    const imageRegex = /src="\/uploads\/questions\/([^"]+)"/g;
+    const filesToDelete = new Set();
+
+    questions.forEach(q => {
+        let match;
+        while ((match = imageRegex.exec(q.question_text)) !== null) {
+            filesToDelete.add(match[1]);
+        }
+    });
+
+    // 2. Delete files
+    const publicDir = path.join(process.cwd(), 'public', 'uploads', 'questions');
+    const deletePromises = Array.from(filesToDelete).map(async (filename) => {
+        try {
+            const filePath = path.join(publicDir, filename);
+            await unlink(filePath);
+        } catch (err) {
+            console.warn(`Failed to delete file: ${filename}`, err.message);
+        }
+    });
+    await Promise.all(deletePromises);
+
+    // 3. Delete exam from DB
+    await query({
+        query: 'DELETE FROM rhs_exams WHERE id = ?',
+        values: [id]
+    });
+
+    return NextResponse.json({ message: 'Exam deleted successfully' });
+
+  } catch (error) {
+    return NextResponse.json({ message: 'Failed to delete exam', error: error.message }, { status: 500 });
+  }
+}
+
+export { GET, POST, PUT, DELETE };
