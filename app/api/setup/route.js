@@ -185,6 +185,22 @@ export async function GET(request) {
     });
     messages.push(`Table '${examClassesTableName}' created or already exists.`);
 
+    // --- Check and create 'rhs_teacher_classes' table (Junction table for Teachers) ---
+    const teacherClassesTableName = 'rhs_teacher_classes';
+    await query({
+        query: `
+            CREATE TABLE IF NOT EXISTS rhs_teacher_classes (
+                teacher_id INT NOT NULL,
+                class_id INT NOT NULL,
+                PRIMARY KEY (teacher_id, class_id),
+                FOREIGN KEY (teacher_id) REFERENCES rhs_users(id) ON DELETE CASCADE,
+                FOREIGN KEY (class_id) REFERENCES rhs_classes(id) ON DELETE CASCADE
+            )
+        `,
+        values: [],
+    });
+    messages.push(`Table '${teacherClassesTableName}' created or already exists.`);
+
     return NextResponse.json({ 
         status: 'success',
         message: 'Database setup check completed.',

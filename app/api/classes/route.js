@@ -19,7 +19,26 @@ export async function GET(request) {
   }
 
   try {
-    const classes = await query({ query: 'SELECT * FROM rhs_classes' });
+    let classes;
+    if (session.user.roleName === 'admin') {
+        classes = await query({ query: 'SELECT * FROM rhs_classes' });
+    } else if (session.user.roleName === 'teacher') {
+        classes = await query({
+            query: `
+                SELECT c.* 
+                FROM rhs_classes c 
+                INNER JOIN rhs_teacher_classes tc ON c.id = tc.class_id 
+                WHERE tc.teacher_id = ?
+            `,
+            values: [session.user.id]
+        });
+    } else {
+        // Students or others shouldn't list classes usually, or maybe they do for some reason?
+        // Safe default: return empty or unauthorized. 
+        // Let's return unauthorized to be strict.
+        return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+    }
+
     return NextResponse.json(classes);
   } catch (error) {
     return NextResponse.json({ message: 'Failed to retrieve classes', error: error.message }, { status: 500 });

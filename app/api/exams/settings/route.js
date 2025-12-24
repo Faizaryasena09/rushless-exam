@@ -76,7 +76,7 @@ async function getSession(request) {
   export async function POST(request) {
     const session = await getSession(request);
     
-    if (!session.user || session.user.roleName !== 'admin') {
+    if (!session.user || (session.user.roleName !== 'admin' && session.user.roleName !== 'teacher')) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
   
@@ -90,6 +90,20 @@ async function getSession(request) {
 
       if (!examId) {
         return NextResponse.json({ message: 'Exam ID is required' }, { status: 400 });
+      }
+
+      // Teacher Validation: Ensure they only assign classes they manage
+      if (session.user.roleName === 'teacher' && allowedClasses && allowedClasses.length > 0) {
+          const teacherClasses = await query({
+              query: `SELECT class_id FROM rhs_teacher_classes WHERE teacher_id = ?`,
+              values: [session.user.id]
+          });
+          const validClassIds = new Set(teacherClasses.map(r => r.class_id));
+          
+          const hasInvalidClass = allowedClasses.some(id => !validClassIds.has(id));
+          if (hasInvalidClass) {
+              return NextResponse.json({ message: 'You are attempting to assign a class you do not manage.' }, { status: 403 });
+          }
       }
 
       // If no start or end time is provided, force the mode to async

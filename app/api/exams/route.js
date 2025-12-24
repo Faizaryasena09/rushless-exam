@@ -39,6 +39,15 @@ async function GET() {
         `;
         // If student has no class_id, they see nothing (pass null or -1 which matches nothing)
         queryValues.push(session.user.class_id || -1);
+    } else if (session.user.roleName === 'teacher') {
+        // Teachers see exams assigned to ANY of their managed classes
+        examsQuery += `
+            INNER JOIN rhs_exam_classes ec ON e.id = ec.exam_id
+            INNER JOIN rhs_teacher_classes tc ON ec.class_id = tc.class_id
+            WHERE tc.teacher_id = ?
+            GROUP BY e.id
+        `;
+        queryValues.push(session.user.id);
     }
 
     examsQuery += ` ORDER BY e.created_at DESC`;
@@ -112,7 +121,7 @@ async function POST(request) {
   const cookieStore = await cookies();
   const session = await getIronSession(cookieStore, sessionOptions);
 
-  if (!session.user || session.user.roleName !== 'admin') {
+  if (!session.user || (session.user.roleName !== 'admin' && session.user.roleName !== 'teacher')) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
@@ -132,7 +141,30 @@ async function POST(request) {
     });
 
     if (result.affectedRows) {
-      return NextResponse.json({ message: 'Exam created successfully', examId: result.insertId }, { status: 201 });
+      const newExamId = result.insertId;
+
+      // Auto-assign classes for teachers
+      if (session.user.roleName === 'teacher') {
+          const teacherClasses = await query({
+              query: 'SELECT class_id FROM rhs_teacher_classes WHERE teacher_id = ?',
+              values: [session.user.id]
+          });
+          
+          if (teacherClasses.length > 0) {
+              const placeholders = teacherClasses.map(() => '(?, ?)').join(', ');
+              const values = [];
+              teacherClasses.forEach(c => {
+                  values.push(newExamId, c.class_id);
+              });
+              
+              await query({
+                  query: `INSERT INTO rhs_exam_classes (exam_id, class_id) VALUES ${placeholders}`,
+                  values: values
+              });
+          }
+      }
+
+      return NextResponse.json({ message: 'Exam created successfully', examId: newExamId }, { status: 201 });
     } else {
       throw new Error('Failed to insert exam into database');
     }
@@ -146,7 +178,7 @@ async function PUT(request) {
   const cookieStore = await cookies();
   const session = await getIronSession(cookieStore, sessionOptions);
 
-  if (!session.user || session.user.roleName !== 'admin') {
+  if (!session.user || (session.user.roleName !== 'admin' && session.user.roleName !== 'teacher')) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 

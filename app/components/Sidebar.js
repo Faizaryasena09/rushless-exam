@@ -25,6 +25,11 @@ const Icons = {
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
     </svg>
+  ),
+  TeacherClasses: () => (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 20c4.478 0 8.268-2.943 9.542-7m-1.214-6.306A10.038 10.038 0 0120 12c0 .397-.023.78-.067 1.157m-1.967-3.07l-.093.104A10.003 10.003 0 0112 14c-4.478 0-8.268-2.943-9.542-7m1.214-6.306A10.038 10.038 0 014 12c0 .397.023.78.067 1.157m1.967-3.07l.093-.104A10.003 10.003 0 0112 10c4.478 0 8.268 2.943 9.542 7" />
+    </svg>
   )
 };
 
@@ -52,6 +57,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const allNavLinks = [
     { href: '/dashboard', label: 'Dashboard', icon: Icons.Dashboard, roles: ['admin', 'teacher', 'students'] },
     { href: '/dashboard/users', label: 'Manage Users', icon: Icons.Users, roles: ['admin'] },
+    { href: '/dashboard/teachers-classes', label: 'Teacher Classes', icon: Icons.TeacherClasses, roles: ['admin'] },
     { href: '/dashboard/classes', label: 'Manage Classes', icon: Icons.Classes, roles: ['admin', 'teacher'] },
     { href: '/dashboard/exams', label: 'Manage Exams', icon: Icons.Exams, roles: ['admin', 'teacher', 'students'] },
   ];
