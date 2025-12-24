@@ -13,10 +13,18 @@ const UserModal = ({ user, onClose, onSave }) => {
     // Fetch classes for the dropdown
     const fetchClasses = async () => {
       try {
-        const res = await fetch('/api/classes'); // Assuming you create this API endpoint
+        const res = await fetch('/api/classes');
         if (res.ok) {
           const data = await res.json();
-          setClasses(data);
+          const classList = Array.isArray(data) ? data : (data.classes || []);
+          setClasses(classList);
+          
+          // Set default class for new users if not editing
+          if (!user && classList.length > 0) {
+             // Try to find ID 1, otherwise use first available
+             const defaultClass = classList.find(c => c.id == 1) || classList[0];
+             setClassId(defaultClass.id);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch classes:', error);
@@ -28,79 +36,107 @@ const UserModal = ({ user, onClose, onSave }) => {
     if (user) {
       setUsername(user.username);
       setRole(user.role);
-      setClassId(user.class_id);
+      // Ensure classId is set correctly from user data
+      setClassId(user.class_id || '');
+    } else {
+        // Reset for new user
+        setUsername('');
+        setPassword('');
+        setRole('student');
+        // classId is handled in fetchClasses or defaults to empty until loaded
     }
   }, [user]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave({ id: user?.id, username, password, role, class_id: classId });
+    onSave({ 
+        id: user?.id, 
+        username, 
+        password, 
+        role, 
+        class_id: role === 'student' ? classId : null // Send class_id only for students
+    });
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center">
-      <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
-        <h2 className="text-2xl font-bold mb-6">{user ? 'Edit User' : 'Add New User'}</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 gap-6">
-            <div className="col-span-1">
-              <label className="block text-sm font-medium text-gray-700">Username</label>
-              <input
-                type="text"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
-            </div>
-            <div className="col-span-1">
-              <label className="block text-sm font-medium text-gray-700">Password</label>
-              <input
-                type="password"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={user ? 'Leave blank to keep current password' : ''}
-              />
-            </div>
-            <div className="col-span-1">
-              <label className="block text-sm font-medium text-gray-700">Role</label>
-              <select
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-              >
-                <option value="admin">Admin</option>
-                <option value="teacher">Teacher</option>
-                <option value="student">Student</option>
-              </select>
-            </div>
-            <div className="col-span-1">
-              <label className="block text-sm font-medium text-gray-700">Class</label>
-              <select
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm overflow-y-auto h-full w-full flex justify-center items-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <h2 className="text-xl font-bold text-slate-800">{user ? 'Edit User' : 'Add New User'}</h2>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
+            <input
+              type="text"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+                {user ? 'New Password (Optional)' : 'Password'}
+            </label>
+            <input
+              type="password"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={user ? 'Leave blank to keep current password' : ''}
+              required={!user}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
+            <select
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-white"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
+              <option value="student">Student</option>
+              <option value="teacher">Teacher</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          
+          {role === 'student' && (
+            <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
+                <select
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-white"
                 value={classId}
                 onChange={(e) => setClassId(e.target.value)}
-              >
-                <option value="">Select a class</option>
+                required={role === 'student'}
+                >
                 {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
+                    <option key={c.id} value={c.id}>
                     {c.class_name}
-                  </option>
+                    </option>
                 ))}
-              </select>
+                {classes.length === 0 && <option value="">No classes found</option>}
+                </select>
             </div>
-          </div>
-          <div className="flex justify-end mt-6">
+          )}
+
+          <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
-              className="py-2 px-4 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
               onClick={onClose}
             >
               Cancel
             </button>
-            <button type="submit" className="ml-3 py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-              Save
+            <button 
+                type="submit" 
+                className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm transition-colors"
+            >
+              {user ? 'Save Changes' : 'Create User'}
             </button>
           </div>
         </form>
