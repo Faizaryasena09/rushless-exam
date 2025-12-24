@@ -66,7 +66,7 @@ export async function POST(request) {
         // 2. Check for an existing 'in_progress' attempt with row locking
         const existingAttempts = await query({
             query: `
-                SELECT id, status, UNIX_TIMESTAMP(start_time) as start_time_ts 
+                SELECT id, status, UNIX_TIMESTAMP(start_time) as start_time_ts, doubtful_questions, last_question_index
                 FROM rhs_exam_attempts 
                 WHERE user_id = ? AND exam_id = ? AND status = 'in_progress'
                 FOR UPDATE
