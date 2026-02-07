@@ -45,7 +45,7 @@ const JoditEditorWithUpload = ({ value, onBlur }) => {
             }
         };
         reader.readAsDataURL(file);
-        event.target.value = null; 
+        event.target.value = null;
     };
 
     return (
@@ -85,7 +85,7 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
     const nextOptionId = useRef(3);
 
     const handleOptionChange = (id, value) => {
-        setOptions(prevOptions => 
+        setOptions(prevOptions =>
             prevOptions.map(opt => opt.id === id ? { ...opt, value } : opt)
         );
     };
@@ -104,7 +104,7 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
         }
         setOptions(prev => prev.filter(opt => opt.id !== id));
     };
-    
+
     const resetForm = () => {
         setQuestionText('');
         setOptions([
@@ -145,7 +145,7 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                 body: JSON.stringify({ examId, questionText: processedQuestionText, options: optionsForApi, correctOption }),
             });
             if (!res.ok) throw new Error((await res.json()).message || 'Failed to add question');
-            
+
             resetForm();
             onQuestionAdded();
 
@@ -206,14 +206,14 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
 
 const EditQuestionForm = ({ question, onSave, onCancel }) => {
     const [questionText, setQuestionText] = useState(question.question_text);
-    
+
     // Initialize options state from potentially stringified JSON
     const initialOptions = useMemo(() => {
         let parsedOpts = {};
         try {
             parsedOpts = typeof question.options === 'string' ? JSON.parse(question.options) : (question.options || {});
         } catch (e) { console.error("Failed to parse options for editing:", e) }
-        
+
         return Object.entries(parsedOpts).map(([key, value], index) => ({
             id: index + 1, // Simple ID generation for the edit session
             key,
@@ -230,7 +230,7 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
     const handleOptionChange = (id, value) => {
         setOptions(prev => prev.map(opt => opt.id === id ? { ...opt, value } : opt));
     };
-    
+
     const addOption = () => {
         setOptions(prev => {
             const nextKey = String.fromCharCode(65 + prev.length);
@@ -298,9 +298,9 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                     {/* Question Editor */}
                     <div className="bg-white p-6 rounded-xl border border-slate-200">
                         <label className="block text-lg font-semibold text-slate-800 mb-3">Question</label>
-                        <JoditEditorWithUpload 
-                            value={questionText} 
-                            onBlur={newContent => setQuestionText(newContent)} 
+                        <JoditEditorWithUpload
+                            value={questionText}
+                            onBlur={newContent => setQuestionText(newContent)}
                         />
                     </div>
 
@@ -328,10 +328,10 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                             ))}
                         </div>
                     </div>
-                    
+
                     {/* Correct Answer Section */}
                     <div className="bg-white p-6 rounded-xl border border-slate-200">
-                         <label className="block text-lg font-semibold text-slate-800 mb-3">Correct Answer</label>
+                        <label className="block text-lg font-semibold text-slate-800 mb-3">Correct Answer</label>
                         <select value={correctOption} onChange={(e) => setCorrectOption(e.target.value)} className="w-full max-w-xs p-2 border border-slate-300 rounded-md bg-white text-slate-800">
                             {options.map(opt => (
                                 <option key={opt.id} value={opt.key}>{`Option ${opt.key}`}</option>
@@ -437,15 +437,25 @@ export default function ManageQuestionsPage() {
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+
     const [editingQuestion, setEditingQuestion] = useState(null);
+    const [examName, setExamName] = useState('');
 
     const fetchQuestions = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(`/api/exams/questions?examId=${examId}`);
+            const examRes = await fetch(`/api/exams/settings?examId=${examId}`); // Fetch exam details
+
             if (!res.ok) throw new Error('Failed to fetch questions');
+
             const data = await res.json();
-            
+
+            if (examRes.ok) {
+                const examData = await examRes.json();
+                setExamName(examData.exam_name || '');
+            }
+
             const normalizedData = data.map(q => {
                 let optionsObject;
                 try {
@@ -486,7 +496,7 @@ export default function ManageQuestionsPage() {
     useEffect(() => {
         fetchQuestions();
     }, [fetchQuestions]);
-    
+
     const handleDelete = async (questionId) => {
         if (!window.confirm('Are you sure you want to delete this question?')) return;
         try {
@@ -509,7 +519,7 @@ export default function ManageQuestionsPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updatedQuestion),
             });
-             if (!res.ok) throw new Error((await res.json()).message || 'Failed to update question');
+            if (!res.ok) throw new Error((await res.json()).message || 'Failed to update question');
             setEditingQuestion(null);
             fetchQuestions();
         } catch (err) {
@@ -520,7 +530,7 @@ export default function ManageQuestionsPage() {
     return (
         <>
             {editingQuestion && (
-                <EditQuestionForm 
+                <EditQuestionForm
                     question={editingQuestion}
                     onSave={handleUpdateQuestion}
                     onCancel={() => setEditingQuestion(null)}
@@ -528,7 +538,7 @@ export default function ManageQuestionsPage() {
             )}
             <div className="container mx-auto p-4 md:p-6">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-slate-800">Manage Questions</h1>
+                    <h1 className="text-3xl font-bold text-slate-800">{examName ? `Manage Questions: ${examName}` : 'Manage Questions'}</h1>
                     <p className="text-slate-500 mt-1">Exam ID: <span className="font-mono bg-slate-100 text-slate-700 px-2 py-1 rounded-md">{examId}</span></p>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -543,7 +553,7 @@ export default function ManageQuestionsPage() {
                                     Import from Word
                                 </button>
                             </div>
-                            
+
                             {activeTab === 'manual' && <ManualInputForm examId={examId} onQuestionAdded={fetchQuestions} />}
                             {activeTab === 'import' && <ImportWordForm examId={examId} onQuestionAdded={fetchQuestions} />}
                         </div>
@@ -570,7 +580,7 @@ export default function ManageQuestionsPage() {
                                                 </div>
                                                 <div className="mt-2 space-y-1 text-sm prose prose-slate max-w-none">
                                                     {Object.entries(q.options).map(([key, value]) => (
-                                                        <div key={key} className={`pl-4 ${key === q.correct_option ? 'font-bold text-green-700' : 'text-slate-600'}`} dangerouslySetInnerHTML={{ __html: `${key}. ${value} ${key === q.correct_option ? '✓' : ''}`}} />
+                                                        <div key={key} className={`pl-4 ${key === q.correct_option ? 'font-bold text-green-700' : 'text-slate-600'}`} dangerouslySetInnerHTML={{ __html: `${key}. ${value} ${key === q.correct_option ? '✓' : ''}` }} />
                                                     ))}
                                                 </div>
                                             </div>
