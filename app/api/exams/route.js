@@ -31,26 +31,26 @@ async function GET() {
         FROM rhs_exams e
         LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
     `;
-    
+
     let queryValues = [];
 
     if (session.user.roleName === 'student') {
-        // Students only see exams assigned to their class
-        examsQuery += `
+      // Students only see exams assigned to their class
+      examsQuery += `
             INNER JOIN rhs_exam_classes ec ON e.id = ec.exam_id
             WHERE ec.class_id = ?
         `;
-        // If student has no class_id, they see nothing (pass null or -1 which matches nothing)
-        queryValues.push(session.user.class_id || -1);
+      // If student has no class_id, they see nothing (pass null or -1 which matches nothing)
+      queryValues.push(session.user.class_id || -1);
     } else if (session.user.roleName === 'teacher') {
-        // Teachers see exams assigned to ANY of their managed classes
-        examsQuery += `
+      // Teachers see exams assigned to ANY of their managed classes
+      examsQuery += `
             INNER JOIN rhs_exam_classes ec ON e.id = ec.exam_id
             INNER JOIN rhs_teacher_classes tc ON ec.class_id = tc.class_id
             WHERE tc.teacher_id = ?
             GROUP BY e.id
         `;
-        queryValues.push(session.user.id);
+      queryValues.push(session.user.id);
     }
 
     examsQuery += ` ORDER BY e.created_at DESC`;
@@ -59,58 +59,58 @@ async function GET() {
 
     // Create a map of exam settings for easy lookup
     const examsMap = exams.reduce((acc, exam) => {
-        acc[exam.id] = exam;
-        return acc;
+      acc[exam.id] = exam;
+      return acc;
     }, {});
 
     if (session.user.roleName === 'student') {
-        const allUserAttempts = await query({
-            query: `SELECT exam_id, status, UNIX_TIMESTAMP(start_time) as start_time_ts FROM rhs_exam_attempts WHERE user_id = ?`,
-            values: [session.user.id]
-        });
-        
-        const now_ts = Math.floor(Date.now() / 1000);
+      const allUserAttempts = await query({
+        query: `SELECT exam_id, status, UNIX_TIMESTAMP(start_time) as start_time_ts FROM rhs_exam_attempts WHERE user_id = ?`,
+        values: [session.user.id]
+      });
 
-        const attemptsInfo = allUserAttempts.reduce((acc, attempt) => {
-            if (!acc[attempt.exam_id]) {
-                acc[attempt.exam_id] = { count: 0, hasInProgress: false };
-            }
-            acc[attempt.exam_id].count++;
+      const now_ts = Math.floor(Date.now() / 1000);
 
-            if (attempt.status === 'in_progress') {
-                const exam = examsMap[attempt.exam_id];
-                let isExpired = false;
+      const attemptsInfo = allUserAttempts.reduce((acc, attempt) => {
+        if (!acc[attempt.exam_id]) {
+          acc[attempt.exam_id] = { count: 0, hasInProgress: false };
+        }
+        acc[attempt.exam_id].count++;
 
-                if (exam) {
-                    if (exam.timer_mode === 'async') {
-                        const durationSeconds = (exam.duration_minutes || 0) * 60;
-                        const endTime = attempt.start_time_ts + durationSeconds;
-                        if (now_ts > endTime) {
-                            isExpired = true;
-                        }
-                    } else {
-                        // Sync mode: check against global end time
-                        if (exam.end_time) {
-                            const globalEndTime = Math.floor(new Date(exam.end_time).getTime() / 1000);
-                            if (now_ts > globalEndTime) {
-                                isExpired = true;
-                            }
-                        }
-                    }
+        if (attempt.status === 'in_progress') {
+          const exam = examsMap[attempt.exam_id];
+          let isExpired = false;
+
+          if (exam) {
+            if (exam.timer_mode === 'async') {
+              const durationSeconds = (exam.duration_minutes || 0) * 60;
+              const endTime = attempt.start_time_ts + durationSeconds;
+              if (now_ts > endTime) {
+                isExpired = true;
+              }
+            } else {
+              // Sync mode: check against global end time
+              if (exam.end_time) {
+                const globalEndTime = Math.floor(new Date(exam.end_time).getTime() / 1000);
+                if (now_ts > globalEndTime) {
+                  isExpired = true;
                 }
-
-                if (!isExpired) {
-                    acc[attempt.exam_id].hasInProgress = true;
-                }
+              }
             }
-            return acc;
-        }, {});
+          }
 
-        exams.forEach(exam => {
-            const info = attemptsInfo[exam.id];
-            exam.user_attempts = info ? info.count : 0;
-            exam.has_in_progress = info ? info.hasInProgress : false;
-        });
+          if (!isExpired) {
+            acc[attempt.exam_id].hasInProgress = true;
+          }
+        }
+        return acc;
+      }, {});
+
+      exams.forEach(exam => {
+        const info = attemptsInfo[exam.id];
+        exam.user_attempts = info ? info.count : 0;
+        exam.has_in_progress = info ? info.hasInProgress : false;
+      });
     }
 
     return NextResponse.json({ exams }, { status: 200 });
@@ -139,8 +139,8 @@ async function POST(request) {
   // 4. Insert into the database
   try {
     const result = await query({
-      query: 'INSERT INTO rhs_exams (exam_name, description) VALUES (?, ?)',
-      values: [exam_name, description],
+      query: 'INSERT INTO rhs_exams (exam_name, description, timer_mode, duration_minutes) VALUES (?, ?, ?, ?)',
+      values: [exam_name, description, 'async', 60],
     });
 
     if (result.affectedRows) {
@@ -148,23 +148,23 @@ async function POST(request) {
 
       // Auto-assign classes for teachers
       if (session.user.roleName === 'teacher') {
-          const teacherClasses = await query({
-              query: 'SELECT class_id FROM rhs_teacher_classes WHERE teacher_id = ?',
-              values: [session.user.id]
+        const teacherClasses = await query({
+          query: 'SELECT class_id FROM rhs_teacher_classes WHERE teacher_id = ?',
+          values: [session.user.id]
+        });
+
+        if (teacherClasses.length > 0) {
+          const placeholders = teacherClasses.map(() => '(?, ?)').join(', ');
+          const values = [];
+          teacherClasses.forEach(c => {
+            values.push(newExamId, c.class_id);
           });
-          
-          if (teacherClasses.length > 0) {
-              const placeholders = teacherClasses.map(() => '(?, ?)').join(', ');
-              const values = [];
-              teacherClasses.forEach(c => {
-                  values.push(newExamId, c.class_id);
-              });
-              
-              await query({
-                  query: `INSERT INTO rhs_exam_classes (exam_id, class_id) VALUES ${placeholders}`,
-                  values: values
-              });
-          }
+
+          await query({
+            query: `INSERT INTO rhs_exam_classes (exam_id, class_id) VALUES ${placeholders}`,
+            values: values
+          });
+        }
       }
 
       return NextResponse.json({ message: 'Exam created successfully', examId: newExamId }, { status: 201 });
@@ -228,36 +228,36 @@ async function DELETE(request) {
   try {
     // 1. Find images to delete
     const questions = await query({
-        query: 'SELECT question_text FROM rhs_exam_questions WHERE exam_id = ?',
-        values: [id]
+      query: 'SELECT question_text FROM rhs_exam_questions WHERE exam_id = ?',
+      values: [id]
     });
 
     const imageRegex = /src="\/uploads\/questions\/([^"]+)"/g;
     const filesToDelete = new Set();
 
     questions.forEach(q => {
-        let match;
-        while ((match = imageRegex.exec(q.question_text)) !== null) {
-            filesToDelete.add(match[1]);
-        }
+      let match;
+      while ((match = imageRegex.exec(q.question_text)) !== null) {
+        filesToDelete.add(match[1]);
+      }
     });
 
     // 2. Delete files
     const publicDir = path.join(process.cwd(), 'public', 'uploads', 'questions');
     const deletePromises = Array.from(filesToDelete).map(async (filename) => {
-        try {
-            const filePath = path.join(publicDir, filename);
-            await unlink(filePath);
-        } catch (err) {
-            console.warn(`Failed to delete file: ${filename}`, err.message);
-        }
+      try {
+        const filePath = path.join(publicDir, filename);
+        await unlink(filePath);
+      } catch (err) {
+        console.warn(`Failed to delete file: ${filename}`, err.message);
+      }
     });
     await Promise.all(deletePromises);
 
     // 3. Delete exam from DB
     await query({
-        query: 'DELETE FROM rhs_exams WHERE id = ?',
-        values: [id]
+      query: 'DELETE FROM rhs_exams WHERE id = ?',
+      values: [id]
     });
 
     return NextResponse.json({ message: 'Exam deleted successfully' });

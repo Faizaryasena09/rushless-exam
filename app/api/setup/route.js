@@ -217,6 +217,23 @@ export async function GET(request) {
         messages.push(`Column 'time_extension' already exists in '${attemptsTableName}'.`);
     }
 
+    // --- Check and create 'rhs_exam_logs' table ---
+    const logsTableName = 'rhs_exam_logs';
+    await query({
+        query: `
+            CREATE TABLE IF NOT EXISTS rhs_exam_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                attempt_id INT NOT NULL,
+                action_type VARCHAR(50) NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (attempt_id) REFERENCES rhs_exam_attempts(id) ON DELETE CASCADE
+            )
+        `,
+        values: [],
+    });
+    messages.push(`Table '${logsTableName}' created or already exists.`);
+
     // --- Check and create 'rhs_exam_classes' table (Junction table) ---
     const examClassesTableName = 'rhs_exam_classes';
     // We can't easily check for table existence with columnExists, so we use CREATE TABLE IF NOT EXISTS

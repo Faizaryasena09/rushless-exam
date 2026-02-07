@@ -99,7 +99,96 @@ export default function ExamTakingPage() {
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const finishExamHandled = useRef(false);
   const initExamRef = useRef(false);
-  
+  const [showTimeAddedAlert, setShowTimeAddedAlert] = useState(false);
+
+  const logAction = useCallback(async (actionType, description) => {
+    if (!attemptDetails?.id) return;
+    try {
+        await fetch('/api/exams/logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                attemptId: attemptDetails.id,
+                actionType,
+                description
+            })
+        });
+    } catch (err) {
+        console.error("Failed to log action:", err);
+    }
+  }, [attemptDetails?.id]);
+
+  // 1. Logic for 1-second decrement
+  useEffect(() => {
+    if (timeLeft === null) return;
+    if (timeLeft <= 0) {
+      if (!finishExamHandled.current) handleFinishExam(true);
+      return;
+    }
+    const interval = setInterval(() => setTimeLeft(prev => prev > 0 ? prev - 1 : 0), 1000);
+    return () => clearInterval(interval);
+  }, [timeLeft]); // handleFinishExam is not stable, but it's okay
+
+  // 2. Logic for 5-second server sync
+  useEffect(() => {
+    if (!examId) return;
+
+    const syncInterval = setInterval(async () => {
+        try {
+            const res = await fetch(`/api/exams/attempt-details?exam_id=${examId}`);
+            if (res.ok) {
+                const data = await res.json();
+                
+                setTimeLeft(prevTime => {
+                    if (data.seconds_left > prevTime + 10) {
+                        setShowTimeAddedAlert(true);
+                        setTimeout(() => setShowTimeAddedAlert(false), 5000);
+                    }
+                    return data.seconds_left;
+                });
+            } else if (res.status === 401 || res.status === 404) {
+                router.push('/dashboard/exams');
+            }
+        } catch (e) {
+            console.error("Timer sync failed", e);
+        }
+    }, 5000);
+
+    return () => clearInterval(syncInterval);
+  }, [examId, router]);
+
+  // 3. Security & Activity Logging
+  useEffect(() => {
+    if (!attemptDetails?.id) return;
+
+    const handleVisibilityChange = () => {
+        if (document.hidden) {
+            logAction('SECURITY', 'Student left the exam page (tab switched or minimized)');
+        } else {
+            logAction('SECURITY', 'Student returned to the exam page');
+        }
+    };
+
+    const handleBlur = () => logAction('SECURITY', 'Window lost focus');
+    const handleFocus = () => logAction('SECURITY', 'Window regained focus');
+    const handleCopy = () => logAction('SECURITY', 'Student copied text');
+    const handlePaste = () => logAction('SECURITY', 'Student pasted text');
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('copy', handleCopy);
+    document.addEventListener('paste', handlePaste);
+
+    return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('blur', handleBlur);
+        window.removeEventListener('focus', handleFocus);
+        document.removeEventListener('copy', handleCopy);
+        document.removeEventListener('paste', handlePaste);
+    };
+  }, [attemptDetails?.id, logAction]);
+
   const debouncedQuestionIndex = useDebounce(currentQuestionIndex, 1000);
 
   const progressPercentage = useMemo(() => {
@@ -129,6 +218,7 @@ export default function ExamTakingPage() {
     }
     
     try {
+      logAction('SUBMIT', isAutoSubmit ? 'Auto-submitted due to timeout' : 'Manually submitted by student');
       const response = await fetch('/api/exams/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -141,7 +231,7 @@ export default function ExamTakingPage() {
       alert(`Error: ${err.message}`);
       finishExamHandled.current = false;
     }
-  }, [examId, answers, router, attemptDetails]); // Added attemptDetails dependency
+  }, [examId, answers, router, attemptDetails, logAction]);
 
   useEffect(() => {
     if (!examId || initExamRef.current) return;
@@ -166,20 +256,32 @@ export default function ExamTakingPage() {
         if (!questionsRes.ok) throw new Error((await questionsRes.json()).message || 'Could not fetch questions.');
 
         const settingsData = await settingsRes.json();
-        const { attempt, initial_seconds_left } = await attemptRes.json();
+        const attemptData = await attemptRes.json();
         const questionsData = await questionsRes.json();
         
         setExamDetails(settingsData);
-        setAttemptDetails(attempt);
-        setTimeLeft(initial_seconds_left);
+        setAttemptDetails(attemptData.attempt);
+        setTimeLeft(attemptData.initial_seconds_left);
         setQuestions(questionsData);
         
-        if (attempt.last_question_index) setCurrentQuestionIndex(attempt.last_question_index);
-        if (attempt.doubtful_questions) {
+        if (attemptData.attempt.last_question_index) setCurrentQuestionIndex(attemptData.attempt.last_question_index);
+        
+        // Log start/resume
+        await fetch('/api/exams/logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                attemptId: attemptData.attempt.id,
+                actionType: 'START',
+                description: attemptData.status === 'resumed' ? 'Exam session resumed' : 'Exam session started'
+            })
+        });
+
+        if (attemptData.attempt.doubtful_questions) {
             try {
-                const doubtful = typeof attempt.doubtful_questions === 'string' 
-                    ? JSON.parse(attempt.doubtful_questions) 
-                    : attempt.doubtful_questions;
+                const doubtful = typeof attemptData.attempt.doubtful_questions === 'string' 
+                    ? JSON.parse(attemptData.attempt.doubtful_questions) 
+                    : attemptData.attempt.doubtful_questions;
                 setDoubtfulAnswers(doubtful || {});
             } catch (e) {
                 console.error("Failed to parse doubtful questions:", e);
@@ -190,7 +292,6 @@ export default function ExamTakingPage() {
 
       } catch (err) {
         setError(err.message);
-        // If initialization fails, allow retrying (e.g., if network error)
         initExamRef.current = false;
       } finally {
         setLoading(false);
@@ -199,49 +300,6 @@ export default function ExamTakingPage() {
     getExamData();
   }, [examId]);
 
-  const [showTimeAddedAlert, setShowTimeAddedAlert] = useState(false);
-
-  // 1. Logic for 1-second decrement
-  useEffect(() => {
-    if (timeLeft === null) return;
-    if (timeLeft <= 0) {
-      if (!finishExamHandled.current) handleFinishExam(true);
-      return;
-    }
-    const interval = setInterval(() => setTimeLeft(prev => prev > 0 ? prev - 1 : 0), 1000);
-    return () => clearInterval(interval);
-  }, [timeLeft, handleFinishExam]);
-
-  // 2. Logic for 5-second server sync
-  useEffect(() => {
-    if (!examId) return;
-
-    const syncInterval = setInterval(async () => {
-        try {
-            const res = await fetch(`/api/exams/attempt-details?exam_id=${examId}`);
-            if (res.ok) {
-                const data = await res.json();
-                
-                // Use functional update to compare with LATEST timeLeft safely
-                setTimeLeft(prevTime => {
-                    // If server time is significantly ahead (>10s), show alert
-                    if (data.seconds_left > prevTime + 10) {
-                        setShowTimeAddedAlert(true);
-                        setTimeout(() => setShowTimeAddedAlert(false), 5000);
-                    }
-                    return data.seconds_left;
-                });
-            } else if (res.status === 401 || res.status === 404) {
-                router.push('/dashboard/exams');
-            }
-        } catch (e) {
-            console.error("Timer sync failed", e);
-        }
-    }, 5000);
-
-    return () => clearInterval(syncInterval);
-  }, [examId, router]); // Only depend on examId and router
-  
   const updateAttemptState = useCallback(async (dataToUpdate) => {
     if (!attemptDetails?.id) return;
     try {
@@ -265,6 +323,8 @@ export default function ExamTakingPage() {
   }, [debouncedQuestionIndex, attemptDetails, updateAttemptState]);
 
   const handleAnswerSelect = async (questionId, option) => {
+    const qIndex = questions.findIndex(q => q.id === questionId);
+    logAction('ANSWER', `Selected option ${option} for question #${qIndex + 1}`);
     setAnswers((prev) => ({ ...prev, [questionId]: option }));
     try {
       await fetch('/api/exams/temporary-answer', {
@@ -278,6 +338,8 @@ export default function ExamTakingPage() {
   };
 
   const handleClearAnswer = async (questionId) => {
+    const qIndex = questions.findIndex(q => q.id === questionId);
+    logAction('ANSWER', `Cleared answer for question #${qIndex + 1}`);
     setAnswers((prev) => {
       const newAnswers = { ...prev };
       delete newAnswers[questionId];
@@ -295,13 +357,17 @@ export default function ExamTakingPage() {
   };
 
   const handleToggleDoubtful = (questionId) => {
-    const newDoubtful = { ...doubtfulAnswers, [questionId]: !doubtfulAnswers[questionId] };
+    const qIndex = questions.findIndex(q => q.id === questionId);
+    const isNowDoubtful = !doubtfulAnswers[questionId];
+    logAction('FLAG', `${isNowDoubtful ? 'Marked' : 'Unmarked'} question #${qIndex + 1} as doubtful`);
+    const newDoubtful = { ...doubtfulAnswers, [questionId]: isNowDoubtful };
     setDoubtfulAnswers(newDoubtful);
     updateAttemptState({ doubtfulQuestions: newDoubtful });
   };
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
+      logAction('NAVIGATE', `Moved to question #${currentQuestionIndex + 2}`);
       setCurrentQuestionIndex((prev) => prev + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -309,9 +375,16 @@ export default function ExamTakingPage() {
 
   const handlePrevQuestion = () => {
     if (currentQuestionIndex > 0) {
+      logAction('NAVIGATE', `Moved to question #${currentQuestionIndex}`);
       setCurrentQuestionIndex((prev) => prev - 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  };
+
+  const handleSelectQuestion = (index) => {
+    logAction('NAVIGATE', `Jumped to question #${index + 1}`);
+    setCurrentQuestionIndex(index);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const currentQuestion = questions[currentQuestionIndex];
@@ -457,7 +530,7 @@ export default function ExamTakingPage() {
             </div>
           </div>
           <div className="hidden md:block md:col-span-4 lg:col-span-3">
-            <QuestionNavigation questions={questions} answers={answers} doubtful={doubtfulAnswers} currentIndex={currentQuestionIndex} onSelect={setCurrentQuestionIndex} />
+            <QuestionNavigation questions={questions} answers={answers} doubtful={doubtfulAnswers} currentIndex={currentQuestionIndex} onSelect={handleSelectQuestion} />
           </div>
         </div>
       </div>
@@ -481,7 +554,7 @@ export default function ExamTakingPage() {
                         else if (isAnswered) buttonClass += 'bg-emerald-100 text-emerald-800 border-emerald-200';
                         else buttonClass += 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50';
                         return (
-                        <button key={q.id} onClick={() => { setCurrentQuestionIndex(index); setIsSidebarVisible(false); }} className={buttonClass}>
+                        <button key={q.id} onClick={() => { handleSelectQuestion(index); setIsSidebarVisible(false); }} className={buttonClass}>
                             {index + 1}
                         </button>
                         );

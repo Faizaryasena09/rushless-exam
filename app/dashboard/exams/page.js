@@ -19,61 +19,61 @@ const Icons = {
 
 // --- Student Action Button Component ---
 const StudentExamActions = ({ exam }) => {
-    const now = new Date();
-    const startTime = exam.start_time ? new Date(exam.start_time) : null;
-    const endTime = exam.end_time ? new Date(exam.end_time) : null;
+  const now = new Date();
+  const startTime = exam.start_time ? new Date(exam.start_time) : null;
+  const endTime = exam.end_time ? new Date(exam.end_time) : null;
 
-    // 1. Check for an in-progress exam first
-    if (exam.has_in_progress) {
-        return (
-            <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors">
-                <div className="flex items-center gap-2">
-                    <Icons.Play />
-                    <span>Lanjutkan Ujian</span>
-                </div>
-                <Icons.ChevronRight className="transition-transform group-hover:translate-x-1" />
-            </Link>
-        );
-    }
-
-    // 2. Check if max attempts have been reached
-    if (exam.max_attempts > 0 && exam.user_attempts >= exam.max_attempts) {
-        return (
-            <div className="w-full text-center py-2 text-sm font-semibold text-slate-500 bg-slate-100 rounded-lg">
-                Max attempts reached
-            </div>
-        );
-    }
-
-    // 3. Check against schedule
-    if (startTime && endTime) {
-        if (now < startTime) {
-            return (
-                <div className="w-full text-center py-2 text-sm font-semibold text-amber-600 bg-amber-100 rounded-lg">
-                    Ujian belum bisa dimulai
-                </div>
-            );
-        }
-    
-        if (now > endTime) {
-            return (
-                <div className="w-full text-center py-2 text-sm font-semibold text-red-600 bg-red-100 rounded-lg">
-                    Ujian selesai
-                </div>
-            );
-        }
-    }
-
-    // 4. If all checks pass, it's available to start
+  // 1. Check for an in-progress exam first
+  if (exam.has_in_progress) {
     return (
-        <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 hover:text-green-800 transition-colors">
-            <div className="flex items-center gap-2">
-                <Icons.Play />
-                <span>Mulai Kerjakan</span>
-            </div>
-            <Icons.ChevronRight className="transition-transform group-hover:translate-x-1" />
-        </Link>
+      <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors">
+        <div className="flex items-center gap-2">
+          <Icons.Play />
+          <span>Lanjutkan Ujian</span>
+        </div>
+        <Icons.ChevronRight className="transition-transform group-hover:translate-x-1" />
+      </Link>
     );
+  }
+
+  // 2. Check if max attempts have been reached
+  if (exam.max_attempts > 0 && exam.user_attempts >= exam.max_attempts) {
+    return (
+      <div className="w-full text-center py-2 text-sm font-semibold text-slate-500 bg-slate-100 rounded-lg">
+        Max attempts reached
+      </div>
+    );
+  }
+
+  // 3. Check against schedule
+  if (startTime && endTime) {
+    if (now < startTime) {
+      return (
+        <div className="w-full text-center py-2 text-sm font-semibold text-amber-600 bg-amber-100 rounded-lg">
+          Ujian belum bisa dimulai
+        </div>
+      );
+    }
+
+    if (now > endTime) {
+      return (
+        <div className="w-full text-center py-2 text-sm font-semibold text-red-600 bg-red-100 rounded-lg">
+          Ujian selesai
+        </div>
+      );
+    }
+  }
+
+  // 4. If all checks pass, it's available to start
+  return (
+    <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 hover:text-green-800 transition-colors">
+      <div className="flex items-center gap-2">
+        <Icons.Play />
+        <span>Mulai Kerjakan</span>
+      </div>
+      <Icons.ChevronRight className="transition-transform group-hover:translate-x-1" />
+    </Link>
+  );
 };
 
 export default function ExamsPage() {
@@ -84,6 +84,13 @@ export default function ExamsPage() {
   const [loadingExams, setLoadingExams] = useState(true);
   const [errorExams, setErrorExams] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false); // To trigger re-fetch
+
+  // Modal State
+  const [modalState, setModalState] = useState({
+    type: null, // 'duplicate' | 'delete' | null
+    examId: null,
+    isOpen: false
+  });
 
   // Session check and role fetching logic
   useEffect(() => {
@@ -119,17 +126,17 @@ export default function ExamsPage() {
         }
         const data = await res.json();
         if (isMounted) {
-            setExams(data.exams);
-            setLoadingExams(false);
+          setExams(data.exams);
+          setLoadingExams(false);
         }
       } catch (err) {
         if (isMounted) {
-            console.error("Failed to fetch exams:", err);
-            // Only show error on full page load if we have no exams yet
-            if (loadingExams) {
-                setErrorExams(err.message);
-                setLoadingExams(false);
-            }
+          console.error("Failed to fetch exams:", err);
+          // Only show error on full page load if we have no exams yet
+          if (loadingExams) {
+            setErrorExams(err.message);
+            setLoadingExams(false);
+          }
         }
       }
     }
@@ -138,43 +145,50 @@ export default function ExamsPage() {
     const intervalId = setInterval(fetchExams, 5000); // Poll every 5 seconds
 
     return () => {
-        isMounted = false;
-        clearInterval(intervalId);
+      isMounted = false;
+      clearInterval(intervalId);
     };
   }, [loadingSession, loadingExams, isRefreshing]);
 
   const refreshData = () => {
-      setIsRefreshing(prev => !prev);
+    setIsRefreshing(prev => !prev);
   };
 
-  const handleDuplicate = async (examId) => {
-      if (!confirm('Duplicate this exam? All settings and questions will be copied.')) return;
-      try {
-          const res = await fetch('/api/exams/duplicate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ examId })
-          });
-          if (!res.ok) throw new Error((await res.json()).message);
-          refreshData();
-          alert('Exam duplicated successfully!');
-      } catch (e) {
-          alert(e.message);
-      }
+  const openModal = (type, examId) => {
+    setModalState({ type, examId, isOpen: true });
   };
 
-  const handleDelete = async (examId) => {
-      if (!confirm('Are you sure you want to delete this exam? This action cannot be undone and will delete all questions, results, and uploaded images.')) return;
-      try {
-          const res = await fetch(`/api/exams?id=${examId}`, {
-              method: 'DELETE'
-          });
-          if (!res.ok) throw new Error((await res.json()).message);
-          refreshData();
-          alert('Exam deleted successfully!');
-      } catch (e) {
-          alert(e.message);
+  const closeModal = () => {
+    setModalState({ type: null, examId: null, isOpen: false });
+  };
+
+  const executeAction = async () => {
+    const { type, examId } = modalState;
+    if (!type || !examId) return;
+
+    try {
+      let res;
+      if (type === 'duplicate') {
+        res = await fetch('/api/exams/duplicate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ examId })
+        });
+      } else if (type === 'delete') {
+        res = await fetch(`/api/exams?id=${examId}`, {
+          method: 'DELETE'
+        });
       }
+
+      if (!res.ok) throw new Error((await res.json()).message);
+
+      refreshData();
+      closeModal();
+      // Optional: Show a toast notification here instead of alert if requested later
+    } catch (e) {
+      alert(e.message); // Keep error alert or move to toast
+      closeModal();
+    }
   };
 
   const formatDate = (dateString) => {
@@ -186,9 +200,9 @@ export default function ExamsPage() {
 
   if (loadingSession || loadingExams) {
     return (
-        <div className="text-center py-20">
-            <p className="text-lg font-semibold text-slate-600 animate-pulse">Loading Exams...</p>
-        </div>
+      <div className="text-center py-20">
+        <p className="text-lg font-semibold text-slate-600 animate-pulse">Loading Exams...</p>
+      </div>
     );
   }
 
@@ -218,9 +232,9 @@ export default function ExamsPage() {
 
       {exams.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-300">
-            <Icons.FileText className="mx-auto w-12 h-12 text-slate-400" />
-            <h3 className="mt-4 text-lg font-semibold text-slate-800">No Exams Found</h3>
-            <p className="mt-1 text-sm text-slate-500">{isStudent ? 'There are no exams available for you at the moment.' : 'Click "Create New Exam" to get started.'}</p>
+          <Icons.FileText className="mx-auto w-12 h-12 text-slate-400" />
+          <h3 className="mt-4 text-lg font-semibold text-slate-800">No Exams Found</h3>
+          <p className="mt-1 text-sm text-slate-500">{isStudent ? 'There are no exams available for you at the moment.' : 'Click "Create New Exam" to get started.'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -235,37 +249,97 @@ export default function ExamsPage() {
                 </div>
               </div>
               <div className="mt-auto border-t border-slate-200 p-4 bg-slate-50/50 rounded-b-2xl">
-                 {isStudent ? (
-                   <StudentExamActions exam={exam} />
-                 ) : (
-                   <div className="space-y-2">
-                       <div className="flex items-center justify-between gap-2">
-                         <Link href={`/dashboard/exams/manage/${exam.id}`} className="group flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 py-2 px-3 rounded-lg transition-colors">
-                            <Icons.Cog />
-                            <span>Manage</span>
-                         </Link>
-                         <Link href={`/dashboard/exams/results/${exam.id}`} className="group flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-emerald-600 hover:bg-emerald-50 py-2 px-3 rounded-lg transition-colors">
-                            <Icons.ChartBar />
-                            <span>Results</span>
-                         </Link>
-                       </div>
-                       <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/50">
-                            <button onClick={() => handleDuplicate(exam.id)} className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-amber-600 hover:bg-amber-50 py-1.5 px-2 rounded-lg transition-colors">
-                                <Icons.Duplicate />
-                                <span>Duplicate</span>
-                            </button>
-                            <button onClick={() => handleDelete(exam.id)} className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-red-600 hover:bg-red-50 py-1.5 px-2 rounded-lg transition-colors">
-                                <Icons.Trash />
-                                <span>Delete</span>
-                            </button>
-                       </div>
-                   </div>
-                 )}
+                {isStudent ? (
+                  <StudentExamActions exam={exam} />
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <Link href={`/dashboard/exams/manage/${exam.id}`} className="group flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 py-2 px-3 rounded-lg transition-colors">
+                        <Icons.Cog />
+                        <span>Manage</span>
+                      </Link>
+                      <Link href={`/dashboard/exams/results/${exam.id}`} className="group flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-emerald-600 hover:bg-emerald-50 py-2 px-3 rounded-lg transition-colors">
+                        <Icons.ChartBar />
+                        <span>Results</span>
+                      </Link>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/50">
+                      <button onClick={() => openModal('duplicate', exam.id)} className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-amber-600 hover:bg-amber-50 py-1.5 px-2 rounded-lg transition-colors">
+                        <Icons.Duplicate />
+                        <span>Duplicate</span>
+                      </button>
+                      <button onClick={() => openModal('delete', exam.id)} className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-red-600 hover:bg-red-50 py-1.5 px-2 rounded-lg transition-colors">
+                        <Icons.Trash />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
+
+
+      {/* Modals */}
+      <ConfirmationModal
+        isOpen={modalState.isOpen && modalState.type === 'duplicate'}
+        onClose={closeModal}
+        onConfirm={executeAction}
+        title="Duplicate Exam"
+        message="Are you sure you want to duplicate this exam? All settings and questions will be copied to a new exam."
+        confirmText="Duplicate"
+        confirmColor="bg-amber-500 hover:bg-amber-600"
+        icon={() => <Icons.Duplicate className="w-6 h-6" />}
+      />
+
+      <ConfirmationModal
+        isOpen={modalState.isOpen && modalState.type === 'delete'}
+        onClose={closeModal}
+        onConfirm={executeAction}
+        title="Delete Exam"
+        message="Are you sure you want to delete this exam? This action CANNOT be undone and will delete all questions, results, and uploaded images associated with this exam."
+        confirmText="Delete"
+        confirmColor="bg-red-600 hover:bg-red-700"
+        icon={() => <Icons.Trash className="w-6 h-6" />}
+      />
+    </div>
+  );
+}
+
+function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', confirmColor = 'bg-indigo-600 hover:bg-indigo-700', icon: Icon }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all" onClick={e => e.stopPropagation()}>
+        <div className="p-6">
+          <div className="flex items-center gap-4 mb-4">
+            {Icon && (
+              <div className={`p-3 rounded-full ${confirmColor.includes('red') ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+                <Icon className="w-6 h-6" />
+              </div>
+            )}
+            <h3 className="text-xl font-bold text-slate-900">{title}</h3>
+          </div>
+          <p className="text-slate-600 mb-6">{message}</p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-slate-700 font-semibold hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className={`px-4 py-2 text-white font-semibold rounded-lg shadow-md transition-all active:scale-95 ${confirmColor}`}
+            >
+              {confirmText}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
