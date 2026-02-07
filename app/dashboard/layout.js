@@ -22,7 +22,7 @@ export default function DashboardLayout({ children }) {
           setUser(data.user);
         } else if (response.status === 401) {
           // Session invalid/expired (or forced logout) - Redirect to login
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } catch (error) {
         console.error('Failed to fetch user session:', error);
