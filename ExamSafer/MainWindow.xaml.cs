@@ -40,6 +40,9 @@ public partial class MainWindow : Window
         // Disable context menus and dev tools
         webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
         webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+
+        // Clear all browsing data to ensure a fresh session
+        await webView.CoreWebView2.Profile.ClearBrowsingDataAsync();
         
         if (!string.IsNullOrEmpty(_targetUrl) && _targetUrl != "about:blank")
         {
