@@ -35,7 +35,7 @@ export async function GET(request) {
 
         // 3. Get User Details
         const users = await query({
-            query: 'SELECT id, username, role, class_id FROM rhs_users WHERE id = ?',
+            query: 'SELECT id, username, role, class_id, session_id FROM rhs_users WHERE id = ?',
             values: [user_id]
         });
 
@@ -53,6 +53,7 @@ export async function GET(request) {
             username: user.username,
             roleName: user.role, // Assuming role is stored as 'role' in DB but mapped to 'roleName' in session
             class_id: user.class_id,
+            session_id: user.session_id, // CRITICAL: Must match DB for validateUserSession
             isLoggedIn: true,
         };
         await session.save();
