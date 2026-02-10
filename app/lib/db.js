@@ -58,14 +58,14 @@ export async function setupDatabase() {
   try {
     // 1. Connect to the server
     serverConnection = await mysql.createConnection({
-      host: '127.0.0.1',
-      user: 'root',
-      password: '1234',
+      host: dbConfig.host,
+      user: dbConfig.user,
+      password: dbConfig.password,
     });
 
     // 2. Create the database if it doesn't exist
-    await serverConnection.query(`CREATE DATABASE IF NOT EXISTS RUSHLESSEXAM`);
-    console.log('Database RUSHLESSEXAM created or already exists.');
+    await serverConnection.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\``);
+    console.log(`Database ${dbConfig.database} created or already exists.`);
 
     // Close server connection
     await serverConnection.end();
@@ -88,11 +88,27 @@ export async function setupDatabase() {
               password VARCHAR(255) NOT NULL,
               role ENUM('admin', 'teacher', 'student') NOT NULL,
               class_id INT,
+              session_id VARCHAR(255),
+              last_activity DATETIME,
+              is_locked BOOLEAN NOT NULL DEFAULT FALSE,
               createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               FOREIGN KEY (class_id) REFERENCES rhs_classes(id) ON DELETE SET NULL
             )
         `);
     console.log('Table "rhs_users" created or already exists.');
+
+    // Check if any user exists, if not create default admin
+    const [users] = await connection.query('SELECT COUNT(*) as count FROM rhs_users');
+    if (users[0].count === 0) {
+      // Password is 'admin123' hashed with bcrypt
+      const hashedPassword = '$2b$10$uAeAjfWBI/nzPRFnDY5PFFEMxOpVNG';
+
+      await connection.query(`
+          INSERT INTO rhs_users (username, password, role) 
+          VALUES ('admin', ?, 'admin')
+      `, [hashedPassword]);
+      console.log('Default admin user created: admin / admin123');
+    }
 
     // Create the 'rhs_exams' table
     await connection.query(`

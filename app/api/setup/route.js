@@ -1,8 +1,9 @@
+
 import { NextResponse } from 'next/server';
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
-import { query } from '@/app/lib/db';
+import { query, setupDatabase } from '@/app/lib/db';
 
 async function getSession(request) {
   const cookieStore = await cookies();
@@ -11,12 +12,9 @@ async function getSession(request) {
 
 // This function checks if a column exists in a table.
 async function columnExists(tableName, columnName) {
-  // Note: Both tableName and columnName are hardcoded constants from within this route, 
-  // so it's safe to use them in a template literal. Do not use user-provided input here
-  // without strict validation to prevent SQL injection.
   const result = await query({
     query: `SHOW COLUMNS FROM \`${tableName}\` LIKE '${columnName}'`,
-    values: [], // No parameters needed for this specific query
+    values: [],
   });
   return result.length > 0;
 }
@@ -25,9 +23,35 @@ async function columnExists(tableName, columnName) {
 export async function GET(request) {
   const session = await getSession(request);
 
-  // IMPORTANT: Protect this endpoint, only admins should run it.
-  if (!session.user || session.user.roleName !== 'admin') {
+  // Check if database is empty or users table doesn't exist
+  let isEmptyDatabase = false;
+  try {
+    const users = await query({ query: 'SELECT COUNT(*) as count FROM rhs_users' });
+    if (users[0].count === 0) {
+      isEmptyDatabase = true;
+    }
+  } catch (err) {
+    isEmptyDatabase = true; // Table doesn't exist or DB connection err (treated as empty/needs setup)
+  }
+
+  // Allow if admin OR if database is empty (first time setup)
+  const isAdmin = session.user && session.user.roleName === 'admin';
+
+  if (!isAdmin && !isEmptyDatabase) {
     return NextResponse.json({ message: 'Unauthorized: Admin role required.' }, { status: 401 });
+  }
+
+  // If it's a first time setup (empty DB), run the initial table creation first
+  if (isEmptyDatabase) {
+    try {
+      await setupDatabase();
+    } catch (e) {
+      console.error("Initial setup failed:", e);
+      return NextResponse.json({
+        message: 'Initial database setup failed.',
+        error: e.message
+      }, { status: 500 });
+    }
   }
 
   try {
@@ -249,7 +273,6 @@ export async function GET(request) {
 
     // --- Check and create 'rhs_exam_classes' table (Junction table) ---
     const examClassesTableName = 'rhs_exam_classes';
-    // We can't easily check for table existence with columnExists, so we use CREATE TABLE IF NOT EXISTS
     await query({
       query: `
             CREATE TABLE IF NOT EXISTS rhs_exam_classes (
