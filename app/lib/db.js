@@ -114,12 +114,27 @@ export async function setupDatabase() {
               end_time DATETIME,
               duration INT,
               max_attempts INT DEFAULT 1,
+              require_safe_browser BOOLEAN DEFAULT FALSE,
               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
               FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE
             )
         `);
     console.log('Table "rhs_exam_settings" created or already exists.');
+
+    // Migration: Ensure 'require_safe_browser' exists (for existing tables)
+    try {
+      await connection.query(`
+            ALTER TABLE rhs_exam_settings
+            ADD COLUMN require_safe_browser BOOLEAN DEFAULT FALSE;
+        `);
+      console.log("Column 'require_safe_browser' added to rhs_exam_settings");
+    } catch (err) {
+      // Ignore error if column already exists (Error 1060: Duplicate column name)
+      if (err.code !== 'ER_DUP_FIELDNAME') {
+        console.log("Note: " + err.message);
+      }
+    }
 
     // Create the 'rhs_exam_questions' table
     await connection.query(`

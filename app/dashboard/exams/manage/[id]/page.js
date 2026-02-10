@@ -70,6 +70,7 @@ export default function ManageExamPage() {
   const [endTime, setEndTime] = useState('');
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [shuffleAnswers, setShuffleAnswers] = useState(false);
+  const [requireSafeBrowser, setRequireSafeBrowser] = useState(false);
   const [timerMode, setTimerMode] = useState('sync'); // 'sync' or 'async'
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [minTimeMinutes, setMinTimeMinutes] = useState(0);
@@ -122,6 +123,7 @@ export default function ManageExamPage() {
       setDurationMinutes(data.duration_minutes || 60);
       setMinTimeMinutes(data.min_time_minutes || 0);
       setMaxAttempts(data.max_attempts || 1);
+      setRequireSafeBrowser(!!data.require_safe_browser);
       setSelectedClasses(data.allowed_classes || []);
 
     } catch (err) {
@@ -174,6 +176,7 @@ export default function ManageExamPage() {
         durationMinutes: durationMinutes,
         minTimeMinutes: minTimeMinutes,
         maxAttempts: maxAttempts,
+        requireSafeBrowser: requireSafeBrowser,
         allowedClasses: selectedClasses
       }),
     });
@@ -340,6 +343,14 @@ export default function ManageExamPage() {
             </div>
 
             <div className="space-y-2 bg-slate-50 rounded-lg border border-slate-200 divide-y divide-slate-200">
+              <Switch
+                id="req-safe-browser"
+                label="Require Safe Browser"
+                description="Students must use the Exam Safer application to take this exam."
+                checked={requireSafeBrowser}
+                onChange={() => setRequireSafeBrowser(!requireSafeBrowser)}
+                disabled={saving}
+              />
               <Switch
                 id="shuffle-questions"
                 label="Acak Urutan Soal"

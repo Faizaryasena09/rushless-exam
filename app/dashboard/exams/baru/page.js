@@ -10,6 +10,7 @@ export default function NewExamPage() {
   const router = useRouter();
   const [examName, setExamName] = useState('');
   const [description, setDescription] = useState('');
+  const [requireSafeBrowser, setRequireSafeBrowser] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +23,7 @@ export default function NewExamPage() {
       const res = await fetch('/api/exams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ exam_name: examName, description }),
+        body: JSON.stringify({ exam_name: examName, description, require_safe_browser: requireSafeBrowser }),
       });
 
       if (!res.ok) {
@@ -60,7 +61,7 @@ export default function NewExamPage() {
       {/* Main Form Card */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          
+
           {/* Error Alert */}
           {error && (
             <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg animate-in fade-in zoom-in duration-200">
@@ -97,6 +98,21 @@ export default function NewExamPage() {
               className="block w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none placeholder:text-slate-400"
               rows="4"
               placeholder="Jelaskan detail ujian atau instruksi pengerjaan di sini..."
+            />
+          </div>
+
+          {/* Toggle Safe Browser */}
+          <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+            <div className="flex-1">
+              <label htmlFor="safeBrowser" className="block text-sm font-bold text-slate-700">Require Safe Browser</label>
+              <p className="text-xs text-slate-500">Exam will only be accessible via the Exam Safer application.</p>
+            </div>
+            <input
+              id="safeBrowser"
+              type="checkbox"
+              checked={requireSafeBrowser}
+              onChange={(e) => setRequireSafeBrowser(e.target.checked)}
+              className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
             />
           </div>
 

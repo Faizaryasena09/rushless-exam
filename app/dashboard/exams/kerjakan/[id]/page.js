@@ -5,25 +5,25 @@ import { useParams, useRouter } from 'next/navigation';
 
 // --- Custom Hook for Debouncing ---
 function useDebounce(value, delay) {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            setDebouncedValue(value);
-        }, delay);
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [value, delay]);
-    return debouncedValue;
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
 }
 
 // --- Helper Functions ---
 const formatTime = (seconds) => {
-    if (seconds === null || seconds < 0) return '00:00:00';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return [h, m, s].map(v => v.toString().padStart(2, '0')).join(':');
+  if (seconds === null || seconds < 0) return '00:00:00';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return [h, m, s].map(v => v.toString().padStart(2, '0')).join(':');
 };
 
 // --- Icons Component ---
@@ -72,13 +72,13 @@ const Icons = {
 
 // --- Timer Component ---
 const Timer = ({ timeLeft }) => {
-    const isCritical = timeLeft !== null && timeLeft <= 300;
-    return (
-        <div className={`flex items-center gap-2 font-mono px-3 py-1.5 rounded-lg ${isCritical ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>
-            <Icons.Clock />
-            <span className="text-sm font-semibold tracking-wider">{formatTime(timeLeft)}</span>
-        </div>
-    );
+  const isCritical = timeLeft !== null && timeLeft <= 300;
+  return (
+    <div className={`flex items-center gap-2 font-mono px-3 py-1.5 rounded-lg ${isCritical ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>
+      <Icons.Clock />
+      <span className="text-sm font-semibold tracking-wider">{formatTime(timeLeft)}</span>
+    </div>
+  );
 };
 
 
@@ -104,17 +104,17 @@ export default function ExamTakingPage() {
   const logAction = useCallback(async (actionType, description) => {
     if (!attemptDetails?.id) return;
     try {
-        await fetch('/api/exams/logs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                attemptId: attemptDetails.id,
-                actionType,
-                description
-            })
-        });
+      await fetch('/api/exams/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attemptId: attemptDetails.id,
+          actionType,
+          description
+        })
+      });
     } catch (err) {
-        console.error("Failed to log action:", err);
+      console.error("Failed to log action:", err);
     }
   }, [attemptDetails?.id]);
 
@@ -134,24 +134,24 @@ export default function ExamTakingPage() {
     if (!examId) return;
 
     const syncInterval = setInterval(async () => {
-        try {
-            const res = await fetch(`/api/exams/attempt-details?exam_id=${examId}`);
-            if (res.ok) {
-                const data = await res.json();
-                
-                setTimeLeft(prevTime => {
-                    if (data.seconds_left > prevTime + 10) {
-                        setShowTimeAddedAlert(true);
-                        setTimeout(() => setShowTimeAddedAlert(false), 5000);
-                    }
-                    return data.seconds_left;
-                });
-            } else if (res.status === 401 || res.status === 404) {
-                router.push('/dashboard/exams');
+      try {
+        const res = await fetch(`/api/exams/attempt-details?exam_id=${examId}`);
+        if (res.ok) {
+          const data = await res.json();
+
+          setTimeLeft(prevTime => {
+            if (data.seconds_left > prevTime + 10) {
+              setShowTimeAddedAlert(true);
+              setTimeout(() => setShowTimeAddedAlert(false), 5000);
             }
-        } catch (e) {
-            console.error("Timer sync failed", e);
+            return data.seconds_left;
+          });
+        } else if (res.status === 401 || res.status === 404) {
+          router.push('/dashboard/exams');
         }
+      } catch (e) {
+        console.error("Timer sync failed", e);
+      }
     }, 5000);
 
     return () => clearInterval(syncInterval);
@@ -162,11 +162,11 @@ export default function ExamTakingPage() {
     if (!attemptDetails?.id) return;
 
     const handleVisibilityChange = () => {
-        if (document.hidden) {
-            logAction('SECURITY', 'Student left the exam page (tab switched or minimized)');
-        } else {
-            logAction('SECURITY', 'Student returned to the exam page');
-        }
+      if (document.hidden) {
+        logAction('SECURITY', 'Student left the exam page (tab switched or minimized)');
+      } else {
+        logAction('SECURITY', 'Student returned to the exam page');
+      }
     };
 
     const handleBlur = () => logAction('SECURITY', 'Window lost focus');
@@ -181,11 +181,11 @@ export default function ExamTakingPage() {
     document.addEventListener('paste', handlePaste);
 
     return () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        window.removeEventListener('blur', handleBlur);
-        window.removeEventListener('focus', handleFocus);
-        document.removeEventListener('copy', handleCopy);
-        document.removeEventListener('paste', handlePaste);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('copy', handleCopy);
+      document.removeEventListener('paste', handlePaste);
     };
   }, [attemptDetails?.id, logAction]);
 
@@ -208,15 +208,15 @@ export default function ExamTakingPage() {
     finishExamHandled.current = true;
 
     if (!isAutoSubmit) {
-        const isConfirmed = window.confirm('Are you sure you want to finish the exam?');
-        if (!isConfirmed) {
-            finishExamHandled.current = false;
-            return;
-        }
+      const isConfirmed = window.confirm('Are you sure you want to finish the exam?');
+      if (!isConfirmed) {
+        finishExamHandled.current = false;
+        return;
+      }
     } else {
-        alert('Time is up! Your answers will be submitted automatically.');
+      alert('Time is up! Your answers will be submitted automatically.');
     }
-    
+
     try {
       logAction('SUBMIT', isAutoSubmit ? 'Auto-submitted due to timeout' : 'Manually submitted by student');
       const response = await fetch('/api/exams/submit', {
@@ -225,13 +225,43 @@ export default function ExamTakingPage() {
         body: JSON.stringify({ examId, answers, attemptId: attemptDetails.id }),
       });
       if (!response.ok) throw new Error((await response.json()).message || 'Failed to submit exam.');
+
       alert('Exam submitted successfully!');
+
+      // Notify Safe Browser if running inside it
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage('submit_success');
+      }
+
       router.push('/dashboard/exams');
     } catch (err) {
       alert(`Error: ${err.message}`);
       finishExamHandled.current = false;
     }
   }, [examId, answers, router, attemptDetails, logAction]);
+
+  // Enforce Safe Browser Check
+  useEffect(() => {
+    if (examDetails?.require_safe_browser) {
+      // Check if running in WebView2 (standard way to check)
+      const isSafeBrowser = window.chrome && window.chrome.webview;
+
+      if (!isSafeBrowser) {
+        // Block access
+        document.body.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f8fafc;font-family:sans-serif;text-align:center;padding:20px;">
+                    <div style="font-size:4rem;margin-bottom:20px;">🛡️</div>
+                    <h1 style="color:#1e293b;font-size:2rem;margin-bottom:10px;">Safe Browser Required</h1>
+                    <p style="color:#64748b;font-size:1.1rem;max-width:600px;">This exam can only be taken using the <strong>Exam Safer Application</strong>.</p>
+                    <p style="color:#64748b;margin-top:10px;">Please close this window and launch the exam from the application.</p>
+                    <a href="/dashboard/exams" style="margin-top:30px;padding:12px 24px;background:#4f46e5;color:white;text-decoration:none;border-radius:8px;font-weight:bold;">Return to Dashboard</a>
+                </div>
+            `;
+        // Stop further execution
+        return;
+      }
+    }
+  }, [examDetails]);
 
   useEffect(() => {
     if (!examId || initExamRef.current) return;
@@ -241,14 +271,14 @@ export default function ExamTakingPage() {
       try {
         setLoading(true);
         const [settingsRes, attemptRes, questionsRes, tempAnswersRes] = await Promise.all([
-            fetch(`/api/exams/settings?exam_id=${examId}`),
-            fetch('/api/exams/start-attempt', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ examId }),
-            }),
-            fetch(`/api/exams/questions?exam_id=${examId}`),
-            fetch(`/api/exams/temporary-answer?exam_id=${examId}`)
+          fetch(`/api/exams/settings?exam_id=${examId}`),
+          fetch('/api/exams/start-attempt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ examId }),
+          }),
+          fetch(`/api/exams/questions?exam_id=${examId}`),
+          fetch(`/api/exams/temporary-answer?exam_id=${examId}`)
         ]);
 
         if (!settingsRes.ok) throw new Error((await settingsRes.json()).message || 'Could not fetch exam settings.');
@@ -258,35 +288,35 @@ export default function ExamTakingPage() {
         const settingsData = await settingsRes.json();
         const attemptData = await attemptRes.json();
         const questionsData = await questionsRes.json();
-        
+
         setExamDetails(settingsData);
         setAttemptDetails(attemptData.attempt);
         setTimeLeft(attemptData.initial_seconds_left);
         setQuestions(questionsData);
-        
+
         if (attemptData.attempt.last_question_index) setCurrentQuestionIndex(attemptData.attempt.last_question_index);
-        
+
         // Log start/resume
         await fetch('/api/exams/logs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                attemptId: attemptData.attempt.id,
-                actionType: 'START',
-                description: attemptData.status === 'resumed' ? 'Exam session resumed' : 'Exam session started'
-            })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            attemptId: attemptData.attempt.id,
+            actionType: 'START',
+            description: attemptData.status === 'resumed' ? 'Exam session resumed' : 'Exam session started'
+          })
         });
 
         if (attemptData.attempt.doubtful_questions) {
-            try {
-                const doubtful = typeof attemptData.attempt.doubtful_questions === 'string' 
-                    ? JSON.parse(attemptData.attempt.doubtful_questions) 
-                    : attemptData.attempt.doubtful_questions;
-                setDoubtfulAnswers(doubtful || {});
-            } catch (e) {
-                console.error("Failed to parse doubtful questions:", e);
-                setDoubtfulAnswers({});
-            }
+          try {
+            const doubtful = typeof attemptData.attempt.doubtful_questions === 'string'
+              ? JSON.parse(attemptData.attempt.doubtful_questions)
+              : attemptData.attempt.doubtful_questions;
+            setDoubtfulAnswers(doubtful || {});
+          } catch (e) {
+            console.error("Failed to parse doubtful questions:", e);
+            setDoubtfulAnswers({});
+          }
         }
         if (tempAnswersRes.ok) setAnswers(await tempAnswersRes.json() || {});
 
@@ -303,22 +333,22 @@ export default function ExamTakingPage() {
   const updateAttemptState = useCallback(async (dataToUpdate) => {
     if (!attemptDetails?.id) return;
     try {
-        await fetch('/api/exams/update-attempt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                attemptId: attemptDetails.id,
-                ...dataToUpdate
-            })
-        });
+      await fetch('/api/exams/update-attempt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attemptId: attemptDetails.id,
+          ...dataToUpdate
+        })
+      });
     } catch (err) {
-        console.error("Failed to update attempt state:", err);
+      console.error("Failed to update attempt state:", err);
     }
   }, [attemptDetails?.id]);
 
   useEffect(() => {
     if (debouncedQuestionIndex !== undefined && attemptDetails) {
-        updateAttemptState({ lastQuestionIndex: debouncedQuestionIndex });
+      updateAttemptState({ lastQuestionIndex: debouncedQuestionIndex });
     }
   }, [debouncedQuestionIndex, attemptDetails, updateAttemptState]);
 
@@ -397,10 +427,10 @@ export default function ExamTakingPage() {
   if (minTimeLockoutSeconds === 0) {
     isSubmitDisabled = false;
   } else if (timeLeft !== null) {
-      isSubmitDisabled = timeLeft > minTimeLockoutSeconds;
-      if (isSubmitDisabled) {
-          submitTitle = `Submission is locked until the final ${examDetails.min_time_minutes} minute(s).`;
-      }
+    isSubmitDisabled = timeLeft > minTimeLockoutSeconds;
+    if (isSubmitDisabled) {
+      submitTitle = `Submission is locked until the final ${examDetails.min_time_minutes} minute(s).`;
+    }
   }
 
   if (loading) { return <div className="text-center p-20">Loading...</div> }
@@ -442,10 +472,10 @@ export default function ExamTakingPage() {
       {/* Time Added Notification */}
       {showTimeAddedAlert && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-bounce">
-            <div className="bg-indigo-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-white">
-                <Icons.Clock />
-                <span className="font-bold">Waktu ujian telah ditambahkan oleh pengawas!</span>
-            </div>
+          <div className="bg-indigo-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-white">
+            <Icons.Clock />
+            <span className="font-bold">Waktu ujian telah ditambahkan oleh pengawas!</span>
+          </div>
         </div>
       )}
 
@@ -458,7 +488,7 @@ export default function ExamTakingPage() {
             <div><h1 className="text-base md:text-lg font-bold text-slate-800 line-clamp-1">{examDetails?.exam_name}</h1></div>
           </div>
           <div className="flex items-center gap-4">
-             <Timer timeLeft={timeLeft} />
+            <Timer timeLeft={timeLeft} />
             <button onClick={() => setIsSidebarVisible(!isSidebarVisible)} className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg border border-slate-200"><Icons.Grid /></button>
           </div>
         </div>
@@ -473,11 +503,11 @@ export default function ExamTakingPage() {
                 <>
                   <div className="p-6 md:p-8 flex-1">
                     <div className="flex justify-between items-start mb-6">
-                        <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-bold uppercase tracking-wider">Soal No. {currentQuestionIndex + 1}</span>
-                        <button onClick={() => handleToggleDoubtful(currentQuestion.id)} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${doubtfulAnswers[currentQuestion.id] ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}>
-                          <Icons.Flag />
-                          {doubtfulAnswers[currentQuestion.id] ? 'Ditandai Ragu' : 'Tandai Ragu'}
-                        </button>
+                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-bold uppercase tracking-wider">Soal No. {currentQuestionIndex + 1}</span>
+                      <button onClick={() => handleToggleDoubtful(currentQuestion.id)} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${doubtfulAnswers[currentQuestion.id] ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}>
+                        <Icons.Flag />
+                        {doubtfulAnswers[currentQuestion.id] ? 'Ditandai Ragu' : 'Tandai Ragu'}
+                      </button>
                     </div>
                     <div className="prose prose-slate max-w-none mb-8">
                       <p className="text-lg md:text-xl font-medium text-slate-800 leading-relaxed" dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }} />
@@ -489,7 +519,7 @@ export default function ExamTakingPage() {
                         return (
                           <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}>
                             <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'}`}>{optionLabel}</div>
-                                                        <span className={`text-base font-medium ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
+                            <span className={`text-base font-medium ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
                             {isSelected && (<div className="absolute right-4 text-indigo-600"><Icons.CheckCircle /></div>)}
                           </div>
                         );
@@ -497,31 +527,31 @@ export default function ExamTakingPage() {
                     </div>
                   </div>
                   <div className="bg-slate-50 p-4 md:p-6 border-t border-slate-200 flex flex-col-reverse md:flex-row justify-between items-center gap-4">
-                     <button onClick={() => handleClearAnswer(currentQuestion.id)} disabled={!answers[currentQuestion.id]} className={`text-sm font-medium flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${!answers[currentQuestion.id] ? 'opacity-0 pointer-events-none' : 'text-red-600 hover:bg-red-50'}`}>
-                        <Icons.Trash />
-                        Hapus Jawaban
+                    <button onClick={() => handleClearAnswer(currentQuestion.id)} disabled={!answers[currentQuestion.id]} className={`text-sm font-medium flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${!answers[currentQuestion.id] ? 'opacity-0 pointer-events-none' : 'text-red-600 hover:bg-red-50'}`}>
+                      <Icons.Trash />
+                      Hapus Jawaban
+                    </button>
+                    <div className="flex w-full md:w-auto gap-3">
+                      <button onClick={handlePrevQuestion} disabled={currentQuestionIndex === 0} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                        <Icons.ChevronLeft />
+                        Sebelumnya
                       </button>
-                      <div className="flex w-full md:w-auto gap-3">
-                        <button onClick={handlePrevQuestion} disabled={currentQuestionIndex === 0} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-                            <Icons.ChevronLeft />
-                            Sebelumnya
+                      {currentQuestionIndex === questions.length - 1 ? (
+                        <div className="relative">
+                          <button onClick={() => handleFinishExam(false)} disabled={isSubmitDisabled} title={submitTitle} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-100 disabled:bg-emerald-300 disabled:cursor-not-allowed">
+                            <Icons.CheckCircle />
+                            {isSubmitDisabled && minTimeLockoutSeconds > 0 && timeLeft !== null ?
+                              <span>Selesai Ujian ({formatTime(timeLeft - minTimeLockoutSeconds)})</span> :
+                              <span>Selesai Ujian</span>
+                            }
+                          </button>                            </div>
+                      ) : (
+                        <button onClick={handleNextQuestion} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all shadow-md shadow-indigo-100">
+                          Selanjutnya
+                          <Icons.ChevronRight />
                         </button>
-                        {currentQuestionIndex === questions.length - 1 ? (
-                            <div className="relative">
-                                                            <button onClick={() => handleFinishExam(false)} disabled={isSubmitDisabled} title={submitTitle} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-100 disabled:bg-emerald-300 disabled:cursor-not-allowed">
-                                                                <Icons.CheckCircle />
-                                                                {isSubmitDisabled && minTimeLockoutSeconds > 0 && timeLeft !== null ? 
-                                                                    <span>Selesai Ujian ({formatTime(timeLeft - minTimeLockoutSeconds)})</span> : 
-                                                                    <span>Selesai Ujian</span>
-                                                                }
-                                                            </button>                            </div>
-                        ) : (
-                            <button onClick={handleNextQuestion} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all shadow-md shadow-indigo-100">
-                            Selanjutnya
-                            <Icons.ChevronRight />
-                            </button>
-                        )}
-                      </div>
+                      )}
+                    </div>
                   </div>
                 </>
               ) : (
@@ -539,27 +569,27 @@ export default function ExamTakingPage() {
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setIsSidebarVisible(false)}></div>
           <div className="absolute right-0 top-0 h-full w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 className="font-bold text-slate-800">Daftar Soal</h3>
-                <button onClick={() => setIsSidebarVisible(false)} className="p-2 bg-white rounded-full text-slate-500 hover:text-slate-800 shadow-sm border border-slate-200"><Icons.ChevronRight /></button>
+              <h3 className="font-bold text-slate-800">Daftar Soal</h3>
+              <button onClick={() => setIsSidebarVisible(false)} className="p-2 bg-white rounded-full text-slate-500 hover:text-slate-800 shadow-sm border border-slate-200"><Icons.ChevronRight /></button>
             </div>
             <div className="p-4 overflow-y-auto flex-1">
-                 <div className="grid grid-cols-5 gap-2">
-                    {questions.map((q, index) => {
-                        const isAnswered = answers[q.id] !== undefined;
-                        const isDoubtful = doubtfulAnswers[q.id]; 
-                        const isActive = index === currentQuestionIndex;
-                        let buttonClass = 'h-10 rounded-lg text-sm font-bold transition-all border ';
-                        if (isActive) buttonClass += 'bg-indigo-600 text-white border-indigo-600';
-                        else if (isDoubtful) buttonClass += 'bg-amber-100 text-amber-800 border-amber-200';
-                        else if (isAnswered) buttonClass += 'bg-emerald-100 text-emerald-800 border-emerald-200';
-                        else buttonClass += 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50';
-                        return (
-                        <button key={q.id} onClick={() => { handleSelectQuestion(index); setIsSidebarVisible(false); }} className={buttonClass}>
-                            {index + 1}
-                        </button>
-                        );
-                    })}
-                </div>
+              <div className="grid grid-cols-5 gap-2">
+                {questions.map((q, index) => {
+                  const isAnswered = answers[q.id] !== undefined;
+                  const isDoubtful = doubtfulAnswers[q.id];
+                  const isActive = index === currentQuestionIndex;
+                  let buttonClass = 'h-10 rounded-lg text-sm font-bold transition-all border ';
+                  if (isActive) buttonClass += 'bg-indigo-600 text-white border-indigo-600';
+                  else if (isDoubtful) buttonClass += 'bg-amber-100 text-amber-800 border-amber-200';
+                  else if (isAnswered) buttonClass += 'bg-emerald-100 text-emerald-800 border-emerald-200';
+                  else buttonClass += 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50';
+                  return (
+                    <button key={q.id} onClick={() => { handleSelectQuestion(index); setIsSidebarVisible(false); }} className={buttonClass}>
+                      {index + 1}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

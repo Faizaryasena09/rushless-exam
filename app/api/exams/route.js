@@ -27,7 +27,8 @@ async function GET() {
           e.timer_mode,
           e.duration_minutes,
           s.start_time,
-          s.end_time
+          s.end_time,
+          s.require_safe_browser
         FROM rhs_exams e
         LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
     `;
@@ -129,7 +130,7 @@ async function POST(request) {
   }
 
   // 2. Get data from the request body
-  const { exam_name, description } = await request.json();
+  const { exam_name, description, require_safe_browser } = await request.json();
 
   // 3. Validate input
   if (!exam_name) {
@@ -146,6 +147,12 @@ async function POST(request) {
     if (result.affectedRows) {
       const newExamId = result.insertId;
 
+      // Create default settings (with safe browser if requested)
+      await query({
+        query: 'INSERT INTO rhs_exam_settings (exam_id, require_safe_browser) VALUES (?, ?)',
+        values: [newExamId, require_safe_browser || false]
+      });
+
       // Auto-assign classes for teachers
       if (session.user.roleName === 'teacher') {
         const teacherClasses = await query({
@@ -160,10 +167,7 @@ async function POST(request) {
             values.push(newExamId, c.class_id);
           });
 
-          await query({
-            query: `INSERT INTO rhs_exam_classes (exam_id, class_id) VALUES ${placeholders}`,
-            values: values
-          });
+          await connection.query(`INSERT INTO rhs_exam_classes (exam_id, class_id) VALUES ${placeholders}`, values);
         }
       }
 
@@ -186,7 +190,7 @@ async function PUT(request) {
   }
 
   // 2. Get data from the request body
-  const { id, exam_name, description } = await request.json();
+  const { id, exam_name, description, require_safe_browser } = await request.json();
 
   // 3. Validate input
   if (!id || !exam_name) {
@@ -195,13 +199,26 @@ async function PUT(request) {
 
   // 4. Update the database
   try {
-    const result = await query({
+    await query({
       query: 'UPDATE rhs_exams SET exam_name = ?, description = ? WHERE id = ?',
       values: [exam_name, description, id],
     });
 
-    if (result.affectedRows === 0) {
-      return NextResponse.json({ message: 'Exam not found or no changes made' }, { status: 404 });
+    // Update settings (upsert logic to be safe, or just update)
+    if (require_safe_browser !== undefined) {
+      // Check if settings exist
+      const settings = await query({ query: 'SELECT id FROM rhs_exam_settings WHERE exam_id = ?', values: [id] });
+      if (settings.length > 0) {
+        await query({
+          query: 'UPDATE rhs_exam_settings SET require_safe_browser = ? WHERE exam_id = ?',
+          values: [require_safe_browser, id]
+        });
+      } else {
+        await query({
+          query: 'INSERT INTO rhs_exam_settings (exam_id, require_safe_browser) VALUES (?, ?)',
+          values: [id, require_safe_browser]
+        });
+      }
     }
 
     return NextResponse.json({ message: 'Exam updated successfully' });
