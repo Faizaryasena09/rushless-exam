@@ -15,9 +15,49 @@
         ShowInTaskbar="False"
         Background="Black">
     <Grid>
-        <wpf:WebView2 x:Name="webView" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Top Status Bar -->
+        <Border Grid.Row="0" Background="#2D2D30" Padding="10,5">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" /> <!-- Left: App Title / Info -->
+                    <ColumnDefinition Width="*" />    <!-- Spacer -->
+                    <ColumnDefinition Width="Auto" /> <!-- Right: Status Indicators -->
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Exam Safer Browser" Foreground="White" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" x:Name="StatusPanel">
+                    
+                    <!-- Network -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0" VerticalAlignment="Center">
+                         <TextBlock Text="🌐" Foreground="LightGray" FontSize="16" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                         <TextBlock x:Name="NetworkStatusText" Text="Checking..." Foreground="White" VerticalAlignment="Center"/>
+                         <Button x:Name="BtnWifi" Content="Wi-Fi" Margin="10,0,0,0" Padding="5,2" Background="#444" Foreground="White" BorderBrush="Gray" Click="BtnWifi_Click"/>
+                    </StackPanel>
+
+                    <!-- Battery -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0" VerticalAlignment="Center">
+                        <TextBlock Text="🔋" Foreground="LightGreen" FontSize="16" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBlock x:Name="BatteryStatusText" Text="--%" Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Clock -->
+                    <TextBlock x:Name="ClockText" Text="00:00" Foreground="White" FontWeight="Bold" FontSize="16" VerticalAlignment="Center" Margin="10,0,0,0"/>
+
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <wpf:WebView2 Grid.Row="1" x:Name="webView" />
         
         <!-- Optional: A hidden trigger or overlay if needed, currently just fullscreen browser -->
-        <TextBlock x:Name="StatusText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontSize="24" Visibility="Collapsed">Loading...</TextBlock>
+        <TextBlock Grid.Row="1" x:Name="StatusText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontSize="24" Visibility="Collapsed">Loading...</TextBlock>
     </Grid>
 </Window>
