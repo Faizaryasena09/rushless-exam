@@ -5,9 +5,7 @@ import { useRouter } from 'next/navigation';
 
 // A simple, abstract logo for the exam platform
 const AppLogo = () => (
-    <svg className="h-12 w-12 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.25278C12 6.25278 15.0254 3 19.5 3C23.9746 3 24 7.61778 24 10.5C24 16.5 12 21 12 21C12 21 0 16.5 0 10.5C0 7.61778 0.0254328 3 4.5 3C8.97457 3 12 6.25278 12 6.25278Z" />
-    </svg>
+  <img src="/favicon.ico" alt="Rushless Exam Logo" className="h-12 w-12" />
 );
 
 
@@ -68,9 +66,9 @@ export default function LoginPage() {
       }
 
       setSuccess('Login successful! Redirecting...');
-      
+
       setTimeout(() => {
-        router.push('/dashboard'); 
+        router.push('/dashboard');
       }, 1000);
 
     } catch (error) {
@@ -82,7 +80,7 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-100 p-6">
       <div className="w-full max-w-md bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-200/50">
-        
+
         <div className="p-8 text-center">
           <div className="flex justify-center mb-4">
             <AppLogo />
@@ -92,7 +90,7 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-6">
-          
+
           {error && (
             <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded-md text-sm">
               <p>{error}</p>
@@ -123,6 +121,7 @@ export default function LoginPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 disabled={isLoading}
+                suppressHydrationWarning={true}
               />
             </div>
           </div>
@@ -146,16 +145,17 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
+                suppressHydrationWarning={true}
               />
             </div>
           </div>
 
           <button
-            className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform hover:scale-105 ${
-              isLoading ? 'opacity-70 cursor-not-allowed' : ''
-            }`}
+            className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform hover:scale-105 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''
+              }`}
             type="submit"
             disabled={isLoading}
+            suppressHydrationWarning={true}
           >
             {isLoading ? (
               <span className="flex items-center">
@@ -172,9 +172,6 @@ export default function LoginPage() {
         </form>
 
         <div className="bg-gray-50 px-8 py-4 border-t border-gray-100">
-          <p className="text-center text-gray-500 text-xs">
-            Use <code className="bg-gray-200 px-1 rounded text-indigo-600">admin</code> & <code className="bg-gray-200 px-1 rounded text-indigo-600">password</code> or <button onClick={setupDatabase} className="text-indigo-600 hover:underline">Setup DB</button>
-          </p>
         </div>
       </div>
     </main>
