@@ -93,7 +93,7 @@ export async function GET(request) {
     } else {
       messages.push(`Column 'min_time_minutes' already exists in '${tableName}'.`);
     }
-    
+
     // --- Check and add 'doubtful_questions' column to attempts table ---
     const attemptsTableName = 'rhs_exam_attempts';
     const hasDoubtful = await columnExists(attemptsTableName, 'doubtful_questions');
@@ -122,105 +122,118 @@ export async function GET(request) {
     // --- Check and add 'max_attempts' column to exams table ---
     const hasMaxAttempts = await columnExists(tableName, 'max_attempts');
     if (!hasMaxAttempts) {
-        await query({
-            query: `ALTER TABLE ${tableName} ADD COLUMN max_attempts INT DEFAULT 1;`,
-            values: [],
-        });
-        messages.push(`Column 'max_attempts' created successfully in '${tableName}'.`);
+      await query({
+        query: `ALTER TABLE ${tableName} ADD COLUMN max_attempts INT DEFAULT 1;`,
+        values: [],
+      });
+      messages.push(`Column 'max_attempts' created successfully in '${tableName}'.`);
     } else {
-        messages.push(`Column 'max_attempts' already exists in '${tableName}'.`);
+      messages.push(`Column 'max_attempts' already exists in '${tableName}'.`);
     }
 
     // --- Check and add 'end_time' column to attempts table ---
     const hasEndTime = await columnExists(attemptsTableName, 'end_time');
     if (!hasEndTime) {
-        await query({
-            query: `ALTER TABLE ${attemptsTableName} ADD COLUMN end_time DATETIME;`,
-            values: [],
-        });
-        messages.push(`Column 'end_time' created successfully in '${attemptsTableName}'.`);
+      await query({
+        query: `ALTER TABLE ${attemptsTableName} ADD COLUMN end_time DATETIME;`,
+        values: [],
+      });
+      messages.push(`Column 'end_time' created successfully in '${attemptsTableName}'.`);
     } else {
-        messages.push(`Column 'end_time' already exists in '${attemptsTableName}'.`);
+      messages.push(`Column 'end_time' already exists in '${attemptsTableName}'.`);
+    }
+
+    // --- Check and add 'require_safe_browser' column to exam_settings table ---
+    const settingsTableName = 'rhs_exam_settings';
+    const hasRequireSafeBrowser = await columnExists(settingsTableName, 'require_safe_browser');
+    if (!hasRequireSafeBrowser) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN require_safe_browser BOOLEAN DEFAULT FALSE;`,
+        values: [],
+      });
+      messages.push(`Column 'require_safe_browser' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'require_safe_browser' already exists in '${settingsTableName}'.`);
     }
 
     // --- Check and add 'score' column to attempts table ---
     const hasScore = await columnExists(attemptsTableName, 'score');
     if (!hasScore) {
-        await query({
-            query: `ALTER TABLE ${attemptsTableName} ADD COLUMN score FLOAT;`,
-            values: [],
-        });
-        messages.push(`Column 'score' created successfully in '${attemptsTableName}'.`);
+      await query({
+        query: `ALTER TABLE ${attemptsTableName} ADD COLUMN score FLOAT;`,
+        values: [],
+      });
+      messages.push(`Column 'score' created successfully in '${attemptsTableName}'.`);
     } else {
-        messages.push(`Column 'score' already exists in '${attemptsTableName}'.`);
+      messages.push(`Column 'score' already exists in '${attemptsTableName}'.`);
     }
 
     // --- Check and add 'attempt_id' column to student_answer table ---
     const studentAnswerTableName = 'rhs_student_answer';
     const hasAttemptIdInAnswers = await columnExists(studentAnswerTableName, 'attempt_id');
     if (!hasAttemptIdInAnswers) {
-        await query({
-            query: `ALTER TABLE ${studentAnswerTableName} ADD COLUMN attempt_id INT AFTER exam_id;`,
-            values: [],
-        });
-        messages.push(`Column 'attempt_id' created successfully in '${studentAnswerTableName}'.`);
+      await query({
+        query: `ALTER TABLE ${studentAnswerTableName} ADD COLUMN attempt_id INT AFTER exam_id;`,
+        values: [],
+      });
+      messages.push(`Column 'attempt_id' created successfully in '${studentAnswerTableName}'.`);
     } else {
-        messages.push(`Column 'attempt_id' already exists in '${studentAnswerTableName}'.`);
+      messages.push(`Column 'attempt_id' already exists in '${studentAnswerTableName}'.`);
     }
 
     // --- Check and add 'session_id' column to users table ---
     const usersTableName = 'rhs_users';
     const hasSessionId = await columnExists(usersTableName, 'session_id');
     if (!hasSessionId) {
-        await query({
-            query: `ALTER TABLE ${usersTableName} ADD COLUMN session_id VARCHAR(255);`,
-            values: [],
-        });
-        messages.push(`Column 'session_id' created successfully in '${usersTableName}'.`);
+      await query({
+        query: `ALTER TABLE ${usersTableName} ADD COLUMN session_id VARCHAR(255);`,
+        values: [],
+      });
+      messages.push(`Column 'session_id' created successfully in '${usersTableName}'.`);
     } else {
-        messages.push(`Column 'session_id' already exists in '${usersTableName}'.`);
+      messages.push(`Column 'session_id' already exists in '${usersTableName}'.`);
     }
 
     // --- Check and add 'last_activity' column to users table ---
     const hasLastActivity = await columnExists(usersTableName, 'last_activity');
     if (!hasLastActivity) {
-        await query({
-            query: `ALTER TABLE ${usersTableName} ADD COLUMN last_activity DATETIME;`,
-            values: [],
-        });
-        messages.push(`Column 'last_activity' created successfully in '${usersTableName}'.`);
+      await query({
+        query: `ALTER TABLE ${usersTableName} ADD COLUMN last_activity DATETIME;`,
+        values: [],
+      });
+      messages.push(`Column 'last_activity' created successfully in '${usersTableName}'.`);
     } else {
-        messages.push(`Column 'last_activity' already exists in '${usersTableName}'.`);
+      messages.push(`Column 'last_activity' already exists in '${usersTableName}'.`);
     }
 
     // --- Check and add 'is_locked' column to users table ---
     const hasIsLocked = await columnExists(usersTableName, 'is_locked');
     if (!hasIsLocked) {
-        await query({
-            query: `ALTER TABLE ${usersTableName} ADD COLUMN is_locked BOOLEAN NOT NULL DEFAULT FALSE;`,
-            values: [],
-        });
-        messages.push(`Column 'is_locked' created successfully in '${usersTableName}'.`);
+      await query({
+        query: `ALTER TABLE ${usersTableName} ADD COLUMN is_locked BOOLEAN NOT NULL DEFAULT FALSE;`,
+        values: [],
+      });
+      messages.push(`Column 'is_locked' created successfully in '${usersTableName}'.`);
     } else {
-        messages.push(`Column 'is_locked' already exists in '${usersTableName}'.`);
+      messages.push(`Column 'is_locked' already exists in '${usersTableName}'.`);
     }
 
     // --- Check and add 'time_extension' column to exam attempts table ---
     const hasTimeExtension = await columnExists(attemptsTableName, 'time_extension');
     if (!hasTimeExtension) {
-        await query({
-            query: `ALTER TABLE ${attemptsTableName} ADD COLUMN time_extension INT NOT NULL DEFAULT 0;`,
-            values: [],
-        });
-        messages.push(`Column 'time_extension' created successfully in '${attemptsTableName}'.`);
+      await query({
+        query: `ALTER TABLE ${attemptsTableName} ADD COLUMN time_extension INT NOT NULL DEFAULT 0;`,
+        values: [],
+      });
+      messages.push(`Column 'time_extension' created successfully in '${attemptsTableName}'.`);
     } else {
-        messages.push(`Column 'time_extension' already exists in '${attemptsTableName}'.`);
+      messages.push(`Column 'time_extension' already exists in '${attemptsTableName}'.`);
     }
 
     // --- Check and create 'rhs_exam_logs' table ---
     const logsTableName = 'rhs_exam_logs';
     await query({
-        query: `
+      query: `
             CREATE TABLE IF NOT EXISTS rhs_exam_logs (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 attempt_id INT NOT NULL,
@@ -230,7 +243,7 @@ export async function GET(request) {
                 FOREIGN KEY (attempt_id) REFERENCES rhs_exam_attempts(id) ON DELETE CASCADE
             )
         `,
-        values: [],
+      values: [],
     });
     messages.push(`Table '${logsTableName}' created or already exists.`);
 
@@ -238,7 +251,7 @@ export async function GET(request) {
     const examClassesTableName = 'rhs_exam_classes';
     // We can't easily check for table existence with columnExists, so we use CREATE TABLE IF NOT EXISTS
     await query({
-        query: `
+      query: `
             CREATE TABLE IF NOT EXISTS rhs_exam_classes (
                 exam_id INT NOT NULL,
                 class_id INT NOT NULL,
@@ -247,14 +260,14 @@ export async function GET(request) {
                 FOREIGN KEY (class_id) REFERENCES rhs_classes(id) ON DELETE CASCADE
             )
         `,
-        values: [],
+      values: [],
     });
     messages.push(`Table '${examClassesTableName}' created or already exists.`);
 
     // --- Check and create 'rhs_teacher_classes' table (Junction table for Teachers) ---
     const teacherClassesTableName = 'rhs_teacher_classes';
     await query({
-        query: `
+      query: `
             CREATE TABLE IF NOT EXISTS rhs_teacher_classes (
                 teacher_id INT NOT NULL,
                 class_id INT NOT NULL,
@@ -263,22 +276,22 @@ export async function GET(request) {
                 FOREIGN KEY (class_id) REFERENCES rhs_classes(id) ON DELETE CASCADE
             )
         `,
-        values: [],
+      values: [],
     });
     messages.push(`Table '${teacherClassesTableName}' created or already exists.`);
 
-    return NextResponse.json({ 
-        status: 'success',
-        message: 'Database setup check completed.',
-        details: messages 
+    return NextResponse.json({
+      status: 'success',
+      message: 'Database setup check completed.',
+      details: messages
     });
 
   } catch (error) {
     console.error('Database setup failed:', error);
-    return NextResponse.json({ 
-        status: 'error',
-        message: 'An error occurred during database setup.', 
-        error: error.message 
+    return NextResponse.json({
+      status: 'error',
+      message: 'An error occurred during database setup.',
+      error: error.message
     }, { status: 500 });
   }
 }
