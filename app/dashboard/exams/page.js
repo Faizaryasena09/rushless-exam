@@ -23,8 +23,41 @@ const StudentExamActions = ({ exam }) => {
   const startTime = exam.start_time ? new Date(exam.start_time) : null;
   const endTime = exam.end_time ? new Date(exam.end_time) : null;
 
+  const handleLaunch = async () => {
+    try {
+      // 1. Generate Token
+      const res = await fetch('/api/auth/generate-token', { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to generate launch token');
+      const { token } = await res.json();
+
+      // 2. Construct URLs
+      const baseUrl = window.location.origin;
+      const handoffPath = `/api/auth/handoff?token=${token}&redirect=/dashboard/exams/kerjakan/${exam.id}`;
+      const fullHandoffUrl = `${baseUrl}${handoffPath}`;
+
+      // 3. Launch Protocol
+      // Format: rushlessexam:http://localhost:3000/api/auth/handoff?token=...
+      const safeBrowserUrl = `rushlessexam:${fullHandoffUrl}`;
+      window.location.href = safeBrowserUrl;
+
+    } catch (err) {
+      alert('Error launching Safe Browser: ' + err.message);
+    }
+  };
+
   // 1. Check for an in-progress exam first
   if (exam.has_in_progress) {
+    if (exam.require_safe_browser) {
+      return (
+        <button onClick={handleLaunch} className="group w-full flex items-center justify-between text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors text-left">
+          <div className="flex items-center gap-2">
+            <Icons.Play />
+            <span>Lanjutkan Ujian</span>
+          </div>
+          <Icons.ChevronRight className="transition-transform group-hover:translate-x-1" />
+        </button>
+      );
+    }
     return (
       <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors">
         <div className="flex items-center gap-2">
@@ -66,28 +99,6 @@ const StudentExamActions = ({ exam }) => {
 
   // 4. If all checks pass, it's available to start
   if (exam.require_safe_browser) {
-    const handleLaunch = async () => {
-      try {
-        // 1. Generate Token
-        const res = await fetch('/api/auth/generate-token', { method: 'POST' });
-        if (!res.ok) throw new Error('Failed to generate launch token');
-        const { token } = await res.json();
-
-        // 2. Construct URLs
-        const baseUrl = window.location.origin;
-        const handoffPath = `/api/auth/handoff?token=${token}&redirect=/dashboard/exams/kerjakan/${exam.id}`;
-        const fullHandoffUrl = `${baseUrl}${handoffPath}`;
-
-        // 3. Launch Protocol
-        // Format: rushlessexam:http://localhost:3000/api/auth/handoff?token=...
-        const safeBrowserUrl = `rushlessexam:${fullHandoffUrl}`;
-        window.location.href = safeBrowserUrl;
-
-      } catch (err) {
-        alert('Error launching Safe Browser: ' + err.message);
-      }
-    };
-
     return (
       <button onClick={handleLaunch} className="group w-full flex items-center justify-between text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors text-left">
         <div className="flex items-center gap-2">
