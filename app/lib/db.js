@@ -217,6 +217,18 @@ export async function setupDatabase() {
         `);
     console.log('Table "rhs_temporary_answer" created or already exists.');
 
+    // Create the 'rhs_launch_tokens' table for ExamSafer handoff
+    await connection.query(`
+            CREATE TABLE IF NOT EXISTS rhs_launch_tokens (
+                token VARCHAR(255) PRIMARY KEY,
+                user_id INT NOT NULL,
+                expires_at DATETIME NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES rhs_users(id) ON DELETE CASCADE
+            )
+        `);
+    console.log('Table "rhs_launch_tokens" created or already exists.');
+
     connection.release();
     return { success: true };
 

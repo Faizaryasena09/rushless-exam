@@ -20,12 +20,21 @@ public partial class App : Application
         if (e.Args.Length > 0)
         {
             string arg = e.Args[0];
+            // Handle different protocol formats (with or without slashes)
             if (arg.StartsWith("rushlessexam:"))
             {
-                // Format: rushlessexam:http://...
-                // Depending on how browser passes it, it might be heavily encoded or just appended.
-                // We strip the protocol prefix.
-                targetUrl = arg.Substring("rushlessexam:".Length);
+                // Remove the protocol prefix
+                // e.g. rushlessexam:http://... -> http://...
+                // e.g. rushlessexam://http://... -> http://... (browsers might add slashes)
+                
+                string cleanedArg = arg.Substring("rushlessexam:".Length);
+                
+                if (cleanedArg.StartsWith("//"))
+                {
+                    cleanedArg = cleanedArg.Substring(2);
+                }
+
+                targetUrl = cleanedArg;
             }
             else
             {

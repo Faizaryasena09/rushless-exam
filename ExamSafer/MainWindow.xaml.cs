@@ -41,8 +41,8 @@ public partial class MainWindow : Window
         webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
         webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
 
-        // Clear all browsing data to ensure a fresh session
-        await webView.CoreWebView2.Profile.ClearBrowsingDataAsync();
+        // Clear all browsing data to ensure a fresh session on start
+        await ClearUserData();
         
         if (!string.IsNullOrEmpty(_targetUrl) && _targetUrl != "about:blank")
         {
@@ -52,6 +52,14 @@ public partial class MainWindow : Window
         {
             MessageBox.Show("Invalid Exam URL. Closing.");
             Application.Current.Shutdown();
+        }
+    }
+
+    private async Task ClearUserData()
+    {
+        if (webView != null && webView.CoreWebView2 != null)
+        {
+             await webView.CoreWebView2.Profile.ClearBrowsingDataAsync();
         }
     }
 
@@ -70,16 +78,17 @@ public partial class MainWindow : Window
          // e.Cancel = true; // Use with caution, ensure Emergency Exit works!
     }
 
-    private void CoreWebView2_WebMessageReceived(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
+    private async void CoreWebView2_WebMessageReceived(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
     {
         string message = e.TryGetWebMessageAsString();
         if (message == "submit_success" || message == "force_close")
         {
+            await ClearUserData();
             Application.Current.Shutdown();
         }
     }
 
-    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    private async void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         // Emergency Exit: Ctrl + Shift + Alt + E
         if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control &&
@@ -88,6 +97,7 @@ public partial class MainWindow : Window
             e.Key == Key.E)
         {
             MessageBox.Show("Emergency Exit Triggered");
+            await ClearUserData();
             Application.Current.Shutdown();
             return;
         }
