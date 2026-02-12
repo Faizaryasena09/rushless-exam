@@ -363,12 +363,12 @@ const ImportWordForm = ({ examId, onQuestionAdded }) => {
 
     const handleFileChange = (e) => {
         const selectedFile = e.target.files?.[0];
-        if (selectedFile && selectedFile.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+        if (selectedFile && (selectedFile.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || selectedFile.type === "application/pdf")) {
             setFile(selectedFile);
             setError('');
         } else {
             setFile(null);
-            setError('Please select a .docx file.');
+            setError('Please select a .docx or .pdf file.');
         }
     };
 
@@ -409,14 +409,14 @@ const ImportWordForm = ({ examId, onQuestionAdded }) => {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Select .docx file</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Select .docx or .pdf file</label>
                 <div className="flex items-center justify-center w-full">
                     <label className="flex flex-col w-full h-32 border-2 border-dashed border-slate-300 hover:bg-slate-50 rounded-lg cursor-pointer">
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             <Icons.Upload />
                             <p className="text-sm text-slate-500">{file ? file.name : 'Click to upload'}</p>
                         </div>
-                        <input type="file" className="hidden" accept=".docx" onChange={handleFileChange} />
+                        <input type="file" className="hidden" accept=".docx, .pdf" onChange={handleFileChange} />
                     </label>
                 </div>
             </div>
