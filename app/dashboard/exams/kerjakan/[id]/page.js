@@ -82,6 +82,67 @@ const Timer = ({ timeLeft }) => {
 };
 
 
+// --- Finish Confirmation Modal ---
+const FinishConfirmationModal = ({ isOpen, onClose, onConfirm, questions, answers }) => {
+  if (!isOpen) return null;
+
+  const unansweredQuestions = questions.filter(q => answers[q.id] === undefined);
+  const isComplete = unansweredQuestions.length === 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 overflow-hidden transform transition-all scale-100">
+        <div className="p-6">
+          <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center mb-4 mx-auto text-indigo-600">
+            <Icons.CheckCircle />
+          </div>
+          <h3 className="text-xl font-bold text-slate-800 text-center mb-2">
+            Selesai Ujian?
+          </h3>
+
+          {!isComplete ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <div className="text-amber-600 mt-0.5"><Icons.Flag /></div>
+                <div>
+                  <h4 className="font-bold text-amber-800 text-sm">Masih ada soal yang belum dijawab!</h4>
+                  <p className="text-amber-700 text-sm mt-1">
+                    Anda belum menjawab <span className="font-bold">{unansweredQuestions.length}</span> dari <span className="font-bold">{questions.length}</span> soal.
+                  </p>
+                  <p className="text-amber-700 text-xs mt-2">
+                    Sebaiknya periksa kembali jawaban Anda sebelum mengumpulkan.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-slate-600 text-center mb-6">
+              Anda telah menjawab semua soal. Apakah Anda yakin ingin mengakhiri ujian ini? Jawaban tidak dapat diubah setelah dikirim.
+            </p>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-700 font-semibold hover:bg-slate-50 transition-colors"
+            >
+              Batal & Periksa
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100"
+            >
+              Ya, Selesaikan
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 export default function ExamTakingPage() {
   const router = useRouter();
   const params = useParams();
@@ -100,6 +161,9 @@ export default function ExamTakingPage() {
   const finishExamHandled = useRef(false);
   const initExamRef = useRef(false);
   const [showTimeAddedAlert, setShowTimeAddedAlert] = useState(false);
+
+  // Modal State
+  const [showFinishModal, setShowFinishModal] = useState(false);
 
   const logAction = useCallback(async (actionType, description) => {
     if (!attemptDetails?.id) return;
@@ -122,12 +186,12 @@ export default function ExamTakingPage() {
   useEffect(() => {
     if (timeLeft === null) return;
     if (timeLeft <= 0) {
-      if (!finishExamHandled.current) handleFinishExam(true);
+      if (!finishExamHandled.current) submitExam(true);
       return;
     }
     const interval = setInterval(() => setTimeLeft(prev => prev > 0 ? prev - 1 : 0), 1000);
     return () => clearInterval(interval);
-  }, [timeLeft]); // handleFinishExam is not stable, but it's okay
+  }, [timeLeft]);
 
   // 2. Logic for 5-second server sync
   useEffect(() => {
@@ -203,17 +267,15 @@ export default function ExamTakingPage() {
     });
   }, [router]);
 
-  const handleFinishExam = useCallback(async (isAutoSubmit = false) => {
+  // Actual submission logic
+  const submitExam = useCallback(async (isAutoSubmit = false) => {
     if (finishExamHandled.current) return;
     finishExamHandled.current = true;
 
-    if (!isAutoSubmit) {
-      const isConfirmed = window.confirm('Are you sure you want to finish the exam?');
-      if (!isConfirmed) {
-        finishExamHandled.current = false;
-        return;
-      }
-    } else {
+    // Close modal if open
+    setShowFinishModal(false);
+
+    if (isAutoSubmit) {
       alert('Time is up! Your answers will be submitted automatically.');
     }
 
@@ -226,8 +288,6 @@ export default function ExamTakingPage() {
       });
       if (!response.ok) throw new Error((await response.json()).message || 'Failed to submit exam.');
 
-      alert('Exam submitted successfully!');
-
       // Notify Safe Browser if running inside it
       if (window.chrome && window.chrome.webview) {
         window.chrome.webview.postMessage('submit_success');
@@ -239,6 +299,11 @@ export default function ExamTakingPage() {
       finishExamHandled.current = false;
     }
   }, [examId, answers, router, attemptDetails, logAction]);
+
+  // Handler for button click
+  const handleFinishRequest = () => {
+    setShowFinishModal(true);
+  };
 
   // Enforce Safe Browser Check
   useEffect(() => {
@@ -538,7 +603,7 @@ export default function ExamTakingPage() {
                       </button>
                       {currentQuestionIndex === questions.length - 1 ? (
                         <div className="relative">
-                          <button onClick={() => handleFinishExam(false)} disabled={isSubmitDisabled} title={submitTitle} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-100 disabled:bg-emerald-300 disabled:cursor-not-allowed">
+                          <button onClick={handleFinishRequest} disabled={isSubmitDisabled} title={submitTitle} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-100 disabled:bg-emerald-300 disabled:cursor-not-allowed">
                             <Icons.CheckCircle />
                             {isSubmitDisabled && minTimeLockoutSeconds > 0 && timeLeft !== null ?
                               <span>Selesai Ujian ({formatTime(timeLeft - minTimeLockoutSeconds)})</span> :
@@ -594,6 +659,15 @@ export default function ExamTakingPage() {
           </div>
         </div>
       )}
+
+      {/* Confirmation Modal */}
+      <FinishConfirmationModal
+        isOpen={showFinishModal}
+        onClose={() => setShowFinishModal(false)}
+        onConfirm={() => submitExam(false)}
+        questions={questions}
+        answers={answers}
+      />
     </div>
   );
 }
