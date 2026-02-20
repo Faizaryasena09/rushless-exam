@@ -22,7 +22,7 @@ export async function GET(request) {
     const search = searchParams.get('search');
 
     let baseQuery = `
-      SELECT u.id, u.username, u.role, u.class_id, c.class_name
+      SELECT u.id, u.username, u.name, u.role, u.class_id, c.class_name
       FROM rhs_users u
       LEFT JOIN rhs_classes c ON u.class_id = c.id
     `;
@@ -35,8 +35,8 @@ export async function GET(request) {
     }
 
     if (search) {
-      whereClauses.push('u.username LIKE ?');
-      values.push(`%${search}%`);
+      whereClauses.push('(u.username LIKE ? OR u.name LIKE ?)');
+      values.push(`%${search}%`, `%${search}%`);
     }
 
     if (whereClauses.length > 0) {
@@ -60,16 +60,16 @@ export async function POST(request) {
   }
 
   try {
-    const { username, password, role, class_id } = await request.json();
+    const { username, name, password, role, class_id } = await request.json();
     if (!username || !password || !role) {
       return NextResponse.json({ message: 'Username, password, and role are required' }, { status: 400 });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await query({
-      query: 'INSERT INTO rhs_users (username, password, role, class_id) VALUES (?, ?, ?, ?)',
-      values: [username, hashedPassword, role, class_id],
+      query: 'INSERT INTO rhs_users (username, name, password, role, class_id) VALUES (?, ?, ?, ?, ?)',
+      values: [username, name || null, hashedPassword, role, class_id],
     });
-    return NextResponse.json({ id: result.insertId, username, role, class_id }, { status: 201 });
+    return NextResponse.json({ id: result.insertId, username, name, role, class_id }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ message: 'Failed to create user', error: error.message }, { status: 500 });
   }
@@ -81,13 +81,13 @@ export async function PUT(request) {
   }
 
   try {
-    const { id, username, password, role, class_id } = await request.json();
+    const { id, username, name, password, role, class_id } = await request.json();
     if (!id || !username || !role) {
       return NextResponse.json({ message: 'ID, username, and role are required' }, { status: 400 });
     }
 
-    let q = 'UPDATE rhs_users SET username = ?, role = ?, class_id = ?';
-    const values = [username, role, class_id];
+    let q = 'UPDATE rhs_users SET username = ?, name = ?, role = ?, class_id = ?';
+    const values = [username, name || null, role, class_id];
 
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -99,7 +99,7 @@ export async function PUT(request) {
     values.push(id);
 
     await query({ query: q, values });
-    return NextResponse.json({ id, username, role, class_id });
+    return NextResponse.json({ id, username, name, role, class_id });
   } catch (error) {
     return NextResponse.json({ message: 'Failed to update user', error: error.message }, { status: 500 });
   }

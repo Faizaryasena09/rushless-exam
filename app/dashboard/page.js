@@ -45,7 +45,7 @@ function DashboardCard({ href, title, description, icon, gradient }) {
         <Link href={href} className={`group relative overflow-hidden rounded-2xl p-6 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${gradient}`}>
             {/* Dekorasi Background Circle */}
             <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white opacity-10 blur-2xl transition-all duration-500 group-hover:scale-150"></div>
-            
+
             <div className="relative z-10 flex items-start justify-between">
                 <div className="flex flex-col">
                     <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm shadow-inner">
@@ -54,7 +54,7 @@ function DashboardCard({ href, title, description, icon, gradient }) {
                     <h2 className="text-xl font-bold text-white mb-1 tracking-tight">{title}</h2>
                     <p className="text-sm text-blue-50 font-medium opacity-90">{description}</p>
                 </div>
-                
+
                 {/* Arrow Icon on Hover */}
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-10 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
                     <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -105,7 +105,7 @@ export default function DashboardPage() {
                 const res = await fetch('/api/user-session');
                 if (!res.ok) throw new Error('Not authenticated');
                 const data = await res.json();
-                
+
                 if (!data.user) throw new Error('User data not found');
                 setUser(data.user);
             } catch (error) {
@@ -143,7 +143,7 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-800 font-sans selection:bg-blue-100">
-            
+
             <main className="max-w-7xl mx-auto px-6 py-10">
                 {/* Hero / Welcome Section */}
                 <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -152,7 +152,7 @@ export default function DashboardPage() {
                             {time.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                         </div>
                         <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 leading-tight">
-                            {getGreeting()}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">{user.username}</span>!
+                            {getGreeting()}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">{user.name || user.username}</span>!
                         </h1>
                         <p className="text-gray-500 mt-2 max-w-xl">
                             Selamat datang kembali di panel kontrol Anda. Berikut adalah ringkasan aktivitas dan menu pintas untuk hari ini.
@@ -182,7 +182,7 @@ export default function DashboardPage() {
                                 icon={<AcademicCapIcon className="h-8 w-8 text-white" />}
                                 gradient="bg-gradient-to-br from-emerald-500 to-emerald-700"
                             />
-                             <DashboardCard
+                            <DashboardCard
                                 href="/dashboard/users"
                                 title="Data Pengguna"
                                 description="Tambah dan kelola akses user."

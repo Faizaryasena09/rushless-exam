@@ -242,6 +242,18 @@ export async function GET(request) {
       messages.push(`Column 'is_locked' already exists in '${usersTableName}'.`);
     }
 
+    // --- Check and add 'name' column to users table ---
+    const hasName = await columnExists(usersTableName, 'name');
+    if (!hasName) {
+      await query({
+        query: `ALTER TABLE ${usersTableName} ADD COLUMN name VARCHAR(255);`,
+        values: [],
+      });
+      messages.push(`Column 'name' created successfully in '${usersTableName}'.`);
+    } else {
+      messages.push(`Column 'name' already exists in '${usersTableName}'.`);
+    }
+
     // --- Check and add 'time_extension' column to exam attempts table ---
     const hasTimeExtension = await columnExists(attemptsTableName, 'time_extension');
     if (!hasTimeExtension) {

@@ -15,7 +15,7 @@ export async function POST(request) {
 
     // Find the user in the database
     const users = await query({
-      query: 'SELECT id, username, password, role, class_id, session_id, is_locked, UNIX_TIMESTAMP(last_activity) as last_activity_ts FROM rhs_users WHERE username = ?',
+      query: 'SELECT id, username, name, password, role, class_id, session_id, is_locked, UNIX_TIMESTAMP(last_activity) as last_activity_ts FROM rhs_users WHERE username = ?',
       values: [username],
     });
 
@@ -26,7 +26,7 @@ export async function POST(request) {
     const user = users[0];
 
     if (user.is_locked) {
-        return NextResponse.json({ message: 'Username Anda dikunci oleh admin. Mohon hubungi pengawas.' }, { status: 403 });
+      return NextResponse.json({ message: 'Username Anda dikunci oleh admin. Mohon hubungi pengawas.' }, { status: 403 });
     }
 
     // Compare the provided password with the stored hash
@@ -38,31 +38,31 @@ export async function POST(request) {
 
     // --- CHECK FOR EXISTING ACTIVE SESSION ---
     if (user.session_id) {
-        const now = Math.floor(Date.now() / 1000);
-        const lastActivity = user.last_activity_ts || 0;
-        const elapsed = now - lastActivity;
+      const now = Math.floor(Date.now() / 1000);
+      const lastActivity = user.last_activity_ts || 0;
+      const elapsed = now - lastActivity;
 
-        let isSessionActive = false;
+      let isSessionActive = false;
 
-        // 1. Check basic inactivity timeout (1 hour)
-        if (elapsed < 3600) {
-            isSessionActive = true;
-        } else {
-            // 2. If timed out, check if they are taking an exam (which extends session validity)
-            const activeAttempts = await query({
-                query: `SELECT id FROM rhs_exam_attempts WHERE user_id = ? AND status = 'in_progress'`,
-                values: [user.id]
-            });
-            if (activeAttempts.length > 0) {
-                isSessionActive = true;
-            }
+      // 1. Check basic inactivity timeout (1 hour)
+      if (elapsed < 3600) {
+        isSessionActive = true;
+      } else {
+        // 2. If timed out, check if they are taking an exam (which extends session validity)
+        const activeAttempts = await query({
+          query: `SELECT id FROM rhs_exam_attempts WHERE user_id = ? AND status = 'in_progress'`,
+          values: [user.id]
+        });
+        if (activeAttempts.length > 0) {
+          isSessionActive = true;
         }
+      }
 
-        if (isSessionActive) {
-            return NextResponse.json({ 
-                message: 'Account is currently active on another device. Login denied.' 
-            }, { status: 409 });
-        }
+      if (isSessionActive) {
+        return NextResponse.json({
+          message: 'Account is currently active on another device. Login denied.'
+        }, { status: 409 });
+      }
     }
     // -----------------------------------------
 
@@ -71,14 +71,15 @@ export async function POST(request) {
 
     // Update DB with new session info
     await query({
-        query: 'UPDATE rhs_users SET session_id = ?, last_activity = NOW() WHERE id = ?',
-        values: [sessionId, user.id]
+      query: 'UPDATE rhs_users SET session_id = ?, last_activity = NOW() WHERE id = ?',
+      values: [sessionId, user.id]
     });
 
     // Save user info in the session
     session.user = {
       id: user.id,
       username: user.username,
+      name: user.name, // Add name to session
       roleName: user.role, // Directly use the 'role' column from rhs_users
       class_id: user.class_id,
       session_id: sessionId,

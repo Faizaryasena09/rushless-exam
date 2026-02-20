@@ -34,7 +34,7 @@ export async function POST(request) {
 
         // 2. Process each user
         for (const [index, user] of users.entries()) {
-            const { username, password, role, class_name } = user;
+            const { username, name, password, role, class_name } = user;
             const rowNum = index + 2; // Assuming header is row 1
 
             if (!username || !password || !role) {
@@ -58,8 +58,8 @@ export async function POST(request) {
             try {
                 const hashedPassword = await bcrypt.hash(String(password), 10);
                 await query({
-                    query: 'INSERT INTO rhs_users (username, password, role, class_id) VALUES (?, ?, ?, ?)',
-                    values: [username, hashedPassword, role, class_id]
+                    query: 'INSERT INTO rhs_users (username, name, password, role, class_id) VALUES (?, ?, ?, ?, ?)',
+                    values: [username, name || null, hashedPassword, role, class_id]
                 });
                 successCount++;
             } catch (err) {

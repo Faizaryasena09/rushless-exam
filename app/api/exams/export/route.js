@@ -136,7 +136,8 @@ export async function GET(request) {
 
         const excelData = processedAttempts.map(attempt => {
             const row = {
-                'Student Name': attempt.studentName,
+                'Student Name': attempt.studentName || attempt.studentUsername, // Fallback to username if name is empty
+                'Student Username': attempt.studentUsername,
                 'Class': attempt.className || 'No Class',
                 'Attempt': attempt.attemptNumber,
                 'State': attempt.status,

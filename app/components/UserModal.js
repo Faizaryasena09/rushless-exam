@@ -5,6 +5,7 @@ import { Eye, EyeOff } from 'lucide-react';
 
 const UserModal = ({ user, onClose, onSave }) => {
   const [username, setUsername] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState('student');
@@ -36,23 +37,14 @@ const UserModal = ({ user, onClose, onSave }) => {
 
     if (user) {
       setUsername(user.username);
+      setName(user.name || '');
       setRole(user.role);
       // Ensure classId is set correctly from user data
-      // API returns class_name but we might need class_id. 
-      // If user object has class_id, use it. If not, and we have classes loaded, try to find by name? 
-      // Actually ManageUsersPage passes the user object from the table.
-      // The table data from /api/users usually has id, username, role, class_name.
-      // It DOES NOT seem to have class_id in the SELECT query in route.js: SELECT u.id, u.username, u.role, c.class_name ...
-      // We need to fetch class_id or pass it.
-
-      // WAIT, the select query in route.js is: SELECT u.id, u.username, u.role, c.class_name FROM rhs_users u LEFT JOIN rhs_classes c ON u.class_id = c.id
-      // It does NOT select u.class_id. This is the problem! 
-      // I need to update route.js first to include class_id in the response.
-      // For now, I will assume the previous step (which I will do next) adds class_id to the SELECT.
       setClassId(user.class_id || '');
     } else {
       // Reset for new user
       setUsername('');
+      setName('');
       setPassword('');
       setShowPassword(false);
       setRole('student');
@@ -64,6 +56,7 @@ const UserModal = ({ user, onClose, onSave }) => {
     onSave({
       id: user?.id,
       username,
+      name,
       password,
       role,
       class_id: role === 'student' ? classId : null // Send class_id only for students
@@ -81,6 +74,16 @@ const UserModal = ({ user, onClose, onSave }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Full Name (Optional)</label>
+            <input
+              type="text"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. John Doe"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
             <input

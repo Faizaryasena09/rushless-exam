@@ -164,6 +164,7 @@ const ManageUsersPage = () => {
   const handleExport = () => {
     const dataToExport = users.map(user => ({
       username: user.username,
+      name: user.name || '',
       role: user.role,
       class_name: user.class_name || ''
     }));
@@ -315,10 +316,13 @@ const ManageUsersPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">#{user.id}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
-                          <Icons.User />
+                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0 uppercase font-bold text-sm">
+                          {user.name ? user.name.charAt(0) : user.username.charAt(0)}
                         </div>
-                        <span className="font-semibold text-slate-900">{user.username}</span>
+                        <div>
+                          <div className="font-semibold text-slate-900">{user.name || user.username}</div>
+                          {user.name && <div className="text-xs text-slate-500">@{user.username}</div>}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -355,8 +359,8 @@ const ManageUsersPage = () => {
                       <span className="text-lg font-bold">{user.username.charAt(0).toUpperCase()}</span>
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900">{user.username}</h3>
-                      <p className="text-xs text-slate-500">ID: #{user.id}</p>
+                      <h3 className="font-bold text-slate-900">{user.name || user.username}</h3>
+                      <p className="text-xs text-slate-500">@{user.username} • ID: #{user.id}</p>
                     </div>
                   </div>
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize border ${user.role === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-slate-50 text-slate-600 border-slate-200'

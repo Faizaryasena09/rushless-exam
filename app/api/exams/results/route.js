@@ -72,7 +72,8 @@ export async function GET(request) {
                     a.score, 
                     a.start_time, 
                     a.end_time,
-                    u.username as studentName,
+                    u.username,
+                    u.name,
                     c.class_name as className
                 FROM rhs_exam_attempts a
                 JOIN rhs_users u ON a.user_id = u.id
@@ -98,7 +99,8 @@ export async function GET(request) {
                 // First time seeing this student, this is their best attempt due to ORDER BY
                 acc[attempt.studentId] = {
                     studentId: attempt.studentId,
-                    studentName: attempt.studentName,
+                    studentName: attempt.name || attempt.username,
+                    username: attempt.username,
                     className: attempt.className || 'No Class',
                     status: 'Completed',
                     bestScore: attempt.score,
@@ -118,11 +120,11 @@ export async function GET(request) {
         // Query 5: Get all students to include those who haven't taken the exam
         const allStudents = await query({
             query: `
-                SELECT u.id, u.username, c.class_name 
+                SELECT u.id, u.username, u.name, c.class_name 
                 FROM rhs_users u 
                 LEFT JOIN rhs_classes c ON u.class_id = c.id 
                 WHERE u.role = 'student' 
-                ORDER BY c.class_name, u.username ASC
+                ORDER BY c.class_name, u.name, u.username ASC
             `,
         });
 
@@ -130,7 +132,8 @@ export async function GET(request) {
             if (!resultsByStudent[student.id]) {
                 resultsByStudent[student.id] = {
                     studentId: student.id,
-                    studentName: student.username,
+                    studentName: student.name || student.username,
+                    username: student.username,
                     className: student.class_name || 'No Class',
                     status: 'Not Taken',
                     bestScore: 0,

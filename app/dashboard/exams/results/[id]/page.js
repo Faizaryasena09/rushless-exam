@@ -71,7 +71,8 @@ export default function ExamResultsPage() {
     const filteredResults = useMemo(() => {
         if (!resultsData) return [];
         return resultsData.results.filter(student => {
-            const nameMatch = student.studentName.toLowerCase().includes(nameFilter.toLowerCase());
+            const nameMatch = student.studentName.toLowerCase().includes(nameFilter.toLowerCase()) ||
+                (student.username && student.username.toLowerCase().includes(nameFilter.toLowerCase()));
             const classMatch = classFilter === 'all' || student.className === classFilter;
             return nameMatch && classMatch;
         });
@@ -195,6 +196,7 @@ export default function ExamResultsPage() {
                                         >
                                             <th scope="row" className={`px-6 py-4 font-bold whitespace-nowrap ${isCompleted ? 'text-slate-900' : ''}`}>
                                                 {student.studentName}
+                                                {student.username && <div className="text-xs text-slate-400 font-normal">@{student.username}</div>}
                                             </th>
                                             <td className="px-6 py-4">{student.className}</td>
                                             <td className="px-6 py-4 text-center">

@@ -58,7 +58,7 @@ export default function Header({ user, isLoading, toggleSidebar, showToggleButto
               {/* User Profile Info */}
               <div className="flex items-center gap-3 pl-2 sm:pl-0">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-semibold text-slate-700 leading-none mb-1">{user.username}</p>
+                  <p className="text-sm font-semibold text-slate-700 leading-none mb-1">{user.name || user.username}</p>
                   <p className="text-[10px] uppercase tracking-wider font-medium text-slate-400">{user.roleName || ''}</p>
                 </div>
 
@@ -66,7 +66,7 @@ export default function Header({ user, isLoading, toggleSidebar, showToggleButto
                   <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-[2px] shadow-sm">
                     <div className="h-full w-full rounded-full bg-white flex items-center justify-center">
                       <span className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 to-purple-600">
-                        {getInitials(user.username)}
+                        {getInitials(user.name || user.username)}
                       </span>
                     </div>
                   </div>
