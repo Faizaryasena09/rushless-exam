@@ -25,6 +25,20 @@ export default function ExamResultsPage() {
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [nameFilter, setNameFilter] = useState('');
     const [classFilter, setClassFilter] = useState('all');
+    const [showExportModal, setShowExportModal] = useState(false);
+
+    // Export Handler
+    const handleExport = (attemptMode) => {
+        // Construct detailed filename date part
+        const dateStr = new Date().toISOString().split('T')[0];
+
+        // Build URL
+        const url = `/api/exams/export?exam_id=${examId}&class_id=${classFilter}&attempt_mode=${attemptMode}`;
+
+        // Trigger download
+        window.location.href = url;
+        setShowExportModal(false);
+    };
 
     useEffect(() => {
         if (!examId) return;
@@ -100,6 +114,14 @@ export default function ExamResultsPage() {
                     <p className="text-sm text-slate-500 mt-1">Select a student who completed the exam to view their analysis.</p>
                 </div>
                 <div className="flex gap-4">
+                    <button
+                        onClick={() => setShowExportModal(true)}
+                        className="p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm flex items-center gap-2 transition-colors"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        <span className="font-semibold hidden md:inline">Export Results</span>
+                    </button>
+
                     <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center gap-3">
                         <Icons.UserGroup className="text-slate-400" />
                         <div>
@@ -166,8 +188,8 @@ export default function ExamResultsPage() {
                                         <tr
                                             key={student.studentId}
                                             className={`border-b transition-colors ${isCompleted
-                                                    ? (selectedStudent?.studentId === student.studentId ? 'bg-indigo-50' : 'bg-white hover:bg-slate-50 cursor-pointer')
-                                                    : 'bg-slate-50 text-slate-500'
+                                                ? (selectedStudent?.studentId === student.studentId ? 'bg-indigo-50' : 'bg-white hover:bg-slate-50 cursor-pointer')
+                                                : 'bg-slate-50 text-slate-500'
                                                 }`}
                                             onClick={() => handleRowClick(student)}
                                         >
@@ -216,6 +238,13 @@ export default function ExamResultsPage() {
                 <StudentAnalysisDetail
                     student={selectedStudent}
                     onClose={() => setSelectedStudent(null)}
+                />
+            )}
+            {/* Export Modal */}
+            {showExportModal && (
+                <ExportOptionsModal
+                    onClose={() => setShowExportModal(false)}
+                    onExport={handleExport}
                 />
             )}
         </div>
@@ -443,3 +472,47 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
     );
 }
 
+
+function ExportOptionsModal({ onClose, onExport }) {
+    const [mode, setMode] = useState('all');
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex justify-center items-center p-4" onClick={onClose}>
+            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
+                <h3 className="text-xl font-bold text-slate-900 mb-4">Export Results</h3>
+                <p className="text-sm text-slate-500 mb-6">Select how you want to export the exam data to Excel.</p>
+
+                <div className="space-y-3 mb-8">
+                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${mode === 'all' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-200'}`}>
+                        <input type="radio" name="exportMode" value="all" checked={mode === 'all'} onChange={() => setMode('all')} className="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
+                        <div className="ml-3">
+                            <div className="font-semibold text-slate-800">All Attempts</div>
+                            <div className="text-xs text-slate-500">Export every single attempt made by users</div>
+                        </div>
+                    </label>
+                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${mode === 'best' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-200'}`}>
+                        <input type="radio" name="exportMode" value="best" checked={mode === 'best'} onChange={() => setMode('best')} className="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
+                        <div className="ml-3">
+                            <div className="font-semibold text-slate-800">Best Attempt Only</div>
+                            <div className="text-xs text-slate-500">Export only the highest score per user</div>
+                        </div>
+                    </label>
+                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${mode === 'latest' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-200'}`}>
+                        <input type="radio" name="exportMode" value="latest" checked={mode === 'latest'} onChange={() => setMode('latest')} className="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
+                        <div className="ml-3">
+                            <div className="font-semibold text-slate-800">Latest Attempt Only</div>
+                            <div className="text-xs text-slate-500">Export only the most recent submission</div>
+                        </div>
+                    </label>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                    <button onClick={onClose} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-50 rounded-lg">Cancel</button>
+                    <button onClick={() => onExport(mode)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-sm">
+                        Download Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
