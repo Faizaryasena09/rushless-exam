@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Presentation } from 'lucide-react';
 
 // Definisi Ikon Sederhana (SVG) agar kode tetap rapi
 const Icons = {
@@ -27,9 +28,7 @@ const Icons = {
     </svg>
   ),
   TeacherClasses: () => (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 20c4.478 0 8.268-2.943 9.542-7m-1.214-6.306A10.038 10.038 0 0120 12c0 .397-.023.78-.067 1.157m-1.967-3.07l-.093.104A10.003 10.003 0 0112 14c-4.478 0-8.268-2.943-9.542-7m1.214-6.306A10.038 10.038 0 014 12c0 .397.023.78.067 1.157m1.967-3.07l.093-.104A10.003 10.003 0 0112 10c4.478 0 8.268 2.943 9.542 7" />
-    </svg>
+    <Presentation className="w-5 h-5" />
   ),
   Control: () => (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -74,20 +73,19 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     <>
       {/* Mobile Backdrop (Optional UX improvement: close when clicking outside) */}
       {sidebarOpen && (
-        <div 
+        <div
           onClick={() => setSidebarOpen(false)}
           className="fixed inset-0 z-30 bg-slate-900/50 backdrop-blur-sm lg:hidden transition-opacity"
         />
       )}
 
       <aside
-        className={`fixed top-0 left-0 z-40 w-64 h-screen bg-white border-r border-slate-200 transform transition-transform duration-300 ease-out shadow-xl lg:shadow-none ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed top-0 left-0 z-40 w-64 h-screen bg-white border-r border-slate-200 transform transition-transform duration-300 ease-out shadow-xl lg:shadow-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         {/* Header Sidebar */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-slate-100">
-           <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <span className="text-lg font-bold tracking-tight text-slate-800">
               Rushless<span className="text-indigo-600">Exam</span>
             </span>
@@ -115,19 +113,17 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className={`group flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
-                      isActive
-                        ? 'bg-indigo-50 text-indigo-600 shadow-sm ring-1 ring-indigo-200'
-                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
+                    className={`group flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
+                      ? 'bg-indigo-50 text-indigo-600 shadow-sm ring-1 ring-indigo-200'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
                   >
-                    <span className={`transition-colors duration-200 ${
-                      isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
-                    }`}>
+                    <span className={`transition-colors duration-200 ${isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
+                      }`}>
                       <Icon />
                     </span>
                     {link.label}
-                    
+
                     {/* Active Indicator Dot */}
                     {isActive && (
                       <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
