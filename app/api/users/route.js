@@ -22,7 +22,7 @@ export async function GET(request) {
     const search = searchParams.get('search');
 
     let baseQuery = `
-      SELECT u.id, u.username, u.role, c.class_name
+      SELECT u.id, u.username, u.role, u.class_id, c.class_name
       FROM rhs_users u
       LEFT JOIN rhs_classes c ON u.class_id = c.id
     `;
@@ -47,7 +47,7 @@ export async function GET(request) {
       query: baseQuery,
       values,
     });
-    
+
     return NextResponse.json(users);
   } catch (error) {
     return NextResponse.json({ message: 'Failed to retrieve users', error: error.message }, { status: 500 });

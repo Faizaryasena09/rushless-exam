@@ -21,9 +21,8 @@ const UserModal = ({ user, onClose, onSave }) => {
           const classList = Array.isArray(data) ? data : (data.classes || []);
           setClasses(classList);
 
-          // Set default class for new users if not editing
-          if (!user && classList.length > 0) {
-            // Try to find ID 1, otherwise use first available
+          // Set default class for new users only
+          if (!user && classList.length > 0 && !classId) {
             const defaultClass = classList.find(c => c.id == 1) || classList[0];
             setClassId(defaultClass.id);
           }
@@ -39,6 +38,17 @@ const UserModal = ({ user, onClose, onSave }) => {
       setUsername(user.username);
       setRole(user.role);
       // Ensure classId is set correctly from user data
+      // API returns class_name but we might need class_id. 
+      // If user object has class_id, use it. If not, and we have classes loaded, try to find by name? 
+      // Actually ManageUsersPage passes the user object from the table.
+      // The table data from /api/users usually has id, username, role, class_name.
+      // It DOES NOT seem to have class_id in the SELECT query in route.js: SELECT u.id, u.username, u.role, c.class_name ...
+      // We need to fetch class_id or pass it.
+
+      // WAIT, the select query in route.js is: SELECT u.id, u.username, u.role, c.class_name FROM rhs_users u LEFT JOIN rhs_classes c ON u.class_id = c.id
+      // It does NOT select u.class_id. This is the problem! 
+      // I need to update route.js first to include class_id in the response.
+      // For now, I will assume the previous step (which I will do next) adds class_id to the SELECT.
       setClassId(user.class_id || '');
     } else {
       // Reset for new user
@@ -46,7 +56,6 @@ const UserModal = ({ user, onClose, onSave }) => {
       setPassword('');
       setShowPassword(false);
       setRole('student');
-      // classId is handled in fetchClasses or defaults to empty until loaded
     }
   }, [user]);
 

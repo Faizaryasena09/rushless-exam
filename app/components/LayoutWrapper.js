@@ -2,6 +2,8 @@
 
 import { usePathname } from 'next/navigation';
 import Footer from './Footer';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function LayoutWrapper({ children }) {
   const pathname = usePathname();
@@ -17,6 +19,7 @@ export default function LayoutWrapper({ children }) {
         {children}
       </main>
       {showFooter && <Footer />}
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover theme="colored" />
     </div>
   );
 }
