@@ -180,6 +180,19 @@ export async function GET(request) {
       messages.push(`Column 'require_safe_browser' already exists in '${settingsTableName}'.`);
     }
 
+    // --- Check and add 'sort_order' column to exam_questions table ---
+    const questionsTableName = 'rhs_exam_questions';
+    const hasSortOrder = await columnExists(questionsTableName, 'sort_order');
+    if (!hasSortOrder) {
+      await query({
+        query: `ALTER TABLE ${questionsTableName} ADD COLUMN sort_order INT DEFAULT 0;`,
+        values: [],
+      });
+      messages.push(`Column 'sort_order' created successfully in '${questionsTableName}'.`);
+    } else {
+      messages.push(`Column 'sort_order' already exists in '${questionsTableName}'.`);
+    }
+
     // --- Check and add 'score' column to attempts table ---
     const hasScore = await columnExists(attemptsTableName, 'score');
     if (!hasScore) {

@@ -69,40 +69,103 @@ export async function POST(request) {
 }
 
 function parseHtmlContent(html) {
-    // Basic parser for "1. Question ... A. Option" format
-    // Removes HTML tags to parse text content
+    // Parser for "1. Question ... A. Option" format
+    // Preserves <img> tags so embedded images from DOCX are kept
+    // Detects * as correct answer marker
 
-    // Simple regex stripping (imperfect but functional for simple lists)
-    const plainText = html
-        .replace(/<\/p>/g, '\n') // Paragraph breaks to newlines
-        .replace(/<[^>]+>/g, '') // Remove other tags
-        .replace(/&nbsp;/g, ' '); // Decode non-breaking spaces
+    // Step 1: Replace <img> tags with unique placeholders BEFORE stripping HTML
+    const imgMap = {};
+    let imgCounter = 0;
+    let processedHtml = html.replace(/<img[^>]*>/gi, (match) => {
+        const placeholder = `__IMG_${imgCounter}__`;
+        imgMap[placeholder] = match;
+        imgCounter++;
+        return placeholder;
+    });
 
-    const lines = plainText.split('\n').map(l => l.trim()).filter(l => l);
+    // Step 2: Split into lines by paragraph/br/div/li closing tags
+    const lines = processedHtml
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<[^>]+>/g, '') // Strip remaining HTML tags
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l);
+
+    // Step 3: Restore <img> placeholders back to real tags
+    const restoredLines = lines.map(line => {
+        let restored = line;
+        for (const [placeholder, imgTag] of Object.entries(imgMap)) {
+            restored = restored.replace(placeholder, imgTag);
+        }
+        return restored;
+    });
 
     const questions = [];
     let currentQuestion = null;
 
-    lines.forEach(line => {
-        // Match "1. Question Text"
-        const questionMatch = line.match(/^(\d+)\.\s+(.+)/);
+    restoredLines.forEach(line => {
+        // Match "1. Question Text" (number followed by dot and space)
+        const questionMatch = line.match(/^(\d+)[.)]\s+(.+)/s);
         if (questionMatch) {
             if (currentQuestion) {
                 questions.push(currentQuestion);
             }
             currentQuestion = {
-                question_text: questionMatch[2],
+                question_text: questionMatch[2].replace(/\s*\*\s*$/, '').trim(),
                 options: {},
                 correct_option: 'A' // Default
             };
             return;
         }
 
-        // Match "A. Option Text" or "a. Option Text"
-        const optionMatch = line.match(/^([A-Da-d])\.\s+(.+)/);
+        // Match "A. Option Text", "A) Option Text", or "*A. Option Text" (correct answer)
+        // through Z (case-insensitive). * before the letter marks correct answer.
+        const optionMatch = line.match(/^(\*?)([A-Za-z])[.)]\s+(.+)/s);
         if (optionMatch && currentQuestion) {
-            const key = optionMatch[1].toUpperCase();
-            currentQuestion.options[key] = optionMatch[2];
+            const isCorrect = optionMatch[1] === '*';
+            const key = optionMatch[2].toUpperCase();
+            let optionText = optionMatch[3].replace(/\*/g, '').trim();
+
+            if (isCorrect) {
+                currentQuestion.correct_option = key;
+            }
+
+            currentQuestion.options[key] = optionText;
+            return;
+        }
+
+        // Standalone * on its own line — mark previous option as correct
+        if (/^\*+$/.test(line) && currentQuestion) {
+            const optionKeys = Object.keys(currentQuestion.options);
+            if (optionKeys.length > 0) {
+                currentQuestion.correct_option = optionKeys[optionKeys.length - 1];
+            }
+            return; // Don't append * to anything
+        }
+
+        // Line is just an image placeholder or continuation
+        if (currentQuestion && line.trim()) {
+            // Only append if line contains actual content (image or text)
+            const hasImage = /<img[^>]*>/i.test(line);
+            if (hasImage) {
+                // Append image to question text
+                const optionKeys = Object.keys(currentQuestion.options);
+                if (optionKeys.length > 0) {
+                    const lastKey = optionKeys[optionKeys.length - 1];
+                    currentQuestion.options[lastKey] += ' ' + line;
+                } else {
+                    currentQuestion.question_text += ' ' + line;
+                }
+            }
+            // Ignore non-image continuation lines to prevent garbage appending
         }
     });
 

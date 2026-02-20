@@ -13,8 +13,11 @@ const Icons = {
     Plus: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>,
     Upload: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>,
     Trash: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+    TrashAll: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
     Edit: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg>,
     Close: () => <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>,
+    Grip: () => <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>,
+    Warning: () => <svg className="w-12 h-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.997L13.732 4.832c-.77-1.333-2.694-1.333-3.464 0L3.34 16.003c-.77 1.33.192 2.997 1.732 2.997z" /></svg>,
 };
 
 // --- Editor Configuration ---
@@ -431,6 +434,40 @@ const ImportWordForm = ({ examId, onQuestionAdded }) => {
     );
 };
 
+// --- Delete All Confirmation Modal ---
+const DeleteAllModal = ({ isOpen, onClose, onConfirm, questionCount, loading }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+                <div className="flex flex-col items-center text-center">
+                    <Icons.Warning />
+                    <h3 className="text-xl font-bold text-slate-800 mt-4">Hapus Semua Soal?</h3>
+                    <p className="text-slate-500 mt-2">
+                        Anda akan menghapus <span className="font-bold text-red-600">{questionCount}</span> soal.
+                        Tindakan ini tidak bisa dibatalkan.
+                    </p>
+                </div>
+                <div className="flex gap-3 mt-6">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={loading}
+                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:bg-red-300"
+                    >
+                        {loading ? 'Menghapus...' : 'Ya, Hapus Semua'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function ManageQuestionsPage() {
     const { id: examId } = useParams();
     const [activeTab, setActiveTab] = useState('manual');
@@ -440,6 +477,14 @@ export default function ManageQuestionsPage() {
 
     const [editingQuestion, setEditingQuestion] = useState(null);
     const [examName, setExamName] = useState('');
+
+    // Delete All Modal state
+    const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+    const [deleteAllLoading, setDeleteAllLoading] = useState(false);
+
+    // Drag and Drop state
+    const [draggedIndex, setDraggedIndex] = useState(null);
+    const [dragOverIndex, setDragOverIndex] = useState(null);
 
     const fetchQuestions = useCallback(async () => {
         setLoading(true);
@@ -512,6 +557,24 @@ export default function ManageQuestionsPage() {
         }
     };
 
+    const handleDeleteAll = async () => {
+        setDeleteAllLoading(true);
+        try {
+            const res = await fetch('/api/exams/questions/delete-all', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ examId }),
+            });
+            if (!res.ok) throw new Error((await res.json()).message || 'Failed to delete all questions');
+            setShowDeleteAllModal(false);
+            fetchQuestions();
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setDeleteAllLoading(false);
+        }
+    };
+
     const handleUpdateQuestion = async (updatedQuestion) => {
         try {
             const res = await fetch('/api/exams/questions', {
@@ -527,6 +590,44 @@ export default function ManageQuestionsPage() {
         }
     };
 
+    // --- Drag and Drop Handlers ---
+    const handleDragStart = (index) => {
+        setDraggedIndex(index);
+    };
+
+    const handleDragOver = (e, index) => {
+        e.preventDefault();
+        setDragOverIndex(index);
+    };
+
+    const handleDragEnd = async () => {
+        if (draggedIndex === null || dragOverIndex === null || draggedIndex === dragOverIndex) {
+            setDraggedIndex(null);
+            setDragOverIndex(null);
+            return;
+        }
+
+        const reordered = [...questions];
+        const [moved] = reordered.splice(draggedIndex, 1);
+        reordered.splice(dragOverIndex, 0, moved);
+        setQuestions(reordered);
+        setDraggedIndex(null);
+        setDragOverIndex(null);
+
+        // Save new order to backend
+        try {
+            const orderedIds = reordered.map(q => q.id);
+            await fetch('/api/exams/questions/reorder', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderedIds }),
+            });
+        } catch (err) {
+            console.error('Failed to save order:', err);
+            fetchQuestions(); // Revert on error
+        }
+    };
+
     return (
         <>
             {editingQuestion && (
@@ -536,6 +637,13 @@ export default function ManageQuestionsPage() {
                     onCancel={() => setEditingQuestion(null)}
                 />
             )}
+            <DeleteAllModal
+                isOpen={showDeleteAllModal}
+                onClose={() => setShowDeleteAllModal(false)}
+                onConfirm={handleDeleteAll}
+                questionCount={questions.length}
+                loading={deleteAllLoading}
+            />
             <div className="container mx-auto p-4 md:p-6">
                 <div className="mb-8 flex justify-between items-start">
                     <div>
@@ -572,25 +680,52 @@ export default function ManageQuestionsPage() {
                     </div>
                     <div className="lg:col-span-2">
                         <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
-                            <h2 className="text-xl font-bold text-slate-800 mb-4">Existing Questions ({questions.length})</h2>
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-slate-800">Existing Questions ({questions.length})</h2>
+                                {questions.length > 0 && (
+                                    <button
+                                        onClick={() => setShowDeleteAllModal(true)}
+                                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
+                                    >
+                                        <Icons.TrashAll /> Hapus Semua
+                                    </button>
+                                )}
+                            </div>
                             {error && <p className="text-red-500 bg-red-50 p-3 rounded-md">{error}</p>}
                             {loading ? <p className="text-slate-500 animate-pulse">Loading questions...</p> : (
-                                <div className="space-y-4">
+                                <div className="space-y-2">
                                     {questions.length === 0 ? (
                                         <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-lg">
                                             <p className="text-slate-500">No questions have been added yet.</p>
                                         </div>
                                     ) : (
                                         questions.map((q, index) => (
-                                            <div key={q.id} className="p-4 border border-slate-200 rounded-lg">
+                                            <div
+                                                key={q.id}
+                                                draggable
+                                                onDragStart={() => handleDragStart(index)}
+                                                onDragOver={(e) => handleDragOver(e, index)}
+                                                onDragEnd={handleDragEnd}
+                                                className={`p-4 border rounded-lg cursor-grab active:cursor-grabbing transition-all ${draggedIndex === index
+                                                        ? 'opacity-50 border-indigo-400 bg-indigo-50'
+                                                        : dragOverIndex === index
+                                                            ? 'border-indigo-400 border-2 bg-indigo-50/50'
+                                                            : 'border-slate-200 hover:border-slate-300'
+                                                    }`}
+                                            >
                                                 <div className="flex justify-between items-start">
-                                                    <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: `<p><strong>Q${index + 1}:</strong> ${q.question_text}</p>` }} />
+                                                    <div className="flex items-start gap-3 flex-1">
+                                                        <div className="pt-1 flex-shrink-0 cursor-grab">
+                                                            <Icons.Grip />
+                                                        </div>
+                                                        <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: `<p><strong>Q${index + 1}:</strong> ${q.question_text}</p>` }} />
+                                                    </div>
                                                     <div className="flex gap-2 flex-shrink-0 ml-4">
                                                         <button onClick={() => setEditingQuestion(q)} className="text-blue-500 hover:text-blue-700 p-1 rounded-full hover:bg-blue-50"><Icons.Edit /></button>
                                                         <button onClick={() => handleDelete(q.id)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50"><Icons.Trash /></button>
                                                     </div>
                                                 </div>
-                                                <div className="mt-2 space-y-1 text-sm prose prose-slate max-w-none">
+                                                <div className="mt-2 space-y-1 text-sm prose prose-slate max-w-none ml-8">
                                                     {Object.entries(q.options).map(([key, value]) => (
                                                         <div key={key} className={`pl-4 ${key === q.correct_option ? 'font-bold text-green-700' : 'text-slate-600'}`} dangerouslySetInnerHTML={{ __html: `${key}. ${value} ${key === q.correct_option ? '✓' : ''}` }} />
                                                     ))}

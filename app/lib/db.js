@@ -167,6 +167,19 @@ export async function setupDatabase() {
         `);
     console.log('Table "rhs_exam_questions" created or already exists.');
 
+    // Migration: Ensure 'sort_order' column exists for question reordering
+    try {
+      await connection.query(`
+            ALTER TABLE rhs_exam_questions
+            ADD COLUMN sort_order INT DEFAULT 0;
+        `);
+      console.log("Column 'sort_order' added to rhs_exam_questions");
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') {
+        console.log("Note: " + err.message);
+      }
+    }
+
     await connection.query(`
             CREATE TABLE IF NOT EXISTS rhs_exam_attempts (
                 id INT PRIMARY KEY AUTO_INCREMENT,
