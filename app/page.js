@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 
 // A simple, abstract logo for the exam platform
@@ -10,7 +10,7 @@ const AppLogo = () => (
 );
 
 
-export default function LoginPage() {
+function LoginForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -18,6 +18,8 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/dashboard';
 
   const setupDatabase = async () => {
     try {
@@ -36,7 +38,7 @@ export default function LoginPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.user) {
-            router.push('/dashboard');
+            router.push(redirectTo);
           }
         }
       } catch (error) {
@@ -70,7 +72,7 @@ export default function LoginPage() {
       setSuccess('Login successful! Redirecting...');
 
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push(redirectTo);
       }, 1000);
 
     } catch (error) {
@@ -188,5 +190,17 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <main className="flex min-h-screen items-center justify-center bg-gray-100 p-6">
+        <div className="text-gray-500">Loading...</div>
+      </main>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

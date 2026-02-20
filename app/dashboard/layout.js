@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 
 export default function DashboardLayout({ children }) {
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,7 +24,7 @@ export default function DashboardLayout({ children }) {
           setUser(data.user);
         } else if (response.status === 401) {
           // Session invalid/expired (or forced logout) - Redirect to login
-          window.location.href = '/';
+          window.location.href = '/?redirect=' + encodeURIComponent(pathname);
         }
       } catch (error) {
         console.error('Failed to fetch user session:', error);
