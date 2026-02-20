@@ -76,7 +76,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { href: '/dashboard/control', label: 'Exam Control', icon: Icons.Control, roles: ['admin'] },
     { href: '/dashboard/classes', label: 'Manage Classes', icon: Icons.Classes, roles: ['admin', 'teacher'] },
     { href: '/dashboard/exams', label: 'Manage Exams', icon: Icons.Exams, roles: ['admin', 'teacher', 'students'] },
-    { href: '/dashboard/settings', label: 'Web Settings', icon: Icons.Settings, roles: ['admin'] },
+    { href: '/dashboard/settings', label: 'System Overview', icon: Icons.Settings, roles: ['admin'] },
     { href: '/dashboard/database', label: 'Database', icon: Icons.Database, roles: ['admin'] },
   ];
 
