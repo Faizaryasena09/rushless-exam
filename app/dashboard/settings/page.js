@@ -20,6 +20,7 @@ const Icons = {
     Play: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /></svg>,
     Activity: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
     Pulse: () => <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6"><animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite" /></circle></svg>,
+    Network: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0" /></svg>,
 };
 
 // --- Utilities ---
@@ -273,6 +274,8 @@ export default function WebSettingsPage() {
     const [memHistory, setMemHistory] = useState([]);
     const [heapHistory, setHeapHistory] = useState([]);
     const [rssHistory, setRssHistory] = useState([]);
+    const [dlHistory, setDlHistory] = useState([]);
+    const [ulHistory, setUlHistory] = useState([]);
 
     // Current realtime values
     const [realtime, setRealtime] = useState(null);
@@ -324,6 +327,16 @@ export default function WebSettingsPage() {
                 const next = [...prev, rssMB];
                 return next.length > HISTORY_LENGTH ? next.slice(-HISTORY_LENGTH) : next;
             });
+            if (json.bandwidth) {
+                setDlHistory(prev => {
+                    const next = [...prev, json.bandwidth.rxPerSec / 1024];
+                    return next.length > HISTORY_LENGTH ? next.slice(-HISTORY_LENGTH) : next;
+                });
+                setUlHistory(prev => {
+                    const next = [...prev, json.bandwidth.txPerSec / 1024];
+                    return next.length > HISTORY_LENGTH ? next.slice(-HISTORY_LENGTH) : next;
+                });
+            }
         } catch {
             // silently fail for realtime polls
         }
@@ -395,6 +408,8 @@ export default function WebSettingsPage() {
 
     const heapMax = Math.max(...heapHistory, (currentProcess.heapTotal || 0) / 1024 / 1024, 50);
     const rssMax = Math.max(...rssHistory, 100);
+    const bwMax = Math.max(...dlHistory, ...ulHistory, 10);
+    const currentBw = realtime?.bandwidth ?? null;
 
     return (
         <div className="space-y-6">
@@ -523,6 +538,50 @@ export default function WebSettingsPage() {
                 </InfoCard>
             </div>
 
+            {/* Network Bandwidth */}
+            {currentBw && (
+                <InfoCard icon={Icons.Network} title="Network Bandwidth" live={isLive}>
+                    <div className="grid grid-cols-2 gap-6 mb-4">
+                        <div className="text-center">
+                            <div className="text-xs text-slate-400 mb-1">↓ Download</div>
+                            <div className="text-2xl font-bold font-mono text-cyan-600">{formatBytes(currentBw.rxPerSec)}/s</div>
+                            <div className="text-xs text-slate-400 mt-1">Total: {formatBytes(currentBw.totalReceived)}</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-xs text-slate-400 mb-1">↑ Upload</div>
+                            <div className="text-2xl font-bold font-mono text-rose-500">{formatBytes(currentBw.txPerSec)}/s</div>
+                            <div className="text-xs text-slate-400 mt-1">Total: {formatBytes(currentBw.totalSent)}</div>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <div className="text-xs text-slate-400 mb-1">Download Speed (KB/s)</div>
+                            <RealtimeChart
+                                data={dlHistory}
+                                maxValue={bwMax}
+                                color="#06b6d4"
+                                gradientId="dlGrad"
+                                label="DL"
+                                unit=" KB/s"
+                                height={80}
+                            />
+                        </div>
+                        <div>
+                            <div className="text-xs text-slate-400 mb-1">Upload Speed (KB/s)</div>
+                            <RealtimeChart
+                                data={ulHistory}
+                                maxValue={bwMax}
+                                color="#f43f5e"
+                                gradientId="ulGrad"
+                                label="UL"
+                                unit=" KB/s"
+                                height={80}
+                            />
+                        </div>
+                    </div>
+                </InfoCard>
+            )}
+
             {/* App Stats */}
             {app && (
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -571,6 +630,48 @@ export default function WebSettingsPage() {
                     </InfoCard>
                 )}
             </div>
+
+            {/* Network Interfaces */}
+            {system?.network && system.network.length > 0 && (
+                <InfoCard icon={Icons.Network} title={`Network Interfaces (${[...new Set(system.network.map(n => n.adapter))].length} adapters)`}>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-slate-200">
+                                    <th className="text-left py-2 px-3 text-slate-500 font-medium">Adapter</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 font-medium">Address</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 font-medium">Family</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 font-medium">MAC</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 font-medium">Netmask</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 font-medium">CIDR</th>
+                                    <th className="text-center py-2 px-3 text-slate-500 font-medium">Scope</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {system.network.map((iface, idx) => (
+                                    <tr key={idx} className={`border-b border-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                                        <td className="py-2 px-3 font-mono text-slate-700 font-medium text-xs">{iface.adapter}</td>
+                                        <td className="py-2 px-3 font-mono text-indigo-600 text-xs">{iface.address}</td>
+                                        <td className="py-2 px-3">
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${iface.family === 'IPv4' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                                                {iface.family}
+                                            </span>
+                                        </td>
+                                        <td className="py-2 px-3 font-mono text-slate-500 text-xs">{iface.mac}</td>
+                                        <td className="py-2 px-3 font-mono text-slate-500 text-xs">{iface.netmask}</td>
+                                        <td className="py-2 px-3 font-mono text-slate-500 text-xs">{iface.cidr}</td>
+                                        <td className="py-2 px-3 text-center">
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${iface.internal ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                {iface.internal ? 'Internal' : 'External'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </InfoCard>
+            )}
 
             {/* Maintenance */}
             <InfoCard icon={Icons.Shield} title="Maintenance">

@@ -4,6 +4,8 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import os from 'os';
+import { exec } from 'child_process';
+import { readFileSync } from 'fs';
 
 async function getSession() {
     const cookieStore = await cookies();
@@ -41,6 +43,96 @@ function getCpuUsage() {
     return { overall: overallUsage, perCore };
 }
 
+// ---- Lightweight bandwidth tracking ----
+// Cached result — updated by background timer (Windows) or direct read (Linux)
+let cachedBandwidth = null;
+let prevNetBytes = null;
+let prevNetTime = null;
+
+function readNetBytesLinux() {
+    try {
+        const data = readFileSync('/proc/net/dev', 'utf-8');
+        const lines = data.split('\n').slice(2);
+        let rx = 0, tx = 0;
+        for (const line of lines) {
+            const parts = line.trim().split(/\s+/);
+            if (parts.length >= 10) {
+                rx += parseInt(parts[1]) || 0;
+                tx += parseInt(parts[9]) || 0;
+            }
+        }
+        return { rx, tx };
+    } catch {
+        return null;
+    }
+}
+
+function updateBandwidth(totalRx, totalTx) {
+    const now = Date.now();
+    let rxPerSec = 0, txPerSec = 0;
+
+    if (prevNetBytes && prevNetTime) {
+        const elapsed = (now - prevNetTime) / 1000;
+        if (elapsed > 0.5) {
+            rxPerSec = Math.max(0, (totalRx - prevNetBytes.rx) / elapsed);
+            txPerSec = Math.max(0, (totalTx - prevNetBytes.tx) / elapsed);
+        }
+    }
+
+    prevNetBytes = { rx: totalRx, tx: totalTx };
+    prevNetTime = now;
+
+    cachedBandwidth = {
+        totalReceived: totalRx,
+        totalSent: totalTx,
+        rxPerSec: Math.round(rxPerSec),
+        txPerSec: Math.round(txPerSec),
+    };
+}
+
+// Windows: async background poll every 5s (no blocking execSync)
+let winBwTimer = null;
+function startWindowsBandwidthPoller() {
+    if (winBwTimer) return;
+    const poll = () => {
+        exec(
+            'netstat -e',
+            { encoding: 'utf-8', timeout: 4000 },
+            (err, stdout) => {
+                if (err || !stdout) return;
+                // Parse netstat -e output: "Bytes  <received>  <sent>"
+                const lines = stdout.split('\n');
+                for (const line of lines) {
+                    if (line.toLowerCase().includes('bytes')) {
+                        const nums = line.match(/[\d]+/g);
+                        if (nums && nums.length >= 2) {
+                            updateBandwidth(parseInt(nums[0]), parseInt(nums[1]));
+                        }
+                        break;
+                    }
+                }
+            }
+        );
+    };
+    poll();
+    winBwTimer = setInterval(poll, 5000);
+}
+
+function getNetworkBandwidth() {
+    const platform = os.platform();
+    if (platform === 'win32') {
+        // Start background poller if not running; return cached value
+        startWindowsBandwidthPoller();
+        return cachedBandwidth;
+    } else {
+        // Linux: direct /proc/net/dev read is instant, safe every 1s
+        const bytes = readNetBytesLinux();
+        if (!bytes) return null;
+        updateBandwidth(bytes.rx, bytes.tx);
+        return cachedBandwidth;
+    }
+}
+
 export async function GET(request) {
     const session = await getSession();
     if (!session.user || session.user.roleName !== 'admin') {
@@ -59,6 +151,7 @@ export async function GET(request) {
 
         // Realtime mode: return only frequently changing metrics (lightweight)
         if (mode === 'realtime') {
+            const bandwidth = getNetworkBandwidth();
             return NextResponse.json({
                 cpu: cpuUsage,
                 memory: {
@@ -73,6 +166,7 @@ export async function GET(request) {
                     rss: processMemory.rss,
                     external: processMemory.external,
                 },
+                bandwidth,
                 uptime: os.uptime(),
                 serverTime: new Date().toISOString(),
             });
@@ -109,6 +203,24 @@ export async function GET(request) {
             },
             processMemory,
             pid: process.pid,
+            network: (() => {
+                const nets = os.networkInterfaces();
+                const adapters = [];
+                for (const [name, interfaces] of Object.entries(nets)) {
+                    for (const iface of interfaces) {
+                        adapters.push({
+                            adapter: name,
+                            address: iface.address,
+                            netmask: iface.netmask,
+                            family: iface.family,
+                            mac: iface.mac,
+                            internal: iface.internal,
+                            cidr: iface.cidr,
+                        });
+                    }
+                }
+                return adapters;
+            })(),
         };
 
         // Database Information
