@@ -18,6 +18,7 @@ const Icons = {
     Close: () => <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>,
     Grip: () => <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>,
     Warning: () => <svg className="w-12 h-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.997L13.732 4.832c-.77-1.333-2.694-1.333-3.464 0L3.34 16.003c-.77 1.33.192 2.997 1.732 2.997z" /></svg>,
+    Download: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
 };
 
 // --- Editor Configuration ---
@@ -468,6 +469,100 @@ const DeleteAllModal = ({ isOpen, onClose, onConfirm, questionCount, loading }) 
     );
 };
 
+// --- Export Questions Modal ---
+const ExportModal = ({ isOpen, onClose, examId, examName }) => {
+    const [exportMode, setExportMode] = useState('questions_and_answers');
+    const [loading, setLoading] = useState(false);
+
+    if (!isOpen) return null;
+
+    const handleExport = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/exams/questions/export?exam_id=${examId}&mode=${exportMode}`);
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || 'Export failed');
+            }
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const suffix = exportMode === 'questions_only' ? 'Soal' : exportMode === 'answers_only' ? 'Kunci_Jawaban' : 'Soal_dan_Jawaban';
+            a.download = `${examName || 'Exam'}_${suffix}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            onClose();
+        } catch (err) {
+            alert('Export gagal: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const modes = [
+        { value: 'questions_and_answers', label: 'Soal + Jawaban', desc: 'Soal lengkap dengan jawaban benar ditandai' },
+        { value: 'questions_only', label: 'Soal Saja', desc: 'Soal tanpa menandai jawaban benar' },
+        { value: 'answers_only', label: 'Jawaban Saja', desc: 'Kunci jawaban saja (1. A, 2. B, dst)' },
+    ];
+
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-slate-800">Export Soal</h3>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600">
+                        <Icons.Close />
+                    </button>
+                </div>
+                <p className="text-sm text-slate-500 mb-4">Pilih format export ke file Word (.docx)</p>
+                <div className="space-y-2">
+                    {modes.map((m) => (
+                        <label
+                            key={m.value}
+                            className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${exportMode === m.value
+                                    ? 'border-indigo-500 bg-indigo-50'
+                                    : 'border-slate-200 hover:border-slate-300'
+                                }`}
+                        >
+                            <input
+                                type="radio"
+                                name="exportMode"
+                                value={m.value}
+                                checked={exportMode === m.value}
+                                onChange={() => setExportMode(m.value)}
+                                className="mt-1 accent-indigo-600"
+                            />
+                            <div>
+                                <div className="font-semibold text-slate-800">{m.label}</div>
+                                <div className="text-sm text-slate-500">{m.desc}</div>
+                            </div>
+                        </label>
+                    ))}
+                </div>
+                <div className="flex gap-3 mt-6">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        onClick={handleExport}
+                        disabled={loading}
+                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:bg-indigo-300 inline-flex items-center justify-center gap-2"
+                    >
+                        <Icons.Download />
+                        {loading ? 'Exporting...' : 'Export'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function ManageQuestionsPage() {
     const { id: examId } = useParams();
     const [activeTab, setActiveTab] = useState('manual');
@@ -481,6 +576,9 @@ export default function ManageQuestionsPage() {
     // Delete All Modal state
     const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
     const [deleteAllLoading, setDeleteAllLoading] = useState(false);
+
+    // Export modal state
+    const [showExportModal, setShowExportModal] = useState(false);
 
     // Drag and Drop state
     const [draggedIndex, setDraggedIndex] = useState(null);
@@ -644,6 +742,12 @@ export default function ManageQuestionsPage() {
                 questionCount={questions.length}
                 loading={deleteAllLoading}
             />
+            <ExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                examId={examId}
+                examName={examName}
+            />
             <div className="container mx-auto p-4 md:p-6">
                 <div className="mb-8 flex justify-between items-start">
                     <div>
@@ -683,12 +787,20 @@ export default function ManageQuestionsPage() {
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-xl font-bold text-slate-800">Existing Questions ({questions.length})</h2>
                                 {questions.length > 0 && (
-                                    <button
-                                        onClick={() => setShowDeleteAllModal(true)}
-                                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
-                                    >
-                                        <Icons.TrashAll /> Hapus Semua
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setShowExportModal(true)}
+                                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg transition-colors"
+                                        >
+                                            <Icons.Download /> Export
+                                        </button>
+                                        <button
+                                            onClick={() => setShowDeleteAllModal(true)}
+                                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
+                                        >
+                                            <Icons.TrashAll /> Hapus Semua
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                             {error && <p className="text-red-500 bg-red-50 p-3 rounded-md">{error}</p>}
@@ -707,10 +819,10 @@ export default function ManageQuestionsPage() {
                                                 onDragOver={(e) => handleDragOver(e, index)}
                                                 onDragEnd={handleDragEnd}
                                                 className={`p-4 border rounded-lg cursor-grab active:cursor-grabbing transition-all ${draggedIndex === index
-                                                        ? 'opacity-50 border-indigo-400 bg-indigo-50'
-                                                        : dragOverIndex === index
-                                                            ? 'border-indigo-400 border-2 bg-indigo-50/50'
-                                                            : 'border-slate-200 hover:border-slate-300'
+                                                    ? 'opacity-50 border-indigo-400 bg-indigo-50'
+                                                    : dragOverIndex === index
+                                                        ? 'border-indigo-400 border-2 bg-indigo-50/50'
+                                                        : 'border-slate-200 hover:border-slate-300'
                                                     }`}
                                             >
                                                 <div className="flex justify-between items-start">
