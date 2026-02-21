@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTheme } from '@/app/components/ThemeProvider';
+import Link from 'next/link';
 
 export default function WebSettingsPage() {
     const [settings, setSettings] = useState({});
@@ -98,16 +99,73 @@ export default function WebSettingsPage() {
                     </svg>
                 </div>
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Web Settings</h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Kelola pengaturan dan izin untuk setiap role</p>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Admin Tools</h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Pengaturan, monitoring, dan manajemen sistem</p>
                 </div>
+            </div>
+
+            {/* Quick Navigation Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Link href="/dashboard/system-overview" className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 dark:from-indigo-500/10 dark:to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative flex items-start gap-4">
+                        <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">System Overview</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Monitoring CPU, memory, bandwidth, dan informasi server secara real-time</p>
+                        </div>
+                        <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </div>
+                </Link>
+
+                <Link href="/dashboard/database" className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-emerald-300 dark:hover:border-emerald-600 transition-all duration-300 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 dark:from-emerald-500/10 dark:to-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative flex items-start gap-4">
+                        <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/40 rounded-xl text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                            </svg>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Database</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola tabel, backup data, dan lihat statistik database</p>
+                        </div>
+                        <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </div>
+                </Link>
+
+                <Link href="/dashboard/activity-logs" className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-amber-300 dark:hover:border-amber-600 transition-all duration-300 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-500/5 dark:from-amber-500/10 dark:to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative flex items-start gap-4">
+                        <div className="p-2.5 bg-amber-100 dark:bg-amber-900/40 rounded-xl text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Activity Logs</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Monitor aktivitas user, login, dan system events secara detail</p>
+                        </div>
+                        <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-amber-500 dark:group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </div>
+                </Link>
             </div>
 
             {/* Success/Error Message */}
             {message && (
                 <div className={`px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2 transition-all ${message.type === 'success'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                        : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
                     }`}>
                     {message.type === 'success' ? (
                         <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -120,83 +178,72 @@ export default function WebSettingsPage() {
 
             {/* Profile Permissions Section */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
-                <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-indigo-50/30 dark:from-slate-700/50 dark:to-indigo-950/20 border-b border-slate-100 dark:border-slate-700">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl">
-                            <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Izin Halaman Profil</h2>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Kontrol fitur yang tersedia di halaman profil untuk setiap role</p>
-                        </div>
+                <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-indigo-50/30 dark:from-slate-700/50 dark:to-indigo-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+                    <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg">
+                        <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Izin Halaman Profil</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Kontrol fitur profil per role</p>
                     </div>
                 </div>
 
-                <div className="p-6 space-y-6">
-                    {roles.map((role) => {
-                        const colors = getRoleColorClasses(role.color);
-                        return (
-                            <div key={role.key} className={`rounded-xl border ${colors.border} overflow-hidden`}>
-                                {/* Role Header */}
-                                <div className={`px-5 py-3 ${colors.bg} flex items-center gap-3`}>
-                                    <span className="text-lg">{role.icon}</span>
-                                    <span className={`text-sm font-bold ${colors.text}`}>{role.label}</span>
-                                    <span className={`ml-auto inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${colors.badge}`}>
-                                        {role.key}
-                                    </span>
-                                </div>
-
-                                {/* Permissions */}
-                                <div className="divide-y divide-slate-100 dark:divide-slate-700">
-                                    {permissions.map((perm) => {
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-slate-100 dark:border-slate-700">
+                                <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-5 py-3">Permission</th>
+                                {roles.map(role => (
+                                    <th key={role.key} className="text-center text-xs font-semibold px-4 py-3 whitespace-nowrap">
+                                        <span className={`inline-flex items-center gap-1.5 ${getRoleColorClasses(role.color).text}`}>
+                                            <span>{role.icon}</span>
+                                            <span>{role.label}</span>
+                                        </span>
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {permissions.map((perm, idx) => (
+                                <tr key={perm.key} className={`border-b border-slate-50 dark:border-slate-700/50 last:border-0 ${idx % 2 === 0 ? '' : 'bg-slate-50/50 dark:bg-slate-700/20'}`}>
+                                    <td className="px-5 py-3">
+                                        <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{perm.label}</p>
+                                        <p className="text-xs text-slate-400 dark:text-slate-500">{perm.description}</p>
+                                    </td>
+                                    {roles.map(role => {
                                         const settingKey = `${role.key}_${perm.key}`;
                                         const isEnabled = settings[settingKey] ?? false;
                                         const isSaving = saving[settingKey] ?? false;
-
                                         return (
-                                            <div key={settingKey} className="flex items-center justify-between px-5 py-4 bg-white dark:bg-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-700/50 transition-colors">
-                                                <div className="flex-1 min-w-0 mr-4">
-                                                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{perm.label}</p>
-                                                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{perm.description}</p>
-                                                </div>
+                                            <td key={settingKey} className="px-4 py-3 text-center">
                                                 <button
                                                     onClick={() => handleToggle(settingKey)}
                                                     disabled={isSaving}
-                                                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 disabled:opacity-50 disabled:cursor-not-allowed ${isEnabled ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'
-                                                        }`}
+                                                    className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 disabled:opacity-50 disabled:cursor-not-allowed ${isEnabled ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
                                                     role="switch"
                                                     aria-checked={isEnabled}
                                                 >
-                                                    <span
-                                                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isEnabled ? 'translate-x-5' : 'translate-x-0'
-                                                            }`}
-                                                    />
+                                                    <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
                                                 </button>
-                                            </div>
+                                            </td>
                                         );
                                     })}
-                                </div>
-                            </div>
-                        );
-                    })}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
             {/* Info Note */}
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl px-5 py-4 flex items-start gap-3">
-                <svg className="w-5 h-5 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <div>
-                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Catatan</p>
-                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                        Pengaturan ini mempengaruhi halaman profil setiap user. Jika fitur dinonaktifkan, form terkait akan
-                        ditampilkan dalam kondisi terkunci dengan pesan bahwa fitur telah dinonaktifkan oleh administrator.
-                    </p>
-                </div>
-            </div>
+                Fitur yang dinonaktifkan akan terkunci di halaman profil user.
+            </p>
         </div>
     );
 }

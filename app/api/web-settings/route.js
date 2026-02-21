@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { sessionOptions } from '@/app/lib/session';
 import { validateUserSession } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
+import { logFromRequest } from '@/app/lib/logger';
 
 async function getSession() {
     const cookieStore = await cookies();
@@ -125,6 +126,8 @@ export async function PUT(request) {
             query: `INSERT INTO rhs_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?`,
             values: [key, value ? '1' : '0', value ? '1' : '0'],
         });
+
+        logFromRequest(request, session, 'SETTING_CHANGE', 'info', { setting: key, value: !!value });
 
         return NextResponse.json({ message: 'Setting updated', key, value: !!value });
     } catch (error) {

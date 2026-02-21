@@ -4,15 +4,19 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import bcrypt from 'bcryptjs';
+import { logFromRequest, getClientIP } from '@/app/lib/logger';
 
-async function checkAdmin(request) {
+async function getAdminSession(request) {
   const cookieStore = await cookies();
   const session = await getIronSession(cookieStore, sessionOptions);
-  return session.user && session.user.roleName === 'admin';
+  if (!session.user || session.user.roleName !== 'admin') return null;
+  return session;
 }
 
 export async function GET(request) {
-  if (!await checkAdmin(request)) {
+  const cookieStore = await cookies();
+  const session = await getIronSession(cookieStore, sessionOptions);
+  if (!session.user || session.user.roleName !== 'admin') {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
@@ -55,7 +59,8 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  if (!await checkAdmin(request)) {
+  const session = await getAdminSession(request);
+  if (!session) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
@@ -69,6 +74,9 @@ export async function POST(request) {
       query: 'INSERT INTO rhs_users (username, name, password, role, class_id) VALUES (?, ?, ?, ?, ?)',
       values: [username, name || null, hashedPassword, role, class_id],
     });
+
+    logFromRequest(request, session, 'USER_CREATE', 'info', { targetUser: username, role });
+
     return NextResponse.json({ id: result.insertId, username, name, role, class_id }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ message: 'Failed to create user', error: error.message }, { status: 500 });
@@ -76,12 +84,13 @@ export async function POST(request) {
 }
 
 export async function PUT(request) {
-  if (!await checkAdmin(request)) {
+  const session = await getAdminSession(request);
+  if (!session) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const { id, username, name, password, role, class_id } = await request.json();
+    const { id, username, name, password, role, class_id, is_locked } = await request.json();
     if (!id || !username || !role) {
       return NextResponse.json({ message: 'ID, username, and role are required' }, { status: 400 });
     }
@@ -95,10 +104,23 @@ export async function PUT(request) {
       values.push(hashedPassword);
     }
 
+    if (typeof is_locked === 'boolean') {
+      q += ', is_locked = ?';
+      values.push(is_locked);
+    }
+
     q += ' WHERE id = ?';
     values.push(id);
 
     await query({ query: q, values });
+
+    // Log specific actions
+    if (typeof is_locked === 'boolean') {
+      logFromRequest(request, session, is_locked ? 'USER_LOCK' : 'USER_UNLOCK', 'warn', { targetUser: username });
+    } else {
+      logFromRequest(request, session, 'USER_UPDATE', 'info', { targetUser: username, passwordChanged: !!password });
+    }
+
     return NextResponse.json({ id, username, name, role, class_id });
   } catch (error) {
     return NextResponse.json({ message: 'Failed to update user', error: error.message }, { status: 500 });
@@ -106,7 +128,8 @@ export async function PUT(request) {
 }
 
 export async function DELETE(request) {
-  if (!await checkAdmin(request)) {
+  const session = await getAdminSession(request);
+  if (!session) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
@@ -115,10 +138,18 @@ export async function DELETE(request) {
     if (!id) {
       return NextResponse.json({ message: 'ID is required' }, { status: 400 });
     }
+
+    // Get username before deleting for the log
+    const users = await query({ query: 'SELECT username FROM rhs_users WHERE id = ?', values: [id] });
+    const targetUser = users.length > 0 ? users[0].username : `id:${id}`;
+
     await query({
       query: 'DELETE FROM rhs_users WHERE id = ?',
       values: [id],
     });
+
+    logFromRequest(request, session, 'USER_DELETE', 'warn', { targetUser });
+
     return NextResponse.json({ message: 'User deleted successfully' });
   } catch (error) {
     return NextResponse.json({ message: 'Failed to delete user', error: error.message }, { status: 500 });

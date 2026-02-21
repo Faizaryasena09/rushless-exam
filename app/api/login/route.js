@@ -5,8 +5,11 @@ import { query } from '@/app/lib/db';
 import { sessionOptions } from '@/app/lib/session';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { logActivity, getClientIP } from '@/app/lib/logger';
 
 export async function POST(request) {
+  const ip = getClientIP(request);
+
   try {
     const cookieStore = await cookies();
     const session = await getIronSession(cookieStore, sessionOptions);
@@ -20,12 +23,14 @@ export async function POST(request) {
     });
 
     if (users.length === 0) {
+      logActivity({ username, ip, action: 'LOGIN_FAILED', level: 'warn', details: 'User not found' });
       return NextResponse.json({ message: 'Invalid username or password' }, { status: 401 });
     }
 
     const user = users[0];
 
     if (user.is_locked) {
+      logActivity({ userId: user.id, username, ip, action: 'LOGIN_LOCKED', level: 'warn', details: 'Account is locked' });
       return NextResponse.json({ message: 'Username Anda dikunci oleh admin. Mohon hubungi pengawas.' }, { status: 403 });
     }
 
@@ -33,6 +38,7 @@ export async function POST(request) {
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
+      logActivity({ userId: user.id, username, ip, action: 'LOGIN_FAILED', level: 'warn', details: 'Wrong password' });
       return NextResponse.json({ message: 'Invalid username or password' }, { status: 401 });
     }
 
@@ -59,6 +65,7 @@ export async function POST(request) {
       }
 
       if (isSessionActive) {
+        logActivity({ userId: user.id, username, ip, action: 'LOGIN_DENIED', level: 'warn', details: 'Active session on another device' });
         return NextResponse.json({
           message: 'Account is currently active on another device. Login denied.'
         }, { status: 409 });
@@ -79,15 +86,18 @@ export async function POST(request) {
     session.user = {
       id: user.id,
       username: user.username,
-      name: user.name, // Add name to session
-      roleName: user.role, // Directly use the 'role' column from rhs_users
+      name: user.name,
+      roleName: user.role,
       class_id: user.class_id,
       session_id: sessionId,
     };
     await session.save();
 
+    logActivity({ userId: user.id, username, ip, action: 'LOGIN_SUCCESS', level: 'info', details: `Role: ${user.role}` });
+
     return NextResponse.json({ message: 'Login successful' }, { status: 200 });
   } catch (error) {
+    logActivity({ ip, action: 'LOGIN_ERROR', level: 'error', details: error.message });
     return NextResponse.json({ message: 'An error occurred during login.', error: error.message }, { status: 500 });
   }
 }

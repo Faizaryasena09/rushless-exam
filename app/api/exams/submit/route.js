@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { validateUserSession } from '@/app/lib/auth';
+import { logFromRequest } from '@/app/lib/logger';
 
 async function getSession() {
   const cookieStore = await cookies();
@@ -43,7 +44,7 @@ export async function POST(request) {
       });
       return NextResponse.json({ message: 'Exam submitted. No questions found, score is 0.' });
     }
-    
+
     // 2. Calculate score
     let correctCount = 0;
     const correctOptionsMap = allQuestions.reduce((acc, q) => {
@@ -95,6 +96,8 @@ export async function POST(request) {
       query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
       values: [session.user.id, examId],
     });
+
+    logFromRequest(request, session, 'EXAM_SUBMIT', 'info', { examId, score: score.toFixed(1), correct: correctCount, total: totalQuestions });
 
     return NextResponse.json({ message: 'Exam submitted successfully', score: score });
 

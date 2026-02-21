@@ -81,9 +81,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { href: '/dashboard/control', label: 'Exam Control', icon: Icons.Control, roles: ['admin'] },
     { href: '/dashboard/classes', label: 'Manage Classes', icon: Icons.Classes, roles: ['admin', 'teacher'] },
     { href: '/dashboard/exams', label: 'Manage Exams', icon: Icons.Exams, roles: ['admin', 'teacher', 'students'] },
-    { href: '/dashboard/system-overview', label: 'System Overview', icon: Icons.SystemOverview, roles: ['admin'] },
-    { href: '/dashboard/web-settings', label: 'Web Settings', icon: Icons.Settings, roles: ['admin'] },
-    { href: '/dashboard/database', label: 'Database', icon: Icons.Database, roles: ['admin'] },
+    { href: '/dashboard/web-settings', label: 'Admin Tools', icon: Icons.Settings, roles: ['admin'] },
   ];
 
   const navLinks = allNavLinks.filter(link => link.roles.includes(userRole));

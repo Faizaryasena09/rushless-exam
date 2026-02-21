@@ -242,6 +242,25 @@ export async function setupDatabase() {
         `);
     console.log('Table "rhs_launch_tokens" created or already exists.');
 
+    // Create the 'rhs_activity_logs' table for activity logging
+    await connection.query(`
+            CREATE TABLE IF NOT EXISTS rhs_activity_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT,
+                username VARCHAR(255),
+                ip_address VARCHAR(45),
+                action VARCHAR(100) NOT NULL,
+                level ENUM('info', 'warn', 'error') NOT NULL DEFAULT 'info',
+                details TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_created_at (created_at),
+                INDEX idx_level (level),
+                INDEX idx_user_id (user_id),
+                INDEX idx_action (action)
+            )
+        `);
+    console.log('Table "rhs_activity_logs" created or already exists.');
+
     connection.release();
     return { success: true };
 
