@@ -41,6 +41,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   ),
+  SystemOverview: () => (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
+  ),
   Database: () => (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
@@ -76,7 +81,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { href: '/dashboard/control', label: 'Exam Control', icon: Icons.Control, roles: ['admin'] },
     { href: '/dashboard/classes', label: 'Manage Classes', icon: Icons.Classes, roles: ['admin', 'teacher'] },
     { href: '/dashboard/exams', label: 'Manage Exams', icon: Icons.Exams, roles: ['admin', 'teacher', 'students'] },
-    { href: '/dashboard/settings', label: 'System Overview', icon: Icons.Settings, roles: ['admin'] },
+    { href: '/dashboard/system-overview', label: 'System Overview', icon: Icons.SystemOverview, roles: ['admin'] },
+    { href: '/dashboard/web-settings', label: 'Web Settings', icon: Icons.Settings, roles: ['admin'] },
     { href: '/dashboard/database', label: 'Database', icon: Icons.Database, roles: ['admin'] },
   ];
 

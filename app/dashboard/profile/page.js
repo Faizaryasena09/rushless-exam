@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 export default function ProfilePage() {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [permissions, setPermissions] = useState({ can_change_password: true, can_change_username: true });
 
     // Password form
     const [currentPasswordPw, setCurrentPasswordPw] = useState('');
@@ -27,7 +28,20 @@ export default function ProfilePage() {
 
     useEffect(() => {
         fetchProfile();
+        fetchPermissions();
     }, []);
+
+    const fetchPermissions = async () => {
+        try {
+            const res = await fetch('/api/web-settings?mode=my-permissions');
+            if (res.ok) {
+                const data = await res.json();
+                setPermissions(data);
+            }
+        } catch (err) {
+            console.error('Failed to fetch permissions:', err);
+        }
+    };
 
     const fetchProfile = async () => {
         try {
@@ -233,7 +247,18 @@ export default function ProfilePage() {
             {/* Forms Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Change Password */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+                <div className="relative bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+                    {!permissions.can_change_password && (
+                        <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-6">
+                            <div className="p-3 bg-slate-100 rounded-full mb-3">
+                                <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </div>
+                            <p className="text-sm font-semibold text-slate-600 text-center">Fitur Dinonaktifkan</p>
+                            <p className="text-xs text-slate-400 text-center mt-1">Ganti password telah dinonaktifkan oleh administrator.</p>
+                        </div>
+                    )}
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-2 bg-amber-100 rounded-xl">
                             <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -330,7 +355,18 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Change Username */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+                <div className="relative bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+                    {!permissions.can_change_username && (
+                        <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-6">
+                            <div className="p-3 bg-slate-100 rounded-full mb-3">
+                                <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </div>
+                            <p className="text-sm font-semibold text-slate-600 text-center">Fitur Dinonaktifkan</p>
+                            <p className="text-xs text-slate-400 text-center mt-1">Ganti username telah dinonaktifkan oleh administrator.</p>
+                        </div>
+                    )}
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-2 bg-indigo-100 rounded-xl">
                             <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
