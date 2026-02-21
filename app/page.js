@@ -112,47 +112,47 @@ function LoginForm() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-100 p-6">
-      <div className="w-full max-w-md bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-200/50">
+    <main className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 transition-colors duration-300 p-6">
+      <div className="w-full max-w-md bg-white dark:bg-gray-800 shadow-2xl rounded-2xl overflow-hidden border border-gray-200/50 dark:border-gray-700 transition-colors duration-300">
 
         <div className="p-8 text-center">
           <div className="flex justify-center mb-4">
             <AppLogo />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-1">Rushless Exam</h1>
-          <p className="text-gray-500">Sign in to begin your session</p>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1 transition-colors duration-300">Rushless Exam</h1>
+          <p className="text-gray-500 dark:text-gray-400 transition-colors duration-300">Sign in to begin your session</p>
         </div>
 
         <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-6">
 
           {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded-md text-sm">
+            <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 text-red-700 dark:text-red-400 p-3 rounded-md text-sm transition-colors duration-300">
               <p>{error}</p>
               {countdownText && (
-                <p className="font-bold mt-2 text-lg text-red-800 animate-pulse">
+                <p className="font-bold mt-2 text-lg text-red-800 dark:text-red-300 animate-pulse">
                   ⏱ {countdownText}
                 </p>
               )}
             </div>
           )}
           {success && (
-            <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-3 rounded-md text-sm">
+            <div className="bg-green-50 dark:bg-green-900/30 border-l-4 border-green-500 text-green-700 dark:text-green-400 p-3 rounded-md text-sm transition-colors duration-300">
               <p>{success}</p>
             </div>
           )}
 
           <div>
-            <label className="block text-gray-600 text-sm font-semibold mb-2" htmlFor="username">
+            <label className="block text-gray-600 dark:text-gray-300 text-sm font-semibold mb-2 transition-colors duration-300" htmlFor="username">
               Username
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
               <input
-                className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition duration-200"
+                className="w-full pl-10 pr-3 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-colors duration-300"
                 id="username"
                 type="text"
                 placeholder="e.g. admin"
@@ -166,17 +166,17 @@ function LoginForm() {
           </div>
 
           <div>
-            <label className="block text-gray-600 text-sm font-semibold mb-2" htmlFor="password">
+            <label className="block text-gray-600 dark:text-gray-300 text-sm font-semibold mb-2 transition-colors duration-300" htmlFor="password">
               Password
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
               </div>
               <input
-                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition duration-200"
+                className="w-full pl-10 pr-10 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-colors duration-300"
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
@@ -188,7 +188,7 @@ function LoginForm() {
               />
               <button
                 type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none transition-colors duration-300"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? (
@@ -221,7 +221,7 @@ function LoginForm() {
           </button>
         </form>
 
-        <div className="bg-gray-50 px-8 py-4 border-t border-gray-100">
+        <div className="bg-gray-50 dark:bg-gray-800/80 px-8 py-4 border-t border-gray-100 dark:border-gray-700 transition-colors duration-300">
         </div>
       </div>
     </main>
@@ -231,8 +231,8 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <main className="flex min-h-screen items-center justify-center bg-gray-100 p-6">
-        <div className="text-gray-500">Loading...</div>
+      <main className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 transition-colors duration-300 p-6">
+        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </main>
     }>
       <LoginForm />

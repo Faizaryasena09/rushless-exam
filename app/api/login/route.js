@@ -68,7 +68,7 @@ export async function POST(request) {
     const bfSettings = await getBruteforceSettings();
     const now = Math.floor(Date.now() / 1000);
 
-    if (user.locked_until_ts && user.locked_until_ts > now) {
+    if (user.role !== 'admin' && user.locked_until_ts && user.locked_until_ts > now) {
       const remainingMinutes = Math.ceil((user.locked_until_ts - now) / 60);
       logActivity({ userId: user.id, username, ip, action: 'LOGIN_BRUTEFORCE_LOCKED', level: 'warn', details: `Locked for ${remainingMinutes} more minutes` });
       return NextResponse.json({
@@ -90,6 +90,13 @@ export async function POST(request) {
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
+      if (user.role === 'admin') {
+        logActivity({ userId: user.id, username, ip, action: 'LOGIN_FAILED', level: 'warn', details: 'Wrong password (Admin login failed)' });
+        return NextResponse.json({
+          message: 'Username atau password salah.'
+        }, { status: 401 });
+      }
+
       const newAttempts = (user.failed_login_attempts || 0) + 1;
 
       if (newAttempts >= bfSettings.maxAttempts) {
