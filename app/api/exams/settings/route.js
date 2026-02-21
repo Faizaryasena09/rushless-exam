@@ -40,7 +40,9 @@ export async function GET(request) {
             e.max_attempts,
             s.start_time, 
             s.end_time,
-            s.require_safe_browser
+            s.require_safe_browser,
+            s.require_seb,
+            s.seb_config_key
           FROM rhs_exams e
           LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
           WHERE e.id = ?
@@ -65,6 +67,8 @@ export async function GET(request) {
       shuffle_questions: Boolean(results[0].shuffle_questions),
       shuffle_answers: Boolean(results[0].shuffle_answers),
       require_safe_browser: Boolean(results[0].require_safe_browser),
+      require_seb: Boolean(results[0].require_seb),
+      seb_config_key: results[0].seb_config_key || '',
       allowed_classes: allowedClasses
     };
 
@@ -87,7 +91,7 @@ export async function POST(request) {
       examId, startTime, endTime,
       shuffleQuestions, shuffleAnswers,
       timerMode, durationMinutes, minTimeMinutes, maxAttempts,
-      requireSafeBrowser,
+      requireSafeBrowser, requireSeb, sebConfigKey,
       allowedClasses
     } = await request.json();
 
@@ -132,14 +136,16 @@ export async function POST(request) {
       // 2. Update exam time settings
       await txQuery({
         query: `
-              INSERT INTO rhs_exam_settings (exam_id, start_time, end_time, require_safe_browser)
-              VALUES (?, ?, ?, ?)
+              INSERT INTO rhs_exam_settings (exam_id, start_time, end_time, require_safe_browser, require_seb, seb_config_key)
+              VALUES (?, ?, ?, ?, ?, ?)
               ON DUPLICATE KEY UPDATE 
                 start_time = VALUES(start_time), 
                 end_time = VALUES(end_time),
-                require_safe_browser = VALUES(require_safe_browser)
+                require_safe_browser = VALUES(require_safe_browser),
+                require_seb = VALUES(require_seb),
+                seb_config_key = VALUES(seb_config_key)
             `,
-        values: [examId, startTime, endTime, requireSafeBrowser],
+        values: [examId, startTime, endTime, requireSafeBrowser, requireSeb || false, sebConfigKey || ''],
       });
 
       // 3. Update Allowed Classes

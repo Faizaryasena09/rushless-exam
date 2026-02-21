@@ -305,24 +305,44 @@ export default function ExamTakingPage() {
     setShowFinishModal(true);
   };
 
-  // Enforce Safe Browser Check
+  // Enforce Browser Checks
   useEffect(() => {
     if (examDetails?.require_safe_browser) {
-      // Check if running in WebView2 (standard way to check)
-      const isSafeBrowser = window.chrome && window.chrome.webview;
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isWebView2 = window.chrome && window.chrome.webview;
+      const isRushless = userAgent.includes('rushless');
+      const isSafeBrowser = isWebView2 || isRushless;
 
       if (!isSafeBrowser) {
         // Block access
         document.body.innerHTML = `
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f8fafc;font-family:sans-serif;text-align:center;padding:20px;">
                     <div style="font-size:4rem;margin-bottom:20px;">🛡️</div>
-                    <h1 style="color:#1e293b;font-size:2rem;margin-bottom:10px;">Safe Browser Required</h1>
-                    <p style="color:#64748b;font-size:1.1rem;max-width:600px;">This exam can only be taken using the <strong>Exam Safer Application</strong>.</p>
-                    <p style="color:#64748b;margin-top:10px;">Please close this window and launch the exam from the application.</p>
-                    <a href="/dashboard/exams" style="margin-top:30px;padding:12px 24px;background:#4f46e5;color:white;text-decoration:none;border-radius:8px;font-weight:bold;">Return to Dashboard</a>
+                    <h1 style="color:#1e293b;font-size:2rem;margin-bottom:10px;">Rushless Safer Required</h1>
+                    <p style="color:#64748b;font-size:1.1rem;max-width:600px;">Ujian ini hanya bisa dikerjakan menggunakan <strong>Aplikasi Rushless Safer</strong>.</p>
+                    <p style="color:#64748b;margin-top:10px;">Harap tutup jendela ini dan buka ujian dari dalam aplikasi Rushless Safer.</p>
+                    <a href="/dashboard/exams" style="margin-top:30px;padding:12px 24px;background:#4f46e5;color:white;text-decoration:none;border-radius:8px;font-weight:bold;">Kembali ke Dashboard</a>
                 </div>
             `;
         // Stop further execution
+        return;
+      }
+    }
+
+    if (examDetails?.require_seb) {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isSEB = userAgent.includes('seb');
+
+      if (!isSEB) {
+        document.body.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f8fafc;font-family:sans-serif;text-align:center;padding:20px;">
+                    <div style="font-size:4rem;margin-bottom:20px;">🔒</div>
+                    <h1 style="color:#1e293b;font-size:2rem;margin-bottom:10px;">Safe Exam Browser Required</h1>
+                    <p style="color:#64748b;font-size:1.1rem;max-width:600px;">Ujian ini hanya bisa dikerjakan menggunakan <strong>Safe Exam Browser (SEB)</strong>.</p>
+                    <p style="color:#64748b;margin-top:10px;">Harap buka ujian ini melalui aplikasi SEB.</p>
+                    <a href="/dashboard/exams" style="margin-top:30px;padding:12px 24px;background:#4f46e5;color:white;text-decoration:none;border-radius:8px;font-weight:bold;">Kembali ke Dashboard</a>
+                </div>
+            `;
         return;
       }
     }

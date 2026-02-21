@@ -71,6 +71,8 @@ export default function ManageExamPage() {
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [shuffleAnswers, setShuffleAnswers] = useState(false);
   const [requireSafeBrowser, setRequireSafeBrowser] = useState(false);
+  const [requireSeb, setRequireSeb] = useState(false);
+  const [sebConfigKey, setSebConfigKey] = useState('');
   const [timerMode, setTimerMode] = useState('sync'); // 'sync' or 'async'
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [minTimeMinutes, setMinTimeMinutes] = useState(0);
@@ -124,6 +126,8 @@ export default function ManageExamPage() {
       setMinTimeMinutes(data.min_time_minutes || 0);
       setMaxAttempts(data.max_attempts || 1);
       setRequireSafeBrowser(!!data.require_safe_browser);
+      setRequireSeb(!!data.require_seb);
+      setSebConfigKey(data.seb_config_key || '');
       setSelectedClasses(data.allowed_classes || []);
 
     } catch (err) {
@@ -177,6 +181,8 @@ export default function ManageExamPage() {
         minTimeMinutes: minTimeMinutes,
         maxAttempts: maxAttempts,
         requireSafeBrowser: requireSafeBrowser,
+        requireSeb: requireSeb,
+        sebConfigKey: sebConfigKey,
         allowedClasses: selectedClasses
       }),
     });
@@ -345,12 +351,37 @@ export default function ManageExamPage() {
             <div className="space-y-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-700">
               <Switch
                 id="req-safe-browser"
-                label="Require Safe Browser"
-                description="Students must use the Exam Safer application to take this exam."
+                label="Use Rushless Safer"
+                description="Students must use the Rushless Safer application to take this exam."
                 checked={requireSafeBrowser}
                 onChange={() => setRequireSafeBrowser(!requireSafeBrowser)}
                 disabled={saving}
               />
+              <Switch
+                id="req-seb"
+                label="Use SEB (Safe Exam Browser)"
+                description="Students must use Safe Exam Browser to take this exam."
+                checked={requireSeb}
+                onChange={() => setRequireSeb(!requireSeb)}
+                disabled={saving}
+              />
+              {requireSeb && (
+                <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-b-lg">
+                  <label htmlFor="sebConfigKey" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">SEB Config Key</label>
+                  <input
+                    id="sebConfigKey"
+                    type="text"
+                    value={sebConfigKey}
+                    onChange={(e) => setSebConfigKey(e.target.value)}
+                    placeholder="Enter X-SafeExamBrowser-ConfigKey string... (optional)"
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
+                    disabled={saving}
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                    Validating the Config Key ensures the student hasn't altered the SEB configuration. Leave blank to only check if the browser is SEB.
+                  </p>
+                </div>
+              )}
               <Switch
                 id="shuffle-questions"
                 label="Acak Urutan Soal"

@@ -180,6 +180,30 @@ export async function GET(request) {
       messages.push(`Column 'require_safe_browser' already exists in '${settingsTableName}'.`);
     }
 
+    // --- Check and add 'require_seb' column to exam_settings table ---
+    const hasRequireSeb = await columnExists(settingsTableName, 'require_seb');
+    if (!hasRequireSeb) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN require_seb BOOLEAN DEFAULT FALSE;`,
+        values: [],
+      });
+      messages.push(`Column 'require_seb' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'require_seb' already exists in '${settingsTableName}'.`);
+    }
+
+    // --- Check and add 'seb_config_key' column to exam_settings table ---
+    const hasSebConfigKey = await columnExists(settingsTableName, 'seb_config_key');
+    if (!hasSebConfigKey) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN seb_config_key VARCHAR(255);`,
+        values: [],
+      });
+      messages.push(`Column 'seb_config_key' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'seb_config_key' already exists in '${settingsTableName}'.`);
+    }
+
     // --- Check and add 'sort_order' column to exam_questions table ---
     const questionsTableName = 'rhs_exam_questions';
     const hasSortOrder = await columnExists(questionsTableName, 'sort_order');

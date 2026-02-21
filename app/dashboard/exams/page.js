@@ -41,7 +41,7 @@ const StudentExamActions = ({ exam }) => {
       window.location.href = safeBrowserUrl;
 
     } catch (err) {
-      alert('Error launching Safe Browser: ' + err.message);
+      alert('Error launching Rushless Safer: ' + err.message);
     }
   };
 
@@ -62,7 +62,7 @@ const StudentExamActions = ({ exam }) => {
       <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors">
         <div className="flex items-center gap-2">
           <Icons.Play />
-          <span>Lanjutkan Ujian</span>
+          <span>{exam.require_seb ? 'Lanjutkan Ujian (SEB)' : 'Lanjutkan Ujian'}</span>
         </div>
         <Icons.ChevronRight className="transition-transform group-hover:translate-x-1" />
       </Link>
@@ -105,7 +105,7 @@ const StudentExamActions = ({ exam }) => {
           <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
-          <span>Launch Safe Browser</span>
+          <span>Launch Rushless Safer</span>
         </div>
         <Icons.ChevronRight className="transition-transform group-hover:translate-x-1" />
       </button>
@@ -116,7 +116,7 @@ const StudentExamActions = ({ exam }) => {
     <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
       <div className="flex items-center gap-2">
         <Icons.Play />
-        <span>Mulai Kerjakan</span>
+        <span>{exam.require_seb ? 'Mulai dengan SEB' : 'Mulai Kerjakan'}</span>
       </div>
       <Icons.ChevronRight className="transition-transform group-hover:translate-x-1" />
     </Link>

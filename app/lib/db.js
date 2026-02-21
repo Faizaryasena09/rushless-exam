@@ -131,6 +131,8 @@ export async function setupDatabase() {
               duration INT,
               max_attempts INT DEFAULT 1,
               require_safe_browser BOOLEAN DEFAULT FALSE,
+              require_seb BOOLEAN DEFAULT FALSE,
+              seb_config_key VARCHAR(255),
               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
               FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE
@@ -147,6 +149,19 @@ export async function setupDatabase() {
       console.log("Column 'require_safe_browser' added to rhs_exam_settings");
     } catch (err) {
       // Ignore error if column already exists (Error 1060: Duplicate column name)
+      if (err.code !== 'ER_DUP_FIELDNAME') {
+        console.log("Note: " + err.message);
+      }
+    }
+
+    try {
+      await connection.query(`
+            ALTER TABLE rhs_exam_settings
+            ADD COLUMN require_seb BOOLEAN DEFAULT FALSE,
+            ADD COLUMN seb_config_key VARCHAR(255);
+        `);
+      console.log("Columns 'require_seb' and 'seb_config_key' added to rhs_exam_settings");
+    } catch (err) {
       if (err.code !== 'ER_DUP_FIELDNAME') {
         console.log("Note: " + err.message);
       }

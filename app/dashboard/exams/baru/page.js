@@ -11,6 +11,8 @@ export default function NewExamPage() {
   const [examName, setExamName] = useState('');
   const [description, setDescription] = useState('');
   const [requireSafeBrowser, setRequireSafeBrowser] = useState(false);
+  const [requireSeb, setRequireSeb] = useState(false);
+  const [sebConfigKey, setSebConfigKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +25,12 @@ export default function NewExamPage() {
       const res = await fetch('/api/exams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ exam_name: examName, description, require_safe_browser: requireSafeBrowser }),
+        body: JSON.stringify({
+          exam_name: examName,
+          description,
+          require_safe_browser: requireSafeBrowser,
+          require_seb: requireSeb
+        }),
       });
 
       if (!res.ok) {
@@ -104,8 +111,8 @@ export default function NewExamPage() {
           {/* Toggle Safe Browser */}
           <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700 rounded-lg">
             <div className="flex-1">
-              <label htmlFor="safeBrowser" className="block text-sm font-bold text-slate-700 dark:text-slate-300">Require Safe Browser</label>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Exam will only be accessible via the Exam Safer application.</p>
+              <label htmlFor="safeBrowser" className="block text-sm font-bold text-slate-700 dark:text-slate-300">Use Rushless Safer</label>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Exam will only be accessible via the Rushless Safer application.</p>
             </div>
             <input
               id="safeBrowser"
@@ -114,6 +121,28 @@ export default function NewExamPage() {
               onChange={(e) => setRequireSafeBrowser(e.target.checked)}
               className="w-5 h-5 text-indigo-600 dark:text-indigo-500 rounded focus:ring-indigo-500 dark:focus:ring-indigo-400 border-gray-300 dark:border-gray-600 dark:bg-slate-700"
             />
+          </div>
+
+          {/* Toggle SEB */}
+          <div className="flex flex-col gap-3 p-4 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <label htmlFor="requireSeb" className="block text-sm font-bold text-slate-700 dark:text-slate-300">Use SEB (Safe Exam Browser)</label>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Enforce exam taking via Safe Exam Browser.</p>
+              </div>
+              <input
+                id="requireSeb"
+                type="checkbox"
+                checked={requireSeb}
+                onChange={(e) => setRequireSeb(e.target.checked)}
+                className="w-5 h-5 text-indigo-600 dark:text-indigo-500 rounded focus:ring-indigo-500 dark:focus:ring-indigo-400 border-gray-300 dark:border-gray-600 dark:bg-slate-700"
+              />
+            </div>
+            {requireSeb && (
+              <div className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                Lalu, masukkan Config Key (opsional) untuk keamanan tambahan.
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
