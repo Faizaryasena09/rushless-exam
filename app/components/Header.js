@@ -1,16 +1,37 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function Header({ user, isLoading, toggleSidebar, showToggleButton }) {
   const router = useRouter();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close dropdown on Escape key
+  useEffect(() => {
+    function handleEscape(event) {
+      if (event.key === 'Escape') setDropdownOpen(false);
+    }
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
 
   const handleLogout = async () => {
+    setDropdownOpen(false);
     await fetch('/api/logout', { method: 'POST' });
-    // In a real app, you'd likely want to trigger a state update in the parent
-    // to reflect the logged-out state globally, maybe via a context or callback.
-    // For now, we just redirect.
     router.push('/');
   };
 
@@ -52,18 +73,21 @@ export default function Header({ user, isLoading, toggleSidebar, showToggleButto
               <div className="hidden sm:block h-4 w-24 bg-slate-200 rounded"></div>
             </div>
           ) : user ? (
-            // State: Logged In
-            <div className="flex items-center gap-3 sm:gap-5">
-
-              {/* User Profile Info */}
-              <div className="flex items-center gap-3 pl-2 sm:pl-0">
+            // State: Logged In — Avatar with Dropdown
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center gap-3 pl-2 sm:pl-0 focus:outline-none group"
+                aria-expanded={dropdownOpen}
+                aria-haspopup="true"
+              >
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-semibold text-slate-700 leading-none mb-1">{user.name || user.username}</p>
                   <p className="text-[10px] uppercase tracking-wider font-medium text-slate-400">{user.roleName || ''}</p>
                 </div>
 
-                <div className="relative group cursor-pointer">
-                  <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-[2px] shadow-sm">
+                <div className="relative">
+                  <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-[2px] shadow-sm transition-transform duration-200 group-hover:scale-105">
                     <div className="h-full w-full rounded-full bg-white flex items-center justify-center">
                       <span className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 to-purple-600">
                         {getInitials(user.name || user.username)}
@@ -73,22 +97,63 @@ export default function Header({ user, isLoading, toggleSidebar, showToggleButto
                   {/* Active Indicator */}
                   <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white transform translate-y-1/4 translate-x-1/4"></span>
                 </div>
-              </div>
 
-              {/* Vertical Separator */}
-              <div className="h-8 w-px bg-slate-200 mx-1 hidden sm:block"></div>
-
-              {/* Logout Button */}
-              <button
-                onClick={handleLogout}
-                className="relative group flex items-center justify-center sm:justify-start gap-2 p-2 sm:px-4 sm:py-2 text-sm font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all duration-200 ease-out"
-                title="Sign out"
-              >
-                <svg className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                {/* Dropdown Arrow */}
+                <svg className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-                <span className="hidden sm:inline">Logout</span>
               </button>
+
+              {/* Dropdown Menu */}
+              <div
+                className={`absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden transition-all duration-200 origin-top-right ${dropdownOpen
+                  ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
+                  : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
+                  }`}
+              >
+                {/* User Info Section */}
+                <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-indigo-50/30 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-[2px] flex-shrink-0">
+                      <div className="h-full w-full rounded-full bg-white flex items-center justify-center">
+                        <span className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 to-purple-600">
+                          {getInitials(user.name || user.username)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{user.name || user.username}</p>
+                      <p className="text-xs text-slate-500 truncate">@{user.username}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Menu Items */}
+                <div className="py-1.5">
+                  <Link
+                    href="/dashboard/profile"
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors duration-150"
+                  >
+                    <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span className="font-medium">Profil Saya</span>
+                  </Link>
+
+                  <div className="mx-3 my-1 border-t border-slate-100"></div>
+
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition-colors duration-150 w-full text-left"
+                  >
+                    <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span className="font-medium">Logout</span>
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             // State: Guest
