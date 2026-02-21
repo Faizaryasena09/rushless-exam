@@ -20,6 +20,30 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/dashboard';
+  const [lockoutEndTs, setLockoutEndTs] = useState(null);
+  const [countdownText, setCountdownText] = useState('');
+
+  useEffect(() => {
+    let interval;
+    if (lockoutEndTs) {
+      const updateCountdown = () => {
+        const now = Math.floor(Date.now() / 1000);
+        const diff = lockoutEndTs - now;
+        if (diff <= 0) {
+          setLockoutEndTs(null);
+          setCountdownText('');
+          setError('');
+          return;
+        }
+        const m = Math.floor(diff / 60);
+        const s = diff % 60;
+        setCountdownText(`Coba lagi dalam ${m}m ${s}s`);
+      };
+      updateCountdown();
+      interval = setInterval(updateCountdown, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [lockoutEndTs]);
 
   const setupDatabase = async () => {
     try {
@@ -66,6 +90,12 @@ function LoginForm() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 429 && data.locked_until_ts) {
+          setLockoutEndTs(data.locked_until_ts);
+        } else {
+          setLockoutEndTs(null);
+          setCountdownText('');
+        }
         throw new Error(data.message || 'Something went wrong');
       }
 
@@ -98,6 +128,11 @@ function LoginForm() {
           {error && (
             <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded-md text-sm">
               <p>{error}</p>
+              {countdownText && (
+                <p className="font-bold mt-2 text-lg text-red-800 animate-pulse">
+                  ⏱ {countdownText}
+                </p>
+              )}
             </div>
           )}
           {success && (
@@ -124,7 +159,7 @@ function LoginForm() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isLoading || lockoutEndTs !== null}
                 suppressHydrationWarning={true}
               />
             </div>
@@ -148,7 +183,7 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isLoading || lockoutEndTs !== null}
                 suppressHydrationWarning={true}
               />
               <button
@@ -166,10 +201,10 @@ function LoginForm() {
           </div>
 
           <button
-            className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform hover:scale-105 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''
+            className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform hover:scale-105 ${isLoading || lockoutEndTs !== null ? 'opacity-70 cursor-not-allowed' : ''
               }`}
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || lockoutEndTs !== null}
             suppressHydrationWarning={true}
           >
             {isLoading ? (

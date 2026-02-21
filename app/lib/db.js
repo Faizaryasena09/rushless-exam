@@ -261,6 +261,20 @@ export async function setupDatabase() {
         `);
     console.log('Table "rhs_activity_logs" created or already exists.');
 
+    // Migration: Add brute force columns to rhs_users
+    try {
+      await connection.query(`ALTER TABLE rhs_users ADD COLUMN failed_login_attempts INT DEFAULT 0`);
+      console.log("Column 'failed_login_attempts' added to rhs_users");
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
+    }
+    try {
+      await connection.query(`ALTER TABLE rhs_users ADD COLUMN locked_until TIMESTAMP NULL DEFAULT NULL`);
+      console.log("Column 'locked_until' added to rhs_users");
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
+    }
+
     connection.release();
     return { success: true };
 

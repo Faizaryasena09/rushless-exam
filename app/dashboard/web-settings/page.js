@@ -9,6 +9,8 @@ export default function WebSettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState({});
     const [message, setMessage] = useState(null);
+    const [lockedUsers, setLockedUsers] = useState([]);
+    const [unlocking, setUnlocking] = useState({});
 
     const roles = [
         { key: 'admin', label: 'Admin', color: 'rose', icon: '🛡️' },
@@ -23,7 +25,42 @@ export default function WebSettingsPage() {
 
     useEffect(() => {
         fetchSettings();
+        fetchLockedUsers();
     }, []);
+
+    const fetchLockedUsers = async () => {
+        try {
+            const res = await fetch('/api/locked-users');
+            if (res.ok) {
+                const data = await res.json();
+                setLockedUsers(data.users || []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch locked users:', err);
+        }
+    };
+
+    const handleUnlock = async (userId, username) => {
+        setUnlocking(prev => ({ ...prev, [userId]: true }));
+        try {
+            const res = await fetch('/api/locked-users', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId }),
+            });
+            if (res.ok) {
+                setMessage({ type: 'success', text: `User ${username} berhasil di-unlock.` });
+                setTimeout(() => setMessage(null), 3000);
+                fetchLockedUsers();
+            } else {
+                setMessage({ type: 'error', text: 'Gagal unlock user.' });
+            }
+        } catch {
+            setMessage({ type: 'error', text: 'Terjadi kesalahan.' });
+        } finally {
+            setUnlocking(prev => ({ ...prev, [userId]: false }));
+        }
+    };
 
     const fetchSettings = async () => {
         try {
@@ -235,6 +272,167 @@ export default function WebSettingsPage() {
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {/* Brute Force Protection Section */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+                <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-red-50/30 dark:from-slate-700/50 dark:to-red-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+                    <div className="p-1.5 bg-red-100 dark:bg-red-900/40 rounded-lg">
+                        <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Brute Force Protection</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Kunci akun otomatis setelah login gagal berulang</p>
+                    </div>
+                </div>
+
+                <div className="p-5 space-y-4">
+                    {/* Max Attempts */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Maksimal Percobaan Gagal</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">Akun terkunci setelah jumlah ini terlampaui</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                min="1"
+                                max="50"
+                                value={settings.bruteforce_max_attempts ?? 5}
+                                onChange={(e) => setSettings(prev => ({ ...prev, bruteforce_max_attempts: parseInt(e.target.value) || 1 }))}
+                                className="w-20 px-3 py-1.5 text-sm text-center border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <span className="text-xs text-slate-400 dark:text-slate-500">kali</span>
+                            <button
+                                onClick={async () => {
+                                    setSaving(prev => ({ ...prev, bruteforce_max_attempts: true }));
+                                    try {
+                                        const res = await fetch('/api/web-settings', {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ key: 'bruteforce_max_attempts', value: settings.bruteforce_max_attempts ?? 5 }),
+                                        });
+                                        if (res.ok) {
+                                            setMessage({ type: 'success', text: 'Batas percobaan login berhasil disimpan.' });
+                                            setTimeout(() => setMessage(null), 3000);
+                                        } else {
+                                            const d = await res.json();
+                                            setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
+                                        }
+                                    } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
+                                    finally { setSaving(prev => ({ ...prev, bruteforce_max_attempts: false })); }
+                                }}
+                                disabled={saving.bruteforce_max_attempts}
+                                className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                {saving.bruteforce_max_attempts ? '...' : 'Simpan'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 dark:border-slate-700/50" />
+
+                    {/* Lockout Duration */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Durasi Penguncian</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">Berapa lama akun terkunci otomatis</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                min="1"
+                                max="1440"
+                                value={settings.bruteforce_lockout_minutes ?? 15}
+                                onChange={(e) => setSettings(prev => ({ ...prev, bruteforce_lockout_minutes: parseInt(e.target.value) || 1 }))}
+                                className="w-20 px-3 py-1.5 text-sm text-center border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <span className="text-xs text-slate-400 dark:text-slate-500">menit</span>
+                            <button
+                                onClick={async () => {
+                                    setSaving(prev => ({ ...prev, bruteforce_lockout_minutes: true }));
+                                    try {
+                                        const res = await fetch('/api/web-settings', {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ key: 'bruteforce_lockout_minutes', value: settings.bruteforce_lockout_minutes ?? 15 }),
+                                        });
+                                        if (res.ok) {
+                                            setMessage({ type: 'success', text: 'Durasi penguncian berhasil disimpan.' });
+                                            setTimeout(() => setMessage(null), 3000);
+                                        } else {
+                                            const d = await res.json();
+                                            setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
+                                        }
+                                    } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
+                                    finally { setSaving(prev => ({ ...prev, bruteforce_lockout_minutes: false })); }
+                                }}
+                                disabled={saving.bruteforce_lockout_minutes}
+                                className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                {saving.bruteforce_lockout_minutes ? '...' : 'Simpan'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Locked Users List */}
+                {lockedUsers.length > 0 && (
+                    <div className="border-t border-slate-200 dark:border-slate-700">
+                        <div className="px-5 py-3 bg-red-50/50 dark:bg-red-950/10 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                                </span>
+                                <span className="text-xs font-semibold text-red-600 dark:text-red-400">{lockedUsers.length} user terkunci / punya percobaan gagal</span>
+                            </div>
+                            <button onClick={fetchLockedUsers} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                                ↻ Refresh
+                            </button>
+                        </div>
+                        <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                            {lockedUsers.map(u => (
+                                <div key={u.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${u.isCurrentlyLocked
+                                                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                                : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+                                            }`}>
+                                            {u.isCurrentlyLocked ? '🔒' : '⚠️'}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                                                {u.name || u.username}
+                                                <span className="ml-1.5 text-xs font-normal text-slate-400">@{u.username}</span>
+                                            </p>
+                                            <p className="text-xs text-slate-400 dark:text-slate-500">
+                                                {u.failedAttempts} gagal
+                                                {u.isCurrentlyLocked && u.lockedUntil && (
+                                                    <span className="ml-1 text-red-500 dark:text-red-400 font-medium">
+                                                        · Terkunci sampai {new Date(u.lockedUntil).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                                                    </span>
+                                                )}
+                                                {!u.isCurrentlyLocked && u.failedAttempts > 0 && (
+                                                    <span className="ml-1 text-amber-500"> · Belum terkunci</span>
+                                                )}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleUnlock(u.id, u.username)}
+                                        disabled={unlocking[u.id]}
+                                        className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg transition-colors disabled:opacity-50"
+                                    >
+                                        {unlocking[u.id] ? '...' : '🔓 Unlock'}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Info Note */}

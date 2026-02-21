@@ -15,15 +15,20 @@ async function getSession() {
     return session;
 }
 
-// Default settings
+// Default settings — booleans use '0'/'1', numbers use string of number
 const DEFAULT_SETTINGS = {
-    admin_can_change_password: true,
-    admin_can_change_username: true,
-    teacher_can_change_password: true,
-    teacher_can_change_username: true,
-    student_can_change_password: false,
-    student_can_change_username: false,
+    admin_can_change_password: '1',
+    admin_can_change_username: '1',
+    teacher_can_change_password: '1',
+    teacher_can_change_username: '1',
+    student_can_change_password: '0',
+    student_can_change_username: '0',
+    bruteforce_max_attempts: '5',
+    bruteforce_lockout_minutes: '15',
 };
+
+// Keys that are numeric (not boolean toggles)
+const NUMERIC_KEYS = ['bruteforce_max_attempts', 'bruteforce_lockout_minutes'];
 
 async function ensureSettingsTable() {
     try {
@@ -40,7 +45,7 @@ async function ensureSettingsTable() {
         for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
             await query({
                 query: `INSERT IGNORE INTO rhs_settings (setting_key, setting_value) VALUES (?, ?)`,
-                values: [key, value ? '1' : '0'],
+                values: [key, value],
             });
         }
     } catch (error) {
@@ -90,7 +95,11 @@ export async function GET(request) {
 
         const settings = {};
         rows.forEach(row => {
-            settings[row.setting_key] = row.setting_value === '1';
+            if (NUMERIC_KEYS.includes(row.setting_key)) {
+                settings[row.setting_key] = parseInt(row.setting_value) || 0;
+            } else {
+                settings[row.setting_key] = row.setting_value === '1';
+            }
         });
 
         return NextResponse.json(settings);
@@ -122,14 +131,26 @@ export async function PUT(request) {
             return NextResponse.json({ message: 'Invalid setting key' }, { status: 400 });
         }
 
+        // Determine how to store the value
+        let storeValue;
+        if (NUMERIC_KEYS.includes(key)) {
+            const num = parseInt(value);
+            if (isNaN(num) || num < 1) {
+                return NextResponse.json({ message: 'Value must be a positive number' }, { status: 400 });
+            }
+            storeValue = String(num);
+        } else {
+            storeValue = value ? '1' : '0';
+        }
+
         await query({
             query: `INSERT INTO rhs_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?`,
-            values: [key, value ? '1' : '0', value ? '1' : '0'],
+            values: [key, storeValue, storeValue],
         });
 
-        logFromRequest(request, session, 'SETTING_CHANGE', 'info', { setting: key, value: !!value });
+        logFromRequest(request, session, 'SETTING_CHANGE', 'info', { setting: key, value: NUMERIC_KEYS.includes(key) ? parseInt(storeValue) : !!value });
 
-        return NextResponse.json({ message: 'Setting updated', key, value: !!value });
+        return NextResponse.json({ message: 'Setting updated', key, value: NUMERIC_KEYS.includes(key) ? parseInt(storeValue) : !!value });
     } catch (error) {
         return NextResponse.json({ message: 'Failed to update setting', error: error.message }, { status: 500 });
     }
