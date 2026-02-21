@@ -67,18 +67,18 @@ function DashboardCard({ href, title, description, icon, gradient }) {
 // Skeleton Loader untuk UX yang lebih halus
 function SkeletonLoader() {
     return (
-        <div className="p-6 bg-gray-50 min-h-screen animate-pulse">
+        <div className="p-6 bg-gray-50 dark:bg-slate-900 min-h-screen animate-pulse">
             <div className="flex justify-between items-center mb-8">
-                <div className="h-8 bg-gray-300 rounded w-1/4"></div>
-                <div className="h-8 w-8 bg-gray-300 rounded-full"></div>
+                <div className="h-8 bg-gray-300 dark:bg-slate-700 rounded w-1/4"></div>
+                <div className="h-8 w-8 bg-gray-300 dark:bg-slate-700 rounded-full"></div>
             </div>
             <div className="mb-8">
-                <div className="h-10 bg-gray-300 rounded w-1/3 mb-2"></div>
-                <div className="h-6 bg-gray-300 rounded w-1/4"></div>
+                <div className="h-10 bg-gray-300 dark:bg-slate-700 rounded w-1/3 mb-2"></div>
+                <div className="h-6 bg-gray-300 dark:bg-slate-700 rounded w-1/4"></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-48 bg-gray-200 rounded-2xl"></div>
+                    <div key={i} className="h-48 bg-gray-200 dark:bg-slate-800 rounded-2xl"></div>
                 ))}
             </div>
         </div>
@@ -142,7 +142,7 @@ export default function DashboardPage() {
     const isStudent = user.roleName === 'student';
 
     return (
-        <div className="min-h-screen bg-gray-50 text-gray-800 font-sans selection:bg-blue-100">
+        <div className="min-h-screen bg-gray-50 dark:bg-transparent text-gray-800 dark:text-slate-200 font-sans selection:bg-blue-100 dark:selection:bg-indigo-900">
 
             <main className="max-w-7xl mx-auto px-6 py-10">
                 {/* Hero / Welcome Section */}
@@ -151,15 +151,15 @@ export default function DashboardPage() {
                         <div className="text-sm font-medium text-blue-600 mb-1">
                             {time.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                         </div>
-                        <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 leading-tight">
+                        <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight">
                             {getGreeting()}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">{user.name || user.username}</span>!
                         </h1>
-                        <p className="text-gray-500 mt-2 max-w-xl">
+                        <p className="text-gray-500 dark:text-slate-400 mt-2 max-w-xl">
                             Selamat datang kembali di panel kontrol Anda. Berikut adalah ringkasan aktivitas dan menu pintas untuk hari ini.
                         </p>
                     </div>
                     {/* Jam Digital Simpel */}
-                    <div className="text-3xl font-mono text-gray-300 font-bold select-none hidden md:block">
+                    <div className="text-3xl font-mono text-gray-300 dark:text-slate-600 font-bold select-none hidden md:block">
                         {time.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                 </div>

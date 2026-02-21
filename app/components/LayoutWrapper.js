@@ -14,7 +14,7 @@ export default function LayoutWrapper({ children }) {
   const showFooter = !noFooterPages.includes(pathname);
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen dark:bg-slate-900">
       <main className="flex-grow">
         {children}
       </main>

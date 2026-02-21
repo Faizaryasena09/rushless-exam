@@ -61,7 +61,7 @@ const JoditEditorWithUpload = ({ value, onBlur }) => {
                 onBlur={newContent => onBlur(newContent)}
             />
             <div className="mt-2">
-                <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-md border border-slate-300">
+                <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600">
                     <Icons.Upload />
                     Upload Image
                     <input
@@ -163,7 +163,7 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Question</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Question</label>
                 <JoditEditorWithUpload
                     value={questionText}
                     onBlur={newContent => setQuestionText(newContent)}
@@ -172,7 +172,7 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
             {options.map((opt, index) => (
                 <div key={opt.id} className="space-y-1">
                     <div className="flex justify-between items-center">
-                        <label className="text-sm font-medium text-slate-700">Option {opt.key}</label>
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Option {opt.key}</label>
                         {options.length > 2 && (
                             <button type="button" onClick={() => removeOption(opt.id)} className="p-1 text-red-500 hover:bg-red-100 rounded-full" title={`Remove option ${opt.key}`}>
                                 <Icons.Trash />
@@ -186,21 +186,21 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                 </div>
             ))}
             <div className="text-left pt-2">
-                <button type="button" onClick={addOption} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 rounded-md">
+                <button type="button" onClick={addOption} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-700 rounded-md">
                     <Icons.Plus /> Add Option
                 </button>
             </div>
             <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Correct Answer</label>
-                <select value={correctOption} onChange={(e) => setCorrectOption(e.target.value)} className="w-full p-2 border border-slate-300 rounded-md bg-white">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Correct Answer</label>
+                <select value={correctOption} onChange={(e) => setCorrectOption(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-100">
                     {options.map(opt => (
                         <option key={opt.id} value={opt.key}>{opt.key}</option>
                     ))}
                 </select>
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
             <div className="text-right">
-                <button type="submit" disabled={loading} className="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg disabled:bg-indigo-300">
+                <button type="submit" disabled={loading} className="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 text-white text-sm font-semibold rounded-lg disabled:bg-indigo-300">
                     <Icons.Plus /> {loading ? 'Adding...' : 'Add Question'}
                 </button>
             </div>
@@ -287,12 +287,12 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-100 z-50">
-            <div className="bg-white shadow-2xl flex flex-col h-full">
+        <div className="fixed inset-0 bg-slate-100 dark:bg-slate-900 z-50">
+            <div className="bg-white dark:bg-slate-800 shadow-2xl flex flex-col h-full">
                 {/* Header */}
-                <div className="flex justify-between items-center p-4 border-b border-slate-200">
-                    <h2 className="text-xl font-bold text-slate-800">Edit Question</h2>
-                    <button onClick={onCancel} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors">
+                <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700">
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Edit Question</h2>
+                    <button onClick={onCancel} className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
                         <Icons.Close />
                     </button>
                 </div>
@@ -300,8 +300,8 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                 {/* Main Content (Scrollable) */}
                 <div className="flex-grow overflow-y-auto p-6 space-y-8">
                     {/* Question Editor */}
-                    <div className="bg-white p-6 rounded-xl border border-slate-200">
-                        <label className="block text-lg font-semibold text-slate-800 mb-3">Question</label>
+                    <div className="bg-white dark:bg-slate-700 p-6 rounded-xl border border-slate-200 dark:border-slate-600">
+                        <label className="block text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Question</label>
                         <JoditEditorWithUpload
                             value={questionText}
                             onBlur={newContent => setQuestionText(newContent)}
@@ -309,18 +309,18 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                     </div>
 
                     {/* Options Section */}
-                    <div className="bg-white p-6 rounded-xl border border-slate-200">
+                    <div className="bg-white dark:bg-slate-700 p-6 rounded-xl border border-slate-200 dark:border-slate-600">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold text-slate-800">Options</h3>
-                            <button type="button" onClick={addOption} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 rounded-md">
+                            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Options</h3>
+                            <button type="button" onClick={addOption} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-600 rounded-md">
                                 <Icons.Plus /> Add Option
                             </button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {options.map((opt) => (
-                                <div key={opt.id} className="space-y-2 border border-slate-200 rounded-lg p-4">
+                                <div key={opt.id} className="space-y-2 border border-slate-200 dark:border-slate-600 rounded-lg p-4 bg-slate-50 dark:bg-slate-600">
                                     <div className="flex justify-between items-center">
-                                        <label className="font-semibold text-slate-700">Option {opt.key}</label>
+                                        <label className="font-semibold text-slate-700 dark:text-slate-200">Option {opt.key}</label>
                                         {options.length > 2 && (
                                             <button type="button" onClick={() => removeOption(opt.id)} className="p-1 text-red-500 hover:bg-red-100 rounded-full" title={`Remove option ${opt.key}`}>
                                                 <Icons.Trash />
@@ -334,22 +334,22 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                     </div>
 
                     {/* Correct Answer Section */}
-                    <div className="bg-white p-6 rounded-xl border border-slate-200">
-                        <label className="block text-lg font-semibold text-slate-800 mb-3">Correct Answer</label>
-                        <select value={correctOption} onChange={(e) => setCorrectOption(e.target.value)} className="w-full max-w-xs p-2 border border-slate-300 rounded-md bg-white text-slate-800">
+                    <div className="bg-white dark:bg-slate-700 p-6 rounded-xl border border-slate-200 dark:border-slate-600">
+                        <label className="block text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Correct Answer</label>
+                        <select value={correctOption} onChange={(e) => setCorrectOption(e.target.value)} className="w-full max-w-xs p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">
                             {options.map(opt => (
                                 <option key={opt.id} value={opt.key}>{`Option ${opt.key}`}</option>
                             ))}
                         </select>
                     </div>
 
-                    {error && <p className="text-sm text-red-600 bg-red-100 p-3 rounded-md">{error}</p>}
+                    {error && <p className="text-sm text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 p-3 rounded-md">{error}</p>}
                 </div>
 
                 {/* Footer (Action Buttons) */}
-                <div className="flex justify-end gap-4 p-4 bg-white border-t border-slate-200">
-                    <button onClick={onCancel} className="px-6 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
-                    <button onClick={handleSave} disabled={loading} className="inline-flex items-center justify-center px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg disabled:bg-indigo-300 transition-colors">
+                <div className="flex justify-end gap-4 p-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                    <button onClick={onCancel} className="px-6 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"></button>
+                    <button onClick={handleSave} disabled={loading} className="inline-flex items-center justify-center px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 text-white text-sm font-semibold rounded-lg disabled:bg-indigo-300 transition-colors">
                         {loading ? 'Saving...' : 'Save Changes'}
                     </button>
                 </div>
@@ -413,21 +413,21 @@ const ImportWordForm = ({ examId, onQuestionAdded }) => {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Select .docx or .pdf file</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Select .docx or .pdf file</label>
                 <div className="flex items-center justify-center w-full">
-                    <label className="flex flex-col w-full h-32 border-2 border-dashed border-slate-300 hover:bg-slate-50 rounded-lg cursor-pointer">
+                    <label className="flex flex-col w-full h-32 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer">
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             <Icons.Upload />
-                            <p className="text-sm text-slate-500">{file ? file.name : 'Click to upload'}</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{file ? file.name : 'Click to upload'}</p>
                         </div>
                         <input type="file" className="hidden" accept=".docx, .pdf" onChange={handleFileChange} />
                     </label>
                 </div>
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            {success && <p className="text-sm text-green-600">{success}</p>}
+            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+            {success && <p className="text-sm text-green-600 dark:text-green-400">{success}</p>}
             <div className="text-right">
-                <button type="submit" disabled={!file || loading} className="inline-flex items-center justify-center px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold rounded-lg disabled:bg-sky-300">
+                <button type="submit" disabled={!file || loading} className="inline-flex items-center justify-center px-4 py-2 bg-sky-500 hover:bg-sky-600 dark:bg-sky-700 dark:hover:bg-sky-600 text-white text-sm font-semibold rounded-lg disabled:bg-sky-300">
                     {loading ? 'Uploading...' : 'Upload & Import'}
                 </button>
             </div>
@@ -440,26 +440,26 @@ const DeleteAllModal = ({ isOpen, onClose, onConfirm, questionCount, loading }) 
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
                 <div className="flex flex-col items-center text-center">
                     <Icons.Warning />
-                    <h3 className="text-xl font-bold text-slate-800 mt-4">Hapus Semua Soal?</h3>
-                    <p className="text-slate-500 mt-2">
-                        Anda akan menghapus <span className="font-bold text-red-600">{questionCount}</span> soal.
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-4">Hapus Semua Soal?</h3>
+                    <p className="text-slate-500 dark:text-slate-400 mt-2">
+                        Anda akan menghapus <span className="font-bold text-red-600 dark:text-red-400">{questionCount}</span> soal.
                         Tindakan ini tidak bisa dibatalkan.
                     </p>
                 </div>
                 <div className="flex gap-3 mt-6">
                     <button
                         onClick={onClose}
-                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
                     >
                         Batal
                     </button>
                     <button
                         onClick={onConfirm}
                         disabled={loading}
-                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:bg-red-300"
+                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 rounded-lg transition-colors disabled:bg-red-300"
                     >
                         {loading ? 'Menghapus...' : 'Ya, Hapus Semua'}
                     </button>
@@ -510,14 +510,14 @@ const ExportModal = ({ isOpen, onClose, examId, examName }) => {
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold text-slate-800">Export Soal</h3>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600">
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Export Soal</h3>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                         <Icons.Close />
                     </button>
                 </div>
-                <p className="text-sm text-slate-500 mb-4">Pilih format export ke file Word (.docx)</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Pilih format export ke file Word (.docx)</p>
                 <div className="space-y-2">
                     {modes.map((m) => (
                         <label
@@ -545,14 +545,14 @@ const ExportModal = ({ isOpen, onClose, examId, examName }) => {
                 <div className="flex gap-3 mt-6">
                     <button
                         onClick={onClose}
-                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
                     >
                         Batal
                     </button>
                     <button
                         onClick={handleExport}
                         disabled={loading}
-                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:bg-indigo-300 inline-flex items-center justify-center gap-2"
+                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 rounded-lg transition-colors disabled:bg-indigo-300 inline-flex items-center justify-center gap-2"
                     >
                         <Icons.Download />
                         {loading ? 'Exporting...' : 'Export'}
@@ -751,12 +751,12 @@ export default function ManageQuestionsPage() {
             <div className="container mx-auto p-4 md:p-6">
                 <div className="mb-8 flex justify-between items-start">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-800">{examName ? `Manage Questions: ${examName}` : 'Manage Questions'}</h1>
-                        <p className="text-slate-500 mt-1">Exam ID: <span className="font-mono bg-slate-100 text-slate-700 px-2 py-1 rounded-md">{examId}</span></p>
+                        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">{examName ? `Manage Questions: ${examName}` : 'Manage Questions'}</h1>
+                        <p className="text-slate-500 dark:text-slate-400 mt-1">Exam ID: <span className="font-mono bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-1 rounded-md">{examId}</span></p>
                     </div>
                     <Link
                         href={`/dashboard/exams/preview/${examId}`}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all shadow-md shadow-amber-200"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 dark:bg-amber-700 dark:hover:bg-amber-600 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all shadow-md shadow-amber-200 dark:shadow-amber-900/30"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -767,14 +767,13 @@ export default function ManageQuestionsPage() {
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-1">
-                        <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 sticky top-24">
-                            <h2 className="text-xl font-bold text-slate-800 mb-4">Add Questions</h2>
-                            <div className="flex border-b border-slate-200 mb-4">
-                                <button onClick={() => setActiveTab('manual')} className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'manual' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>
-                                    Manual Input
-                                </button>
-                                <button onClick={() => setActiveTab('import')} className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'import' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>
-                                    Import from Word
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 sticky top-24">
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">Add Questions</h2>
+                        <div className="flex border-b border-slate-200 dark:border-slate-700 mb-4">
+                            <button onClick={() => setActiveTab('manual')} className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'manual' ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300'}`}>
+                                Manual Input
+                            </button>
+                            <button onClick={() => setActiveTab('import')} className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'import' ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300'}`}>
                                 </button>
                             </div>
 
@@ -783,32 +782,32 @@ export default function ManageQuestionsPage() {
                         </div>
                     </div>
                     <div className="lg:col-span-2">
-                        <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-xl font-bold text-slate-800">Existing Questions ({questions.length})</h2>
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Existing Questions ({questions.length})</h2>
                                 {questions.length > 0 && (
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => setShowExportModal(true)}
-                                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg transition-colors"
+                                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-700 border border-indigo-200 dark:border-slate-600 rounded-lg transition-colors"
                                         >
                                             <Icons.Download /> Export
                                         </button>
                                         <button
                                             onClick={() => setShowDeleteAllModal(true)}
-                                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
+                                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-slate-700 border border-red-200 dark:border-slate-600 rounded-lg transition-colors"
                                         >
                                             <Icons.TrashAll /> Hapus Semua
                                         </button>
                                     </div>
                                 )}
                             </div>
-                            {error && <p className="text-red-500 bg-red-50 p-3 rounded-md">{error}</p>}
-                            {loading ? <p className="text-slate-500 animate-pulse">Loading questions...</p> : (
+                            {error && <p className="text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/30 p-3 rounded-md">{error}</p>}
+                            {loading ? <p className="text-slate-500 dark:text-slate-400 animate-pulse">Loading questions...</p> : (
                                 <div className="space-y-2">
                                     {questions.length === 0 ? (
-                                        <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-lg">
-                                            <p className="text-slate-500">No questions have been added yet.</p>
+                                        <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-600 rounded-lg">
+                                            <p className="text-slate-500 dark:text-slate-400">No questions have been added yet.</p>
                                         </div>
                                     ) : (
                                         questions.map((q, index) => (
@@ -830,16 +829,16 @@ export default function ManageQuestionsPage() {
                                                         <div className="pt-1 flex-shrink-0 cursor-grab">
                                                             <Icons.Grip />
                                                         </div>
-                                                        <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: `<p><strong>Q${index + 1}:</strong> ${q.question_text}</p>` }} />
+                                                        <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: `<p><strong>Q${index + 1}:</strong> ${q.question_text}</p>` }} />
                                                     </div>
                                                     <div className="flex gap-2 flex-shrink-0 ml-4">
-                                                        <button onClick={() => setEditingQuestion(q)} className="text-blue-500 hover:text-blue-700 p-1 rounded-full hover:bg-blue-50"><Icons.Edit /></button>
-                                                        <button onClick={() => handleDelete(q.id)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50"><Icons.Trash /></button>
+                                                        <button onClick={() => setEditingQuestion(q)} className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 p-1 rounded-full hover:bg-blue-50 dark:hover:bg-slate-700"><Icons.Edit /></button>
+                                                        <button onClick={() => handleDelete(q.id)} className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-slate-700"><Icons.Trash /></button>
                                                     </div>
                                                 </div>
-                                                <div className="mt-2 space-y-1 text-sm prose prose-slate max-w-none ml-8">
+                                                <div className="mt-2 space-y-1 text-sm prose dark:prose-invert prose-slate max-w-none ml-8">
                                                     {Object.entries(q.options).map(([key, value]) => (
-                                                        <div key={key} className={`pl-4 ${key === q.correct_option ? 'font-bold text-green-700' : 'text-slate-600'}`} dangerouslySetInnerHTML={{ __html: `${key}. ${value} ${key === q.correct_option ? '✓' : ''}` }} />
+                                                        <div key={key} className={`pl-4 ${key === q.correct_option ? 'font-bold text-green-700 dark:text-green-400' : 'text-slate-600 dark:text-slate-400'}`} dangerouslySetInnerHTML={{ __html: `${key}. ${value} ${key === q.correct_option ? '✓' : ''}` }} />
                                                     ))}
                                                 </div>
                                             </div>
@@ -851,7 +850,7 @@ export default function ManageQuestionsPage() {
                     </div>
                 </div>
                 <div className="mt-8">
-                    <Link href={`/dashboard/exams/manage/${examId}`} className="text-indigo-600 hover:text-indigo-800 transition-colors">
+                    <Link href={`/dashboard/exams/manage/${examId}`} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors">
                         &larr; Back to Exam Settings
                     </Link>
                 </div>

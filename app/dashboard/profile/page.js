@@ -170,33 +170,33 @@ export default function ProfilePage() {
                     </svg>
                 </div>
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Profil Saya</h1>
-                    <p className="text-sm text-slate-500">Kelola informasi akun Anda</p>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Profil Saya</h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Kelola informasi akun Anda</p>
                 </div>
             </div>
 
             {/* Profile Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
                 <div className="h-24 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
                 <div className="px-6 pb-6 -mt-12">
                     <div className="flex flex-col sm:flex-row sm:items-end gap-4">
                         <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-[3px] shadow-xl shadow-purple-500/20">
-                            <div className="h-full w-full rounded-[13px] bg-white flex items-center justify-center">
+                            <div className="h-full w-full rounded-[13px] bg-white dark:bg-slate-800 flex items-center justify-center">
                                 <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 to-purple-600">
                                     {getInitials(profile?.name || profile?.username)}
                                 </span>
                             </div>
                         </div>
                         <div className="flex-1 pb-1">
-                            <h2 className="text-xl font-bold text-slate-900">{profile?.name || profile?.username}</h2>
-                            <p className="text-sm text-slate-500">@{profile?.username}</p>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{profile?.name || profile?.username}</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">@{profile?.username}</p>
                         </div>
                         <div className="flex items-center gap-2 pb-1">
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${getRoleBadge(profile?.role)}`}>
                                 {profile?.role?.charAt(0).toUpperCase() + profile?.role?.slice(1)}
                             </span>
                             {profile?.class_name && (
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200">
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 ring-1 ring-inset ring-slate-200 dark:ring-slate-600">
                                     {profile.class_name}
                                 </span>
                             )}
@@ -205,7 +205,7 @@ export default function ProfilePage() {
 
                     {/* Info Grid */}
                     <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
                             <div className="p-2 bg-indigo-100 rounded-lg">
                                 <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -213,10 +213,10 @@ export default function ProfilePage() {
                             </div>
                             <div>
                                 <p className="text-[10px] uppercase tracking-wider font-medium text-slate-400">Username</p>
-                                <p className="text-sm font-semibold text-slate-700">{profile?.username}</p>
+                                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{profile?.username}</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
                             <div className="p-2 bg-purple-100 rounded-lg">
                                 <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -224,10 +224,10 @@ export default function ProfilePage() {
                             </div>
                             <div>
                                 <p className="text-[10px] uppercase tracking-wider font-medium text-slate-400">Role</p>
-                                <p className="text-sm font-semibold text-slate-700 capitalize">{profile?.role}</p>
+                                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 capitalize">{profile?.role}</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
                             <div className="p-2 bg-pink-100 rounded-lg">
                                 <svg className="w-4 h-4 text-pink-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -247,9 +247,9 @@ export default function ProfilePage() {
             {/* Forms Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Change Password */}
-                <div className="relative bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+                <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 p-6">
                     {!permissions.can_change_password && (
-                        <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-6">
+                        <div className="absolute inset-0 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-6">
                             <div className="p-3 bg-slate-100 rounded-full mb-3">
                                 <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -266,8 +266,8 @@ export default function ProfilePage() {
                             </svg>
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-slate-900">Ganti Password</h3>
-                            <p className="text-xs text-slate-500">Pastikan password baru kuat dan mudah diingat</p>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Ganti Password</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Pastikan password baru kuat dan mudah diingat</p>
                         </div>
                     </div>
 
@@ -287,13 +287,13 @@ export default function ProfilePage() {
 
                     <form onSubmit={handleChangePassword} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Password Saat Ini</label>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Password Saat Ini</label>
                             <div className="relative">
                                 <input
                                     type={showCurrentPw ? 'text' : 'password'}
                                     value={currentPasswordPw}
                                     onChange={(e) => setCurrentPasswordPw(e.target.value)}
-                                    className="w-full px-4 py-2.5 pr-10 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                    className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                                     placeholder="Masukkan password saat ini"
                                     required
                                 />
@@ -303,13 +303,13 @@ export default function ProfilePage() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Password Baru</label>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Password Baru</label>
                             <div className="relative">
                                 <input
                                     type={showNewPw ? 'text' : 'password'}
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
-                                    className="w-full px-4 py-2.5 pr-10 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                    className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                                     placeholder="Masukkan password baru"
                                     required
                                 />
@@ -319,13 +319,13 @@ export default function ProfilePage() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Konfirmasi Password Baru</label>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Konfirmasi Password Baru</label>
                             <div className="relative">
                                 <input
                                     type={showConfirmPw ? 'text' : 'password'}
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="w-full px-4 py-2.5 pr-10 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                    className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                                     placeholder="Ulangi password baru"
                                     required
                                 />
@@ -355,9 +355,9 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Change Username */}
-                <div className="relative bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+                <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 p-6">
                     {!permissions.can_change_username && (
-                        <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-6">
+                        <div className="absolute inset-0 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-6">
                             <div className="p-3 bg-slate-100 rounded-full mb-3">
                                 <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -374,8 +374,8 @@ export default function ProfilePage() {
                             </svg>
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-slate-900">Ganti Username</h3>
-                            <p className="text-xs text-slate-500">Username digunakan untuk login ke akun Anda</p>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Ganti Username</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Username digunakan untuk login ke akun Anda</p>
                         </div>
                     </div>
 
@@ -395,34 +395,34 @@ export default function ProfilePage() {
 
                     <form onSubmit={handleChangeUsername} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Username Saat Ini</label>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Username Saat Ini</label>
                             <input
                                 type="text"
                                 value={profile?.username || ''}
                                 disabled
-                                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
+                                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Username Baru</label>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Username Baru</label>
                             <input
                                 type="text"
                                 value={newUsername}
                                 onChange={(e) => setNewUsername(e.target.value)}
-                                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                                 placeholder="Masukkan username baru"
                                 required
                                 minLength={3}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Password (Konfirmasi)</label>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Password (Konfirmasi)</label>
                             <div className="relative">
                                 <input
                                     type={showCurrentPwUn ? 'text' : 'password'}
                                     value={currentPasswordUn}
                                     onChange={(e) => setCurrentPasswordUn(e.target.value)}
-                                    className="w-full px-4 py-2.5 pr-10 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                    className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                                     placeholder="Masukkan password untuk konfirmasi"
                                     required
                                 />
@@ -450,7 +450,7 @@ export default function ProfilePage() {
                         </button>
                     </form>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

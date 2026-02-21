@@ -94,34 +94,34 @@ export default function TeachersClassesPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-slate-500">Loading...</div>;
+    if (loading) return <div className="p-8 text-center text-slate-500 dark:text-slate-400">Loading...</div>;
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-slate-900">Manage Teacher Classes</h1>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Manage Teacher Classes</h1>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                    <thead className="bg-slate-50 dark:bg-slate-700/50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Teacher</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Assigned Classes</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Action</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Teacher</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Assigned Classes</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Action</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-slate-200">
+                    <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
                         {teachers.map(teacher => (
-                            <tr key={teacher.id} className="hover:bg-slate-50">
+                            <tr key={teacher.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
-                                        <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
+                                        <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 dark:bg-indigo-900/40 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                                             <Icons.User />
                                         </div>
                                         <div className="ml-4">
-                                            <div className="text-sm font-medium text-slate-900">{teacher.name || teacher.username}</div>
-                                            {teacher.name && <div className="text-xs text-slate-500">@{teacher.username}</div>}
+                                            <div className="text-sm font-medium text-slate-900 dark:text-white">{teacher.name || teacher.username}</div>
+                                            {teacher.name && <div className="text-xs text-slate-500 dark:text-slate-400">@{teacher.username}</div>}
                                         </div>
                                     </div>
                                 </td>
@@ -131,18 +131,18 @@ export default function TeachersClassesPage() {
                                             teacher.assigned_classes.map(cId => {
                                                 const cls = allClasses.find(c => c.id === cId);
                                                 return cls ? (
-                                                    <span key={cId} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                                    <span key={cId} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400">
                                                         {cls.class_name}
                                                     </span>
                                                 ) : null;
                                             })
                                         ) : (
-                                            <span className="text-sm text-slate-400 italic">No classes assigned</span>
+                                            <span className="text-sm text-slate-400 dark:text-slate-500 italic">No classes assigned</span>
                                         )}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button onClick={() => openModal(teacher)} className="text-indigo-600 hover:text-indigo-900 font-semibold">
+                                    <button onClick={() => openModal(teacher)} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 font-semibold">
                                         Edit Assignment
                                     </button>
                                 </td>
@@ -160,36 +160,36 @@ export default function TeachersClassesPage() {
 
                         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                        <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full relative z-50">
-                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div className="inline-block align-bottom bg-white dark:bg-slate-800 rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full relative z-50">
+                            <div className="bg-white dark:bg-slate-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                                 <div className="sm:flex sm:items-start">
                                     <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                                        <h3 className="text-lg leading-6 font-medium text-slate-900" id="modal-title">
-                                            Assign Classes for <span className="font-bold text-indigo-600">{selectedTeacher.name || selectedTeacher.username}</span>
+                                        <h3 className="text-lg leading-6 font-medium text-slate-900 dark:text-white" id="modal-title">
+                                            Assign Classes for <span className="font-bold text-indigo-600 dark:text-indigo-400">{selectedTeacher.name || selectedTeacher.username}</span>
                                         </h3>
-                                        <div className="mt-4 max-h-60 overflow-y-auto border border-slate-100 rounded-lg p-2">
+                                        <div className="mt-4 max-h-60 overflow-y-auto border border-slate-100 dark:border-slate-700 rounded-lg p-2">
                                             <div className="grid grid-cols-2 gap-2">
                                                 {allClasses.map(cls => (
-                                                    <label key={cls.id} className={`flex items-center p-3 rounded-lg cursor-pointer border transition-all ${tempSelectedClasses.includes(cls.id) ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                                                    <label key={cls.id} className={`flex items-center p-3 rounded-lg cursor-pointer border transition-all ${tempSelectedClasses.includes(cls.id) ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-700' : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}`}>
                                                         <input
                                                             type="checkbox"
-                                                            className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                                                            className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300 dark:border-slate-500 dark:bg-slate-600"
                                                             checked={tempSelectedClasses.includes(cls.id)}
                                                             onChange={() => toggleClass(cls.id)}
                                                         />
-                                                        <span className="ml-2 text-sm text-slate-700 font-medium">{cls.class_name}</span>
+                                                        <span className="ml-2 text-sm text-slate-700 dark:text-slate-300 font-medium">{cls.class_name}</span>
                                                     </label>
                                                 ))}
                                             </div>
-                                            {allClasses.length === 0 && <p className="text-sm text-slate-500">No classes found in the system.</p>}
+                                            {allClasses.length === 0 && <p className="text-sm text-slate-500 dark:text-slate-400">No classes found in the system.</p>}
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div className="bg-slate-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                            <div className="bg-slate-50 dark:bg-slate-700/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                                 <button
                                     type="button"
-                                    className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:bg-indigo-300"
+                                    className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:bg-indigo-300 dark:disabled:bg-indigo-800"
                                     onClick={handleSave}
                                     disabled={saving}
                                 >
@@ -197,7 +197,7 @@ export default function TeachersClassesPage() {
                                 </button>
                                 <button
                                     type="button"
-                                    className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                                    className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 dark:border-slate-600 shadow-sm px-4 py-2 bg-white dark:bg-slate-700 text-base font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                                     onClick={closeModal}
                                     disabled={saving}
                                 >

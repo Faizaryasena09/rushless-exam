@@ -95,11 +95,11 @@ export default function ExamResultsPage() {
     };
 
     if (loading) {
-        return <div className="text-center py-20"><p className="text-lg font-semibold text-slate-600 animate-pulse">Loading Results...</p></div>;
+        return <div className="text-center py-20"><p className="text-lg font-semibold text-slate-600 dark:text-slate-400 animate-pulse">Loading Results...</p></div>;
     }
 
     if (error) {
-        return <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 font-medium text-center">Error: {error}</div>;
+        return <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 font-medium text-center">Error: {error}</div>;
     }
 
     return (
@@ -107,52 +107,52 @@ export default function ExamResultsPage() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                 <div>
-                    <Link href="/dashboard/exams" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 mb-2 transition-colors">
+                    <Link href="/dashboard/exams" className="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300 mb-2 transition-colors">
                         <Icons.ArrowLeft />
                         Back to Exams
                     </Link>
-                    <h1 className="text-3xl font-bold text-slate-900">{resultsData.examName}</h1>
-                    <p className="text-sm text-slate-500 mt-1">Select a student who completed the exam to view their analysis.</p>
+                    <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{resultsData.examName}</h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Select a student who completed the exam to view their analysis.</p>
                 </div>
                 <div className="flex gap-4">
                     <button
                         onClick={() => setShowExportModal(true)}
-                        className="p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm flex items-center gap-2 transition-colors"
+                        className="p-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 text-white rounded-xl shadow-sm flex items-center gap-2 transition-colors"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                         <span className="font-semibold hidden md:inline">Export Results</span>
                     </button>
 
-                    <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center gap-3">
-                        <Icons.UserGroup className="text-slate-400" />
+                    <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-3">
+                        <Icons.UserGroup className="text-slate-400 dark:text-slate-500" />
                         <div>
-                            <div className="text-xs text-slate-500">Total Students</div>
-                            <div className="text-base font-bold text-slate-800">{resultsData.results.length}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">Total Students</div>
+                            <div className="text-base font-bold text-slate-800 dark:text-slate-100">{resultsData.results.length}</div>
                         </div>
                     </div>
-                    <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center gap-3">
-                        <Icons.ClipboardList className="text-slate-400" />
+                    <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-3">
+                        <Icons.ClipboardList className="text-slate-400 dark:text-slate-500" />
                         <div>
-                            <div className="text-xs text-slate-500">Total Questions</div>
-                            <div className="text-base font-bold text-slate-800">{resultsData.totalQuestions}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">Total Questions</div>
+                            <div className="text-base font-bold text-slate-800 dark:text-slate-100">{resultsData.totalQuestions}</div>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Filter Controls */}
-            <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
+            <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row gap-4">
                 <input
                     type="text"
                     placeholder="Filter by name..."
                     value={nameFilter}
                     onChange={(e) => setNameFilter(e.target.value)}
-                    className="w-full md:w-1/3 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                    className="w-full md:w-1/3 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 transition"
                 />
                 <select
                     value={classFilter}
                     onChange={(e) => setClassFilter(e.target.value)}
-                    className="w-full md:w-auto px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition bg-white"
+                    className="w-full md:w-auto px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 transition"
                 >
                     {classOptions.map(c => (
                         <option key={c} value={c}>{c === 'all' ? 'All Classes' : c}</option>
@@ -161,16 +161,16 @@ export default function ExamResultsPage() {
             </div>
 
             {/* Results Table */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                 {filteredResults.length === 0 ? (
                     <div className="text-center py-20">
-                        <h3 className="text-lg font-semibold text-slate-800">No Matching Results</h3>
-                        <p className="mt-1 text-sm text-slate-500">Try adjusting your filters.</p>
+                        <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">No Matching Results</h3>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Try adjusting your filters.</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left text-slate-500">
-                            <thead className="text-xs text-slate-700 uppercase bg-slate-50/50">
+                        <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
+                            <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-50/50 dark:bg-slate-700/30">
                                 <tr>
                                     <th scope="col" className="px-6 py-3">Student Name</th>
                                     <th scope="col" className="px-6 py-3">Class</th>
@@ -206,24 +206,24 @@ export default function ExamResultsPage() {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-center font-semibold">
-                                                {isCompleted ? <span className="text-slate-600">{student.attempts.length}</span> : '-'}
+                                                {isCompleted ? <span className="text-slate-600 dark:text-slate-300">{student.attempts.length}</span> : '-'}
                                             </td>
                                             <td className="px-6 py-4 text-center font-semibold">
-                                                {isCompleted ? <span className="text-emerald-600">{student.correctCount}</span> : '-'}
+                                                {isCompleted ? <span className="text-emerald-600 dark:text-emerald-400">{student.correctCount}</span> : '-'}
                                             </td>
                                             <td className="px-6 py-4 text-center font-semibold">
-                                                {isCompleted ? <span className="text-red-600">{student.incorrectCount}</span> : '-'}
+                                                {isCompleted ? <span className="text-red-600 dark:text-red-400">{student.incorrectCount}</span> : '-'}
                                             </td>
                                             <td className="px-6 py-4 text-center font-semibold">
-                                                {isCompleted ? <span className="text-slate-500">{student.notAnsweredCount}</span> : '-'}
+                                                {isCompleted ? <span className="text-slate-500 dark:text-slate-400">{student.notAnsweredCount}</span> : '-'}
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 {isCompleted ? (
-                                                    <span className={`font-bold text-base px-2 py-1 rounded-md ${getScoreColor(student.bestScore)}`}>
+                                                    <span className={`font-bold text-base px-2 py-1 rounded-md ${student.bestScore >= 80 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30' : student.bestScore >= 60 ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30' : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30'}`}>
                                                         {student.bestScore}%
                                                     </span>
                                                 ) : (
-                                                    <span className="font-bold text-slate-500">-</span>
+                                                    <span className="font-bold text-slate-500 dark:text-slate-400">-</span>
                                                 )}
                                             </td>
                                         </tr>
@@ -277,18 +277,18 @@ function StudentAnalysisDetail({ student, onClose }) {
     }
 
     return (
-        <div className="space-y-4 fixed inset-0 bg-black bg-opacity-30 z-50 flex justify-center items-start p-4 pt-16" onClick={onClose}>
-            <div className="relative w-full max-w-7xl max-h-[80vh] bg-white rounded-2xl shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
-                <div className="p-6 border-b border-slate-200 sticky top-0 bg-white rounded-t-2xl">
-                    <h2 className="text-2xl font-bold text-slate-900">Attempt History for {student.studentName}</h2>
-                    <p className="text-sm text-slate-500">Showing all completed attempts. Click an attempt to see details or logs.</p>
-                    <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 transition-colors">
-                        <svg className="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        <div className="space-y-4 fixed inset-0 bg-black bg-opacity-30 dark:bg-opacity-50 z-50 flex justify-center items-start p-4 pt-16" onClick={onClose}>
+            <div className="relative w-full max-w-7xl max-h-[80vh] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 rounded-t-2xl">
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Attempt History for {student.studentName}</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Showing all completed attempts. Click an attempt to see details or logs.</p>
+                    <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                        <svg className="w-6 h-6 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
                 <div className="overflow-y-auto">
-                    <table className="w-full text-sm text-left text-slate-500">
-                        <thead className="text-xs text-slate-700 uppercase bg-slate-50/50 sticky top-0">
+                    <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
+                        <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-50/50 dark:bg-slate-700/30 sticky top-0">
                             <tr>
                                 <th scope="col" className="px-6 py-3 text-center">Attempt</th>
                                 <th scope="col" className="px-6 py-3 text-center">Score</th>
@@ -300,22 +300,22 @@ function StudentAnalysisDetail({ student, onClose }) {
                                 <th scope="col" className="px-6 py-3">End Time</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
+                        <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
                             {student.attempts.map((attempt, index) => (
-                                <tr key={attempt.attemptId} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedAttemptId(attempt.attemptId)}>
-                                    <td className="px-6 py-4 text-center font-bold text-slate-700">{index + 1}</td>
+                                <tr key={attempt.attemptId} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer" onClick={() => setSelectedAttemptId(attempt.attemptId)}>
+                                    <td className="px-6 py-4 text-center font-bold text-slate-700 dark:text-slate-300">{index + 1}</td>
                                     <td className="px-6 py-4 text-center">
-                                        <span className={`font-bold text-base px-2 py-1 rounded-md ${getScoreColor(attempt.score)}`}>
+                                        <span className={`font-bold text-base px-2 py-1 rounded-md ${attempt.score >= 80 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30' : attempt.score >= 60 ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30' : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30'}`}>
                                             {Math.round(attempt.score)}%
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-center font-semibold text-emerald-600">{attempt.correctCount}</td>
-                                    <td className="px-6 py-4 text-center font-semibold text-red-600">{attempt.incorrectCount}</td>
-                                    <td className="px-6 py-4 text-center font-semibold text-slate-500">{attempt.notAnsweredCount}</td>
+                                    <td className="px-6 py-4 text-center font-semibold text-emerald-600 dark:text-emerald-400">{attempt.correctCount}</td>
+                                    <td className="px-6 py-4 text-center font-semibold text-red-600 dark:text-red-400">{attempt.incorrectCount}</td>
+                                    <td className="px-6 py-4 text-center font-semibold text-slate-500 dark:text-slate-400">{attempt.notAnsweredCount}</td>
                                     <td className="px-6 py-4 text-center">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setAttemptIdForLog(attempt.attemptId); }}
-                                            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition-all text-xs"
+                                            className="px-3 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-bold rounded-lg transition-all text-xs"
                                         >
                                             View Logs
                                         </button>
@@ -362,38 +362,38 @@ function LogViewerModal({ attemptId, studentName, onClose }) {
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex justify-center items-center p-4" onClick={onClose}>
-            <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div className="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-700/30">
                     <div>
-                        <h3 className="text-xl font-bold text-slate-900">Activity Logs</h3>
-                        <p className="text-xs text-slate-500 font-medium">Student: {studentName} (Attempt #{attemptId})</p>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Activity Logs</h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Student: {studentName} (Attempt #{attemptId})</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition-colors border border-transparent hover:border-slate-200 shadow-sm">
-                        <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    <button onClick={onClose} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-full transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-600 shadow-sm">
+                        <svg className="w-5 h-5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-slate-50/30">
+                <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-slate-50/30 dark:bg-slate-900/30">
                     {loading ? (
-                        <div className="text-center py-10 animate-pulse text-slate-400 font-medium">Fetching logs...</div>
+                        <div className="text-center py-10 animate-pulse text-slate-400 dark:text-slate-500 font-medium">Fetching logs...</div>
                     ) : logs.length === 0 ? (
-                        <div className="text-center py-10 text-slate-400 font-medium italic">No logs found for this attempt.</div>
+                        <div className="text-center py-10 text-slate-400 dark:text-slate-500 font-medium italic">No logs found for this attempt.</div>
                     ) : (
                         logs.map((log) => (
-                            <div key={log.id} className={`flex gap-4 p-3 rounded-xl border shadow-sm transition-all ${log.action_type === 'SECURITY' ? 'bg-red-50 border-red-100 hover:bg-red-100/50' : 'bg-white border-slate-100 hover:border-slate-200'}`}>
+                            <div key={log.id} className={`flex gap-4 p-3 rounded-xl border shadow-sm transition-all ${log.action_type === 'SECURITY' ? 'bg-red-50 dark:bg-red-900/30 border-red-100 dark:border-red-800 hover:bg-red-100/50 dark:hover:bg-red-900/50' : 'bg-white dark:bg-slate-700 border-slate-100 dark:border-slate-600 hover:border-slate-200 dark:hover:border-slate-500'}`}>
                                 <div className="flex-shrink-0 pt-1">
                                     {log.action_type === 'SECURITY' ? (
-                                        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                                        <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/50 flex items-center justify-center text-red-600 dark:text-red-400">
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                                         </div>
                                     ) : (
-                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-[10px] font-bold">
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 text-[10px] font-bold">
                                             {log.action_type.substring(0, 3)}
                                         </div>
                                     )}
                                 </div>
                                 <div>
-                                    <p className={`text-sm font-semibold ${log.action_type === 'SECURITY' ? 'text-red-900' : 'text-slate-800'}`}>{log.description}</p>
-                                    <p className="text-[10px] font-mono text-slate-400 mt-1">{new Date(log.created_at).toLocaleString()}</p>
+                                    <p className={`text-sm font-semibold ${log.action_type === 'SECURITY' ? 'text-red-900 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>{log.description}</p>
+                                    <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-1">{new Date(log.created_at).toLocaleString()}</p>
                                 </div>
                             </div>
                         ))
@@ -431,36 +431,36 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
     }, [attemptId]);
 
     return (
-        <div className="space-y-4 fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center p-4" onClick={onClose}>
-            <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
-                <div className="p-6 border-b border-slate-200 sticky top-0 bg-white rounded-t-2xl">
-                    <h2 className="text-2xl font-bold text-slate-900">Analysis for {studentName}</h2>
-                    <p className="text-sm text-slate-500">Review of all questions and answers for this attempt.</p>
-                    <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 transition-colors">
-                        <svg className="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        <div className="space-y-4 fixed inset-0 bg-black bg-opacity-70 dark:bg-opacity-75 z-50 flex justify-center items-center p-4" onClick={onClose}>
+            <div className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 rounded-t-2xl">
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Analysis for {studentName}</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Review of all questions and answers for this attempt.</p>
+                    <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                        <svg className="w-6 h-6 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
 
-                {loading && <div className="text-center p-20">Loading analysis...</div>}
-                {error && <div className="text-center p-20 text-red-500">Error: {error}</div>}
+                {loading && <div className="text-center p-20 text-slate-600 dark:text-slate-400">Loading analysis...</div>}
+                {error && <div className="text-center p-20 text-red-500 dark:text-red-400">Error: {error}</div>}
 
                 {analysis && (
                     <div className="p-6 space-y-4 overflow-y-auto">
                         {analysis.map((ans, index) => (
-                            <div key={ans.questionId} className="p-4 border rounded-xl bg-slate-50/50">
+                            <div key={ans.questionId} className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50/50 dark:bg-slate-700/30">
                                 <div className="flex items-start justify-between gap-4">
-                                    <div className="font-semibold text-slate-800 flex-1">
+                                    <div className="font-semibold text-slate-800 dark:text-slate-100 flex-1">
                                         <span className="font-bold mr-2">{index + 1}.</span>
                                         <div className="inline-block" dangerouslySetInnerHTML={{ __html: ans.questionText }} />
                                     </div>
                                     {ans.isCorrect ? <Icons.CheckCircle /> : (ans.studentAnswer ? <Icons.XCircle /> : <Icons.MinusCircle />)}
                                 </div>
-                                <div className="mt-3 pl-6 border-l-2 ml-2 space-y-2">
-                                    <p className={`text-sm font-medium ${ans.isCorrect ? 'text-emerald-700' : 'text-red-700'}`}>
+                                <div className="mt-3 pl-6 border-l-2 border-slate-300 dark:border-slate-600 ml-2 space-y-2">
+                                    <p className={`text-sm font-medium ${ans.isCorrect ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
                                         Your Answer: <span className="font-bold">{ans.studentAnswer || 'Not Answered'}</span>
                                     </p>
                                     {!ans.isCorrect && (
-                                        <p className="text-sm font-medium text-slate-600">
+                                        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
                                             Correct Answer: <span className="font-bold">{ans.correctAnswer}</span>
                                         </p>
                                     )}
@@ -480,37 +480,37 @@ function ExportOptionsModal({ onClose, onExport }) {
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex justify-center items-center p-4" onClick={onClose}>
-            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
-                <h3 className="text-xl font-bold text-slate-900 mb-4">Export Results</h3>
-                <p className="text-sm text-slate-500 mb-6">Select how you want to export the exam data to Excel.</p>
+            <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-4">Export Results</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Select how you want to export the exam data to Excel.</p>
 
                 <div className="space-y-3 mb-8">
-                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${mode === 'all' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-200'}`}>
+                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${mode === 'all' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-600'}`}>
                         <input type="radio" name="exportMode" value="all" checked={mode === 'all'} onChange={() => setMode('all')} className="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
                         <div className="ml-3">
-                            <div className="font-semibold text-slate-800">All Attempts</div>
-                            <div className="text-xs text-slate-500">Export every single attempt made by users</div>
+                            <div className="font-semibold text-slate-800 dark:text-slate-100">All Attempts</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">Export every single attempt made by users</div>
                         </div>
                     </label>
-                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${mode === 'best' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-200'}`}>
+                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${mode === 'best' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-600'}`}>
                         <input type="radio" name="exportMode" value="best" checked={mode === 'best'} onChange={() => setMode('best')} className="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
                         <div className="ml-3">
-                            <div className="font-semibold text-slate-800">Best Attempt Only</div>
-                            <div className="text-xs text-slate-500">Export only the highest score per user</div>
+                            <div className="font-semibold text-slate-800 dark:text-slate-100">Best Attempt Only</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">Export only the highest score per user</div>
                         </div>
                     </label>
-                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${mode === 'latest' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-200'}`}>
+                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${mode === 'latest' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-600'}`}>
                         <input type="radio" name="exportMode" value="latest" checked={mode === 'latest'} onChange={() => setMode('latest')} className="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
                         <div className="ml-3">
-                            <div className="font-semibold text-slate-800">Latest Attempt Only</div>
-                            <div className="text-xs text-slate-500">Export only the most recent submission</div>
+                            <div className="font-semibold text-slate-800 dark:text-slate-100">Latest Attempt Only</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">Export only the most recent submission</div>
                         </div>
                     </label>
                 </div>
 
                 <div className="flex justify-end gap-3">
-                    <button onClick={onClose} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-50 rounded-lg">Cancel</button>
-                    <button onClick={() => onExport(mode)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-sm">
+                    <button onClick={onClose} className="px-4 py-2 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors">Cancel</button>
+                    <button onClick={() => onExport(mode)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 text-white font-medium rounded-lg shadow-sm transition-colors">
                         Download Excel
                     </button>
                 </div>

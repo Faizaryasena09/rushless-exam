@@ -83,7 +83,7 @@ function RealtimeChart({ data, maxValue = 100, height = 120, color = '#6366f1', 
                     const y = padding.top + chartH - (pct / 100) * chartH;
                     return (
                         <g key={pct}>
-                            <line x1={padding.left} y1={y} x2={w - padding.right} y2={y} stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="4,4" />
+                            <line x1={padding.left} y1={y} x2={w - padding.right} y2={y} stroke="#e2e8f0" strokeWidth="0.5" strokeDasharray="4,4" className="dark:stroke-slate-700" />
                             <text x={w - padding.right - 2} y={y - 2} fill="#94a3b8" fontSize="7" textAnchor="end">{pct}{unit}</text>
                         </g>
                     );
@@ -151,6 +151,7 @@ function GaugeChart({ value, maxValue = 100, size = 100, color = '#6366f1', labe
                     stroke="#e2e8f0"
                     strokeWidth="8"
                     strokeLinecap="round"
+                    className="dark:stroke-slate-700"
                 />
                 {/* Progress arc */}
                 <path
@@ -187,13 +188,13 @@ function CoreBar({ index, value }) {
     return (
         <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400 w-6 font-mono">{index}</span>
-            <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div
                     className={`h-full rounded-full transition-all duration-500 ${getColor(value)}`}
                     style={{ width: `${Math.min(value, 100)}%` }}
                 />
             </div>
-            <span className="text-xs font-mono text-slate-600 w-12 text-right">{value.toFixed(1)}%</span>
+            <span className="text-xs font-mono text-slate-600 dark:text-slate-400 w-12 text-right">{value.toFixed(1)}%</span>
         </div>
     );
 }
@@ -201,12 +202,12 @@ function CoreBar({ index, value }) {
 // --- Card Components ---
 function InfoCard({ icon: Icon, title, children, className = '', live = false }) {
     return (
-        <div className={`bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden ${className}`}>
-            <div className="flex items-center gap-2 px-5 py-3 bg-slate-50 border-b border-slate-200">
-                <span className="text-indigo-600"><Icon /></span>
-                <h3 className="font-semibold text-slate-800 text-sm">{title}</h3>
+        <div className={`bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden ${className}`}>
+            <div className="flex items-center gap-2 px-5 py-3 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
+                <span className="text-indigo-600 dark:text-indigo-400"><Icon /></span>
+                <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{title}</h3>
                 {live && (
-                    <span className="ml-auto inline-flex items-center gap-1 text-xs text-emerald-600">
+                    <span className="ml-auto inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
                         <Icons.Pulse /> LIVE
                     </span>
                 )}
@@ -218,20 +219,20 @@ function InfoCard({ icon: Icon, title, children, className = '', live = false })
 
 function InfoRow({ label, value, mono = false }) {
     return (
-        <div className="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
-            <span className="text-sm text-slate-500">{label}</span>
-            <span className={`text-sm font-medium text-slate-800 ${mono ? 'font-mono' : ''}`}>{value}</span>
+        <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-700/50 last:border-0">
+            <span className="text-sm text-slate-500 dark:text-slate-400">{label}</span>
+            <span className={`text-sm font-medium text-slate-800 dark:text-slate-200 ${mono ? 'font-mono' : ''}`}>{value}</span>
         </div>
     );
 }
 
 function StatBadge({ label, value, color = 'indigo' }) {
     const colorMap = {
-        indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-        green: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        amber: 'bg-amber-50 text-amber-700 border-amber-200',
-        violet: 'bg-violet-50 text-violet-700 border-violet-200',
-        sky: 'bg-sky-50 text-sky-700 border-sky-200',
+        indigo: 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800',
+        green: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+        amber: 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800',
+        violet: 'bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-800',
+        sky: 'bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-800',
     };
     return (
         <div className={`flex flex-col items-center p-4 rounded-xl border ${colorMap[color] || colorMap.indigo}`}>
@@ -381,9 +382,9 @@ export default function WebSettingsPage() {
     if (loading && !fullData) {
         return (
             <div className="space-y-6">
-                <div className="h-8 bg-slate-200 rounded w-1/3 animate-pulse" />
+                <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-1/3 animate-pulse" />
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-52 bg-slate-100 rounded-xl animate-pulse" />)}
+                    {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-52 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />)}
                 </div>
             </div>
         );
@@ -393,7 +394,7 @@ export default function WebSettingsPage() {
         return (
             <div className="text-center py-20">
                 <div className="inline-block text-slate-400"><Icons.Shield /></div>
-                <h2 className="text-xl font-bold text-slate-800 mt-4">{error}</h2>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white mt-4">{error}</h2>
             </div>
         );
     }
@@ -416,11 +417,11 @@ export default function WebSettingsPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                         System Overview
-                        {isLive && <span className="inline-flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full"><Icons.Pulse /> LIVE</span>}
+                        {isLive && <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full"><Icons.Pulse /> LIVE</span>}
                     </h1>
-                    <p className="text-sm text-slate-500 mt-1">
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                         Real-time system monitoring &amp; server overview
                     </p>
                 </div>
@@ -428,8 +429,8 @@ export default function WebSettingsPage() {
                     <button
                         onClick={() => setIsLive(!isLive)}
                         className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg border transition-colors ${isLive
-                            ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100'
-                            : 'text-slate-500 border-slate-200 hover:bg-slate-50'
+                            ? 'text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
+                            : 'text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
                             }`}
                     >
                         <Icons.Activity />
@@ -437,7 +438,7 @@ export default function WebSettingsPage() {
                     </button>
                     <button
                         onClick={fetchFullData}
-                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg transition-colors"
                     >
                         <Icons.Refresh />
                         Refresh All
@@ -452,8 +453,8 @@ export default function WebSettingsPage() {
                     <div className="flex items-center gap-6 mb-4">
                         <GaugeChart value={cpuUsage} label="Overall" color="#6366f1" size={130} />
                         <div className="flex-1 text-center">
-                            <div className="text-4xl font-bold font-mono text-slate-800">{cpuUsage.toFixed(1)}%</div>
-                            <div className="text-sm text-slate-500 mt-1">{system?.cpu?.model}</div>
+                            <div className="text-4xl font-bold font-mono text-slate-800 dark:text-white">{cpuUsage.toFixed(1)}%</div>
+                            <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">{system?.cpu?.model}</div>
                             <div className="text-xs text-slate-400">{system?.cpu?.cores} cores @ {system?.cpu?.speed} MHz</div>
                         </div>
                     </div>
@@ -502,7 +503,7 @@ export default function WebSettingsPage() {
                 <InfoCard icon={Icons.Chart} title="Node.js Heap Memory" live={isLive}>
                     <div className="flex items-center justify-between mb-3">
                         <div>
-                            <span className="text-2xl font-bold font-mono text-slate-800">{formatBytes(currentProcess.heapUsed)}</span>
+                            <span className="text-2xl font-bold font-mono text-slate-800 dark:text-white">{formatBytes(currentProcess.heapUsed)}</span>
                             <span className="text-sm text-slate-400 ml-2">/ {formatBytes(currentProcess.heapTotal)}</span>
                         </div>
                         <Sparkline data={heapHistory.slice(-20)} color="#8b5cf6" />
@@ -521,7 +522,7 @@ export default function WebSettingsPage() {
                 <InfoCard icon={Icons.Chart} title="Process RSS Memory" live={isLive}>
                     <div className="flex items-center justify-between mb-3">
                         <div>
-                            <span className="text-2xl font-bold font-mono text-slate-800">{formatBytes(currentProcess.rss)}</span>
+                            <span className="text-2xl font-bold font-mono text-slate-800 dark:text-white">{formatBytes(currentProcess.rss)}</span>
                             <span className="text-sm text-slate-400 ml-2">Resident Set Size</span>
                         </div>
                         <Sparkline data={rssHistory.slice(-20)} color="#f59e0b" />
@@ -544,12 +545,12 @@ export default function WebSettingsPage() {
                     <div className="grid grid-cols-2 gap-6 mb-4">
                         <div className="text-center">
                             <div className="text-xs text-slate-400 mb-1">↓ Download</div>
-                            <div className="text-2xl font-bold font-mono text-cyan-600">{formatBytes(currentBw.rxPerSec)}/s</div>
+                            <div className="text-2xl font-bold font-mono text-cyan-600 dark:text-cyan-400">{formatBytes(currentBw.rxPerSec)}/s</div>
                             <div className="text-xs text-slate-400 mt-1">Total: {formatBytes(currentBw.totalReceived)}</div>
                         </div>
                         <div className="text-center">
                             <div className="text-xs text-slate-400 mb-1">↑ Upload</div>
-                            <div className="text-2xl font-bold font-mono text-rose-500">{formatBytes(currentBw.txPerSec)}/s</div>
+                            <div className="text-2xl font-bold font-mono text-rose-500 dark:text-rose-400">{formatBytes(currentBw.txPerSec)}/s</div>
                             <div className="text-xs text-slate-400 mt-1">Total: {formatBytes(currentBw.totalSent)}</div>
                         </div>
                     </div>
@@ -609,12 +610,12 @@ export default function WebSettingsPage() {
                 {/* Uptime */}
                 <InfoCard icon={Icons.Clock} title="Server Uptime" live={isLive}>
                     <div className="text-center py-4">
-                        <div className="text-3xl font-bold text-slate-800 font-mono">
+                        <div className="text-3xl font-bold text-slate-800 dark:text-white font-mono">
                             {formatUptime(currentUptime)}
                         </div>
-                        <p className="text-sm text-slate-500 mt-2">System uptime</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">System uptime</p>
                     </div>
-                    <div className="mt-2 pt-3 border-t border-slate-100">
+                    <div className="mt-2 pt-3 border-t border-slate-100 dark:border-slate-700">
                         <InfoRow label="Server Time" value={realtime?.serverTime ? new Date(realtime.serverTime).toLocaleString('id-ID') : '-'} />
                     </div>
                 </InfoCard>
@@ -637,31 +638,31 @@ export default function WebSettingsPage() {
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
-                                <tr className="border-b border-slate-200">
-                                    <th className="text-left py-2 px-3 text-slate-500 font-medium">Adapter</th>
-                                    <th className="text-left py-2 px-3 text-slate-500 font-medium">Address</th>
-                                    <th className="text-left py-2 px-3 text-slate-500 font-medium">Family</th>
-                                    <th className="text-left py-2 px-3 text-slate-500 font-medium">MAC</th>
-                                    <th className="text-left py-2 px-3 text-slate-500 font-medium">Netmask</th>
-                                    <th className="text-left py-2 px-3 text-slate-500 font-medium">CIDR</th>
-                                    <th className="text-center py-2 px-3 text-slate-500 font-medium">Scope</th>
+                                <tr className="border-b border-slate-200 dark:border-slate-700">
+                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Adapter</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Address</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Family</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">MAC</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Netmask</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">CIDR</th>
+                                    <th className="text-center py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Scope</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {system.network.map((iface, idx) => (
-                                    <tr key={idx} className={`border-b border-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
-                                        <td className="py-2 px-3 font-mono text-slate-700 font-medium text-xs">{iface.adapter}</td>
-                                        <td className="py-2 px-3 font-mono text-indigo-600 text-xs">{iface.address}</td>
+                                    <tr key={idx} className={`border-b border-slate-50 dark:border-slate-700/50 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/50 dark:bg-slate-700/30'}`}>
+                                        <td className="py-2 px-3 font-mono text-slate-700 dark:text-slate-300 font-medium text-xs">{iface.adapter}</td>
+                                        <td className="py-2 px-3 font-mono text-indigo-600 dark:text-indigo-400 text-xs">{iface.address}</td>
                                         <td className="py-2 px-3">
-                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${iface.family === 'IPv4' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${iface.family === 'IPv4' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'}`}>
                                                 {iface.family}
                                             </span>
                                         </td>
-                                        <td className="py-2 px-3 font-mono text-slate-500 text-xs">{iface.mac}</td>
-                                        <td className="py-2 px-3 font-mono text-slate-500 text-xs">{iface.netmask}</td>
-                                        <td className="py-2 px-3 font-mono text-slate-500 text-xs">{iface.cidr}</td>
+                                        <td className="py-2 px-3 font-mono text-slate-500 dark:text-slate-400 text-xs">{iface.mac}</td>
+                                        <td className="py-2 px-3 font-mono text-slate-500 dark:text-slate-400 text-xs">{iface.netmask}</td>
+                                        <td className="py-2 px-3 font-mono text-slate-500 dark:text-slate-400 text-xs">{iface.cidr}</td>
                                         <td className="py-2 px-3 text-center">
-                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${iface.internal ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${iface.internal ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'}`}>
                                                 {iface.internal ? 'Internal' : 'External'}
                                             </span>
                                         </td>
@@ -676,20 +677,20 @@ export default function WebSettingsPage() {
             {/* Maintenance */}
             <InfoCard icon={Icons.Shield} title="Maintenance">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <p className="text-sm text-slate-500 flex-1">
+                    <p className="text-sm text-slate-500 dark:text-slate-400 flex-1">
                         Jalankan database setup/migration untuk memastikan semua tabel dan kolom terbaru ada.
                     </p>
                     <button
                         onClick={handleRunSetup}
                         disabled={setupLoading}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:bg-indigo-300 whitespace-nowrap"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:bg-indigo-300 dark:disabled:bg-indigo-800 whitespace-nowrap"
                     >
                         <Icons.Play />
                         {setupLoading ? 'Running...' : 'Run Database Setup'}
                     </button>
                 </div>
                 {setupMessage && (
-                    <p className={`text-sm p-3 rounded-lg mt-3 ${setupMessage.startsWith('✅') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                    <p className={`text-sm p-3 rounded-lg mt-3 ${setupMessage.startsWith('✅') ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
                         {setupMessage}
                     </p>
                 )}
@@ -701,32 +702,32 @@ export default function WebSettingsPage() {
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
-                                <tr className="border-b border-slate-200">
-                                    <th className="text-left py-2 px-3 text-slate-500 font-medium">Table</th>
-                                    <th className="text-right py-2 px-3 text-slate-500 font-medium">Rows</th>
-                                    <th className="text-right py-2 px-3 text-slate-500 font-medium">Data (KB)</th>
-                                    <th className="text-right py-2 px-3 text-slate-500 font-medium">Index (KB)</th>
-                                    <th className="text-right py-2 px-3 text-slate-500 font-medium">Engine</th>
+                                <tr className="border-b border-slate-200 dark:border-slate-700">
+                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Table</th>
+                                    <th className="text-right py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Rows</th>
+                                    <th className="text-right py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Data (KB)</th>
+                                    <th className="text-right py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Index (KB)</th>
+                                    <th className="text-right py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Engine</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {database.tables.map((table, idx) => (
-                                    <tr key={table.tableName} className={`border-b border-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
-                                        <td className="py-2 px-3 font-mono text-slate-700">{table.tableName}</td>
-                                        <td className="py-2 px-3 text-right text-slate-600">{(table.rowCount || 0).toLocaleString()}</td>
-                                        <td className="py-2 px-3 text-right font-mono text-slate-600">{table.dataSizeKB}</td>
-                                        <td className="py-2 px-3 text-right font-mono text-slate-600">{table.indexSizeKB}</td>
-                                        <td className="py-2 px-3 text-right text-slate-500">{table.engine}</td>
+                                    <tr key={table.tableName} className={`border-b border-slate-50 dark:border-slate-700/50 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/50 dark:bg-slate-700/30'}`}>
+                                        <td className="py-2 px-3 font-mono text-slate-700 dark:text-slate-300">{table.tableName}</td>
+                                        <td className="py-2 px-3 text-right text-slate-600 dark:text-slate-400">{(table.rowCount || 0).toLocaleString()}</td>
+                                        <td className="py-2 px-3 text-right font-mono text-slate-600 dark:text-slate-400">{table.dataSizeKB}</td>
+                                        <td className="py-2 px-3 text-right font-mono text-slate-600 dark:text-slate-400">{table.indexSizeKB}</td>
+                                        <td className="py-2 px-3 text-right text-slate-500 dark:text-slate-400">{table.engine}</td>
                                     </tr>
                                 ))}
                             </tbody>
                             <tfoot>
-                                <tr className="border-t-2 border-slate-200 font-semibold">
-                                    <td className="py-2 px-3 text-slate-700">Total</td>
-                                    <td className="py-2 px-3 text-right text-slate-700">
+                                <tr className="border-t-2 border-slate-200 dark:border-slate-600 font-semibold">
+                                    <td className="py-2 px-3 text-slate-700 dark:text-slate-300">Total</td>
+                                    <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
                                         {database.tables.reduce((s, t) => s + (t.rowCount || 0), 0).toLocaleString()}
                                     </td>
-                                    <td className="py-2 px-3 text-right font-mono text-slate-700">{database.totalSizeKB}</td>
+                                    <td className="py-2 px-3 text-right font-mono text-slate-700 dark:text-slate-300">{database.totalSizeKB}</td>
                                     <td className="py-2 px-3" />
                                     <td className="py-2 px-3" />
                                 </tr>

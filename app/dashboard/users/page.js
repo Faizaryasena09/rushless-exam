@@ -229,11 +229,11 @@ const ManageUsersPage = () => {
     <div className="space-y-6 pb-20"> {/* pb-20 agar tidak tertutup tombol fixed di hp jika ada */}
 
       {/* Header Section */}
-      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+      <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Manage Users</h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Manage Users</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               {users.length} registered users
             </p>
           </div>
@@ -241,14 +241,14 @@ const ManageUsersPage = () => {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={handleExport}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-sm font-semibold rounded-xl transition-all"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-sm font-semibold rounded-xl transition-all"
             >
               <Icons.Download />
               <span>Export</span>
             </button>
             <button
               onClick={handleImportClick}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-sm font-semibold rounded-xl transition-all"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-sm font-semibold rounded-xl transition-all"
             >
               <Icons.Upload />
               <span>Import</span>
@@ -263,7 +263,7 @@ const ManageUsersPage = () => {
 
             <button
               onClick={handleAddUser}
-              className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-200"
+              className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30"
             >
               <Icons.Add />
               <span>Add User</span>
@@ -272,18 +272,18 @@ const ManageUsersPage = () => {
         </div>
 
         {/* Filter and Search Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-slate-200">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
           <input
             type="text"
             placeholder="Search by name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
           />
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
           >
             <option value="">All Classes</option>
             {allClasses.map(c => (
@@ -294,50 +294,50 @@ const ManageUsersPage = () => {
       </div>
 
       {loading ? (
-        <div className="text-center py-10 text-slate-400 animate-pulse">Loading users...</div>
+        <div className="text-center py-10 text-slate-400 dark:text-slate-500 animate-pulse">Loading users...</div>
       ) : (
         <div className="w-full">
           {/* --- DESKTOP VIEW (Table) --- */}
           {/* Hidden di Mobile (hidden), Muncul di MD (block) */}
-          <div className="hidden md:block bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50/80">
+          <div className="hidden md:block bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
+            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+              <thead className="bg-slate-50/80 dark:bg-slate-700/50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">ID</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Class</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ID</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">User</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Role</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Class</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
+              <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
                 {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">#{user.id}</td>
+                  <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">#{user.id}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0 uppercase font-bold text-sm">
+                        <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 uppercase font-bold text-sm">
                           {user.name ? user.name.charAt(0) : user.username.charAt(0)}
                         </div>
                         <div>
-                          <div className="font-semibold text-slate-900">{user.name || user.username}</div>
-                          {user.name && <div className="text-xs text-slate-500">@{user.username}</div>}
+                          <div className="font-semibold text-slate-900 dark:text-slate-100">{user.name || user.username}</div>
+                          {user.name && <div className="text-xs text-slate-500 dark:text-slate-400">@{user.username}</div>}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${user.role === 'admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${user.role === 'admin' ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-600'
                         }`}>
                         {user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
                       {user.class_name ? <span className="flex items-center gap-1"><Icons.Class />{user.class_name}</span> : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => handleEditUser(user)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Icons.Edit /></button>
-                        <button onClick={() => handleDeleteUser(user.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Icons.Trash /></button>
+                        <button onClick={() => handleEditUser(user)} className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition-colors"><Icons.Edit /></button>
+                        <button onClick={() => handleDeleteUser(user.id)} className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"><Icons.Trash /></button>
                       </div>
                     </td>
                   </tr>
@@ -350,45 +350,45 @@ const ManageUsersPage = () => {
           {/* Muncul di Mobile (grid), Hidden di MD (hidden) */}
           <div className="grid grid-cols-1 gap-4 md:hidden">
             {users.map((user) => (
-              <div key={user.id} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col gap-4">
+              <div key={user.id} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-4">
 
                 {/* Header Card: User Info */}
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                    <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                       <span className="text-lg font-bold">{user.username.charAt(0).toUpperCase()}</span>
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900">{user.name || user.username}</h3>
-                      <p className="text-xs text-slate-500">@{user.username} • ID: #{user.id}</p>
+                      <h3 className="font-bold text-slate-900 dark:text-slate-100">{user.name || user.username}</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">@{user.username} • ID: #{user.id}</p>
                     </div>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize border ${user.role === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-slate-50 text-slate-600 border-slate-200'
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize border ${user.role === 'admin' ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800' : 'bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-600'
                     }`}>
                     {user.role}
                   </span>
                 </div>
 
                 {/* Body Card: Details */}
-                <div className="bg-slate-50 rounded-xl p-3 flex justify-between items-center border border-slate-100">
-                  <div className="flex items-center gap-2 text-slate-600 text-sm">
+                <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3 flex justify-between items-center border border-slate-100 dark:border-slate-700">
+                  <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 text-sm">
                     <Icons.Class />
                     <span>Class:</span>
                   </div>
-                  <span className="font-semibold text-slate-800">{user.class_name || 'None'}</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{user.class_name || 'None'}</span>
                 </div>
 
                 {/* Footer Card: Actions (Full Width Buttons) */}
                 <div className="grid grid-cols-2 gap-3 mt-1">
                   <button
                     onClick={() => handleEditUser(user)}
-                    className="flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
+                    className="flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-950/50 rounded-xl transition-colors"
                   >
                     <Icons.Edit /> Edit
                   </button>
                   <button
                     onClick={() => handleDeleteUser(user.id)}
-                    className="flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
+                    className="flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 rounded-xl transition-colors"
                   >
                     <Icons.Trash /> Delete
                   </button>

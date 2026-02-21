@@ -18,10 +18,10 @@ const toDateTimeLocal = (dateString) => {
 
 // --- Reusable Switch Component ---
 const Switch = ({ id, label, description, checked, onChange, disabled }) => (
-  <label htmlFor={id} className={`flex items-center justify-between p-4 rounded-lg transition-colors ${disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-slate-100'}`}>
+  <label htmlFor={id} className={`flex items-center justify-between p-4 rounded-lg transition-colors ${disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
     <div>
-      <span className={`text-sm font-medium ${disabled ? 'text-slate-400' : 'text-slate-800'}`}>{label}</span>
-      {description && <p className="text-xs text-slate-500 mt-1">{description}</p>}
+      <span className={`text-sm font-medium ${disabled ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>{label}</span>
+      {description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{description}</p>}
     </div>
     <div className="relative">
       <input
@@ -32,7 +32,7 @@ const Switch = ({ id, label, description, checked, onChange, disabled }) => (
         onChange={onChange}
         disabled={disabled}
       />
-      <div className={`block w-14 h-8 rounded-full transition-colors ${checked ? (disabled ? 'bg-indigo-300' : 'bg-indigo-600') : (disabled ? 'bg-slate-200' : 'bg-slate-300')}`}></div>
+      <div className={`block w-14 h-8 rounded-full transition-colors ${checked ? (disabled ? 'bg-indigo-300' : 'bg-indigo-600') : (disabled ? 'bg-slate-200 dark:bg-slate-600' : 'bg-slate-300 dark:bg-slate-600')}`}></div>
       <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${checked ? 'transform translate-x-6' : ''}`}></div>
     </div>
   </label>
@@ -40,7 +40,7 @@ const Switch = ({ id, label, description, checked, onChange, disabled }) => (
 
 // --- Reusable Segmented Control ---
 const SegmentedControl = ({ name, options, value, onChange }) => (
-  <div className="flex items-center p-1 bg-slate-200 rounded-lg">
+  <div className="flex items-center p-1 bg-slate-200 dark:bg-slate-700 rounded-lg">
     {options.map(option => (
       <label key={option.value} className={`flex-1 text-center relative ${option.disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
         <input
@@ -52,7 +52,7 @@ const SegmentedControl = ({ name, options, value, onChange }) => (
           className="sr-only"
           disabled={option.disabled}
         />
-        <span className={`block w-full py-1.5 text-sm font-semibold rounded-md transition-all ${option.disabled ? 'text-slate-400' : (value === option.value ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:bg-slate-200/50')}`}>
+        <span className={`block w-full py-1.5 text-sm font-semibold rounded-md transition-all ${option.disabled ? 'text-slate-400 dark:text-slate-500' : (value === option.value ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/50')}`}>
           {option.label}
         </span>
       </label>
@@ -202,13 +202,13 @@ export default function ManageExamPage() {
   if (loading) {
     return (
       <div className="container mx-auto p-4 md:p-6">
-        <div className="h-10 bg-slate-200 rounded w-1/3 mb-4 animate-pulse"></div>
-        <div className="h-6 bg-slate-200 rounded w-2/3 mb-8 animate-pulse"></div>
-        <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 space-y-6">
-          <div className="h-6 bg-slate-200 rounded w-1/4 mb-2 animate-pulse"></div>
-          <div className="h-10 bg-slate-200 rounded-lg w-full animate-pulse"></div>
-          <div className="h-6 bg-slate-200 rounded w-1/4 mb-2 animate-pulse"></div>
-          <div className="h-24 bg-slate-200 rounded-lg w-full animate-pulse"></div>
+        <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-4 animate-pulse"></div>
+        <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-2/3 mb-8 animate-pulse"></div>
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 space-y-6">
+          <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-1/4 mb-2 animate-pulse"></div>
+          <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg w-full animate-pulse"></div>
+          <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-1/4 mb-2 animate-pulse"></div>
+          <div className="h-24 bg-slate-200 dark:bg-slate-700 rounded-lg w-full animate-pulse"></div>
         </div>
       </div>
     )
@@ -217,47 +217,47 @@ export default function ManageExamPage() {
   return (
     <div className="container mx-auto p-4 md:p-6">
       <div className="mb-6">
-        <h1 className="text-4xl font-bold text-slate-800">{examName || 'Manage Exam'}</h1>
-        <p className="text-lg text-slate-500 mt-1">Edit exam details, settings, and questions.</p>
+        <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100">{examName || 'Manage Exam'}</h1>
+        <p className="text-lg text-slate-500 dark:text-slate-400 mt-1">Edit exam details, settings, and questions.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 
         <div className="md:col-span-2">
-          <form onSubmit={handleSaveAll} className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 space-y-6">
-            <h2 className="text-2xl font-bold text-slate-800 border-b border-slate-200 pb-4">Exam Details</h2>
+          <form onSubmit={handleSaveAll} className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 space-y-6">
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4">Exam Details</h2>
             <div>
-              <label htmlFor="examName" className="block text-sm font-medium text-slate-700 mb-1">Exam Name</label>
+              <label htmlFor="examName" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Exam Name</label>
               <input
                 id="examName"
                 type="text"
                 value={examName}
                 onChange={(e) => setExamName(e.target.value)}
-                className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
                 disabled={saving}
                 required
               />
             </div>
 
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+              <label htmlFor="description" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
               <textarea
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
                 rows="4"
                 disabled={saving}
               />
             </div>
 
-            <h2 className="text-2xl font-bold text-slate-800 border-b border-slate-200 pb-4 pt-4">Exam Settings</h2>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4 pt-4">Exam Settings</h2>
 
             <div className="space-y-4">
               {/* --- Assign Classes Section --- */}
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <label className="block text-sm font-bold text-slate-700 mb-2">Assign to Classes</label>
-                <p className="text-xs text-slate-500 mb-3">Select the classes eligible to take this exam. If no class is selected, the exam will be hidden from all students.</p>
+              <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Assign to Classes</label>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Select the classes eligible to take this exam. If no class is selected, the exam will be hidden from all students.</p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {availableClasses.map((cls) => (
                     <label key={cls.id} className="flex items-center gap-2 cursor-pointer">
@@ -265,18 +265,18 @@ export default function ManageExamPage() {
                         type="checkbox"
                         checked={selectedClasses.includes(cls.id)}
                         onChange={() => handleToggleClass(cls.id)}
-                        className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                        className="w-4 h-4 text-indigo-600 dark:text-indigo-500 rounded focus:ring-indigo-500 dark:focus:ring-indigo-400 border-gray-300 dark:border-gray-600 dark:bg-slate-700"
                         disabled={saving}
                       />
-                      <span className="text-sm text-slate-700 font-medium">{cls.class_name}</span>
+                      <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">{cls.class_name}</span>
                     </label>
                   ))}
-                  {availableClasses.length === 0 && <p className="text-xs text-red-500 italic col-span-3">No classes found. Please create classes first.</p>}
+                  {availableClasses.length === 0 && <p className="text-xs text-red-500 dark:text-red-400 italic col-span-3">No classes found. Please create classes first.</p>}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Timer Mode</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Timer Mode</label>
                 <SegmentedControl
                   name="timer-mode"
                   options={[
@@ -286,7 +286,7 @@ export default function ManageExamPage() {
                   value={timerMode}
                   onChange={setTimerMode}
                 />
-                <p className="text-xs text-slate-500 mt-2">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                   {timerMode === 'sync'
                     ? 'All students have the same start and end time. Duration is fixed by the schedule.'
                     : 'Each student gets a fixed duration from when they start. If a schedule is set, it acts as an availability window.'
@@ -296,13 +296,13 @@ export default function ManageExamPage() {
 
               {(timerMode === 'async' || !isScheduled) && (
                 <div>
-                  <label htmlFor="duration" className="block text-sm font-medium text-slate-700 mb-1">Exam Duration (minutes)</label>
+                  <label htmlFor="duration" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Exam Duration (minutes)</label>
                   <input
                     id="duration"
                     type="number"
                     value={durationMinutes}
                     onChange={(e) => setDurationMinutes(parseInt(e.target.value, 10))}
-                    className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
                     disabled={saving}
                     min="1"
                   />
@@ -310,39 +310,39 @@ export default function ManageExamPage() {
               )}
 
               <div>
-                <label htmlFor="minTime" className="block text-sm font-medium text-slate-700 mb-1">Submission Lockout from End (minutes)</label>
+                <label htmlFor="minTime" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Submission Lockout from End (minutes)</label>
                 <input
                   id="minTime"
                   type="number"
                   value={minTimeMinutes}
                   onChange={(e) => setMinTimeMinutes(parseInt(e.target.value, 10))}
-                  className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
                   disabled={saving}
                   min="0"
                 />
-                <p className="text-xs text-slate-500 mt-2">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                   Set to 0 to disable. Disables submission in the final minutes of the exam. E.g., for a 10-minute exam, a setting of '1' means submission is disabled during the last minute.
                 </p>
               </div>
 
               <div>
-                <label htmlFor="maxAttempts" className="block text-sm font-medium text-slate-700 mb-1">Max Attempts</label>
+                <label htmlFor="maxAttempts" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Attempts</label>
                 <input
                   id="maxAttempts"
                   type="number"
                   value={maxAttempts}
                   onChange={(e) => setMaxAttempts(parseInt(e.target.value, 10))}
-                  className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
                   disabled={saving}
                   min="1"
                 />
-                <p className="text-xs text-slate-500 mt-2">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                   Maximum number of times a student can attempt this exam.
                 </p>
               </div>
             </div>
 
-            <div className="space-y-2 bg-slate-50 rounded-lg border border-slate-200 divide-y divide-slate-200">
+            <div className="space-y-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-700">
               <Switch
                 id="req-safe-browser"
                 label="Require Safe Browser"
@@ -370,7 +370,7 @@ export default function ManageExamPage() {
             </div>
 
             <div>
-              <label htmlFor="startTime" className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="startTime" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Availability Start Time (Optional)
               </label>
               <input
@@ -378,13 +378,13 @@ export default function ManageExamPage() {
                 type="datetime-local"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
                 disabled={saving}
               />
             </div>
 
             <div>
-              <label htmlFor="endTime" className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="endTime" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Availability End Time (Optional)
               </label>
               <input
@@ -392,34 +392,34 @@ export default function ManageExamPage() {
                 type="datetime-local"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
                 disabled={saving}
               />
             </div>
 
             <div className="flex items-center justify-between pt-4">
-              <Link href="/dashboard/exams" className="text-sm text-indigo-600 hover:text-indigo-800 transition-colors">
+              <Link href="/dashboard/exams" className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors">
                 &larr; Back to exams list
               </Link>
               <button
                 type="submit"
-                className="inline-flex items-center justify-center px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all shadow-md shadow-indigo-200 disabled:bg-indigo-300 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center px-6 py-2.5 bg-indigo-600 dark:bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30 disabled:bg-indigo-300 dark:disabled:bg-indigo-400/50 disabled:cursor-not-allowed"
                 disabled={saving}
               >
                 {saving ? 'Saving...' : 'Save All Changes'}
               </button>
             </div>
-            {success && <p className="mt-4 text-sm text-green-600 bg-green-50 p-3 rounded-lg border border-green-200">{success}</p>}
-            {error && <p className="mt-4 text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">{error}</p>}
+            {success && <p className="mt-4 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40 p-3 rounded-lg border border-green-200 dark:border-green-800">{success}</p>}
+            {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 p-3 rounded-lg border border-red-200 dark:border-red-800">{error}</p>}
           </form>
         </div>
 
         <div className="md:col-span-1">
           <div className="space-y-6 sticky top-24">
-            <div className="p-6 bg-sky-50 border border-sky-200 rounded-2xl text-center">
-              <h3 className="font-bold text-sky-800 text-lg">Manage Questions</h3>
-              <p className="text-sm text-sky-700 mt-1 mb-4">Add, edit, or import questions for this exam.</p>
-              <Link href={`/dashboard/exams/questions/${examId}`} className="inline-flex items-center justify-center w-full px-5 py-2.5 bg-sky-500 hover:bg-sky-600 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all shadow-md shadow-sky-200">
+            <div className="p-6 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded-2xl text-center">
+              <h3 className="font-bold text-sky-800 dark:text-sky-400 text-lg">Manage Questions</h3>
+              <p className="text-sm text-sky-700 dark:text-sky-300 mt-1 mb-4">Add, edit, or import questions for this exam.</p>
+              <Link href={`/dashboard/exams/questions/${examId}`} className="inline-flex items-center justify-center w-full px-5 py-2.5 bg-sky-500 hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-700 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all shadow-md shadow-sky-200 dark:shadow-sky-900/30">
                 Go to Questions &rarr;
               </Link>
             </div>

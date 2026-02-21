@@ -49,7 +49,7 @@ const StudentExamActions = ({ exam }) => {
   if (exam.has_in_progress) {
     if (exam.require_safe_browser) {
       return (
-        <button onClick={handleLaunch} className="group w-full flex items-center justify-between text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors text-left">
+        <button onClick={handleLaunch} className="group w-full flex items-center justify-between text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors text-left">
           <div className="flex items-center gap-2">
             <Icons.Play />
             <span>Lanjutkan Ujian</span>
@@ -59,7 +59,7 @@ const StudentExamActions = ({ exam }) => {
       );
     }
     return (
-      <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors">
+      <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors">
         <div className="flex items-center gap-2">
           <Icons.Play />
           <span>Lanjutkan Ujian</span>
@@ -72,7 +72,7 @@ const StudentExamActions = ({ exam }) => {
   // 2. Check if max attempts have been reached
   if (exam.max_attempts > 0 && exam.user_attempts >= exam.max_attempts) {
     return (
-      <div className="w-full text-center py-2 text-sm font-semibold text-slate-500 bg-slate-100 rounded-lg">
+      <div className="w-full text-center py-2 text-sm font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 rounded-lg">
         Max attempts reached
       </div>
     );
@@ -82,7 +82,7 @@ const StudentExamActions = ({ exam }) => {
   if (startTime && endTime) {
     if (now < startTime) {
       return (
-        <div className="w-full text-center py-2 text-sm font-semibold text-amber-600 bg-amber-100 rounded-lg">
+        <div className="w-full text-center py-2 text-sm font-semibold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
           Ujian belum bisa dimulai
         </div>
       );
@@ -90,7 +90,7 @@ const StudentExamActions = ({ exam }) => {
 
     if (now > endTime) {
       return (
-        <div className="w-full text-center py-2 text-sm font-semibold text-red-600 bg-red-100 rounded-lg">
+        <div className="w-full text-center py-2 text-sm font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 rounded-lg">
           Ujian selesai
         </div>
       );
@@ -100,9 +100,9 @@ const StudentExamActions = ({ exam }) => {
   // 4. If all checks pass, it's available to start
   if (exam.require_safe_browser) {
     return (
-      <button onClick={handleLaunch} className="group w-full flex items-center justify-between text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors text-left">
+      <button onClick={handleLaunch} className="group w-full flex items-center justify-between text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors text-left">
         <div className="flex items-center gap-2">
-          <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
           <span>Launch Safe Browser</span>
@@ -113,7 +113,7 @@ const StudentExamActions = ({ exam }) => {
   }
 
   return (
-    <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 hover:text-green-800 transition-colors">
+    <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
       <div className="flex items-center gap-2">
         <Icons.Play />
         <span>Mulai Kerjakan</span>
@@ -231,9 +231,8 @@ export default function ExamsPage() {
 
       refreshData();
       closeModal();
-      // Optional: Show a toast notification here instead of alert if requested later
     } catch (e) {
-      alert(e.message); // Keep error alert or move to toast
+      alert(e.message);
       closeModal();
     }
   };
@@ -248,28 +247,28 @@ export default function ExamsPage() {
   if (loadingSession || loadingExams) {
     return (
       <div className="text-center py-20">
-        <p className="text-lg font-semibold text-slate-600 animate-pulse">Loading Exams...</p>
+        <p className="text-lg font-semibold text-slate-600 dark:text-slate-400 animate-pulse">Loading Exams...</p>
       </div>
     );
   }
 
   if (errorExams) {
-    return <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 font-medium text-center">Error: {errorExams}</div>;
+    return <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 font-medium text-center">Error: {errorExams}</div>;
   }
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">{isStudent ? 'Available Exams' : 'Manage Exams'}</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{isStudent ? 'Available Exams' : 'Manage Exams'}</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             You have {exams.length} exams available.
           </p>
         </div>
         {!isStudent && (
           <Link
             href="/dashboard/exams/baru"
-            className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-200"
+            className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30"
           >
             <Icons.Plus />
             <span>Create New Exam</span>
@@ -278,44 +277,44 @@ export default function ExamsPage() {
       </div>
 
       {exams.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-300">
+        <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600">
           <Icons.FileText className="mx-auto w-12 h-12 text-slate-400" />
-          <h3 className="mt-4 text-lg font-semibold text-slate-800">No Exams Found</h3>
-          <p className="mt-1 text-sm text-slate-500">{isStudent ? 'There are no exams available for you at the moment.' : 'Click "Create New Exam" to get started.'}</p>
+          <h3 className="mt-4 text-lg font-semibold text-slate-800 dark:text-white">No Exams Found</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{isStudent ? 'There are no exams available for you at the moment.' : 'Click "Create New Exam" to get started.'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {exams.map((exam) => (
-            <div key={exam.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-lg hover:border-indigo-300 transition-all duration-300 flex flex-col">
+            <div key={exam.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 flex flex-col">
               <div className="p-6">
-                <h2 className="text-xl font-bold text-slate-800 truncate" title={exam.exam_name}>{exam.exam_name}</h2>
-                <p className="text-sm text-slate-500 mt-2 h-10 overflow-hidden">{exam.description || 'No description provided.'}</p>
-                <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white truncate" title={exam.exam_name}>{exam.exam_name}</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 h-10 overflow-hidden">{exam.description || 'No description provided.'}</p>
+                <div className="mt-4 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                   <Icons.Calendar />
                   <span>Created on {formatDate(exam.created_at)}</span>
                 </div>
               </div>
-              <div className="mt-auto border-t border-slate-200 p-4 bg-slate-50/50 rounded-b-2xl">
+              <div className="mt-auto border-t border-slate-200 dark:border-slate-700 p-4 bg-slate-50/50 dark:bg-slate-700/30 rounded-b-2xl">
                 {isStudent ? (
                   <StudentExamActions exam={exam} />
                 ) : (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <Link href={`/dashboard/exams/manage/${exam.id}`} className="group flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 py-2 px-3 rounded-lg transition-colors">
+                      <Link href={`/dashboard/exams/manage/${exam.id}`} className="group flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 py-2 px-3 rounded-lg transition-colors">
                         <Icons.Cog />
                         <span>Manage</span>
                       </Link>
-                      <Link href={`/dashboard/exams/results/${exam.id}`} className="group flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-emerald-600 hover:bg-emerald-50 py-2 px-3 rounded-lg transition-colors">
+                      <Link href={`/dashboard/exams/results/${exam.id}`} className="group flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 py-2 px-3 rounded-lg transition-colors">
                         <Icons.ChartBar />
                         <span>Results</span>
                       </Link>
                     </div>
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/50">
-                      <button onClick={() => openModal('duplicate', exam.id)} className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-amber-600 hover:bg-amber-50 py-1.5 px-2 rounded-lg transition-colors">
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/50 dark:border-slate-600/50">
+                      <button onClick={() => openModal('duplicate', exam.id)} className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 py-1.5 px-2 rounded-lg transition-colors">
                         <Icons.Duplicate />
                         <span>Duplicate</span>
                       </button>
-                      <button onClick={() => openModal('delete', exam.id)} className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-red-600 hover:bg-red-50 py-1.5 px-2 rounded-lg transition-colors">
+                      <button onClick={() => openModal('delete', exam.id)} className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 py-1.5 px-2 rounded-lg transition-colors">
                         <Icons.Trash />
                         <span>Delete</span>
                       </button>
@@ -360,21 +359,21 @@ function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirm
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all" onClick={e => e.stopPropagation()}>
         <div className="p-6">
           <div className="flex items-center gap-4 mb-4">
             {Icon && (
-              <div className={`p-3 rounded-full ${confirmColor.includes('red') ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+              <div className={`p-3 rounded-full ${confirmColor.includes('red') ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'}`}>
                 <Icon className="w-6 h-6" />
               </div>
             )}
-            <h3 className="text-xl font-bold text-slate-900">{title}</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white">{title}</h3>
           </div>
-          <p className="text-slate-600 mb-6">{message}</p>
+          <p className="text-slate-600 dark:text-slate-400 mb-6">{message}</p>
           <div className="flex justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-slate-700 font-semibold hover:bg-slate-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
               Cancel
             </button>

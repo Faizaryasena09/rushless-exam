@@ -74,7 +74,7 @@ const Icons = {
 const Timer = ({ timeLeft }) => {
   const isCritical = timeLeft !== null && timeLeft <= 300;
   return (
-    <div className={`flex items-center gap-2 font-mono px-3 py-1.5 rounded-lg ${isCritical ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>
+    <div className={`flex items-center gap-2 font-mono px-3 py-1.5 rounded-lg ${isCritical ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
       <Icons.Clock />
       <span className="text-sm font-semibold tracking-wider">{formatTime(timeLeft)}</span>
     </div>
@@ -92,32 +92,32 @@ const FinishConfirmationModal = ({ isOpen, onClose, onConfirm, questions, answer
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 overflow-hidden transform transition-all scale-100">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md relative z-10 overflow-hidden transform transition-all scale-100">
         <div className="p-6">
-          <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center mb-4 mx-auto text-indigo-600">
+          <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center mb-4 mx-auto text-indigo-600 dark:text-indigo-400">
             <Icons.CheckCircle />
           </div>
-          <h3 className="text-xl font-bold text-slate-800 text-center mb-2">
+          <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 text-center mb-2">
             Selesai Ujian?
           </h3>
 
           {!isComplete ? (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
-                <div className="text-amber-600 mt-0.5"><Icons.Flag /></div>
+                <div className="text-amber-600 dark:text-amber-400 mt-0.5"><Icons.Flag /></div>
                 <div>
-                  <h4 className="font-bold text-amber-800 text-sm">Masih ada soal yang belum dijawab!</h4>
-                  <p className="text-amber-700 text-sm mt-1">
+                  <h4 className="font-bold text-amber-800 dark:text-amber-300 text-sm">Masih ada soal yang belum dijawab!</h4>
+                  <p className="text-amber-700 dark:text-amber-400 text-sm mt-1">
                     Anda belum menjawab <span className="font-bold">{unansweredQuestions.length}</span> dari <span className="font-bold">{questions.length}</span> soal.
                   </p>
-                  <p className="text-amber-700 text-xs mt-2">
+                  <p className="text-amber-700 dark:text-amber-400 text-xs mt-2">
                     Sebaiknya periksa kembali jawaban Anda sebelum mengumpulkan.
                   </p>
                 </div>
               </div>
             </div>
           ) : (
-            <p className="text-slate-600 text-center mb-6">
+            <p className="text-slate-600 dark:text-slate-400 text-center mb-6">
               Anda telah menjawab semua soal. Apakah Anda yakin ingin mengakhiri ujian ini? Jawaban tidak dapat diubah setelah dikirim.
             </p>
           )}
@@ -125,13 +125,13 @@ const FinishConfirmationModal = ({ isOpen, onClose, onConfirm, questions, answer
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-700 font-semibold hover:bg-slate-50 transition-colors"
+              className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors"
             >
               Batal & Periksa
             </button>
             <button
               onClick={onConfirm}
-              className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100"
+              className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100 dark:shadow-emerald-900/30"
             >
               Ya, Selesaikan
             </button>
@@ -498,14 +498,14 @@ export default function ExamTakingPage() {
     }
   }
 
-  if (loading) { return <div className="text-center p-20">Loading...</div> }
+  if (loading) { return <div className="text-center p-20 dark:text-slate-300">Loading...</div> }
   if (error) { return <div className="text-center p-20 text-red-500">Error: {error}</div> }
 
   const QuestionNavigation = ({ questions, answers, doubtful, currentIndex, onSelect }) => (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden sticky top-6">
-      <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Navigasi Soal</h3>
-        <span className="text-xs font-medium px-2 py-1 bg-white border border-slate-200 rounded text-slate-500">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden sticky top-6">
+      <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-700/50 flex justify-between items-center">
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Navigasi Soal</h3>
+        <span className="text-xs font-medium px-2 py-1 bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 rounded text-slate-500 dark:text-slate-300">
           Total: {questions.length}
         </span>
       </div>
@@ -516,14 +516,14 @@ export default function ExamTakingPage() {
             const isDoubtful = doubtful[q.id];
             const isActive = index === currentIndex;
             let buttonClass = 'h-10 w-full rounded-lg text-sm font-bold transition-all duration-200 relative ';
-            if (isActive) buttonClass += 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 ring-2 ring-indigo-600 ring-offset-2';
-            else if (isDoubtful) buttonClass += 'bg-amber-100 text-amber-700 border border-amber-300 hover:bg-amber-200';
-            else if (isAnswered) buttonClass += 'bg-emerald-100 text-emerald-700 border border-emerald-300 hover:bg-emerald-200';
-            else buttonClass += 'bg-white text-slate-600 border border-slate-200 hover:border-slate-400 hover:bg-slate-50';
+            if (isActive) buttonClass += 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30 ring-2 ring-indigo-600 ring-offset-2 dark:ring-offset-slate-800';
+            else if (isDoubtful) buttonClass += 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 hover:bg-amber-200 dark:hover:bg-amber-900/50';
+            else if (isAnswered) buttonClass += 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-200 dark:hover:bg-emerald-900/50';
+            else buttonClass += 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-600';
             return (
               <button key={q.id} onClick={() => onSelect(index)} className={buttonClass}>
                 {index + 1}
-                {isDoubtful && (<span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white"></span>)}
+                {isDoubtful && (<span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white dark:border-slate-800"></span>)}
               </button>
             );
           })}
@@ -533,77 +533,77 @@ export default function ExamTakingPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-20">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-transparent pb-20">
       {/* Time Added Notification */}
       {showTimeAddedAlert && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-bounce">
-          <div className="bg-indigo-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-white">
+          <div className="bg-indigo-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-2 border-white dark:border-slate-700">
             <Icons.Clock />
             <span className="font-bold">Waktu ujian telah ditambahkan oleh pengawas!</span>
           </div>
         </div>
       )}
 
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
+            <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 dark:text-slate-400 transition-colors">
               <Icons.ArrowLeft />
             </button>
-            <div><h1 className="text-base md:text-lg font-bold text-slate-800 line-clamp-1">{examDetails?.exam_name}</h1></div>
+            <div><h1 className="text-base md:text-lg font-bold text-slate-800 dark:text-white line-clamp-1">{examDetails?.exam_name}</h1></div>
           </div>
           <div className="flex items-center gap-4">
             <Timer timeLeft={timeLeft} />
-            <button onClick={() => setIsSidebarVisible(!isSidebarVisible)} className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg border border-slate-200"><Icons.Grid /></button>
+            <button onClick={() => setIsSidebarVisible(!isSidebarVisible)} className="md:hidden p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600"><Icons.Grid /></button>
           </div>
         </div>
-        <div className="h-1 w-full bg-slate-100 md:hidden"><div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${progressPercentage}%` }}></div></div>
+        <div className="h-1 w-full bg-slate-100 dark:bg-slate-700 md:hidden"><div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${progressPercentage}%` }}></div></div>
       </header>
 
       <div className="max-w-7xl mx-auto p-4 md:p-8">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
           <div className="md:col-span-8 lg:col-span-9 space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[500px] flex flex-col">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden min-h-[500px] flex flex-col">
               {currentQuestion ? (
                 <>
                   <div className="p-6 md:p-8 flex-1">
                     <div className="flex justify-between items-start mb-6">
-                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-bold uppercase tracking-wider">Soal No. {currentQuestionIndex + 1}</span>
-                      <button onClick={() => handleToggleDoubtful(currentQuestion.id)} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${doubtfulAnswers[currentQuestion.id] ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}>
+                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">Soal No. {currentQuestionIndex + 1}</span>
+                      <button onClick={() => handleToggleDoubtful(currentQuestion.id)} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${doubtfulAnswers[currentQuestion.id] ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}`}>
                         <Icons.Flag />
                         {doubtfulAnswers[currentQuestion.id] ? 'Ditandai Ragu' : 'Tandai Ragu'}
                       </button>
                     </div>
-                    <div className="prose prose-slate max-w-none mb-8">
-                      <p className="text-lg md:text-xl font-medium text-slate-800 leading-relaxed" dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }} />
+                    <div className="prose prose-slate dark:prose-invert max-w-none mb-8">
+                      <p className="text-lg md:text-xl font-medium text-slate-800 dark:text-slate-100 leading-relaxed" dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }} />
                     </div>
                     <div className="space-y-3">
                       {currentQuestion.options && currentQuestion.options.map((option, idx) => {
                         const optionLabel = String.fromCharCode(65 + idx);
                         const isSelected = answers[currentQuestion.id] === option.originalKey;
                         return (
-                          <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}>
-                            <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'}`}>{optionLabel}</div>
-                            <span className={`text-base font-medium ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
-                            {isSelected && (<div className="absolute right-4 text-indigo-600"><Icons.CheckCircle /></div>)}
+                          <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 dark:border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
+                            <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-300 group-hover:bg-slate-200 dark:group-hover:bg-slate-500'}`}>{optionLabel}</div>
+                            <span className={`text-base font-medium ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-700 dark:text-slate-300'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
+                            {isSelected && (<div className="absolute right-4 text-indigo-600 dark:text-indigo-400"><Icons.CheckCircle /></div>)}
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                  <div className="bg-slate-50 p-4 md:p-6 border-t border-slate-200 flex flex-col-reverse md:flex-row justify-between items-center gap-4">
-                    <button onClick={() => handleClearAnswer(currentQuestion.id)} disabled={!answers[currentQuestion.id]} className={`text-sm font-medium flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${!answers[currentQuestion.id] ? 'opacity-0 pointer-events-none' : 'text-red-600 hover:bg-red-50'}`}>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-4 md:p-6 border-t border-slate-200 dark:border-slate-700 flex flex-col-reverse md:flex-row justify-between items-center gap-4">
+                    <button onClick={() => handleClearAnswer(currentQuestion.id)} disabled={!answers[currentQuestion.id]} className={`text-sm font-medium flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${!answers[currentQuestion.id] ? 'opacity-0 pointer-events-none' : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'}`}>
                       <Icons.Trash />
                       Hapus Jawaban
                     </button>
                     <div className="flex w-full md:w-auto gap-3">
-                      <button onClick={handlePrevQuestion} disabled={currentQuestionIndex === 0} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                      <button onClick={handlePrevQuestion} disabled={currentQuestionIndex === 0} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                         <Icons.ChevronLeft />
                         Sebelumnya
                       </button>
                       {currentQuestionIndex === questions.length - 1 ? (
                         <div className="relative">
-                          <button onClick={handleFinishRequest} disabled={isSubmitDisabled} title={submitTitle} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-100 disabled:bg-emerald-300 disabled:cursor-not-allowed">
+                          <button onClick={handleFinishRequest} disabled={isSubmitDisabled} title={submitTitle} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-100 dark:shadow-emerald-900/30 disabled:bg-emerald-300 dark:disabled:bg-emerald-800 disabled:cursor-not-allowed">
                             <Icons.CheckCircle />
                             {isSubmitDisabled && minTimeLockoutSeconds > 0 && timeLeft !== null ?
                               <span>Selesai Ujian ({formatTime(timeLeft - minTimeLockoutSeconds)})</span> :
@@ -611,7 +611,7 @@ export default function ExamTakingPage() {
                             }
                           </button>                            </div>
                       ) : (
-                        <button onClick={handleNextQuestion} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all shadow-md shadow-indigo-100">
+                        <button onClick={handleNextQuestion} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all shadow-md shadow-indigo-100 dark:shadow-indigo-900/30">
                           Selanjutnya
                           <Icons.ChevronRight />
                         </button>
@@ -620,7 +620,7 @@ export default function ExamTakingPage() {
                   </div>
                 </>
               ) : (
-                !loading && <div className="flex-1 flex flex-col items-center justify-center text-center p-10"><div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400"><Icons.Flag /></div><h2 className="text-xl font-semibold text-slate-800">Tidak ada soal dimuat.</h2><p className="text-slate-500 mt-2">Mungkin ada masalah dengan konfigurasi ujian ini.</p></div>
+                !loading && <div className="flex-1 flex flex-col items-center justify-center text-center p-10"><div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mb-4 text-slate-400"><Icons.Flag /></div><h2 className="text-xl font-semibold text-slate-800 dark:text-white">Tidak ada soal dimuat.</h2><p className="text-slate-500 dark:text-slate-400 mt-2">Mungkin ada masalah dengan konfigurasi ujian ini.</p></div>
               )}
             </div>
           </div>
@@ -632,10 +632,10 @@ export default function ExamTakingPage() {
       {isSidebarVisible && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setIsSidebarVisible(false)}></div>
-          <div className="absolute right-0 top-0 h-full w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h3 className="font-bold text-slate-800">Daftar Soal</h3>
-              <button onClick={() => setIsSidebarVisible(false)} className="p-2 bg-white rounded-full text-slate-500 hover:text-slate-800 shadow-sm border border-slate-200"><Icons.ChevronRight /></button>
+          <div className="absolute right-0 top-0 h-full w-80 bg-white dark:bg-slate-800 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-700/50">
+              <h3 className="font-bold text-slate-800 dark:text-white">Daftar Soal</h3>
+              <button onClick={() => setIsSidebarVisible(false)} className="p-2 bg-white dark:bg-slate-600 rounded-full text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white shadow-sm border border-slate-200 dark:border-slate-500"><Icons.ChevronRight /></button>
             </div>
             <div className="p-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-5 gap-2">
@@ -645,9 +645,9 @@ export default function ExamTakingPage() {
                   const isActive = index === currentQuestionIndex;
                   let buttonClass = 'h-10 rounded-lg text-sm font-bold transition-all border ';
                   if (isActive) buttonClass += 'bg-indigo-600 text-white border-indigo-600';
-                  else if (isDoubtful) buttonClass += 'bg-amber-100 text-amber-800 border-amber-200';
-                  else if (isAnswered) buttonClass += 'bg-emerald-100 text-emerald-800 border-emerald-200';
-                  else buttonClass += 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50';
+                  else if (isDoubtful) buttonClass += 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-700';
+                  else if (isAnswered) buttonClass += 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400 border-emerald-200 dark:border-emerald-700';
+                  else buttonClass += 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600';
                   return (
                     <button key={q.id} onClick={() => { handleSelectQuestion(index); setIsSidebarVisible(false); }} className={buttonClass}>
                       {index + 1}

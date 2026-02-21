@@ -90,7 +90,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
   return (
     <>
-      {/* Mobile Backdrop (Optional UX improvement: close when clicking outside) */}
+      {/* Mobile Backdrop */}
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
@@ -99,20 +99,20 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
       )}
 
       <aside
-        className={`fixed top-0 left-0 z-40 w-64 h-screen bg-white border-r border-slate-200 transform transition-transform duration-300 ease-out shadow-xl lg:shadow-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-0 left-0 z-40 w-64 h-screen bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transform transition-transform duration-300 ease-out shadow-xl lg:shadow-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
       >
         {/* Header Sidebar */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-slate-100">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-slate-100 dark:border-slate-700">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-lg font-bold tracking-tight text-slate-800">
-              Rushless<span className="text-indigo-600">Exam</span>
+            <span className="text-lg font-bold tracking-tight text-slate-800 dark:text-white">
+              Rushless<span className="text-indigo-600 dark:text-indigo-400">Exam</span>
             </span>
           </Link>
 
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+            className="lg:hidden p-1 rounded-md text-slate-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
             aria-label="Close sidebar"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,11 +133,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                   <Link
                     href={link.href}
                     className={`group flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
-                      ? 'bg-indigo-50 text-indigo-600 shadow-sm ring-1 ring-indigo-200'
-                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                      ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-indigo-200 dark:ring-indigo-700'
+                      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                   >
-                    <span className={`transition-colors duration-200 ${isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
+                    <span className={`transition-colors duration-200 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
                       }`}>
                       <Icon />
                     </span>
@@ -145,7 +145,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
                     {/* Active Indicator Dot */}
                     {isActive && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
                     )}
                   </Link>
                 </li>
@@ -154,9 +154,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
           </ul>
         </nav>
 
-        {/* Footer Sidebar (Optional Space) */}
-        <div className="p-4 border-t border-slate-100">
-          <p className="text-xs text-center text-slate-400">
+        {/* Footer Sidebar */}
+        <div className="p-4 border-t border-slate-100 dark:border-slate-700">
+          <p className="text-xs text-center text-slate-400 dark:text-slate-500">
             v1.0.0 Dashboard
           </p>
         </div>

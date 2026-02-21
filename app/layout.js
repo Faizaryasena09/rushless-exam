@@ -1,3 +1,4 @@
+import { ThemeProvider } from './components/ThemeProvider';
 import LayoutWrapper from './components/LayoutWrapper';
 import "./globals.css";
 
@@ -8,11 +9,13 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
-        <LayoutWrapper>
-          {children}
-        </LayoutWrapper>
+        <ThemeProvider>
+          <LayoutWrapper>
+            {children}
+          </LayoutWrapper>
+        </ThemeProvider>
       </body>
     </html>
   );
