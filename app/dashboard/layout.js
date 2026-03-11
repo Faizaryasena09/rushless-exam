@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import { Toaster } from 'sonner';
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
@@ -73,6 +74,7 @@ export default function DashboardLayout({ children }) {
           </div>
         </main>
       </div>
+      <Toaster position="top-right" richColors />
     </div>
   );
 }

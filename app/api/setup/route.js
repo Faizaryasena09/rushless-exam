@@ -204,6 +204,42 @@ export async function GET(request) {
       messages.push(`Column 'seb_config_key' already exists in '${settingsTableName}'.`);
     }
 
+    // --- Check and add 'show_instructions' column to exam_settings table ---
+    const hasShowInstructions = await columnExists(settingsTableName, 'show_instructions');
+    if (!hasShowInstructions) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN show_instructions BOOLEAN DEFAULT FALSE;`,
+        values: [],
+      });
+      messages.push(`Column 'show_instructions' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'show_instructions' already exists in '${settingsTableName}'.`);
+    }
+
+    // --- Check and add 'instruction_type' column to exam_settings table ---
+    const hasInstructionType = await columnExists(settingsTableName, 'instruction_type');
+    if (!hasInstructionType) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN instruction_type ENUM('template', 'custom') DEFAULT 'template';`,
+        values: [],
+      });
+      messages.push(`Column 'instruction_type' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'instruction_type' already exists in '${settingsTableName}'.`);
+    }
+
+    // --- Check and add 'custom_instructions' column to exam_settings table ---
+    const hasCustomInstructions = await columnExists(settingsTableName, 'custom_instructions');
+    if (!hasCustomInstructions) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN custom_instructions TEXT;`,
+        values: [],
+      });
+      messages.push(`Column 'custom_instructions' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'custom_instructions' already exists in '${settingsTableName}'.`);
+    }
+
     // --- Check and add 'sort_order' column to exam_questions table ---
     const questionsTableName = 'rhs_exam_questions';
     const hasSortOrder = await columnExists(questionsTableName, 'sort_order');

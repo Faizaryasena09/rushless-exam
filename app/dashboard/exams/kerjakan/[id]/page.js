@@ -157,6 +157,11 @@ export default function ExamTakingPage() {
   const [doubtfulAnswers, setDoubtfulAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Instruction State
+  const [showInstructionsScreen, setShowInstructionsScreen] = useState(false);
+  const [startingExam, setStartingExam] = useState(false);
+
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const finishExamHandled = useRef(false);
   const initExamRef = useRef(false);
@@ -195,7 +200,7 @@ export default function ExamTakingPage() {
 
   // 2. Logic for 5-second server sync
   useEffect(() => {
-    if (!examId) return;
+    if (!examId || !attemptDetails?.id) return;
 
     const syncInterval = setInterval(async () => {
       try {
@@ -352,68 +357,89 @@ export default function ExamTakingPage() {
     if (!examId || initExamRef.current) return;
     initExamRef.current = true;
 
-    async function getExamData() {
+    async function loadExamSettings() {
       try {
         setLoading(true);
-        const [settingsRes, attemptRes, questionsRes, tempAnswersRes] = await Promise.all([
-          fetch(`/api/exams/settings?exam_id=${examId}`),
-          fetch('/api/exams/start-attempt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ examId }),
-          }),
-          fetch(`/api/exams/questions?exam_id=${examId}`),
-          fetch(`/api/exams/temporary-answer?exam_id=${examId}`)
-        ]);
-
+        const settingsRes = await fetch(`/api/exams/settings?exam_id=${examId}`);
         if (!settingsRes.ok) throw new Error((await settingsRes.json()).message || 'Could not fetch exam settings.');
-        if (!attemptRes.ok) throw new Error((await attemptRes.json()).message || 'Could not start exam.');
-        if (!questionsRes.ok) throw new Error((await questionsRes.json()).message || 'Could not fetch questions.');
-
         const settingsData = await settingsRes.json();
-        const attemptData = await attemptRes.json();
-        const questionsData = await questionsRes.json();
-
         setExamDetails(settingsData);
-        setAttemptDetails(attemptData.attempt);
-        setTimeLeft(attemptData.initial_seconds_left);
-        setQuestions(questionsData);
 
-        if (attemptData.attempt.last_question_index) setCurrentQuestionIndex(attemptData.attempt.last_question_index);
-
-        // Log start/resume
-        await fetch('/api/exams/logs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            attemptId: attemptData.attempt.id,
-            actionType: 'START',
-            description: attemptData.status === 'resumed' ? 'Exam session resumed' : 'Exam session started'
-          })
-        });
-
-        if (attemptData.attempt.doubtful_questions) {
-          try {
-            const doubtful = typeof attemptData.attempt.doubtful_questions === 'string'
-              ? JSON.parse(attemptData.attempt.doubtful_questions)
-              : attemptData.attempt.doubtful_questions;
-            setDoubtfulAnswers(doubtful || {});
-          } catch (e) {
-            console.error("Failed to parse doubtful questions:", e);
-            setDoubtfulAnswers({});
-          }
+        // If instructions are enabled, halt here and show the instruction screen
+        if (settingsData.show_instructions) {
+          setShowInstructionsScreen(true);
+          setLoading(false);
+        } else {
+          // If no instructions, automatically start the exam process
+          await startExamProcess(settingsData);
         }
-        if (tempAnswersRes.ok) setAnswers(await tempAnswersRes.json() || {});
-
       } catch (err) {
         setError(err.message);
-        initExamRef.current = false;
-      } finally {
         setLoading(false);
+        initExamRef.current = false;
       }
     }
-    getExamData();
+    loadExamSettings();
   }, [examId]);
+
+  const startExamProcess = async (settingsData) => {
+    try {
+      setStartingExam(true);
+      const [attemptRes, questionsRes, tempAnswersRes] = await Promise.all([
+        fetch('/api/exams/start-attempt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ examId }),
+        }),
+        fetch(`/api/exams/questions?exam_id=${examId}`),
+        fetch(`/api/exams/temporary-answer?exam_id=${examId}`)
+      ]);
+
+      if (!attemptRes.ok) throw new Error((await attemptRes.json()).message || 'Could not start exam.');
+      if (!questionsRes.ok) throw new Error((await questionsRes.json()).message || 'Could not fetch questions.');
+
+      const attemptData = await attemptRes.json();
+      const questionsData = await questionsRes.json();
+
+      setExamDetails(settingsData);
+      setAttemptDetails(attemptData.attempt);
+      setTimeLeft(attemptData.initial_seconds_left);
+      setQuestions(questionsData);
+
+      if (attemptData.attempt.last_question_index) setCurrentQuestionIndex(attemptData.attempt.last_question_index);
+
+      // Log start/resume
+      await fetch('/api/exams/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attemptId: attemptData.attempt.id,
+          actionType: 'START',
+          description: attemptData.status === 'resumed' ? 'Exam session resumed' : 'Exam session started'
+        })
+      });
+
+      if (attemptData.attempt.doubtful_questions) {
+        try {
+          const doubtful = typeof attemptData.attempt.doubtful_questions === 'string'
+            ? JSON.parse(attemptData.attempt.doubtful_questions)
+            : attemptData.attempt.doubtful_questions;
+          setDoubtfulAnswers(doubtful || {});
+        } catch (e) {
+          console.error("Failed to parse doubtful questions:", e);
+          setDoubtfulAnswers({});
+        }
+      }
+      if (tempAnswersRes.ok) setAnswers(await tempAnswersRes.json() || {});
+
+      setShowInstructionsScreen(false); // Hide instructions
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      setStartingExam(false);
+    }
+  };
 
   const updateAttemptState = useCallback(async (dataToUpdate) => {
     if (!attemptDetails?.id) return;
@@ -551,6 +577,55 @@ export default function ExamTakingPage() {
       </div>
     </div>
   );
+
+  if (showInstructionsScreen) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl w-full max-w-2xl border border-slate-200 dark:border-slate-700">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/40 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600 dark:text-indigo-400">
+              <Icons.Flag />
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white">Petunjuk Ujian</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2">{examDetails?.exam_name}</p>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-700/50 p-6 rounded-2xl mb-8 border border-slate-100 dark:border-slate-600">
+            {examDetails?.instruction_type === 'custom' && examDetails?.custom_instructions ? (
+              <div
+                className="prose prose-slate dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
+                dangerouslySetInnerHTML={{ __html: examDetails.custom_instructions }}
+              />
+            ) : (
+              <div className="prose prose-slate dark:prose-invert max-w-none text-slate-700 dark:text-slate-300">
+                <ul className="space-y-3">
+                  <li>Berdoalah sebelum mengerjakan ujian.</li>
+                  <li>Periksa daftar soal untuk melihat ragam pertanyaan yang tersedia.</li>
+                  <li>Silakan gunakan fitur <strong>Tandai Ragu</strong> jika belum yakin dengan jawaban.</li>
+                  <li>Kerjakan dengan jujur dan teliti.</li>
+                  <li>Pastikan untuk menekan <strong>Selesai Ujian</strong> sebelum waktu habis.</li>
+                </ul>
+              </div>
+            )}
+            {examDetails?.duration_minutes && (
+              <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-600 flex items-center gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
+                <Icons.Clock /> Waktu Pengerjaan: {examDetails.duration_minutes} Menit
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => startExamProcess(examDetails)}
+            disabled={startingExam}
+            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {startingExam ? 'Memulai...' : 'Mulai Ujian Sekarang'}
+            {!startingExam && <Icons.ChevronRight />}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-transparent pb-20">

@@ -1,8 +1,9 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 // Helper to format dates for datetime-local input
 const toDateTimeLocal = (dateString) => {
@@ -80,10 +81,18 @@ export default function ManageExamPage() {
   const [availableClasses, setAvailableClasses] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState([]);
 
+  // Custom Instructions States
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [instructionType, setInstructionType] = useState('template');
+  const [customInstructions, setCustomInstructions] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState('');
+
+  // Track if initial load is done to prevent auto-saving on mount
+  const isInitialLoadDone = useRef(false);
+  // Ref for the timeout to allow debounce saving
+  const saveTimeoutRef = useRef(null);
 
   const isScheduled = startTime && endTime;
 
@@ -128,10 +137,18 @@ export default function ManageExamPage() {
       setRequireSafeBrowser(!!data.require_safe_browser);
       setRequireSeb(!!data.require_seb);
       setSebConfigKey(data.seb_config_key || '');
+      setShowInstructions(!!data.show_instructions);
+      setInstructionType(data.instruction_type || 'template');
+      setCustomInstructions(data.custom_instructions || '');
       setSelectedClasses(data.allowed_classes || []);
 
+      // Marking initial load completed so auto-save works exclusively on user edits
+      setTimeout(() => {
+        isInitialLoadDone.current = true;
+      }, 500);
+
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -151,11 +168,9 @@ export default function ManageExamPage() {
     });
   };
 
-  const handleSaveAll = async (e) => {
-    e.preventDefault();
+  const executeAutoSave = async () => {
     setSaving(true);
-    setError('');
-    setSuccess('');
+    const savingToastId = toast.loading('Saving changes...');
 
     const examDetailsPromise = fetch('/api/exams', {
       method: 'PUT',
@@ -183,6 +198,9 @@ export default function ManageExamPage() {
         requireSafeBrowser: requireSafeBrowser,
         requireSeb: requireSeb,
         sebConfigKey: sebConfigKey,
+        showInstructions: showInstructions,
+        instructionType: instructionType,
+        customInstructions: customInstructions,
         allowedClasses: selectedClasses
       }),
     });
@@ -197,13 +215,31 @@ export default function ManageExamPage() {
         throw new Error(errorMessage.trim() || 'An error occurred while saving.');
       }
 
-      setSuccess('Exam details and settings saved successfully!');
+      toast.success('All changes saved successfully.', { id: savingToastId });
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message, { id: savingToastId });
     } finally {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (!isInitialLoadDone.current) return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Auto-save debounce logic ensures execution 1s after the last state shift.
+    saveTimeoutRef.current = setTimeout(() => {
+      executeAutoSave();
+    }, 1000);
+
+    return () => clearTimeout(saveTimeoutRef.current);
+  }, [
+    examName, description, startTime, endTime, shuffleQuestions, shuffleAnswers,
+    timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, sebConfigKey, selectedClasses, showInstructions, instructionType, customInstructions
+  ]);
 
   if (loading) {
     return (
@@ -217,21 +253,25 @@ export default function ManageExamPage() {
           <div className="h-24 bg-slate-200 dark:bg-slate-700 rounded-lg w-full animate-pulse"></div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="container mx-auto p-4 md:p-6">
       <div className="mb-6">
         <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100">{examName || 'Manage Exam'}</h1>
-        <p className="text-lg text-slate-500 dark:text-slate-400 mt-1">Edit exam details, settings, and questions.</p>
+        <p className="text-lg text-slate-500 dark:text-slate-400 mt-1">Edit exam details, settings, and questions. Configuration changes are saved automatically.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 
         <div className="md:col-span-2">
-          <form onSubmit={handleSaveAll} className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 space-y-6">
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4">Exam Details</h2>
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 space-y-6">
+            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-4">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Exam Details</h2>
+              {saving && <span className="text-sm font-semibold text-indigo-500 animate-pulse">Saving...</span>}
+            </div>
+
             <div>
               <label htmlFor="examName" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Exam Name</label>
               <input
@@ -240,7 +280,7 @@ export default function ManageExamPage() {
                 value={examName}
                 onChange={(e) => setExamName(e.target.value)}
                 className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                disabled={saving}
+                disabled={saving && false}
                 required
               />
             </div>
@@ -253,7 +293,7 @@ export default function ManageExamPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
                 rows="4"
-                disabled={saving}
+                disabled={saving && false}
               />
             </div>
 
@@ -272,7 +312,7 @@ export default function ManageExamPage() {
                         checked={selectedClasses.includes(cls.id)}
                         onChange={() => handleToggleClass(cls.id)}
                         className="w-4 h-4 text-indigo-600 dark:text-indigo-500 rounded focus:ring-indigo-500 dark:focus:ring-indigo-400 border-gray-300 dark:border-gray-600 dark:bg-slate-700"
-                        disabled={saving}
+                        disabled={saving && false}
                       />
                       <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">{cls.class_name}</span>
                     </label>
@@ -286,8 +326,8 @@ export default function ManageExamPage() {
                 <SegmentedControl
                   name="timer-mode"
                   options={[
-                    { label: 'Synchronous', value: 'sync', disabled: !isScheduled || saving },
-                    { label: 'Asynchronous', value: 'async', disabled: saving },
+                    { label: 'Synchronous', value: 'sync', disabled: !isScheduled || (saving && false) },
+                    { label: 'Asynchronous', value: 'async', disabled: saving && false },
                   ]}
                   value={timerMode}
                   onChange={setTimerMode}
@@ -307,9 +347,9 @@ export default function ManageExamPage() {
                     id="duration"
                     type="number"
                     value={durationMinutes}
-                    onChange={(e) => setDurationMinutes(parseInt(e.target.value, 10))}
+                    onChange={(e) => setDurationMinutes(parseInt(e.target.value, 10) || '')}
                     className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                    disabled={saving}
+                    disabled={saving && false}
                     min="1"
                   />
                 </div>
@@ -323,7 +363,7 @@ export default function ManageExamPage() {
                   value={minTimeMinutes}
                   onChange={(e) => setMinTimeMinutes(parseInt(e.target.value, 10))}
                   className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                  disabled={saving}
+                  disabled={saving && false}
                   min="0"
                 />
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
@@ -339,7 +379,7 @@ export default function ManageExamPage() {
                   value={maxAttempts}
                   onChange={(e) => setMaxAttempts(parseInt(e.target.value, 10))}
                   className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                  disabled={saving}
+                  disabled={saving && false}
                   min="1"
                 />
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
@@ -355,7 +395,7 @@ export default function ManageExamPage() {
                 description="Students must use the Rushless Safer application to take this exam."
                 checked={requireSafeBrowser}
                 onChange={() => setRequireSafeBrowser(!requireSafeBrowser)}
-                disabled={saving}
+                disabled={saving && false}
               />
               <Switch
                 id="req-seb"
@@ -363,7 +403,7 @@ export default function ManageExamPage() {
                 description="Students must use Safe Exam Browser to take this exam."
                 checked={requireSeb}
                 onChange={() => setRequireSeb(!requireSeb)}
-                disabled={saving}
+                disabled={saving && false}
               />
               {requireSeb && (
                 <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-b-lg">
@@ -375,7 +415,7 @@ export default function ManageExamPage() {
                     onChange={(e) => setSebConfigKey(e.target.value)}
                     placeholder="Enter X-SafeExamBrowser-ConfigKey string... (optional)"
                     className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                    disabled={saving}
+                    disabled={saving && false}
                   />
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                     Validating the Config Key ensures the student hasn't altered the SEB configuration. Leave blank to only check if the browser is SEB.
@@ -388,7 +428,7 @@ export default function ManageExamPage() {
                 description="Setiap siswa akan mendapatkan urutan soal yang berbeda."
                 checked={shuffleQuestions}
                 onChange={() => setShuffleQuestions(!shuffleQuestions)}
-                disabled={saving}
+                disabled={saving && false}
               />
               <Switch
                 id="shuffle-answers"
@@ -396,8 +436,58 @@ export default function ManageExamPage() {
                 description="Opsi jawaban pada soal pilihan ganda akan diacak."
                 checked={shuffleAnswers}
                 onChange={() => setShuffleAnswers(!shuffleAnswers)}
-                disabled={saving}
+                disabled={saving && false}
               />
+            </div>
+
+            <div className="space-y-4 bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+              <Switch
+                id="show-instructions"
+                label="Tampilkan Petunjuk Pengerjaan"
+                description="Halaman petunjuk akan muncul sebelum siswa menekan tombol 'Mulai Ujian'."
+                checked={showInstructions}
+                onChange={() => setShowInstructions(!showInstructions)}
+                disabled={saving && false}
+              />
+              {showInstructions && (
+                <div className="pl-4 border-l-2 border-indigo-200 dark:border-indigo-800 space-y-4 pt-2">
+                  <SegmentedControl
+                    name="instruction-type"
+                    options={[
+                      { label: 'Gunakan Template Default', value: 'template', disabled: saving && false },
+                      { label: 'Gunakan Teks Kustom', value: 'custom', disabled: saving && false },
+                    ]}
+                    value={instructionType}
+                    onChange={setInstructionType}
+                  />
+
+                  {instructionType === 'template' ? (
+                    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg p-4 prose prose-sm prose-slate dark:prose-invert">
+                      <h4 className="font-bold">✨ Preview Petunjuk Default</h4>
+                      <ul>
+                        <li>Berdoalah sebelum mengerjakan ujian.</li>
+                        <li>Periksa daftar soal untuk melihat ragam pertanyaan yang tersedia.</li>
+                        <li>Silakan gunakan fitur <strong>Tandai Ragu</strong> jika belum yakin dengan jawaban.</li>
+                        <li>Kerjakan dengan jujur dan teliti.</li>
+                        <li>Pastikan untuk menekan <strong>Selesai Ujian</strong> sebelum waktu habis.</li>
+                      </ul>
+                    </div>
+                  ) : (
+                    <div>
+                      <label htmlFor="customInstructions" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Teks Petunjuk Kustom (Mendukung HTML dasar)</label>
+                      <textarea
+                        id="customInstructions"
+                        value={customInstructions}
+                        onChange={(e) => setCustomInstructions(e.target.value)}
+                        placeholder="Contoh: <p>Selamat mengerjakan...</p><ul><li>Aturan 1</li></ul>"
+                        className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none font-mono text-sm"
+                        rows="6"
+                        disabled={saving && false}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
@@ -410,7 +500,7 @@ export default function ManageExamPage() {
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                disabled={saving}
+                disabled={saving && false}
               />
             </div>
 
@@ -424,25 +514,16 @@ export default function ManageExamPage() {
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
                 className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                disabled={saving}
+                disabled={saving && false}
               />
             </div>
 
-            <div className="flex items-center justify-between pt-4">
+            <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
               <Link href="/dashboard/exams" className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors">
                 &larr; Back to exams list
               </Link>
-              <button
-                type="submit"
-                className="inline-flex items-center justify-center px-6 py-2.5 bg-indigo-600 dark:bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30 disabled:bg-indigo-300 dark:disabled:bg-indigo-400/50 disabled:cursor-not-allowed"
-                disabled={saving}
-              >
-                {saving ? 'Saving...' : 'Save All Changes'}
-              </button>
             </div>
-            {success && <p className="mt-4 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40 p-3 rounded-lg border border-green-200 dark:border-green-800">{success}</p>}
-            {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 p-3 rounded-lg border border-red-200 dark:border-red-800">{error}</p>}
-          </form>
+          </div>
         </div>
 
         <div className="md:col-span-1">
