@@ -367,12 +367,12 @@ const ImportWordForm = ({ examId, onQuestionAdded }) => {
 
     const handleFileChange = (e) => {
         const selectedFile = e.target.files?.[0];
-        if (selectedFile && (selectedFile.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || selectedFile.type === "application/pdf")) {
+        if (selectedFile && (selectedFile.type === "application/zip" || selectedFile.type === "application/x-zip-compressed" || selectedFile.name.toLowerCase().endsWith('.zip'))) {
             setFile(selectedFile);
             setError('');
         } else {
             setFile(null);
-            setError('Please select a .docx or .pdf file.');
+            setError('Please select a .zip file.');
         }
     };
 
@@ -413,14 +413,14 @@ const ImportWordForm = ({ examId, onQuestionAdded }) => {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Select .docx or .pdf file</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Select a .zip file containing HTML and Images</label>
                 <div className="flex items-center justify-center w-full">
                     <label className="flex flex-col w-full h-32 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer">
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             <Icons.Upload />
                             <p className="text-sm text-slate-500 dark:text-slate-400">{file ? file.name : 'Click to upload'}</p>
                         </div>
-                        <input type="file" className="hidden" accept=".docx, .pdf" onChange={handleFileChange} />
+                        <input type="file" className="hidden" accept=".zip,application/zip,application/x-zip-compressed" onChange={handleFileChange} />
                     </label>
                 </div>
             </div>
@@ -523,8 +523,8 @@ const ExportModal = ({ isOpen, onClose, examId, examName }) => {
                         <label
                             key={m.value}
                             className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${exportMode === m.value
-                                    ? 'border-indigo-500 bg-indigo-50'
-                                    : 'border-slate-200 hover:border-slate-300'
+                                ? 'border-indigo-500 bg-indigo-50'
+                                : 'border-slate-200 hover:border-slate-300'
                                 }`}
                         >
                             <input
@@ -767,13 +767,14 @@ export default function ManageQuestionsPage() {
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-1">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 sticky top-24">
-                        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">Add Questions</h2>
-                        <div className="flex border-b border-slate-200 dark:border-slate-700 mb-4">
-                            <button onClick={() => setActiveTab('manual')} className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'manual' ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300'}`}>
-                                Manual Input
-                            </button>
-                            <button onClick={() => setActiveTab('import')} className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'import' ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300'}`}>
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 sticky top-24">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">Add Questions</h2>
+                            <div className="flex border-b border-slate-200 dark:border-slate-700 mb-4">
+                                <button onClick={() => setActiveTab('manual')} className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'manual' ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300'}`}>
+                                    Manual Input
+                                </button>
+                                <button onClick={() => setActiveTab('import')} className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'import' ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300'}`}>
+                                    Import ZIP
                                 </button>
                             </div>
 
@@ -782,9 +783,9 @@ export default function ManageQuestionsPage() {
                         </div>
                     </div>
                     <div className="lg:col-span-2">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Existing Questions ({questions.length})</h2>
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Existing Questions ({questions.length})</h2>
                                 {questions.length > 0 && (
                                     <div className="flex gap-2">
                                         <button
@@ -836,9 +837,12 @@ export default function ManageQuestionsPage() {
                                                         <button onClick={() => handleDelete(q.id)} className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-slate-700"><Icons.Trash /></button>
                                                     </div>
                                                 </div>
-                                                <div className="mt-2 space-y-1 text-sm prose dark:prose-invert prose-slate max-w-none ml-8">
+                                                <div className="mt-2 text-sm max-w-none ml-8">
                                                     {Object.entries(q.options).map(([key, value]) => (
-                                                        <div key={key} className={`pl-4 ${key === q.correct_option ? 'font-bold text-green-700 dark:text-green-400' : 'text-slate-600 dark:text-slate-400'}`} dangerouslySetInnerHTML={{ __html: `${key}. ${value} ${key === q.correct_option ? '✓' : ''}` }} />
+                                                        <div key={key} className={`pl-4 flex gap-2 w-full mt-1 ${key === q.correct_option ? 'font-bold text-green-700 dark:text-green-400' : 'text-slate-600 dark:text-slate-400'}`}>
+                                                            <span>{key}.</span>
+                                                            <div className="prose dark:prose-invert prose-sm" dangerouslySetInnerHTML={{ __html: `${value} ${key === q.correct_option ? '✓' : ''}` }} />
+                                                        </div>
                                                     ))}
                                                 </div>
                                             </div>
