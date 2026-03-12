@@ -4,6 +4,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import dynamic from 'next/dynamic';
+
+const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
 // Helper to format dates for datetime-local input
 const toDateTimeLocal = (dateString) => {
@@ -505,16 +508,18 @@ export default function ManageExamPage() {
                     </div>
                   ) : (
                     <div>
-                      <label htmlFor="customInstructions" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Teks Petunjuk Kustom (Mendukung HTML dasar)</label>
-                      <textarea
-                        id="customInstructions"
-                        value={customInstructions}
-                        onChange={(e) => setCustomInstructions(e.target.value)}
-                        placeholder="Contoh: <p>Selamat mengerjakan...</p><ul><li>Aturan 1</li></ul>"
-                        className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none font-mono text-sm"
-                        rows="6"
-                        disabled={saving && false}
-                      />
+                      <label htmlFor="customInstructions" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Teks Petunjuk Kustom (Mendukung HTML)</label>
+                      <div className="border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden prose-sm">
+                        <JoditEditor
+                          value={customInstructions}
+                          onBlur={newContent => setCustomInstructions(newContent)}
+                          config={{
+                            readonly: saving,
+                            theme: 'default',
+                            placeholder: 'Ketik petunjuk kustom di sini...',
+                          }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

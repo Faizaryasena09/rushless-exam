@@ -129,7 +129,10 @@ function LoginForm() {
           <div className="flex justify-center mb-4">
             <img src={branding.site_logo} alt={`${branding.site_name} Logo`} className="h-14 w-auto object-contain drop-shadow-sm" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1 transition-colors duration-300">{branding.site_name}</h1>
+          <h1 
+            className="text-3xl font-bold text-gray-800 dark:text-white mb-1 transition-colors duration-300 prose prose-slate dark:prose-invert"
+            dangerouslySetInnerHTML={{ __html: branding.site_name }}
+          ></h1>
           <p className="text-gray-500 dark:text-gray-400 transition-colors duration-300">Sign in to begin your session</p>
         </div>
 

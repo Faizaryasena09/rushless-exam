@@ -80,11 +80,10 @@ export default function Header({ user, isLoading, toggleSidebar, showToggleButto
               <img src={branding?.site_logo || '/favicon.ico'} alt="Logo" className="w-8 h-8 object-contain drop-shadow-sm" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                 {(branding?.site_name || 'Rushless Exam').toUpperCase().substring(0, (branding?.site_name || 'Rushless Exam').length / 2)}
-                 <span className="text-indigo-600 dark:text-indigo-400">
-                     {(branding?.site_name || 'Rushless Exam').toUpperCase().substring((branding?.site_name || 'Rushless Exam').length / 2)}
-                 </span>
+              <span 
+                className="text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors prose prose-sm prose-slate dark:prose-invert"
+                dangerouslySetInnerHTML={{ __html: branding?.site_name || 'Rushless Exam' }}
+              >
               </span>
             </div>
           </Link>

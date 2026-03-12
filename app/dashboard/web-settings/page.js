@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '@/app/components/ThemeProvider';
 import Link from 'next/link';
 import Cropper from 'react-easy-crop';
+import dynamic from 'next/dynamic';
+
+const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
 export default function WebSettingsPage() {
     const [settings, setSettings] = useState({});
@@ -296,14 +299,19 @@ export default function WebSettingsPage() {
                             <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Nama Situs (Site Name)</p>
                             <p className="text-xs text-slate-400 dark:text-slate-500">Akan ditampilkan di header, sidebar, judul dokumen, dsb.</p>
                         </div>
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                            <input
-                                type="text"
-                                placeholder="Cth: Rushless Exam"
-                                value={settings.site_name || ''}
-                                onChange={(e) => setSettings(prev => ({ ...prev, site_name: e.target.value }))}
-                                className="flex-1 sm:w-64 px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
+                        <div className="flex flex-col gap-2 w-full sm:w-[60%]">
+                            <div className="border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden prose-sm bg-white dark:bg-slate-700">
+                                <JoditEditor
+                                    value={settings.site_name || ''}
+                                    onBlur={newContent => setSettings(prev => ({ ...prev, site_name: newContent }))}
+                                    config={{
+                                        readonly: saving.site_name,
+                                        toolbarInline: true,
+                                        theme: 'default',
+                                        placeholder: 'Mendukung format HTML dan teks berwarna...',
+                                    }}
+                                />
+                            </div>
                             <button
                                 onClick={async () => {
                                     setSaving(prev => ({ ...prev, site_name: true }));

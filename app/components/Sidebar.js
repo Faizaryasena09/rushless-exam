@@ -116,11 +116,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         {/* Header Sidebar */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-slate-100 dark:border-slate-700">
           <Link href="/" className="flex items-center gap-2 max-w-[80%] overflow-hidden">
-            <span className="text-lg font-bold tracking-tight text-slate-800 dark:text-white truncate">
-              {(branding?.site_name || 'Rushless Exam').substring(0, (branding?.site_name || 'Rushless Exam').length / 2)}
-              <span className="text-indigo-600 dark:text-indigo-400">
-                 {(branding?.site_name || 'Rushless Exam').substring((branding?.site_name || 'Rushless Exam').length / 2)}
-              </span>
+            <span 
+              className="text-lg font-bold tracking-tight text-slate-800 dark:text-white truncate prose prose-sm prose-slate dark:prose-invert"
+              dangerouslySetInnerHTML={{ __html: branding?.site_name || 'Rushless Exam' }}
+            >
             </span>
           </Link>
 
