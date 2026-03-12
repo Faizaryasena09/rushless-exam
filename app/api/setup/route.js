@@ -58,6 +58,36 @@ export async function GET(request) {
     const tableName = 'rhs_exams';
     let messages = [];
 
+    // --- Check and create 'rhs_subjects' table ---
+    const subjectsTableName = 'rhs_subjects';
+    await query({
+      query: `
+            CREATE TABLE IF NOT EXISTS ${subjectsTableName} (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `,
+      values: [],
+    });
+    messages.push(`Table '${subjectsTableName}' created or already exists.`);
+
+    // --- Check and create 'rhs_teacher_subjects' table (Junction table) ---
+    const teacherSubjectsTableName = 'rhs_teacher_subjects';
+    await query({
+      query: `
+            CREATE TABLE IF NOT EXISTS ${teacherSubjectsTableName} (
+                teacher_id INT NOT NULL,
+                subject_id INT NOT NULL,
+                PRIMARY KEY (teacher_id, subject_id),
+                FOREIGN KEY (teacher_id) REFERENCES rhs_users(id) ON DELETE CASCADE,
+                FOREIGN KEY (subject_id) REFERENCES ${subjectsTableName}(id) ON DELETE CASCADE
+            )
+        `,
+      values: [],
+    });
+    messages.push(`Table '${teacherSubjectsTableName}' created or already exists.`);
+
     // --- Check and create 'rhs_exam_categories' table ---
     const examCategoriesTableName = 'rhs_exam_categories';
     await query({
@@ -469,6 +499,22 @@ export async function GET(request) {
       messages.push(`Column 'category_id' created successfully in '${tableName}'.`);
     } else {
       messages.push(`Column 'category_id' already exists in '${tableName}'.`);
+    }
+
+    // --- Check and add 'subject_id' column to exams table ---
+    const hasSubjectId = await columnExists(tableName, 'subject_id');
+    if (!hasSubjectId) {
+      await query({
+        query: `ALTER TABLE ${tableName} ADD COLUMN subject_id INT DEFAULT NULL;`,
+        values: [],
+      });
+      await query({
+        query: `ALTER TABLE ${tableName} ADD CONSTRAINT fk_exam_subject FOREIGN KEY (subject_id) REFERENCES rhs_subjects(id) ON DELETE SET NULL;`,
+        values: [],
+      });
+      messages.push(`Column 'subject_id' created successfully in '${tableName}'.`);
+    } else {
+      messages.push(`Column 'subject_id' already exists in '${tableName}'.`);
     }
 
     // --- Check and create 'rhs_web_settings' table ---

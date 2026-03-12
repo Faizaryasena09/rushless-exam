@@ -48,6 +48,13 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
           <span>{exam.exam_name}</span>
           {exam.exam_is_hidden && <span className="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider text-slate-500 bg-slate-100 dark:text-slate-400 dark:bg-slate-700 rounded-full">Hidden</span>}
         </h2>
+        {exam.subject_name && (
+          <div className="mt-1">
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+              {exam.subject_name}
+            </span>
+          </div>
+        )}
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 h-10 overflow-hidden">{exam.description || 'No description provided.'}</p>
         <div className="mt-4 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">

@@ -67,6 +67,7 @@ export default function ManageExamPage() {
 
   const [examName, setExamName] = useState('');
   const [description, setDescription] = useState('');
+  const [subjectId, setSubjectId] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
@@ -78,6 +79,7 @@ export default function ManageExamPage() {
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [minTimeMinutes, setMinTimeMinutes] = useState(0);
   const [maxAttempts, setMaxAttempts] = useState(1);
+  const [availableSubjects, setAvailableSubjects] = useState([]);
   const [availableClasses, setAvailableClasses] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState([]);
 
@@ -110,9 +112,10 @@ export default function ManageExamPage() {
     if (!examId) return;
     try {
       setLoading(true);
-      const [settingsRes, classesRes] = await Promise.all([
+      const [settingsRes, classesRes, subjectsRes] = await Promise.all([
         fetch(`/api/exams/settings?examId=${examId}`),
-        fetch('/api/classes')
+        fetch('/api/classes'),
+        fetch('/api/subjects')
       ]);
 
       if (!settingsRes.ok) {
@@ -123,12 +126,16 @@ export default function ManageExamPage() {
 
       if (classesRes.ok) {
         const classesData = await classesRes.json();
-        // API returns array directly
         setAvailableClasses(Array.isArray(classesData) ? classesData : []);
+      }
+      if (subjectsRes.ok) {
+        const subjectsData = await subjectsRes.json();
+        setAvailableSubjects(Array.isArray(subjectsData) ? subjectsData : []);
       }
 
       setExamName(data.exam_name || '');
       setDescription(data.description || '');
+      setSubjectId(data.subject_id || '');
       setStartTime(toDateTimeLocal(data.start_time));
       setEndTime(toDateTimeLocal(data.end_time));
       setShuffleQuestions(data.shuffle_questions || false);
@@ -184,6 +191,7 @@ export default function ManageExamPage() {
         id: examId,
         exam_name: examName,
         description: description,
+        subject_id: subjectId || null,
       }),
     });
 
@@ -244,7 +252,7 @@ export default function ManageExamPage() {
 
     return () => clearTimeout(saveTimeoutRef.current);
   }, [
-    examName, description, startTime, endTime, shuffleQuestions, shuffleAnswers,
+    examName, description, subjectId, startTime, endTime, shuffleQuestions, shuffleAnswers,
     timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, sebConfigKey, selectedClasses, showInstructions, instructionType, customInstructions, showResult, showAnalysis
   ]);
 
@@ -302,6 +310,22 @@ export default function ManageExamPage() {
                 rows="4"
                 disabled={saving && false}
               />
+            </div>
+
+            <div>
+              <label htmlFor="subjectId" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Mata Pelajaran</label>
+              <select
+                id="subjectId"
+                value={subjectId}
+                onChange={(e) => setSubjectId(e.target.value)}
+                className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
+                disabled={saving && false}
+              >
+                <option value="">Pilih Mata Pelajaran...</option>
+                {availableSubjects.map((sbj) => (
+                  <option key={sbj.id} value={sbj.id}>{sbj.name}</option>
+                ))}
+              </select>
             </div>
 
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4 pt-4">Exam Settings</h2>

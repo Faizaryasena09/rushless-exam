@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 // Gunakan lucide-react untuk ikon (pastikan sudah install: npm install lucide-react)
@@ -13,8 +13,25 @@ export default function NewExamPage() {
   const [requireSafeBrowser, setRequireSafeBrowser] = useState(false);
   const [requireSeb, setRequireSeb] = useState(false);
   const [sebConfigKey, setSebConfigKey] = useState('');
+  const [subjects, setSubjects] = useState([]);
+  const [subjectId, setSubjectId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function fetchSubjects() {
+      try {
+        const res = await fetch('/api/subjects');
+        if (res.ok) {
+          const data = await res.json();
+          setSubjects(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch subjects', err);
+      }
+    }
+    fetchSubjects();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,7 +46,8 @@ export default function NewExamPage() {
           exam_name: examName,
           description,
           require_safe_browser: requireSafeBrowser,
-          require_seb: requireSeb
+          require_seb: requireSeb,
+          subject_id: subjectId || null
         }),
       });
 
@@ -91,6 +109,27 @@ export default function NewExamPage() {
               required
               placeholder="Contoh: Ujian Akhir Semester Matematika"
             />
+          </div>
+
+          {/* Input Mata Pelajaran */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300" htmlFor="subjectId">
+              Mata Pelajaran
+            </label>
+            <select
+              id="subjectId"
+              value={subjectId}
+              onChange={(e) => setSubjectId(e.target.value)}
+              className="block w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 transition-all outline-none"
+            >
+              <option value="">Pilih Mata Pelajaran...</option>
+              {subjects.map(subject => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Pilih mata pelajaran yang sesuai untuk ujian ini.</p>
           </div>
 
           {/* Input Deskripsi */}

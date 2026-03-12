@@ -18,27 +18,21 @@ async function GET() {
 
   try {
     let examsQuery = `
-        SELECT 
-          e.id, 
-          e.exam_name, 
-          e.description, 
-          e.created_at,
-          e.max_attempts,
-          e.timer_mode,
-          e.duration_minutes,
-          s.start_time,
-          s.end_time,
-          s.require_safe_browser,
-          s.require_seb,
-          s.show_result,
-          s.show_analysis,
-          e.category_id,
-          c.name as category_name,
-          e.is_hidden as exam_is_hidden,
-          c.is_hidden as category_is_hidden
+        SELECT e.*,
+            s.require_safe_browser,
+            s.require_seb,
+            s.seb_config_key,
+            s.start_time,
+            s.end_time,
+            s.show_result,
+            s.show_analysis,
+            c.name as category_name,
+            c.is_hidden as category_is_hidden, /* Admin fetched visibility flag */
+            s_subj.name as subject_name
         FROM rhs_exams e
         LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
         LEFT JOIN rhs_exam_categories c ON e.category_id = c.id
+        LEFT JOIN rhs_subjects s_subj ON e.subject_id = s_subj.id
     `;
 
     let queryValues = [];
@@ -53,15 +47,24 @@ async function GET() {
       queryValues.push(session.user.class_id || -1);
     } else if (session.user.roleName === 'teacher') {
       // Teachers see exams assigned to ANY of their managed classes
-      // Using EXISTS instead of JOIN/GROUP BY prevents ONLY_FULL_GROUP_BY MySQL mode errors
+      // AND also the exam MUST belong to a subject they teach (if a subject is assigned).
+      // If the exam has NO subject (subject_id IS NULL), we still show it to them as long as the class matches,
+      // but if it HAS a subject, they MUST be assigned to that subject.
       examsQuery += `
             WHERE EXISTS (
                 SELECT 1 FROM rhs_exam_classes ec
                 INNER JOIN rhs_teacher_classes tc ON ec.class_id = tc.class_id
                 WHERE ec.exam_id = e.id AND tc.teacher_id = ?
             )
+            AND (
+                e.subject_id IS NULL 
+                OR EXISTS (
+                    SELECT 1 FROM rhs_teacher_subjects ts
+                    WHERE ts.subject_id = e.subject_id AND ts.teacher_id = ?
+                )
+            )
         `;
-      queryValues.push(session.user.id);
+      queryValues.push(session.user.id, session.user.id);
     }
 
     examsQuery += ` ORDER BY e.created_at DESC`;
@@ -142,7 +145,7 @@ async function POST(request) {
   }
 
   // 2. Get data from the request body
-  const { exam_name, description, require_safe_browser, require_seb } = await request.json();
+  const { exam_name, description, require_safe_browser, require_seb, subject_id } = await request.json();
 
   // 3. Validate input
   if (!exam_name) {
@@ -152,8 +155,8 @@ async function POST(request) {
   // 4. Insert into the database
   try {
     const result = await query({
-      query: 'INSERT INTO rhs_exams (exam_name, description, timer_mode, duration_minutes) VALUES (?, ?, ?, ?)',
-      values: [exam_name, description, 'async', 60],
+      query: 'INSERT INTO rhs_exams (exam_name, description, timer_mode, duration_minutes, subject_id) VALUES (?, ?, ?, ?, ?)',
+      values: [exam_name, description, 'async', 60, subject_id || null],
     });
 
     if (result.affectedRows) {
@@ -204,7 +207,7 @@ async function PUT(request) {
   }
 
   // 2. Get data from the request body
-  const { id, exam_name, description, require_safe_browser, require_seb } = await request.json();
+  const { id, exam_name, description, require_safe_browser, require_seb, subject_id } = await request.json();
 
   // 3. Validate input
   if (!id || !exam_name) {
@@ -214,8 +217,8 @@ async function PUT(request) {
   // 4. Update the database
   try {
     await query({
-      query: 'UPDATE rhs_exams SET exam_name = ?, description = ? WHERE id = ?',
-      values: [exam_name, description, id],
+      query: 'UPDATE rhs_exams SET exam_name = ?, description = ?, subject_id = ? WHERE id = ?',
+      values: [exam_name, description, subject_id || null, id],
     });
 
     // Update settings (upsert logic to be safe, or just update)

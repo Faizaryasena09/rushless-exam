@@ -32,6 +32,7 @@ export async function GET(request) {
             e.id as exam_id, 
             e.exam_name, 
             e.description,
+            e.subject_id,
             e.shuffle_questions,
             e.shuffle_answers,
             e.timer_mode,
@@ -69,6 +70,7 @@ export async function GET(request) {
     // Convert TINYINT(1) from DB to boolean
     const examData = {
       ...results[0],
+      subject_id: results[0].subject_id || '',
       shuffle_questions: Boolean(results[0].shuffle_questions),
       shuffle_answers: Boolean(results[0].shuffle_answers),
       require_safe_browser: Boolean(results[0].require_safe_browser),
