@@ -412,6 +412,38 @@ export async function GET(request) {
     });
     messages.push(`Table '${teacherClassesTableName}' created or already exists.`);
 
+    // --- Check and create 'rhs_exam_categories' table ---
+    const examCategoriesTableName = 'rhs_exam_categories';
+    await query({
+      query: `
+            CREATE TABLE IF NOT EXISTS ${examCategoriesTableName} (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                created_by INT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (created_by) REFERENCES rhs_users(id) ON DELETE CASCADE
+            )
+        `,
+      values: [],
+    });
+    messages.push(`Table '${examCategoriesTableName}' created or already exists.`);
+
+    // --- Check and add 'category_id' column to exams table ---
+    const hasCategoryId = await columnExists(tableName, 'category_id');
+    if (!hasCategoryId) {
+      await query({
+        query: `ALTER TABLE ${tableName} ADD COLUMN category_id INT DEFAULT NULL;`,
+        values: [],
+      });
+      await query({
+        query: `ALTER TABLE ${tableName} ADD CONSTRAINT fk_exam_category FOREIGN KEY (category_id) REFERENCES ${examCategoriesTableName}(id) ON DELETE SET NULL;`,
+        values: [],
+      });
+      messages.push(`Column 'category_id' created successfully in '${tableName}'.`);
+    } else {
+      messages.push(`Column 'category_id' already exists in '${tableName}'.`);
+    }
+
     return NextResponse.json({
       status: 'success',
       message: 'Database setup check completed.',

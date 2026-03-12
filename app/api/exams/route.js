@@ -31,9 +31,12 @@ async function GET() {
           s.require_safe_browser,
           s.require_seb,
           s.show_result,
-          s.show_analysis
+          s.show_analysis,
+          e.category_id,
+          c.name as category_name
         FROM rhs_exams e
         LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
+        LEFT JOIN rhs_exam_categories c ON e.category_id = c.id
     `;
 
     let queryValues = [];
