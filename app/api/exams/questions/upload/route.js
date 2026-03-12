@@ -2,8 +2,22 @@ import { NextResponse } from 'next/server';
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import AdmZip from 'adm-zip';
+import iconv from 'iconv-lite';
+import fs from 'fs/promises';
+import path from 'path';
 import { query } from '@/app/lib/db';
 import { sessionOptions } from '@/app/lib/session';
+
+// Helper for ASYNC string replace
+async function replaceAsync(str, regex, asyncFn) {
+    const promises = [];
+    str.replace(regex, (match, ...args) => {
+        const promise = asyncFn(match, ...args);
+        promises.push(promise);
+    });
+    const data = await Promise.all(promises);
+    return str.replace(regex, () => data.shift());
+}
 
 // Upload Question API
 export async function POST(request) {
@@ -36,35 +50,44 @@ export async function POST(request) {
                 return NextResponse.json({ message: 'No .htm or .html file found inside the zip. Please ensure the zip contains the exported HTML file.' }, { status: 400 });
             }
 
-            // Read HTML content
-            let htmlContent = htmlEntry.getData().toString('utf8');
+            // Read HTML content and decode it using iconv-lite
+            // MS Word exports often use Windows-1252 encoding. We can attempt to decode using win1252.
+            const rawBuffer = htmlEntry.getData();
+            let htmlContent = iconv.decode(rawBuffer, 'win1252');
 
-            // Replace image sources with base64 data
-            // Look for <img src="something">
-            htmlContent = htmlContent.replace(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi, (match, src) => {
-                // Find the image entry in the zip that matches the src
-                // Handle paths like "filename_files/image001.png"
+            // Fallback safety: If HTML specifies utf-8 but we decoded it as win1252, we can re-decode if we find charset=utf-8 in the string
+            if (htmlContent.match(/charset=["']?utf-8/i)) {
+                htmlContent = rawBuffer.toString('utf8');
+            }
 
-                // Decode URI components in case the src is URL encoded
+            // Create upload directory if it doesn't exist
+            const uploadDir = path.join(process.cwd(), 'public', 'uploads', `exam-${examId}`);
+            await fs.mkdir(uploadDir, { recursive: true });
+
+            // Replace image sources: write file asynchronously and generate URL
+            htmlContent = await replaceAsync(htmlContent, /<img[^>]*src=["']([^"']+)["'][^>]*>/gi, async (match, src) => {
                 let searchSrc = decodeURIComponent(src);
 
-                // Try to find exact match first, then fallback to ending with the filename
                 let imgEntry = zipEntries.find(e => e.entryName === searchSrc) ||
                     zipEntries.find(e => e.entryName.endsWith(searchSrc.split('/').pop() || searchSrc.split('\\').pop()));
 
                 if (imgEntry) {
                     const imgBuffer = imgEntry.getData();
-                    // Basic mime type detection based on extension
-                    let mimeType = 'image/png';
-                    if (searchSrc.match(/\.jpe?g$/i)) mimeType = 'image/jpeg';
-                    else if (searchSrc.match(/\.gif$/i)) mimeType = 'image/gif';
-                    else if (searchSrc.match(/\.svg$/i)) mimeType = 'image/svg+xml';
 
-                    const base64Data = `data:${mimeType};base64,${imgBuffer.toString('base64')}`;
-                    return match.replace(src, base64Data);
+                    // Generate unique filename to avoid overwrites (e.g., from multiple imports)
+                    const originalExt = path.extname(searchSrc) || '.png';
+                    const uniqueFilename = `img_${Date.now()}_${Math.random().toString(36).substring(2, 8)}${originalExt}`;
+                    const filePath = path.join(uploadDir, uniqueFilename);
+
+                    // Write the buffer to the filesystem
+                    await fs.writeFile(filePath, imgBuffer);
+
+                    // Reconstruct a Next.js public URL path
+                    const nextPublicUrl = `/uploads/exam-${examId}/${uniqueFilename}`;
+                    return match.replace(src, nextPublicUrl);
                 }
 
-                return match; // Return original if not found
+                return match;
             });
 
             htmlFn = htmlContent;
@@ -128,7 +151,6 @@ function parseHtmlContent(html) {
         .replace(/<\/?(?:html|head|body|title|meta|link|p|div|ul|ol|li|h[1-6])[^>]*>/gi, '')
         // Convert table semantics to newlines or keep them if they are useful for layout
         // We will keep table tags, but we need to ensure they don't break our line logic
-        .replace(/&nbsp;/g, ' ')
         .split('\n')
         .map(l => l.trim())
         .filter(l => l);
@@ -147,7 +169,8 @@ function parseHtmlContent(html) {
     let currentOptionKey = null;
 
     // Robust Regex: allows any HTML tags before, between, or after the Number/Letter and the dot/parenthesis
-    const htmlTagSpacing = '(?:\\s*<[^>]+>\\s*|\\s+|&nbsp;)*';
+    // We remove &nbsp; from this spacing matcher so it is not accidentally consumed if it's part of the text.
+    const htmlTagSpacing = '(?:\\s*<[^>]+>\\s*|\\s+)*';
 
     // Question: ^(tags) (Number) (tags) [.)] (tags) (text)
     const qRegexStr = '^' + htmlTagSpacing + '(\\d+)' + htmlTagSpacing + '[.)]' + htmlTagSpacing + '(.*)';
