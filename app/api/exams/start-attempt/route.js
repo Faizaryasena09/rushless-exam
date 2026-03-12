@@ -15,9 +15,9 @@ function calculateRemainingSeconds(settings, attempt, now_ts) {
     let examEndTime_ts;
     // The properties on settings and attempt are now consistently named (e.g., duration_minutes, end_time_ts)
     if (settings.timer_mode === 'async') {
-        examEndTime_ts = attempt.start_time_ts + (settings.duration_minutes * 60);
+        examEndTime_ts = attempt.start_time_ts + (settings.duration_minutes * 60) + ((attempt.time_extension || 0) * 60);
     } else {
-        examEndTime_ts = settings.end_time_ts;
+        examEndTime_ts = settings.end_time_ts + ((attempt.time_extension || 0) * 60);
     }
     const remaining = Math.floor(examEndTime_ts - now_ts);
     return remaining > 0 ? remaining : 0;
@@ -68,7 +68,7 @@ export async function POST(request) {
             // 2. Check for an existing 'in_progress' attempt with row locking
             const existingAttempts = await query({
                 query: `
-                SELECT id, status, UNIX_TIMESTAMP(start_time) as start_time_ts, doubtful_questions, last_question_index
+                SELECT id, status, UNIX_TIMESTAMP(start_time) as start_time_ts, doubtful_questions, last_question_index, time_extension
                 FROM rhs_exam_attempts 
                 WHERE user_id = ? AND exam_id = ? AND status = 'in_progress'
                 FOR UPDATE
@@ -80,7 +80,7 @@ export async function POST(request) {
 
             // 3. Handle expired 'in_progress' attempt
             if (activeAttempt && settings.timer_mode === 'async') {
-                const examEndTime_ts = activeAttempt.start_time_ts + (settings.duration_minutes * 60);
+                const examEndTime_ts = activeAttempt.start_time_ts + (settings.duration_minutes * 60) + ((activeAttempt.time_extension || 0) * 60);
                 if (now_ts > examEndTime_ts) {
                     // The attempt has expired. Mark it as completed.
                     await query({ query: `UPDATE rhs_exam_attempts SET status = 'completed' WHERE id = ?`, values: [activeAttempt.id] });

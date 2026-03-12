@@ -59,7 +59,7 @@ export async function POST(request) {
                 if (!attemptId || !minutes) return NextResponse.json({ message: 'Params required' }, { status: 400 });
                 // Only add time if attempt is still in progress
                 const updateResult = await query({
-                    query: 'UPDATE rhs_exam_attempts SET time_extension = time_extension + ? WHERE id = ? AND status = "in_progress"',
+                    query: 'UPDATE rhs_exam_attempts SET time_extension = COALESCE(time_extension, 0) + ? WHERE id = ? AND status = "in_progress"',
                     values: [minutes, attemptId]
                 });
                 if (updateResult.affectedRows === 0) {

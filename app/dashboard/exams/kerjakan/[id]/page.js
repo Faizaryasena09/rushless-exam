@@ -198,33 +198,54 @@ export default function ExamTakingPage() {
     return () => clearInterval(interval);
   }, [timeLeft]);
 
-  // 2. Logic for 5-second server sync
+  // 2. Logic for SSE Server Sync
   useEffect(() => {
     if (!examId || !attemptDetails?.id) return;
 
-    const syncInterval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/exams/attempt-details?exam_id=${examId}`);
-        if (res.ok) {
-          const data = await res.json();
+    let sse;
+    try {
+      sse = new EventSource(`/api/exams/timer-stream?exam_id=${examId}`);
+      
+      sse.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.error) {
+            console.error("SSE Error:", data.error);
+            if (data.error === "Not found" || data.error === "No active attempt" || data.error === "Unauthorized") {
+              sse.close();
+              router.push('/dashboard/exams');
+            }
+            return;
+          }
 
           setTimeLeft(prevTime => {
-            if (data.seconds_left > prevTime + 10) {
+            if (prevTime !== null && data.seconds_left > prevTime + 5) { // 5 second threshold for alert to avoid jitter
               setShowTimeAddedAlert(true);
               setTimeout(() => setShowTimeAddedAlert(false), 5000);
             }
             return data.seconds_left;
           });
-        } else if (res.status === 401 || res.status === 404) {
-          router.push('/dashboard/exams');
-        }
-      } catch (e) {
-        console.error("Timer sync failed", e);
-      }
-    }, 5000);
 
-    return () => clearInterval(syncInterval);
-  }, [examId, router]);
+          if (data.status && data.status !== 'in_progress') {
+             sse.close();
+             router.push('/dashboard/exams');
+          }
+        } catch (err) {
+          console.error("Failed to parse SSE data", err);
+        }
+      };
+
+      sse.onerror = (err) => {
+        console.error("EventSource failed:", err);
+      };
+    } catch (e) {
+      console.error("Failed to connect to SSE", e);
+    }
+
+    return () => {
+      if (sse) sse.close();
+    };
+  }, [examId, router, attemptDetails?.id]);
 
   // 3. Security & Activity Logging
   useEffect(() => {
