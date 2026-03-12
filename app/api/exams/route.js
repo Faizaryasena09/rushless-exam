@@ -33,7 +33,9 @@ async function GET() {
           s.show_result,
           s.show_analysis,
           e.category_id,
-          c.name as category_name
+          c.name as category_name,
+          e.is_hidden as exam_is_hidden,
+          c.is_hidden as category_is_hidden
         FROM rhs_exams e
         LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
         LEFT JOIN rhs_exam_categories c ON e.category_id = c.id
@@ -42,10 +44,10 @@ async function GET() {
     let queryValues = [];
 
     if (session.user.roleName === 'student') {
-      // Students only see exams assigned to their class
+      // Students only see exams assigned to their class, and not hidden
       examsQuery += `
             INNER JOIN rhs_exam_classes ec ON e.id = ec.exam_id
-            WHERE ec.class_id = ?
+            WHERE ec.class_id = ? AND e.is_hidden = FALSE AND (c.is_hidden IS NULL OR c.is_hidden = FALSE)
         `;
       // If student has no class_id, they see nothing (pass null or -1 which matches nothing)
       queryValues.push(session.user.class_id || -1);

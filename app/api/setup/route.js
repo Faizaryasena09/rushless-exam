@@ -204,6 +204,31 @@ export async function GET(request) {
       messages.push(`Column 'seb_config_key' already exists in '${settingsTableName}'.`);
     }
 
+    // --- Check and add 'is_hidden' column to exams table ---
+    const hasIsHiddenExam = await columnExists(tableName, 'is_hidden');
+    if (!hasIsHiddenExam) {
+      await query({
+        query: `ALTER TABLE ${tableName} ADD COLUMN is_hidden BOOLEAN NOT NULL DEFAULT FALSE;`,
+        values: [],
+      });
+      messages.push(`Column 'is_hidden' created successfully in '${tableName}'.`);
+    } else {
+      messages.push(`Column 'is_hidden' already exists in '${tableName}'.`);
+    }
+
+    // --- Check and add 'is_hidden' column to exam_categories table ---
+    const categoriesTableName = 'rhs_exam_categories';
+    const hasIsHiddenCategory = await columnExists(categoriesTableName, 'is_hidden');
+    if (!hasIsHiddenCategory) {
+      await query({
+        query: `ALTER TABLE ${categoriesTableName} ADD COLUMN is_hidden BOOLEAN NOT NULL DEFAULT FALSE;`,
+        values: [],
+      });
+      messages.push(`Column 'is_hidden' created successfully in '${categoriesTableName}'.`);
+    } else {
+      messages.push(`Column 'is_hidden' already exists in '${categoriesTableName}'.`);
+    }
+
     // --- Check and add 'show_instructions' column to exam_settings table ---
     const hasShowInstructions = await columnExists(settingsTableName, 'show_instructions');
     if (!hasShowInstructions) {

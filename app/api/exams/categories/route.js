@@ -14,7 +14,7 @@ export async function GET(request) {
   }
 
   try {
-    let categoriesQuery = `SELECT id, name, created_by, created_at FROM rhs_exam_categories`;
+    let categoriesQuery = `SELECT id, name, created_by, created_at, is_hidden FROM rhs_exam_categories`;
     let queryValues = [];
 
     if (session.user.roleName === 'teacher') {
