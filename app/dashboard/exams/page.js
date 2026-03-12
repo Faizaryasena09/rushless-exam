@@ -69,11 +69,22 @@ const StudentExamActions = ({ exam }) => {
     );
   }
 
-  // 2. Check if max attempts have been reached
+  // 2. Check if max attempts have been reached or exam was otherwise completed
   if (exam.max_attempts > 0 && exam.user_attempts >= exam.max_attempts) {
+    if (exam.show_result && exam.latest_attempt_id) {
+      return (
+        <div className="w-full space-y-2">
+           <Link href={`/dashboard/exams/hasil/${exam.latest_attempt_id}`} className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 transition-colors py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-100 dark:border-emerald-800/30 shadow-sm">
+              <Icons.ChartBar />
+              <span>Lihat Hasil Ujian</span>
+            </Link>
+        </div>
+      );
+    }
+
     return (
       <div className="w-full text-center py-2 text-sm font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 rounded-lg">
-        Max attempts reached
+        Selesai dikerjakan
       </div>
     );
   }

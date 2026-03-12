@@ -133,6 +133,11 @@ export async function setupDatabase() {
               require_safe_browser BOOLEAN DEFAULT FALSE,
               require_seb BOOLEAN DEFAULT FALSE,
               seb_config_key VARCHAR(255),
+              show_instructions BOOLEAN DEFAULT FALSE,
+              instruction_type ENUM('template', 'custom') DEFAULT 'template',
+              custom_instructions TEXT,
+              show_result BOOLEAN DEFAULT FALSE,
+              show_analysis BOOLEAN DEFAULT FALSE,
               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
               FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE
@@ -161,6 +166,23 @@ export async function setupDatabase() {
             ADD COLUMN seb_config_key VARCHAR(255);
         `);
       console.log("Columns 'require_seb' and 'seb_config_key' added to rhs_exam_settings");
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') {
+        console.log("Note: " + err.message);
+      }
+    }
+
+    // Migration: Instruction flags and Results flags
+    try {
+      await connection.query(`
+            ALTER TABLE rhs_exam_settings
+            ADD COLUMN show_instructions BOOLEAN DEFAULT FALSE,
+            ADD COLUMN instruction_type ENUM('template', 'custom') DEFAULT 'template',
+            ADD COLUMN custom_instructions TEXT,
+            ADD COLUMN show_result BOOLEAN DEFAULT FALSE,
+            ADD COLUMN show_analysis BOOLEAN DEFAULT FALSE;
+        `);
+      console.log("Columns instructions and results added to rhs_exam_settings");
     } catch (err) {
       if (err.code !== 'ER_DUP_FIELDNAME') {
         console.log("Note: " + err.message);

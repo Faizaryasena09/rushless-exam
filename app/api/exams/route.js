@@ -29,7 +29,9 @@ async function GET() {
           s.start_time,
           s.end_time,
           s.require_safe_browser,
-          s.require_seb
+          s.require_seb,
+          s.show_result,
+          s.show_analysis
         FROM rhs_exams e
         LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
     `;
@@ -67,7 +69,7 @@ async function GET() {
 
     if (session.user.roleName === 'student') {
       const allUserAttempts = await query({
-        query: `SELECT exam_id, status, UNIX_TIMESTAMP(start_time) as start_time_ts FROM rhs_exam_attempts WHERE user_id = ?`,
+        query: `SELECT id as attempt_id, exam_id, status, score, UNIX_TIMESTAMP(start_time) as start_time_ts FROM rhs_exam_attempts WHERE user_id = ? ORDER BY start_time DESC`,
         values: [session.user.id]
       });
 
@@ -75,7 +77,7 @@ async function GET() {
 
       const attemptsInfo = allUserAttempts.reduce((acc, attempt) => {
         if (!acc[attempt.exam_id]) {
-          acc[attempt.exam_id] = { count: 0, hasInProgress: false };
+          acc[attempt.exam_id] = { count: 0, hasInProgress: false, latestAttemptId: attempt.attempt_id, latestScore: attempt.score };
         }
         acc[attempt.exam_id].count++;
 
@@ -112,6 +114,8 @@ async function GET() {
         const info = attemptsInfo[exam.id];
         exam.user_attempts = info ? info.count : 0;
         exam.has_in_progress = info ? info.hasInProgress : false;
+        exam.latest_attempt_id = info ? info.latestAttemptId : null;
+        exam.latest_score = info ? info.latestScore : null;
       });
     }
 

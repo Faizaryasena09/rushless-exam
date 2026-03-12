@@ -240,6 +240,30 @@ export async function GET(request) {
       messages.push(`Column 'custom_instructions' already exists in '${settingsTableName}'.`);
     }
 
+    // --- Check and add 'show_result' column to exam_settings table ---
+    const hasShowResult = await columnExists(settingsTableName, 'show_result');
+    if (!hasShowResult) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN show_result BOOLEAN DEFAULT FALSE;`,
+        values: [],
+      });
+      messages.push(`Column 'show_result' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'show_result' already exists in '${settingsTableName}'.`);
+    }
+
+    // --- Check and add 'show_analysis' column to exam_settings table ---
+    const hasShowAnalysis = await columnExists(settingsTableName, 'show_analysis');
+    if (!hasShowAnalysis) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN show_analysis BOOLEAN DEFAULT FALSE;`,
+        values: [],
+      });
+      messages.push(`Column 'show_analysis' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'show_analysis' already exists in '${settingsTableName}'.`);
+    }
+
     // --- Check and add 'sort_order' column to exam_questions table ---
     const questionsTableName = 'rhs_exam_questions';
     const hasSortOrder = await columnExists(questionsTableName, 'sort_order');

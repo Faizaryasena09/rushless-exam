@@ -81,10 +81,13 @@ export default function ManageExamPage() {
   const [availableClasses, setAvailableClasses] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState([]);
 
-  // Custom Instructions States
   const [showInstructions, setShowInstructions] = useState(false);
   const [instructionType, setInstructionType] = useState('template');
   const [customInstructions, setCustomInstructions] = useState('');
+
+  // Results Settings
+  const [showResult, setShowResult] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -140,6 +143,8 @@ export default function ManageExamPage() {
       setShowInstructions(!!data.show_instructions);
       setInstructionType(data.instruction_type || 'template');
       setCustomInstructions(data.custom_instructions || '');
+      setShowResult(!!data.show_result);
+      setShowAnalysis(!!data.show_analysis);
       setSelectedClasses(data.allowed_classes || []);
 
       // Marking initial load completed so auto-save works exclusively on user edits
@@ -201,6 +206,8 @@ export default function ManageExamPage() {
         showInstructions: showInstructions,
         instructionType: instructionType,
         customInstructions: customInstructions,
+        showResult: showResult,
+        showAnalysis: showAnalysis,
         allowedClasses: selectedClasses
       }),
     });
@@ -238,7 +245,7 @@ export default function ManageExamPage() {
     return () => clearTimeout(saveTimeoutRef.current);
   }, [
     examName, description, startTime, endTime, shuffleQuestions, shuffleAnswers,
-    timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, sebConfigKey, selectedClasses, showInstructions, instructionType, customInstructions
+    timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, sebConfigKey, selectedClasses, showInstructions, instructionType, customInstructions, showResult, showAnalysis
   ]);
 
   if (loading) {
@@ -486,6 +493,33 @@ export default function ManageExamPage() {
                       />
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-700">
+              <Switch
+                id="show-result"
+                label="Tampilkan Hasil"
+                description="Siswa dapat melihat skor akhir mereka setelah menyelesaikan ujian."
+                checked={showResult}
+                onChange={(e) => {
+                  const val = !showResult;
+                  setShowResult(val);
+                  if (!val) setShowAnalysis(false); // Cascade disable
+                }}
+                disabled={saving && false}
+              />
+              {showResult && (
+                <div className="pl-4">
+                  <Switch
+                    id="show-analysis"
+                    label="Tampilkan Analisis Jawaban"
+                    description="Siswa dapat melihat daftar soal mana yang dijawab benar, salah, beserta kunci jawabannya."
+                    checked={showAnalysis}
+                    onChange={() => setShowAnalysis(!showAnalysis)}
+                    disabled={saving && false}
+                  />
                 </div>
               )}
             </div>

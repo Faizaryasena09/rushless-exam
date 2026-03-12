@@ -45,7 +45,9 @@ export async function GET(request) {
             s.seb_config_key,
             s.show_instructions,
             s.instruction_type,
-            s.custom_instructions
+            s.custom_instructions,
+            s.show_result,
+            s.show_analysis
           FROM rhs_exams e
           LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
           WHERE e.id = ?
@@ -75,6 +77,8 @@ export async function GET(request) {
       show_instructions: Boolean(results[0].show_instructions),
       instruction_type: results[0].instruction_type || 'template',
       custom_instructions: results[0].custom_instructions || '',
+      show_result: Boolean(results[0].show_result),
+      show_analysis: Boolean(results[0].show_analysis),
       allowed_classes: allowedClasses
     };
 
@@ -99,6 +103,7 @@ export async function POST(request) {
       timerMode, durationMinutes, minTimeMinutes, maxAttempts,
       requireSafeBrowser, requireSeb, sebConfigKey,
       showInstructions, instructionType, customInstructions,
+      showResult, showAnalysis,
       allowedClasses
     } = await request.json();
 
@@ -143,8 +148,8 @@ export async function POST(request) {
       // 2. Update exam time settings
       await txQuery({
         query: `
-              INSERT INTO rhs_exam_settings (exam_id, start_time, end_time, require_safe_browser, require_seb, seb_config_key, show_instructions, instruction_type, custom_instructions)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+              INSERT INTO rhs_exam_settings (exam_id, start_time, end_time, require_safe_browser, require_seb, seb_config_key, show_instructions, instruction_type, custom_instructions, show_result, show_analysis)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               ON DUPLICATE KEY UPDATE 
                 start_time = VALUES(start_time), 
                 end_time = VALUES(end_time),
@@ -153,9 +158,11 @@ export async function POST(request) {
                 seb_config_key = VALUES(seb_config_key),
                 show_instructions = VALUES(show_instructions),
                 instruction_type = VALUES(instruction_type),
-                custom_instructions = VALUES(custom_instructions)
+                custom_instructions = VALUES(custom_instructions),
+                show_result = VALUES(show_result),
+                show_analysis = VALUES(show_analysis)
             `,
-        values: [examId, startTime, endTime, requireSafeBrowser, requireSeb || false, sebConfigKey || '', showInstructions || false, instructionType || 'template', customInstructions || ''],
+        values: [examId, startTime, endTime, requireSafeBrowser, requireSeb || false, sebConfigKey || '', showInstructions || false, instructionType || 'template', customInstructions || '', showResult || false, showAnalysis || false],
       });
 
       // 3. Update Allowed Classes

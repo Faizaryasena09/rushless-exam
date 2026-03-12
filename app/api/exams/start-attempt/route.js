@@ -51,7 +51,7 @@ export async function POST(request) {
                     e.id, e.timer_mode, e.duration_minutes, e.max_attempts,
                     UNIX_TIMESTAMP(s.start_time) as start_time_ts, 
                     UNIX_TIMESTAMP(s.end_time) as end_time_ts,
-                    s.require_seb, s.seb_config_key
+                    s.require_seb, s.seb_config_key, s.show_result
                 FROM rhs_exams e
                 LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
                 WHERE e.id = ?

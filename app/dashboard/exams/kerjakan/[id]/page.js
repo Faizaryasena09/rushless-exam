@@ -228,7 +228,11 @@ export default function ExamTakingPage() {
 
           if (data.status && data.status !== 'in_progress') {
              sse.close();
-             router.push('/dashboard/exams');
+             if (examDetails?.show_result) {
+                 router.push(`/dashboard/exams/hasil/${attemptDetails.id}`);
+             } else {
+                 router.push('/dashboard/exams');
+             }
           }
         } catch (err) {
           console.error("Failed to parse SSE data", err);
@@ -319,7 +323,11 @@ export default function ExamTakingPage() {
         window.chrome.webview.postMessage('submit_success');
       }
 
-      router.push('/dashboard/exams');
+      if (examDetails?.show_result) {
+        router.push(`/dashboard/exams/hasil/${attemptDetails.id}`);
+      } else {
+        router.push('/dashboard/exams');
+      }
     } catch (err) {
       alert(`Error: ${err.message}`);
       finishExamHandled.current = false;
