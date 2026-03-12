@@ -302,7 +302,10 @@ export default function ExamTakingPage() {
          .then(res => res.json())
          .then(data => {
              setBranding(data);
-             if (data.site_name) document.title = `${data.site_name} - Ujian`;
+             if (data.site_name) {
+                 const plainTextName = data.site_name.replace(/<[^>]*>?/gm, '').trim();
+                 document.title = `${plainTextName || 'Rushless Exam'} - Ujian`;
+             }
          })
          .catch(err => console.error(err));
   }, [router]);
@@ -625,7 +628,10 @@ export default function ExamTakingPage() {
             <div className="w-16 h-16 bg-transparent flex items-center justify-center mx-auto mb-4">
               <img src={branding.site_logo} alt={branding.site_name} className="w-16 h-16 object-contain drop-shadow-sm" />
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white">Petunjuk Ujian {branding.site_name}</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white flex flex-wrap gap-2 justify-center">
+              <span>Petunjuk Ujian</span>
+              <span dangerouslySetInnerHTML={{ __html: branding.site_name || 'Rushless Exam' }} className="prose prose-slate dark:prose-invert" />
+            </h1>
             <p className="text-slate-500 dark:text-slate-400 mt-2">{examDetails?.exam_name}</p>
           </div>
 

@@ -74,7 +74,8 @@ function LoginForm() {
                 const data = await res.json();
                 setBranding(data);
                 if (data.site_name) {
-                    document.title = data.site_name; // Set window title
+                    const plainTextName = data.site_name.replace(/<[^>]*>?/gm, '').trim();
+                    document.title = plainTextName || 'Rushless Exam'; // Set window title
                 }
             }
         } catch(e) { console.error(e) }
