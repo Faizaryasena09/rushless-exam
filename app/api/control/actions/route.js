@@ -17,9 +17,10 @@ export async function POST(request) {
     }
 
     try {
-        const { action, userId, attemptId, minutes } = await request.json();
+        const payload = await request.json();
+        const { action, userId, attemptId, minutes } = payload;
 
-        if (!userId && !attemptId) {
+        if (!userId && !attemptId && action !== 'add_time_batch') {
             return NextResponse.json({ message: 'Missing parameters' }, { status: 400 });
         }
 
@@ -40,8 +41,21 @@ export async function POST(request) {
 
             case 'reset_exam':
                 if (!attemptId) return NextResponse.json({ message: 'Attempt ID required' }, { status: 400 });
-                // Delete the attempt (this will cascade delete answers if configured, or just mark as invalid)
-                // Ideally DELETE if we want a full reset, or update status to 'cancelled'.
+                // First get the exam_id for this attempt so we can clear temporary answers
+                const attemptInfo = await query({
+                    query: 'SELECT user_id, exam_id FROM rhs_exam_attempts WHERE id = ?',
+                    values: [attemptId]
+                });
+
+                if (attemptInfo.length > 0) {
+                    const { user_id, exam_id } = attemptInfo[0];
+                    await query({
+                        query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
+                        values: [user_id, exam_id]
+                    });
+                }
+
+                // Delete the attempt (this will cascade delete submitted answers if any)
                 // User asked for "dihapus" (deleted)
                 await query({
                     query: 'DELETE FROM rhs_exam_attempts WHERE id = ?',
@@ -66,6 +80,28 @@ export async function POST(request) {
                     return NextResponse.json({ message: 'Cannot add time. Exam may have already been submitted or ended.' }, { status: 400 });
                 }
                 return NextResponse.json({ message: `Added ${minutes} minutes.` });
+
+            case 'add_time_batch':
+                const { attemptIds } = payload;
+                const batchMinutes = payload.minutes;
+
+                if (!attemptIds || !Array.isArray(attemptIds) || attemptIds.length === 0 || !batchMinutes) {
+                    return NextResponse.json({ message: 'Params required' }, { status: 400 });
+                }
+                
+                // Construct the IN clause dynamically
+                const placeholders = attemptIds.map(() => '?').join(',');
+                const updateValues = [batchMinutes, ...attemptIds];
+
+                const batchUpdateResult = await query({
+                    query: `UPDATE rhs_exam_attempts SET time_extension = COALESCE(time_extension, 0) + ? WHERE id IN (${placeholders}) AND status = "in_progress"`,
+                    values: updateValues
+                });
+
+                if (batchUpdateResult.affectedRows === 0) {
+                     return NextResponse.json({ message: 'Cannot add time to the selected students. Exams may have already been submitted or ended.' }, { status: 400 });
+                }
+                return NextResponse.json({ message: `Added ${batchMinutes} minutes to ${batchUpdateResult.affectedRows} students.` });
 
             default:
                 return NextResponse.json({ message: 'Invalid action' }, { status: 400 });

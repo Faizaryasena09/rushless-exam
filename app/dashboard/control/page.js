@@ -16,6 +16,10 @@ export default function ControlPage() {
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState(new Date());
 
+    // New Filter States
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedClass, setSelectedClass] = useState('All');
+
     const fetchStatus = useCallback(async () => {
         try {
             const res = await fetch('/api/control/users');
@@ -36,6 +40,17 @@ export default function ControlPage() {
         const interval = setInterval(fetchStatus, 5000); // Poll every 5s
         return () => clearInterval(interval);
     }, [fetchStatus]);
+
+    // Compute Derived Data for Filtering
+    const classes = ['All', ...new Set(students.map(s => s.class_name).filter(Boolean))];
+
+    const filteredStudents = students.filter(student => {
+        const matchesClass = selectedClass === 'All' || student.class_name === selectedClass;
+        const matchesSearch = student.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                              student.username?.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesClass && matchesSearch;
+    });
+
 
     const handleAction = async (action, payload) => {
         if (action === 'reset_exam' && !confirm('Warning: This will delete the student\'s active exam attempt and log them out. Continue?')) return;
@@ -61,11 +76,26 @@ export default function ControlPage() {
         }
     };
 
+    const handleBatchAddTime = () => {
+        const activeFilteredStudents = filteredStudents.filter(s => s.attempt_id && s.is_online);
+        if (activeFilteredStudents.length === 0) {
+            alert("None of the currently filtered students are active and online taking an exam.");
+            return;
+        }
+
+        const minutes = prompt(`Enter minutes to add for ${activeFilteredStudents.length} filtered active student(s):`, "10");
+        if (minutes && !isNaN(minutes)) {
+            const attemptIds = activeFilteredStudents.map(s => s.attempt_id);
+            // This bypasses handleAction slightly due to different payload structure need without re-parsing, but handleAction handles it fine if we just pass attemptIds directly in payload.
+            handleAction('add_time_batch', { attemptIds, minutes: parseInt(minutes) });
+        }
+    };
+
     if (loading) return <div className="p-10 text-center text-slate-500">Loading Control Panel...</div>;
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200 gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800">Exam Control</h1>
                     <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
@@ -73,9 +103,41 @@ export default function ControlPage() {
                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse ml-2"></span>
                     </p>
                 </div>
-                <button onClick={fetchStatus} className="p-2 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors">
-                    <Icons.Refresh />
-                </button>
+                
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                    {/* Search Input */}
+                    <input
+                        type="text"
+                        placeholder="Search student..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="px-3 py-2 border border-slate-300 rounded-lg text-sm w-full sm:w-48 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+
+                    {/* Class Filter */}
+                    <select
+                        value={selectedClass}
+                        onChange={(e) => setSelectedClass(e.target.value)}
+                        className="px-3 py-2 border border-slate-300 rounded-lg text-sm w-full sm:w-40 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                        {classes.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                        ))}
+                    </select>
+
+                    {/* Batch Add Time Button */}
+                    <button 
+                        onClick={handleBatchAddTime}
+                        className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-semibold whitespace-nowrap"
+                    >
+                        + Add Time (Filtered)
+                    </button>
+
+                    {/* Refresh Button */}
+                    <button onClick={fetchStatus} title="Refresh Data" className="w-full sm:w-auto p-2 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors flex justify-center">
+                        <Icons.Refresh />
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -89,7 +151,7 @@ export default function ControlPage() {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
-                        {students.map(s => (
+                        {filteredStudents.map(s => (
                             <tr key={s.id} className={`hover:bg-slate-50 transition-colors ${s.is_online ? 'bg-indigo-50/10' : ''}`}>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
@@ -165,7 +227,7 @@ export default function ControlPage() {
                                 </td>
                             </tr>
                         ))}
-                        {students.length === 0 && (
+                        {filteredStudents.length === 0 && (
                             <tr>
                                 <td colSpan="4" className="px-6 py-8 text-center text-slate-500">
                                     No students found.
