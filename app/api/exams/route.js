@@ -53,11 +53,13 @@ async function GET() {
       queryValues.push(session.user.class_id || -1);
     } else if (session.user.roleName === 'teacher') {
       // Teachers see exams assigned to ANY of their managed classes
+      // Using EXISTS instead of JOIN/GROUP BY prevents ONLY_FULL_GROUP_BY MySQL mode errors
       examsQuery += `
-            INNER JOIN rhs_exam_classes ec ON e.id = ec.exam_id
-            INNER JOIN rhs_teacher_classes tc ON ec.class_id = tc.class_id
-            WHERE tc.teacher_id = ?
-            GROUP BY e.id
+            WHERE EXISTS (
+                SELECT 1 FROM rhs_exam_classes ec
+                INNER JOIN rhs_teacher_classes tc ON ec.class_id = tc.class_id
+                WHERE ec.exam_id = e.id AND tc.teacher_id = ?
+            )
         `;
       queryValues.push(session.user.id);
     }

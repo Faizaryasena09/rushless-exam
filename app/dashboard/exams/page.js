@@ -130,7 +130,7 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
 };
 
 // --- Category Accordion Component ---
-const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, formatDate, openModal, categories, onEdit, onDelete, onToggleVisibility, isHidden, onToggleExamVisibility }) => {
+const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, formatDate, openModal, categories, onEdit, onDelete, onToggleVisibility, isHidden, onToggleExamVisibility, userRole, userId, categoryCreatedBy }) => {
     // Hide 'Tanpa Nama' (uncategorized) if there are no uncategorized exams AND user has categories
     if (id === 'uncategorized' && exams.length === 0 && categories.length > 0) return null;
 
@@ -160,8 +160,8 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
                     </div>
                 </div>
                 
-                {/* Category Actions (Only show for custom categories, not 'Tanpa Nama') */}
-                {id !== 'uncategorized' && !isStudent && (
+                {/* Category Actions (Only show for custom categories, not 'Tanpa Nama', and enforce permissions) */}
+                {id !== 'uncategorized' && !isStudent && (userRole === 'admin' || userId === categoryCreatedBy) && (
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation() /* Prevent accordion toggle */}>
                         <button 
                             onClick={onToggleVisibility}
@@ -221,6 +221,7 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
 export default function ExamsPage() {
   const router = useRouter();
   const [userRole, setUserRole] = useState(null);
+  const [userId, setUserId] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
   
   const [exams, setExams] = useState([]);
@@ -287,6 +288,7 @@ export default function ExamsPage() {
         if (!data.user) throw new Error('User data not found in session');
         console.log('Session data:', data);
         setUserRole(data.user.roleName); // Store user role
+        setUserId(data.user.id); // Store user id
       } catch (error) {
         router.push('/');
       } finally {
@@ -531,6 +533,9 @@ export default function ExamsPage() {
                 onToggleExamVisibility={(id, current) => handleToggleVisibility('exam', id, current)}
                 onEdit={(e) => { e.stopPropagation(); openModal('categoryManage', null, cat.id, cat.name); }}
                 onDelete={(e) => { e.stopPropagation(); openModal('categoryDelete', null, cat.id); }}
+                userRole={userRole}
+                userId={userId}
+                categoryCreatedBy={cat.created_by}
               />
             ))}
           </div>

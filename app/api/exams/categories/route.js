@@ -17,10 +17,7 @@ export async function GET(request) {
     let categoriesQuery = `SELECT id, name, created_by, created_at, is_hidden FROM rhs_exam_categories`;
     let queryValues = [];
 
-    if (session.user.roleName === 'teacher') {
-      categoriesQuery += ` WHERE created_by = ?`;
-      queryValues.push(session.user.id);
-    }
+    // All roles (admin and teacher) can view all categories to use them.
     categoriesQuery += ` ORDER BY created_at ASC`;
 
     const categories = await query({ query: categoriesQuery, values: queryValues });
