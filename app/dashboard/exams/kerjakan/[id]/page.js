@@ -162,6 +162,7 @@ export default function ExamTakingPage() {
   const [showInstructionsScreen, setShowInstructionsScreen] = useState(false);
   const [startingExam, setStartingExam] = useState(false);
 
+  const [branding, setBranding] = useState({ site_name: 'Rushless Exam', site_logo: '/favicon.ico' });
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const finishExamHandled = useRef(false);
   const initExamRef = useRef(false);
@@ -295,6 +296,15 @@ export default function ExamTakingPage() {
     fetch('/api/user-session').then((res) => {
       if (!res.ok) router.push('/');
     });
+
+    // Fetch site branding
+    fetch('/api/web-settings?mode=branding')
+         .then(res => res.json())
+         .then(data => {
+             setBranding(data);
+             if (data.site_name) document.title = `${data.site_name} - Ujian`;
+         })
+         .catch(err => console.error(err));
   }, [router]);
 
   // Actual submission logic
@@ -612,10 +622,10 @@ export default function ExamTakingPage() {
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl w-full max-w-2xl border border-slate-200 dark:border-slate-700">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/40 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600 dark:text-indigo-400">
-              <Icons.Flag />
+            <div className="w-16 h-16 bg-transparent flex items-center justify-center mx-auto mb-4">
+              <img src={branding.site_logo} alt={branding.site_name} className="w-16 h-16 object-contain drop-shadow-sm" />
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white">Petunjuk Ujian</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white">Petunjuk Ujian {branding.site_name}</h1>
             <p className="text-slate-500 dark:text-slate-400 mt-2">{examDetails?.exam_name}</p>
           </div>
 

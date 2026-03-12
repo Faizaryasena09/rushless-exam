@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '@/app/components/ThemeProvider';
 import Link from 'next/link';
+import Cropper from 'react-easy-crop';
 
 export default function WebSettingsPage() {
     const [settings, setSettings] = useState({});
@@ -11,6 +12,12 @@ export default function WebSettingsPage() {
     const [message, setMessage] = useState(null);
     const [lockedUsers, setLockedUsers] = useState([]);
     const [unlocking, setUnlocking] = useState({});
+
+    // Cropper State
+    const [cropImage, setCropImage] = useState(null);
+    const [crop, setCrop] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(1);
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
     const roles = [
         { key: 'admin', label: 'Admin', color: 'rose', icon: '🛡️' },
@@ -100,6 +107,62 @@ export default function WebSettingsPage() {
             setMessage({ type: 'error', text: 'Terjadi kesalahan.' });
         } finally {
             setSaving(prev => ({ ...prev, [settingKey]: false }));
+        }
+    };
+
+    const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+        setCroppedAreaPixels(croppedAreaPixels);
+    }, []);
+
+    const handleCropSave = async () => {
+        if (!cropImage || !croppedAreaPixels) return;
+        setSaving(prev => ({ ...prev, site_logo: true }));
+        try {
+            // Create a canvas to crop the image
+            const canvas = document.createElement('canvas');
+            const image = new Image();
+            image.src = cropImage;
+            await new Promise(resolve => image.onload = resolve);
+
+            canvas.width = croppedAreaPixels.width;
+            canvas.height = croppedAreaPixels.height;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.drawImage(
+                image,
+                croppedAreaPixels.x,
+                croppedAreaPixels.y,
+                croppedAreaPixels.width,
+                croppedAreaPixels.height,
+                0,
+                0,
+                croppedAreaPixels.width,
+                croppedAreaPixels.height
+            );
+
+            // Convert canvas to base64
+            const base64Image = canvas.toDataURL('image/png', 0.9);
+
+            const res = await fetch('/api/web-settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: 'site_logo', value: base64Image }),
+            });
+
+            if (res.ok) {
+                setSettings(prev => ({ ...prev, site_logo: base64Image }));
+                setCropImage(null); // Close modal
+                setMessage({ type: 'success', text: 'Logo situs berhasil diperbarui.' });
+                setTimeout(() => setMessage(null), 3000);
+            } else {
+                const d = await res.json();
+                setMessage({ type: 'error', text: d.message || 'Gagal menyimpan logo.' });
+            }
+        } catch (err) {
+            console.error(err);
+            setMessage({ type: 'error', text: 'Terjadi kesalahan saat memproses gambar.' });
+        } finally {
+            setSaving(prev => ({ ...prev, site_logo: false }));
         }
     };
 
@@ -212,6 +275,104 @@ export default function WebSettingsPage() {
                     {message.text}
                 </div>
             )}
+
+            {/* Site Branding Section */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+                <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-blue-50/30 dark:from-slate-700/50 dark:to-blue-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+                    <div className="p-1.5 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
+                        <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Site Branding</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Atur logo dan nama unik situs web Anda</p>
+                    </div>
+                </div>
+                <div className="p-5 space-y-6">
+                    {/* Site Name Input */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Nama Situs (Site Name)</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">Akan ditampilkan di header, sidebar, judul dokumen, dsb.</p>
+                        </div>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <input
+                                type="text"
+                                placeholder="Cth: Rushless Exam"
+                                value={settings.site_name || ''}
+                                onChange={(e) => setSettings(prev => ({ ...prev, site_name: e.target.value }))}
+                                className="flex-1 sm:w-64 px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <button
+                                onClick={async () => {
+                                    setSaving(prev => ({ ...prev, site_name: true }));
+                                    try {
+                                        const res = await fetch('/api/web-settings', {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ key: 'site_name', value: settings.site_name || 'Rushless Exam' }),
+                                        });
+                                        if (res.ok) {
+                                            setMessage({ type: 'success', text: 'Nama situs berhasil disimpan.' });
+                                            setTimeout(() => setMessage(null), 3000);
+                                        } else {
+                                            const d = await res.json();
+                                            setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
+                                        }
+                                    } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
+                                    finally { setSaving(prev => ({ ...prev, site_name: false })); }
+                                }}
+                                disabled={saving.site_name}
+                                className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
+                            >
+                                {saving.site_name ? '...' : 'Simpan'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 dark:border-slate-700/50" />
+
+                    {/* Site Logo Uploader Placeholder */}
+                    <div className="flex flex-col sm:flex-row justify-between gap-5">
+                        <div className="flex-1">
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Upload Logo Situs</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 mb-4 cursor-pointer hover:underline" onClick={() => document.getElementById('logoInput').click()}>
+                                Upload logo baru berformat PNG/JPG dan potong secara presisi dengan Cropper. Disarankan aspek rasio 1:1.
+                            </p>
+                            <input 
+                                type="file" 
+                                id="logoInput" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={(e) => {
+                                    if(e.target.files && e.target.files.length > 0) {
+                                        const reader = new FileReader();
+                                        reader.onload = () => setCropImage(reader.result);
+                                        reader.readAsDataURL(e.target.files[0]);
+                                        e.target.value = ''; // Reset
+                                    }
+                                }} 
+                            />
+                            <button
+                                onClick={() => document.getElementById('logoInput').click()}
+                                className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded-lg text-sm font-semibold border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors"
+                            >
+                                Pilih Gambar
+                            </button>
+                            {saving.site_logo && <span className="ml-3 text-xs text-slate-500 animate-pulse">Menyimpan...</span>}
+                        </div>
+                        {settings.site_logo && (
+                            <div className="flex-shrink-0 flex flex-col items-center">
+                                <p className="text-xs text-slate-400 dark:text-slate-500 mb-2">Logo Saat Ini</p>
+                                <div className="w-20 h-20 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden p-2 shadow-inner">
+                                    <img src={settings.site_logo} alt="Current Site Logo" className="max-w-full max-h-full object-contain" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
 
             {/* Profile Permissions Section */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
@@ -442,6 +603,61 @@ export default function WebSettingsPage() {
                 </svg>
                 Fitur yang dinonaktifkan akan terkunci di halaman profil user.
             </p>
+
+            {/* Cropper Modal */}
+            {cropImage && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col h-[80vh] sm:h-auto">
+                        <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                            <h3 className="font-bold text-slate-800 dark:text-white">Potong Logo Situs</h3>
+                            <button onClick={() => setCropImage(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <div className="relative flex-1 min-h-[300px] w-full bg-slate-900">
+                            <Cropper
+                                image={cropImage}
+                                crop={crop}
+                                zoom={zoom}
+                                aspect={1} // 1:1 Aspect Ratio recommended for logos
+                                onCropChange={setCrop}
+                                onCropComplete={onCropComplete}
+                                onZoomChange={setZoom}
+                            />
+                        </div>
+                        <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                            <div className="mb-4 flex items-center gap-3">
+                                <span className="text-xs font-medium text-slate-500">Zoom</span>
+                                <input
+                                    type="range"
+                                    value={zoom}
+                                    min={1}
+                                    max={3}
+                                    step={0.1}
+                                    aria-labelledby="Zoom"
+                                    onChange={(e) => setZoom(e.target.value)}
+                                    className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 accent-indigo-600"
+                                />
+                            </div>
+                            <div className="flex gap-3 justify-end">
+                                <button
+                                    onClick={() => setCropImage(null)}
+                                    className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    onClick={handleCropSave}
+                                    disabled={saving.site_logo}
+                                    className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all disabled:opacity-50"
+                                >
+                                    {saving.site_logo ? 'Menyimpan...' : 'Terapkan Logo'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

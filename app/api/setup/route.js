@@ -444,6 +444,36 @@ export async function GET(request) {
       messages.push(`Column 'category_id' already exists in '${tableName}'.`);
     }
 
+    // --- Check and create 'rhs_web_settings' table ---
+    const webSettingsTableName = 'rhs_web_settings';
+    await query({
+      query: `
+            CREATE TABLE IF NOT EXISTS ${webSettingsTableName} (
+                setting_key VARCHAR(100) PRIMARY KEY,
+                setting_value TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        `,
+      values: [],
+    });
+    messages.push(`Table '${webSettingsTableName}' created or already exists.`);
+
+    // Check if the settings table is empty, if so, populate defaults
+    const [settingsCount] = await query({
+      query: `SELECT COUNT(*) as count FROM ${webSettingsTableName}`,
+      values: []
+    });
+
+    if (settingsCount.count === 0) {
+       await query({
+           query: `INSERT INTO ${webSettingsTableName} (setting_key, setting_value) VALUES 
+                   ('site_name', 'Rushless Exam'),
+                   ('site_logo', '/favicon.ico')`,
+           values: []
+       });
+       messages.push(`Default site settings initialized.`);
+    }
+
     return NextResponse.json({
       status: 'success',
       message: 'Database setup check completed.',

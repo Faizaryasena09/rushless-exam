@@ -5,6 +5,8 @@ import { sessionOptions } from '@/app/lib/session';
 import { validateUserSession } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
 import { logFromRequest } from '@/app/lib/logger';
+import fs from 'fs';
+import path from 'path';
 
 async function getSession() {
     const cookieStore = await cookies();
@@ -56,15 +58,26 @@ async function ensureSettingsTable() {
 // GET — Fetch all settings (admin only) or just the user's role permissions (any logged in user)
 export async function GET(request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const mode = searchParams.get('mode');
+
+        // Fetch web branding settings universally if requested
+        if (mode === 'branding') {
+            const brandingRows = await query({
+                query: `SELECT setting_key, setting_value FROM rhs_web_settings`,
+                values: []
+            });
+            const branding = { site_name: 'Rushless Exam', site_logo: '/favicon.ico' };
+            brandingRows.forEach(row => branding[row.setting_key] = row.setting_value);
+            return NextResponse.json(branding);
+        }
+
         const session = await getSession();
         if (!session) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
         await ensureSettingsTable();
-
-        const { searchParams } = new URL(request.url);
-        const mode = searchParams.get('mode');
 
         // If mode=my-permissions, return only the current user's role permissions
         if (mode === 'my-permissions') {
@@ -92,6 +105,11 @@ export async function GET(request) {
             query: `SELECT setting_key, setting_value FROM rhs_settings`,
             values: [],
         });
+        
+        const brandingRows = await query({
+            query: `SELECT setting_key, setting_value FROM rhs_web_settings`,
+            values: []
+        });
 
         const settings = {};
         rows.forEach(row => {
@@ -101,6 +119,7 @@ export async function GET(request) {
                 settings[row.setting_key] = row.setting_value === '1';
             }
         });
+        brandingRows.forEach(row => settings[row.setting_key] = row.setting_value);
 
         return NextResponse.json(settings);
     } catch (error) {
@@ -119,13 +138,44 @@ export async function PUT(request) {
         await ensureSettingsTable();
 
         const body = await request.json();
-        const { key, value } = body;
+        let { key, value } = body;
 
         if (!key) {
             return NextResponse.json({ message: 'Key is required' }, { status: 400 });
         }
 
-        // Only allow known setting keys
+        // Handle Web Settings (Branding)
+        if (['site_name', 'site_logo'].includes(key)) {
+            // Intercept site_logo base64 and save as file
+            if (key === 'site_logo' && value.startsWith('data:image')) {
+                try {
+                    const matches = value.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                    if (matches.length !== 3) throw new Error('Invalid base64 string');
+                    const buffer = Buffer.from(matches[2], 'base64');
+                    // Ensure public/uploads exists
+                    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+                    if (!fs.existsSync(uploadDir)) {
+                        fs.mkdirSync(uploadDir, { recursive: true });
+                    }
+                    const filePath = path.join(uploadDir, 'site-logo.png');
+                    fs.writeFileSync(filePath, buffer);
+                    // Update value to the relative URL + timestamp cache buster
+                    value = `/uploads/site-logo.png?v=${Date.now()}`;
+                } catch (err) {
+                    console.error('Failed to save logo file:', err);
+                    return NextResponse.json({ message: 'Failed to process logo file.' }, { status: 500 });
+                }
+            }
+
+            await query({
+                query: `INSERT INTO rhs_web_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?`,
+                values: [key, value, value],
+            });
+            logFromRequest(request, session, 'BRANDING_CHANGE', 'info', { setting: key, value_length: value?.length });
+            return NextResponse.json({ message: 'Branding updated', key, value });
+        }
+
+        // Only allow known setting keys for rhs_settings
         const allowedKeys = Object.keys(DEFAULT_SETTINGS);
         if (!allowedKeys.includes(key)) {
             return NextResponse.json({ message: 'Invalid setting key' }, { status: 400 });

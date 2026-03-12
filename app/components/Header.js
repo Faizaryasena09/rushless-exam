@@ -24,6 +24,14 @@ export default function Header({ user, isLoading, toggleSidebar, showToggleButto
   const { theme, toggleTheme } = useTheme();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const [branding, setBranding] = useState({ site_name: 'Rushless Exam', site_logo: '/favicon.ico' });
+
+  useEffect(() => {
+     fetch('/api/web-settings?mode=branding')
+         .then(res => res.json())
+         .then(data => setBranding(data))
+         .catch(err => console.error(err));
+  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -69,11 +77,14 @@ export default function Header({ user, isLoading, toggleSidebar, showToggleButto
           {/* --- Logo Section --- */}
           <Link href="/" className="group flex items-center gap-2.5 outline-none">
             <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-transparent transition-transform duration-300 group-hover:scale-105">
-              <img src="/favicon.ico" alt="Logo" className="w-8 h-8" />
+              <img src={branding?.site_logo || '/favicon.ico'} alt="Logo" className="w-8 h-8 object-contain drop-shadow-sm" />
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                RUSHLESS<span className="text-indigo-600 dark:text-indigo-400">EXAM</span>
+                 {(branding?.site_name || 'Rushless Exam').toUpperCase().substring(0, (branding?.site_name || 'Rushless Exam').length / 2)}
+                 <span className="text-indigo-600 dark:text-indigo-400">
+                     {(branding?.site_name || 'Rushless Exam').toUpperCase().substring((branding?.site_name || 'Rushless Exam').length / 2)}
+                 </span>
               </span>
             </div>
           </Link>

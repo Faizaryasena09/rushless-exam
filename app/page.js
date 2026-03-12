@@ -4,13 +4,8 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 
-// A simple, abstract logo for the exam platform
-const AppLogo = () => (
-  <img src="/favicon.ico" alt="Rushless Exam Logo" className="h-12 w-12" />
-);
-
-
 function LoginForm() {
+  const [branding, setBranding] = useState({ site_name: 'Rushless Exam', site_logo: '/favicon.ico' });
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -70,7 +65,22 @@ function LoginForm() {
       }
     };
     checkSession();
-  }, [router]);
+
+    // Fetch site branding
+    const fetchBranding = async () => {
+        try {
+            const res = await fetch('/api/web-settings?mode=branding');
+            if (res.ok) {
+                const data = await res.json();
+                setBranding(data);
+                if (data.site_name) {
+                    document.title = data.site_name; // Set window title
+                }
+            }
+        } catch(e) { console.error(e) }
+    };
+    fetchBranding();
+  }, [router, redirectTo]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -117,9 +127,9 @@ function LoginForm() {
 
         <div className="p-8 text-center">
           <div className="flex justify-center mb-4">
-            <AppLogo />
+            <img src={branding.site_logo} alt={`${branding.site_name} Logo`} className="h-14 w-auto object-contain drop-shadow-sm" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1 transition-colors duration-300">Rushless Exam</h1>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-1 transition-colors duration-300">{branding.site_name}</h1>
           <p className="text-gray-500 dark:text-gray-400 transition-colors duration-300">Sign in to begin your session</p>
         </div>
 
