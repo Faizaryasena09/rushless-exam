@@ -176,8 +176,10 @@ async function POST(request) {
           teacherClasses.forEach(c => {
             values.push(newExamId, c.class_id);
           });
-
-          await connection.query(`INSERT INTO rhs_exam_classes (exam_id, class_id) VALUES ${placeholders}`, values);
+          await query({
+            query: `INSERT INTO rhs_exam_classes (exam_id, class_id) VALUES ${placeholders}`,
+            values: values
+          });
         }
       }
 

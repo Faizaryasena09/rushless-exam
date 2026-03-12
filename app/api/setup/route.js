@@ -58,6 +58,71 @@ export async function GET(request) {
     const tableName = 'rhs_exams';
     let messages = [];
 
+    // --- Check and create 'rhs_exam_categories' table ---
+    const examCategoriesTableName = 'rhs_exam_categories';
+    await query({
+      query: `
+            CREATE TABLE IF NOT EXISTS ${examCategoriesTableName} (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                created_by INT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (created_by) REFERENCES rhs_users(id) ON DELETE CASCADE
+            )
+        `,
+      values: [],
+    });
+    messages.push(`Table '${examCategoriesTableName}' created or already exists.`);
+
+    // --- Check and create 'rhs_exam_logs' table ---
+    const logsTableName = 'rhs_exam_logs';
+    await query({
+      query: `
+            CREATE TABLE IF NOT EXISTS rhs_exam_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                attempt_id INT NOT NULL,
+                action_type VARCHAR(50) NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (attempt_id) REFERENCES rhs_exam_attempts(id) ON DELETE CASCADE
+            )
+        `,
+      values: [],
+    });
+    messages.push(`Table '${logsTableName}' created or already exists.`);
+
+    // --- Check and create 'rhs_exam_classes' table (Junction table) ---
+    const examClassesTableName = 'rhs_exam_classes';
+    await query({
+      query: `
+            CREATE TABLE IF NOT EXISTS rhs_exam_classes (
+                exam_id INT NOT NULL,
+                class_id INT NOT NULL,
+                PRIMARY KEY (exam_id, class_id),
+                FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE,
+                FOREIGN KEY (class_id) REFERENCES rhs_classes(id) ON DELETE CASCADE
+            )
+        `,
+      values: [],
+    });
+    messages.push(`Table '${examClassesTableName}' created or already exists.`);
+
+    // --- Check and create 'rhs_teacher_classes' table (Junction table for Teachers) ---
+    const teacherClassesTableName = 'rhs_teacher_classes';
+    await query({
+      query: `
+            CREATE TABLE IF NOT EXISTS rhs_teacher_classes (
+                teacher_id INT NOT NULL,
+                class_id INT NOT NULL,
+                PRIMARY KEY (teacher_id, class_id),
+                FOREIGN KEY (teacher_id) REFERENCES rhs_users(id) ON DELETE CASCADE,
+                FOREIGN KEY (class_id) REFERENCES rhs_classes(id) ON DELETE CASCADE
+            )
+        `,
+      values: [],
+    });
+    messages.push(`Table '${teacherClassesTableName}' created or already exists.`);
+
     // --- Check and add 'shuffle_questions' column ---
     const hasShuffleQuestions = await columnExists(tableName, 'shuffle_questions');
     if (!hasShuffleQuestions) {
@@ -388,70 +453,7 @@ export async function GET(request) {
       messages.push(`Column 'time_extension' already exists in '${attemptsTableName}'.`);
     }
 
-    // --- Check and create 'rhs_exam_logs' table ---
-    const logsTableName = 'rhs_exam_logs';
-    await query({
-      query: `
-            CREATE TABLE IF NOT EXISTS rhs_exam_logs (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                attempt_id INT NOT NULL,
-                action_type VARCHAR(50) NOT NULL,
-                description TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (attempt_id) REFERENCES rhs_exam_attempts(id) ON DELETE CASCADE
-            )
-        `,
-      values: [],
-    });
-    messages.push(`Table '${logsTableName}' created or already exists.`);
 
-    // --- Check and create 'rhs_exam_classes' table (Junction table) ---
-    const examClassesTableName = 'rhs_exam_classes';
-    await query({
-      query: `
-            CREATE TABLE IF NOT EXISTS rhs_exam_classes (
-                exam_id INT NOT NULL,
-                class_id INT NOT NULL,
-                PRIMARY KEY (exam_id, class_id),
-                FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE,
-                FOREIGN KEY (class_id) REFERENCES rhs_classes(id) ON DELETE CASCADE
-            )
-        `,
-      values: [],
-    });
-    messages.push(`Table '${examClassesTableName}' created or already exists.`);
-
-    // --- Check and create 'rhs_teacher_classes' table (Junction table for Teachers) ---
-    const teacherClassesTableName = 'rhs_teacher_classes';
-    await query({
-      query: `
-            CREATE TABLE IF NOT EXISTS rhs_teacher_classes (
-                teacher_id INT NOT NULL,
-                class_id INT NOT NULL,
-                PRIMARY KEY (teacher_id, class_id),
-                FOREIGN KEY (teacher_id) REFERENCES rhs_users(id) ON DELETE CASCADE,
-                FOREIGN KEY (class_id) REFERENCES rhs_classes(id) ON DELETE CASCADE
-            )
-        `,
-      values: [],
-    });
-    messages.push(`Table '${teacherClassesTableName}' created or already exists.`);
-
-    // --- Check and create 'rhs_exam_categories' table ---
-    const examCategoriesTableName = 'rhs_exam_categories';
-    await query({
-      query: `
-            CREATE TABLE IF NOT EXISTS ${examCategoriesTableName} (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
-                created_by INT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (created_by) REFERENCES rhs_users(id) ON DELETE CASCADE
-            )
-        `,
-      values: [],
-    });
-    messages.push(`Table '${examCategoriesTableName}' created or already exists.`);
 
     // --- Check and add 'category_id' column to exams table ---
     const hasCategoryId = await columnExists(tableName, 'category_id');
