@@ -113,6 +113,13 @@ function LoginForm() {
       setSuccess('Login successful! Redirecting...');
 
       setTimeout(() => {
+        // Clear all exam instruction confirmations so force-logged-out students
+        // must re-confirm instructions on their next attempt
+        if (typeof window !== 'undefined') {
+          Object.keys(localStorage)
+            .filter(k => k.startsWith('exam_instructions_ack_'))
+            .forEach(k => localStorage.removeItem(k));
+        }
         router.push(redirectTo);
       }, 1000);
 

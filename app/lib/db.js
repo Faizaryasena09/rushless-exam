@@ -312,6 +312,14 @@ export async function setupDatabase() {
       if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
     }
 
+    // Migration: Add require_all_answered to rhs_exam_settings
+    try {
+      await connection.query(`ALTER TABLE rhs_exam_settings ADD COLUMN require_all_answered TINYINT(1) NOT NULL DEFAULT 0`);
+      console.log("Column 'require_all_answered' added to rhs_exam_settings");
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
+    }
+
     connection.release();
     return { success: true };
 

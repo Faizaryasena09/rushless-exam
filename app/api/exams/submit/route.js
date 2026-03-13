@@ -32,6 +32,24 @@ export async function POST(request) {
       values: [examId],
     });
 
+    // Check require_all_answered setting
+    const settingsRows = await query({
+      query: 'SELECT require_all_answered FROM rhs_exam_settings WHERE exam_id = ?',
+      values: [examId],
+    });
+    const requireAllAnswered = settingsRows.length > 0 && Boolean(settingsRows[0].require_all_answered);
+
+    if (requireAllAnswered && allQuestions.length > 0) {
+      const answeredQuestionIds = new Set(Object.keys(answers).filter(id => answers[id] !== null && answers[id] !== undefined));
+      const unansweredCount = allQuestions.filter(q => !answeredQuestionIds.has(String(q.id))).length;
+      if (unansweredCount > 0) {
+        return NextResponse.json(
+          { message: `Semua soal harus dijawab sebelum mengumpulkan. Masih ada ${unansweredCount} soal yang belum dijawab.` },
+          { status: 422 }
+        );
+      }
+    }
+
     if (allQuestions.length === 0) {
       // No questions in the exam, so score is 0.
       await query({

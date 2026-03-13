@@ -384,6 +384,18 @@ export async function GET(request) {
       messages.push(`Column 'show_analysis' already exists in '${settingsTableName}'.`);
     }
 
+    // --- Check and add 'require_all_answered' column to exam_settings table ---
+    const hasRequireAllAnswered = await columnExists(settingsTableName, 'require_all_answered');
+    if (!hasRequireAllAnswered) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN require_all_answered TINYINT(1) NOT NULL DEFAULT 0;`,
+        values: [],
+      });
+      messages.push(`Column 'require_all_answered' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'require_all_answered' already exists in '${settingsTableName}'.`);
+    }
+
     // --- Check and add 'sort_order' column to exam_questions table ---
     const questionsTableName = 'rhs_exam_questions';
     const hasSortOrder = await columnExists(questionsTableName, 'sort_order');

@@ -93,6 +93,7 @@ export default function ManageExamPage() {
   // Results Settings
   const [showResult, setShowResult] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [requireAllAnswered, setRequireAllAnswered] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -155,6 +156,7 @@ export default function ManageExamPage() {
       setCustomInstructions(data.custom_instructions || '');
       setShowResult(!!data.show_result);
       setShowAnalysis(!!data.show_analysis);
+      setRequireAllAnswered(!!data.require_all_answered);
       setSelectedClasses(data.allowed_classes || []);
 
       // Marking initial load completed so auto-save works exclusively on user edits
@@ -219,6 +221,7 @@ export default function ManageExamPage() {
         customInstructions: customInstructions,
         showResult: showResult,
         showAnalysis: showAnalysis,
+        requireAllAnswered: requireAllAnswered,
         allowedClasses: selectedClasses
       }),
     });
@@ -256,7 +259,7 @@ export default function ManageExamPage() {
     return () => clearTimeout(saveTimeoutRef.current);
   }, [
     examName, description, subjectId, startTime, endTime, shuffleQuestions, shuffleAnswers,
-    timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, sebConfigKey, selectedClasses, showInstructions, instructionType, customInstructions, showResult, showAnalysis
+    timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, sebConfigKey, selectedClasses, showInstructions, instructionType, customInstructions, showResult, showAnalysis, requireAllAnswered
   ]);
 
   if (loading) {
@@ -470,6 +473,14 @@ export default function ManageExamPage() {
                 description="Opsi jawaban pada soal pilihan ganda akan diacak."
                 checked={shuffleAnswers}
                 onChange={() => setShuffleAnswers(!shuffleAnswers)}
+                disabled={saving && false}
+              />
+              <Switch
+                id="require-all-answered"
+                label="Wajib Jawab Semua Soal"
+                description="Siswa tidak dapat mengumpulkan jawaban jika masih ada soal yang belum dijawab."
+                checked={requireAllAnswered}
+                onChange={() => setRequireAllAnswered(!requireAllAnswered)}
                 disabled={saving && false}
               />
             </div>

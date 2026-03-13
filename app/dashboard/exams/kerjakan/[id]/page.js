@@ -83,11 +83,12 @@ const Timer = ({ timeLeft }) => {
 
 
 // --- Finish Confirmation Modal ---
-const FinishConfirmationModal = ({ isOpen, onClose, onConfirm, questions, answers }) => {
+const FinishConfirmationModal = ({ isOpen, onClose, onConfirm, questions, answers, requireAllAnswered }) => {
   if (!isOpen) return null;
 
   const unansweredQuestions = questions.filter(q => answers[q.id] === undefined);
   const isComplete = unansweredQuestions.length === 0;
+  const blockSubmit = requireAllAnswered && !isComplete;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -102,17 +103,26 @@ const FinishConfirmationModal = ({ isOpen, onClose, onConfirm, questions, answer
           </h3>
 
           {!isComplete ? (
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4 mb-6">
+            <div className={`${blockSubmit ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700'} border rounded-lg p-4 mb-6`}>
               <div className="flex items-start gap-3">
-                <div className="text-amber-600 dark:text-amber-400 mt-0.5"><Icons.Flag /></div>
+                <div className={`${blockSubmit ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'} mt-0.5`}><Icons.Flag /></div>
                 <div>
-                  <h4 className="font-bold text-amber-800 dark:text-amber-300 text-sm">Masih ada soal yang belum dijawab!</h4>
-                  <p className="text-amber-700 dark:text-amber-400 text-sm mt-1">
+                  <h4 className={`font-bold ${blockSubmit ? 'text-red-800 dark:text-red-300' : 'text-amber-800 dark:text-amber-300'} text-sm`}>
+                    {blockSubmit ? '⛔ Harus jawab semua soal terlebih dahulu!' : 'Masih ada soal yang belum dijawab!'}
+                  </h4>
+                  <p className={`${blockSubmit ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'} text-sm mt-1`}>
                     Anda belum menjawab <span className="font-bold">{unansweredQuestions.length}</span> dari <span className="font-bold">{questions.length}</span> soal.
                   </p>
-                  <p className="text-amber-700 dark:text-amber-400 text-xs mt-2">
-                    Sebaiknya periksa kembali jawaban Anda sebelum mengumpulkan.
-                  </p>
+                  {blockSubmit && (
+                    <p className="text-red-700 dark:text-red-400 text-xs mt-2 font-medium">
+                      Ujian ini mengharuskan semua soal dijawab sebelum bisa dikumpulkan.
+                    </p>
+                  )}
+                  {!blockSubmit && (
+                    <p className="text-amber-700 dark:text-amber-400 text-xs mt-2">
+                      Sebaiknya periksa kembali jawaban Anda sebelum mengumpulkan.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -127,11 +137,16 @@ const FinishConfirmationModal = ({ isOpen, onClose, onConfirm, questions, answer
               onClick={onClose}
               className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors"
             >
-              Batal & Periksa
+              Batal &amp; Periksa
             </button>
             <button
               onClick={onConfirm}
-              className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100 dark:shadow-emerald-900/30"
+              disabled={blockSubmit}
+              className={`flex-1 px-4 py-2.5 rounded-xl font-semibold transition-colors shadow-lg ${
+                blockSubmit
+                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-100 dark:shadow-emerald-900/30'
+              }`}
             >
               Ya, Selesaikan
             </button>
@@ -170,6 +185,10 @@ export default function ExamTakingPage() {
 
   // Modal State
   const [showFinishModal, setShowFinishModal] = useState(false);
+
+  // Instruction confirmation state (persisted per-exam in localStorage)
+  const [instructionsConfirmed, setInstructionsConfirmed] = useState(false);
+  const lsConfirmKey = `exam_instructions_ack_${examId}`;
 
   const logAction = useCallback(async (actionType, description) => {
     if (!attemptDetails?.id) return;
@@ -229,6 +248,10 @@ export default function ExamTakingPage() {
 
           if (data.status && data.status !== 'in_progress') {
              sse.close();
+             // Admin force-ended this attempt — clear the instruction confirmation for this exam
+             if (typeof window !== 'undefined') {
+               localStorage.removeItem(`exam_instructions_ack_${examId}`);
+             }
              if (examDetails?.show_result) {
                  router.push(`/dashboard/exams/hasil/${attemptDetails.id}`);
              } else {
@@ -294,7 +317,15 @@ export default function ExamTakingPage() {
 
   useEffect(() => {
     fetch('/api/user-session').then((res) => {
-      if (!res.ok) router.push('/');
+      if (!res.ok) {
+        // Session invalidated (force-logout by admin) — clear all instruction confirmations
+        if (typeof window !== 'undefined') {
+          Object.keys(localStorage)
+            .filter(k => k.startsWith('exam_instructions_ack_'))
+            .forEach(k => localStorage.removeItem(k));
+        }
+        router.push('/');
+      }
     });
 
     // Fetch site branding
@@ -308,7 +339,13 @@ export default function ExamTakingPage() {
              }
          })
          .catch(err => console.error(err));
-  }, [router]);
+
+    // Load confirmation state from localStorage
+    if (typeof window !== 'undefined' && examId) {
+      const confirmed = localStorage.getItem(`exam_instructions_ack_${examId}`);
+      if (confirmed === 'true') setInstructionsConfirmed(true);
+    }
+  }, [router, examId]);
 
   // Actual submission logic
   const submitExam = useCallback(async (isAutoSubmit = false) => {
@@ -330,6 +367,11 @@ export default function ExamTakingPage() {
         body: JSON.stringify({ examId, answers, attemptId: attemptDetails.id }),
       });
       if (!response.ok) throw new Error((await response.json()).message || 'Failed to submit exam.');
+
+      // Clear instruction confirmation for this exam on successful submit
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`exam_instructions_ack_${examId}`);
+      }
 
       // Notify Safe Browser if running inside it
       if (window.chrome && window.chrome.webview) {
@@ -407,12 +449,21 @@ export default function ExamTakingPage() {
         const settingsData = await settingsRes.json();
         setExamDetails(settingsData);
 
-        // If instructions are enabled, halt here and show the instruction screen
+        // If instructions are enabled, check if student already confirmed
         if (settingsData.show_instructions) {
-          setShowInstructionsScreen(true);
-          setLoading(false);
+          const alreadyConfirmed = typeof window !== 'undefined' &&
+            localStorage.getItem(`exam_instructions_ack_${examId}`) === 'true';
+
+          if (alreadyConfirmed) {
+            // Already confirmed — skip instruction screen, go straight to exam
+            setInstructionsConfirmed(true);
+            await startExamProcess(settingsData);
+          } else {
+            setShowInstructionsScreen(true);
+            setLoading(false);
+          }
         } else {
-          // If no instructions, automatically start the exam process
+          // No instructions configured, automatically start
           await startExamProcess(settingsData);
         }
       } catch (err) {
@@ -574,6 +625,9 @@ export default function ExamTakingPage() {
 
   // --- DERIVED STATE FOR UI ---
   const minTimeLockoutSeconds = (examDetails?.min_time_minutes || 0) * 60;
+  const requireAllAnswered = !!examDetails?.require_all_answered;
+  const allAnswered = questions.length > 0 && Object.keys(answers).length >= questions.length;
+
   let isSubmitDisabled = true;
   let submitTitle = 'Finish and submit your answers';
 
@@ -584,6 +638,12 @@ export default function ExamTakingPage() {
     if (isSubmitDisabled) {
       submitTitle = `Submission is locked until the final ${examDetails.min_time_minutes} minute(s).`;
     }
+  }
+
+  // Block submit button entirely if require_all_answered is enabled and not all answered
+  if (requireAllAnswered && !allAnswered) {
+    isSubmitDisabled = true;
+    submitTitle = 'Semua soal harus dijawab terlebih dahulu sebelum bisa mengumpulkan.';
   }
 
   if (loading) { return <div className="text-center p-20 dark:text-slate-300">Loading...</div> }
@@ -621,21 +681,33 @@ export default function ExamTakingPage() {
   );
 
   if (showInstructionsScreen) {
+    const handleConfirmationChange = (e) => {
+      const checked = e.target.checked;
+      setInstructionsConfirmed(checked);
+      if (typeof window !== 'undefined') {
+        if (checked) {
+          localStorage.setItem(lsConfirmKey, 'true');
+        } else {
+          localStorage.removeItem(lsConfirmKey);
+        }
+      }
+    };
+
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl w-full max-w-2xl border border-slate-200 dark:border-slate-700">
-          <div className="text-center mb-8">
+
+          {/* Header */}
+          <div className="text-center mb-6">
             <div className="w-16 h-16 bg-transparent flex items-center justify-center mx-auto mb-4">
               <img src={branding.site_logo} alt={branding.site_name} className="w-16 h-16 object-contain drop-shadow-sm" />
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white flex flex-wrap gap-2 justify-center">
-              <span>Petunjuk Ujian</span>
-              <span dangerouslySetInnerHTML={{ __html: branding.site_name || 'Rushless Exam' }} className="prose prose-slate dark:prose-invert" />
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-2">{examDetails?.exam_name}</p>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-800 dark:text-white">Petunjuk Ujian</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">{examDetails?.exam_name}</p>
           </div>
 
-          <div className="bg-slate-50 dark:bg-slate-700/50 p-6 rounded-2xl mb-8 border border-slate-100 dark:border-slate-600">
+          {/* Instruction Body */}
+          <div className="bg-slate-50 dark:bg-slate-700/50 p-6 rounded-2xl mb-6 border border-slate-100 dark:border-slate-600">
             {examDetails?.instruction_type === 'custom' && examDetails?.custom_instructions ? (
               <div
                 className="prose prose-slate dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
@@ -659,13 +731,55 @@ export default function ExamTakingPage() {
             )}
           </div>
 
+          {/* Confirmation Checkbox */}
+          <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all mb-6 ${
+            instructionsConfirmed
+              ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+              : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
+          }`}>
+            <div className="relative flex-shrink-0 mt-0.5">
+              <input
+                type="checkbox"
+                checked={instructionsConfirmed}
+                onChange={handleConfirmationChange}
+                className="sr-only"
+              />
+              <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
+                instructionsConfirmed
+                  ? 'bg-indigo-600 border-indigo-600'
+                  : 'border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700'
+              }`}>
+                {instructionsConfirmed && (
+                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
+            </div>
+            <div>
+              <span className={`text-sm font-semibold ${
+                instructionsConfirmed ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'
+              }`}>
+                Saya sudah membaca dan memahami petunjuk ujian
+              </span>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Wajib dicentang sebelum dapat memulai ujian.
+              </p>
+            </div>
+          </label>
+
+          {/* Start Button */}
           <button
             onClick={() => startExamProcess(examDetails)}
-            disabled={startingExam}
-            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30 disabled:opacity-70 disabled:cursor-not-allowed"
+            disabled={startingExam || !instructionsConfirmed}
+            className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-lg transition-all ${
+              !instructionsConfirmed
+                ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none'
+                : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98] shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30 disabled:opacity-70 disabled:cursor-not-allowed'
+            }`}
           >
-            {startingExam ? 'Memulai...' : 'Mulai Ujian Sekarang'}
-            {!startingExam && <Icons.ChevronRight />}
+            {startingExam ? 'Memulai...' : instructionsConfirmed ? 'Mulai Ujian Sekarang' : 'Centang konfirmasi untuk melanjutkan'}
+            {!startingExam && instructionsConfirmed && <Icons.ChevronRight />}
           </button>
         </div>
       </div>
@@ -743,13 +857,21 @@ export default function ExamTakingPage() {
                       </button>
                       {currentQuestionIndex === questions.length - 1 ? (
                         <div className="relative">
-                          <button onClick={handleFinishRequest} disabled={isSubmitDisabled} title={submitTitle} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-100 dark:shadow-emerald-900/30 disabled:bg-emerald-300 dark:disabled:bg-emerald-800 disabled:cursor-not-allowed">
+                          <button onClick={handleFinishRequest} disabled={isSubmitDisabled} title={submitTitle} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white rounded-xl active:scale-95 transition-all shadow-md disabled:cursor-not-allowed ${
+                            requireAllAnswered && !allAnswered
+                              ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 shadow-none'
+                              : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100 dark:shadow-emerald-900/30 disabled:bg-emerald-300 dark:disabled:bg-emerald-800'
+                          }`}>
                             <Icons.CheckCircle />
-                            {isSubmitDisabled && minTimeLockoutSeconds > 0 && timeLeft !== null ?
-                              <span>Selesai Ujian ({formatTime(timeLeft - minTimeLockoutSeconds)})</span> :
+                            {requireAllAnswered && !allAnswered ? (
+                              <span>Jawab Semua ({Object.keys(answers).length}/{questions.length})</span>
+                            ) : isSubmitDisabled && minTimeLockoutSeconds > 0 && timeLeft !== null ? (
+                              <span>Selesai Ujian ({formatTime(timeLeft - minTimeLockoutSeconds)})</span>
+                            ) : (
                               <span>Selesai Ujian</span>
-                            }
-                          </button>                            </div>
+                            )}
+                          </button>
+                        </div>
                       ) : (
                         <button onClick={handleNextQuestion} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all shadow-md shadow-indigo-100 dark:shadow-indigo-900/30">
                           Selanjutnya
@@ -807,6 +929,7 @@ export default function ExamTakingPage() {
         onConfirm={() => submitExam(false)}
         questions={questions}
         answers={answers}
+        requireAllAnswered={requireAllAnswered}
       />
     </div>
   );

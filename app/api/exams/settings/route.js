@@ -48,7 +48,8 @@ export async function GET(request) {
             s.instruction_type,
             s.custom_instructions,
             s.show_result,
-            s.show_analysis
+            s.show_analysis,
+            s.require_all_answered
           FROM rhs_exams e
           LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
           WHERE e.id = ?
@@ -81,6 +82,7 @@ export async function GET(request) {
       custom_instructions: results[0].custom_instructions || '',
       show_result: Boolean(results[0].show_result),
       show_analysis: Boolean(results[0].show_analysis),
+      require_all_answered: Boolean(results[0].require_all_answered),
       allowed_classes: allowedClasses
     };
 
@@ -106,6 +108,7 @@ export async function POST(request) {
       requireSafeBrowser, requireSeb, sebConfigKey,
       showInstructions, instructionType, customInstructions,
       showResult, showAnalysis,
+      requireAllAnswered,
       allowedClasses
     } = await request.json();
 
@@ -150,8 +153,8 @@ export async function POST(request) {
       // 2. Update exam time settings
       await txQuery({
         query: `
-              INSERT INTO rhs_exam_settings (exam_id, start_time, end_time, require_safe_browser, require_seb, seb_config_key, show_instructions, instruction_type, custom_instructions, show_result, show_analysis)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              INSERT INTO rhs_exam_settings (exam_id, start_time, end_time, require_safe_browser, require_seb, seb_config_key, show_instructions, instruction_type, custom_instructions, show_result, show_analysis, require_all_answered)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               ON DUPLICATE KEY UPDATE 
                 start_time = VALUES(start_time), 
                 end_time = VALUES(end_time),
@@ -162,9 +165,10 @@ export async function POST(request) {
                 instruction_type = VALUES(instruction_type),
                 custom_instructions = VALUES(custom_instructions),
                 show_result = VALUES(show_result),
-                show_analysis = VALUES(show_analysis)
+                show_analysis = VALUES(show_analysis),
+                require_all_answered = VALUES(require_all_answered)
             `,
-        values: [examId, startTime, endTime, requireSafeBrowser, requireSeb || false, sebConfigKey || '', showInstructions || false, instructionType || 'template', customInstructions || '', showResult || false, showAnalysis || false],
+        values: [examId, startTime, endTime, requireSafeBrowser, requireSeb || false, sebConfigKey || '', showInstructions || false, instructionType || 'template', customInstructions || '', showResult || false, showAnalysis || false, requireAllAnswered || false],
       });
 
       // 3. Update Allowed Classes
