@@ -42,9 +42,10 @@ export async function GET(request) {
     const attempt = attemptResult[0];
     const isOwner = attempt.user_id === session.user.id;
     const isAdmin = session.user.roleName === 'admin';
+    const isTeacher = session.user.roleName === 'teacher';
 
-    // Only allow access if user is admin or the owner (and attempt is completed)
-    if (!isAdmin && (!isOwner)) {
+    // Only allow access if user is admin, teacher, or the owner (student)
+    if (!isAdmin && !isTeacher && !isOwner) {
          return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
