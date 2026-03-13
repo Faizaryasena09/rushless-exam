@@ -30,15 +30,22 @@ export async function GET(request) {
             c.class_name,
             ea.id as attempt_id,
             ea.status as attempt_status,
-            e.exam_name
+            ea.time_extension,
+            UNIX_TIMESTAMP(ea.start_time) as attempt_start_ts,
+            e.exam_name,
+            e.timer_mode,
+            e.duration_minutes,
+            UNIX_TIMESTAMP(s.end_time) as exam_end_ts,
+            UNIX_TIMESTAMP(NOW()) as now_ts
         FROM rhs_users u
         LEFT JOIN rhs_classes c ON u.class_id = c.id
         LEFT JOIN rhs_exam_attempts ea ON u.id = ea.user_id AND ea.status = 'in_progress'
         LEFT JOIN rhs_exams e ON ea.exam_id = e.id
+        LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
         WHERE u.role = 'student'
         ORDER BY 
-            (ea.status = 'in_progress') DESC, -- Active exams first
-            u.last_activity DESC              -- Then recently active
+            (ea.status = 'in_progress') DESC,
+            u.last_activity DESC
     `;
 
     const students = await query({ query: sql });
@@ -47,7 +54,19 @@ export async function GET(request) {
 
     const processedStudents = students.map(s => {
       const inactiveSeconds = now - (s.last_activity_ts || 0);
-      const isOnline = inactiveSeconds < 300; // Online if active in last 5 mins
+      const isOnline = inactiveSeconds < 300;
+
+      // Calculate seconds_left for active exam
+      let seconds_left = null;
+      if (s.attempt_id) {
+        let endTs;
+        if (s.timer_mode === 'async') {
+          endTs = Number(s.attempt_start_ts) + (Number(s.duration_minutes) * 60) + (Number(s.time_extension || 0) * 60);
+        } else {
+          endTs = Number(s.exam_end_ts) + (Number(s.time_extension || 0) * 60);
+        }
+        seconds_left = Math.max(0, Math.floor(endTs - s.now_ts));
+      }
 
       return {
         id: s.id,
@@ -58,7 +77,8 @@ export async function GET(request) {
         is_online: isOnline,
         last_activity_seconds_ago: inactiveSeconds,
         current_exam: s.exam_name || null,
-        attempt_id: s.attempt_id || null
+        attempt_id: s.attempt_id || null,
+        seconds_left,
       };
     });
 
