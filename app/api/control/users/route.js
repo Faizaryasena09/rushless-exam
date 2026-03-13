@@ -3,6 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
+import { autoSubmitExpiredAttempts } from '@/app/lib/auto-submit';
 
 async function getSession(request) {
   const cookieStore = await cookies();
@@ -17,6 +18,9 @@ export async function GET(request) {
   }
 
   try {
+    // Auto-submit any expired attempts before fetching current state
+    await autoSubmitExpiredAttempts();
+
     // Fetch all students with their active session info and current exam status
     // Joined with classes for display
     const sql = `

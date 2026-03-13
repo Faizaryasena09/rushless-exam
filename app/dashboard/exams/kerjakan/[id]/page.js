@@ -238,8 +238,25 @@ export default function ExamTakingPage() {
             return;
           }
 
+          // Server auto-submitted the exam (student was offline when timer expired)
+          if (data.auto_submitted) {
+            finishExamHandled.current = true;
+            sse.close();
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem(`exam_instructions_ack_${examId}`);
+            }
+            setTimeLeft(0);
+            alert('Waktu ujian telah habis. Jawaban Anda telah dikumpulkan secara otomatis oleh server.');
+            if (examDetails?.show_result) {
+              router.push(`/dashboard/exams/hasil/${attemptDetails?.id}`);
+            } else {
+              router.push('/dashboard/exams');
+            }
+            return;
+          }
+
           setTimeLeft(prevTime => {
-            if (prevTime !== null && data.seconds_left > prevTime + 5) { // 5 second threshold for alert to avoid jitter
+            if (prevTime !== null && data.seconds_left > prevTime + 5) {
               setShowTimeAddedAlert(true);
               setTimeout(() => setShowTimeAddedAlert(false), 5000);
             }

@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { validateUserSession } from '@/app/lib/auth';
+import { autoSubmitAttemptIfExpired } from '@/app/lib/auto-submit';
 
 // Helper to calculate remaining time
 function calculateRemainingSeconds(settings, attempt, now_ts) {
@@ -81,6 +82,15 @@ export async function GET(request) {
 
                     const attempt = attemptResult[0];
                     const seconds_left = calculateRemainingSeconds(settings, attempt, now_ts);
+
+                    // If timer expired server-side, auto-submit the attempt
+                    if (seconds_left === 0) {
+                        await autoSubmitAttemptIfExpired(attempt.id, examId, userId);
+                        // Notify client that the attempt is now completed
+                        controller.enqueue(`data: ${JSON.stringify({ seconds_left: 0, status: 'completed', auto_submitted: true })}\n\n`);
+                        clearInterval(intervalId);
+                        return;
+                    }
 
                     const payload = JSON.stringify({
                         seconds_left,
