@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { transaction } from '@/app/lib/db'; // Import transaction instead of query
 import { validateUserSession } from '@/app/lib/auth';
+import { generateAutoToken } from '@/app/lib/token';
 
 async function getSession() {
     const cookieStore = await cookies();
@@ -32,7 +33,7 @@ export async function POST(request) {
     }
 
     try {
-        const { examId } = await request.json();
+        const { examId, token } = await request.json();
         if (!examId) {
             return NextResponse.json({ message: 'Exam ID is required' }, { status: 400 });
         }
@@ -51,7 +52,8 @@ export async function POST(request) {
                     e.id, e.timer_mode, e.duration_minutes, e.max_attempts,
                     UNIX_TIMESTAMP(s.start_time) as start_time_ts, 
                     UNIX_TIMESTAMP(s.end_time) as end_time_ts,
-                    s.require_seb, s.seb_config_key, s.show_result
+                    s.require_seb, s.seb_config_key, s.show_result,
+                    s.require_token, s.token_type, s.current_token
                 FROM rhs_exams e
                 LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
                 WHERE e.id = ?
@@ -136,6 +138,20 @@ export async function POST(request) {
                 }
             }
 
+            // 6.7 Token Validation (Only for NEW attempts)
+            if (settings.require_token) {
+                if (!token) {
+                    throw new Error('Token Ujian diperlukan untuk memulai ujian ini.');
+                }
+                const isAuto = settings.token_type === 'auto';
+                const expectedToken = isAuto ? generateAutoToken(settings.id) : (settings.current_token || '');
+                
+                // Case-insensitive comparison and trim
+                if (token.toString().trim().toUpperCase() !== expectedToken.toString().trim().toUpperCase()) {
+                     throw new Error('Token Ujian tidak valid atau sudah kadaluarsa.');
+                }
+            }
+
             // 7. All checks passed, create a new attempt
             const insertResult = await query({
                 query: `
@@ -183,7 +199,9 @@ export async function POST(request) {
             'Exam has not started yet.',
             'Exam has already ended.',
             'Safe Exam Browser headers missing. Please use SEB to start the exam.',
-            'SEB Configuration Key mismatch. Please ensure you are using the correct SEB config file.'
+            'SEB Configuration Key mismatch. Please ensure you are using the correct SEB config file.',
+            'Token Ujian diperlukan untuk memulai ujian ini.',
+            'Token Ujian tidak valid atau sudah kadaluarsa.'
         ];
         if (userFacingErrors.includes(error.message)) {
             return NextResponse.json({ message: error.message }, { status: 403 });

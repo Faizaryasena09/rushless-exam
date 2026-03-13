@@ -95,6 +95,11 @@ export default function ManageExamPage() {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [requireAllAnswered, setRequireAllAnswered] = useState(false);
 
+  const [requireToken, setRequireToken] = useState(false);
+  const [tokenType, setTokenType] = useState('static');
+  const [currentToken, setCurrentToken] = useState('');
+  const [liveAutoToken, setLiveAutoToken] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -157,6 +162,9 @@ export default function ManageExamPage() {
       setShowResult(!!data.show_result);
       setShowAnalysis(!!data.show_analysis);
       setRequireAllAnswered(!!data.require_all_answered);
+      setRequireToken(!!data.require_token);
+      setTokenType(data.token_type || 'static');
+      setCurrentToken(data.current_token || '');
       setSelectedClasses(data.allowed_classes || []);
 
       // Marking initial load completed so auto-save works exclusively on user edits
@@ -174,6 +182,31 @@ export default function ManageExamPage() {
   useEffect(() => {
     fetchExamData();
   }, [fetchExamData]);
+
+  // Live Auto-Token Poller
+  useEffect(() => {
+    if (!requireToken || tokenType !== 'auto' || !examId) {
+      setLiveAutoToken('');
+      return;
+    }
+    
+    const fetchAutoToken = async () => {
+      try {
+        const res = await fetch(`/api/exams/auto-token?examId=${examId}`);
+        if (res.ok) {
+           const data = await res.json();
+           setLiveAutoToken(data.auto_token);
+        }
+      } catch (err) {
+        console.error("Failed to fetch auto token", err);
+      }
+    };
+
+    fetchAutoToken();
+    // Poll every 10 seconds to ensure it flips right at the 15-minute mark
+    const interval = setInterval(fetchAutoToken, 10000);
+    return () => clearInterval(interval);
+  }, [requireToken, tokenType, examId]);
 
   const handleToggleClass = (classId) => {
     setSelectedClasses(prev => {
@@ -222,6 +255,9 @@ export default function ManageExamPage() {
         showResult: showResult,
         showAnalysis: showAnalysis,
         requireAllAnswered: requireAllAnswered,
+        requireToken: requireToken,
+        tokenType: tokenType,
+        currentToken: currentToken,
         allowedClasses: selectedClasses
       }),
     });
@@ -259,7 +295,7 @@ export default function ManageExamPage() {
     return () => clearTimeout(saveTimeoutRef.current);
   }, [
     examName, description, subjectId, startTime, endTime, shuffleQuestions, shuffleAnswers,
-    timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, sebConfigKey, selectedClasses, showInstructions, instructionType, customInstructions, showResult, showAnalysis, requireAllAnswered
+    timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, sebConfigKey, selectedClasses, showInstructions, instructionType, customInstructions, showResult, showAnalysis, requireAllAnswered, requireToken, tokenType, currentToken
   ]);
 
   if (loading) {
@@ -483,6 +519,67 @@ export default function ManageExamPage() {
                 onChange={() => setRequireAllAnswered(!requireAllAnswered)}
                 disabled={saving && false}
               />
+            </div>
+
+            {/* Token Settings */}
+            <div className="space-y-4 bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+              <Switch
+                id="require-token"
+                label="Perlu Token untuk Mulai Ujian"
+                description="Siswa harus memasukkan 6-digit token sebelum bisa memulai ujian, seperti halnya Moodle."
+                checked={requireToken}
+                onChange={() => setRequireToken(!requireToken)}
+                disabled={saving && false}
+              />
+              
+              {requireToken && (
+                <div className="pl-4 border-l-2 border-indigo-200 dark:border-indigo-800 space-y-4 pt-2">
+                  <SegmentedControl
+                    name="token-type"
+                    options={[
+                      { value: 'static', label: 'Statis (Custom)' },
+                      { value: 'auto', label: 'Otomatis (Tiap 15 Menit)' }
+                    ]}
+                    value={tokenType}
+                    onChange={(val) => {
+                      setTokenType(val);
+                      if (val === 'auto') setCurrentToken(''); // Clear static token if switched
+                    }}
+                    disabled={saving && false}
+                  />
+
+                  {tokenType === 'static' ? (
+                    <div>
+                      <label htmlFor="staticToken" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                        Token Ujian (Maks 6 karakter)
+                      </label>
+                      <input
+                        id="staticToken"
+                        type="text"
+                        maxLength="6"
+                        value={currentToken}
+                        onChange={(e) => setCurrentToken(e.target.value.toUpperCase())}
+                        placeholder="Misal: ABCD12"
+                        className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-mono tracking-widest uppercase focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
+                        disabled={saving && false}
+                      />
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                        Token statis yang Anda tentukan sendiri. Siswa harus memasukkan token persis seperti ini.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-indigo-50 dark:bg-indigo-900/40 p-4 rounded-lg border border-indigo-100 dark:border-indigo-800">
+                       <p className="text-sm text-indigo-800 dark:text-indigo-200 font-medium">Auto-Token Aktif Saat Ini:</p>
+                       <p className="text-3xl font-mono font-black tracking-widest text-indigo-600 dark:text-indigo-400 mt-2 flex items-center gap-3">
+                         {liveAutoToken ? liveAutoToken : <span className="text-xl animate-pulse">Memuat...</span>}
+                       </p>
+                       <p className="text-xs text-indigo-700/70 dark:text-indigo-300 mt-2 leading-relaxed">
+                         Token ini berupa 6 digit angka acak yang di-generate oleh server dan <strong>berubah otomatis setiap 15 menit</strong>. Anda dapat mengumumkan token ini kepada siswa.
+                       </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-4 bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">

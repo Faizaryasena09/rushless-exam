@@ -31,6 +31,7 @@ export async function GET(request) {
             ea.id as attempt_id,
             ea.status as attempt_status,
             ea.time_extension,
+            ea.exam_id,
             UNIX_TIMESTAMP(ea.start_time) as attempt_start_ts,
             e.exam_name,
             e.timer_mode,
@@ -58,6 +59,7 @@ export async function GET(request) {
 
       // Calculate seconds_left for active exam
       let seconds_left = null;
+
       if (s.attempt_id) {
         let endTs;
         if (s.timer_mode === 'async') {

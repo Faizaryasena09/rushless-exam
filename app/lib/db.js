@@ -320,6 +320,26 @@ export async function setupDatabase() {
       if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
     }
 
+    // Migration: Add Token feature columns to rhs_exam_settings
+    try {
+      await connection.query(`ALTER TABLE rhs_exam_settings ADD COLUMN require_token TINYINT(1) NOT NULL DEFAULT 0`);
+      console.log("Column 'require_token' added to rhs_exam_settings");
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
+    }
+    try {
+      await connection.query(`ALTER TABLE rhs_exam_settings ADD COLUMN token_type ENUM('static', 'auto') NOT NULL DEFAULT 'static'`);
+      console.log("Column 'token_type' added to rhs_exam_settings");
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
+    }
+    try {
+      await connection.query(`ALTER TABLE rhs_exam_settings ADD COLUMN current_token VARCHAR(10) NULL DEFAULT NULL`);
+      console.log("Column 'current_token' added to rhs_exam_settings");
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
+    }
+
     connection.release();
     return { success: true };
 

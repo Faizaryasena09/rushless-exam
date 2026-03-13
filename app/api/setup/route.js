@@ -396,6 +396,43 @@ export async function GET(request) {
       messages.push(`Column 'require_all_answered' already exists in '${settingsTableName}'.`);
     }
 
+    // --- Check and add 'require_token' column to exam_settings table ---
+    const hasRequireToken = await columnExists(settingsTableName, 'require_token');
+    if (!hasRequireToken) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN require_token TINYINT(1) NOT NULL DEFAULT 0;`,
+        values: [],
+      });
+      messages.push(`Column 'require_token' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'require_token' already exists in '${settingsTableName}'.`);
+    }
+
+    // --- Check and add 'token_type' column to exam_settings table ---
+    const hasTokenType = await columnExists(settingsTableName, 'token_type');
+    if (!hasTokenType) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN token_type ENUM('static', 'auto') NOT NULL DEFAULT 'static';`,
+        values: [],
+      });
+      messages.push(`Column 'token_type' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'token_type' already exists in '${settingsTableName}'.`);
+    }
+
+    // --- Check and add 'current_token' column to exam_settings table ---
+    const hasCurrentToken = await columnExists(settingsTableName, 'current_token');
+    if (!hasCurrentToken) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN current_token VARCHAR(10) NULL DEFAULT NULL;`,
+        values: [],
+      });
+      messages.push(`Column 'current_token' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'current_token' already exists in '${settingsTableName}'.`);
+    }
+
+
     // --- Check and add 'sort_order' column to exam_questions table ---
     const questionsTableName = 'rhs_exam_questions';
     const hasSortOrder = await columnExists(questionsTableName, 'sort_order');

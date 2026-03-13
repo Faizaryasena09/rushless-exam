@@ -49,7 +49,10 @@ export async function GET(request) {
             s.custom_instructions,
             s.show_result,
             s.show_analysis,
-            s.require_all_answered
+            s.require_all_answered,
+            s.require_token,
+            s.token_type,
+            s.current_token
           FROM rhs_exams e
           LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
           WHERE e.id = ?
@@ -83,6 +86,9 @@ export async function GET(request) {
       show_result: Boolean(results[0].show_result),
       show_analysis: Boolean(results[0].show_analysis),
       require_all_answered: Boolean(results[0].require_all_answered),
+      require_token: Boolean(results[0].require_token),
+      token_type: results[0].token_type || 'static',
+      current_token: results[0].current_token || '',
       allowed_classes: allowedClasses
     };
 
@@ -109,6 +115,7 @@ export async function POST(request) {
       showInstructions, instructionType, customInstructions,
       showResult, showAnalysis,
       requireAllAnswered,
+      requireToken, tokenType, currentToken,
       allowedClasses
     } = await request.json();
 
@@ -153,8 +160,12 @@ export async function POST(request) {
       // 2. Update exam time settings
       await txQuery({
         query: `
-              INSERT INTO rhs_exam_settings (exam_id, start_time, end_time, require_safe_browser, require_seb, seb_config_key, show_instructions, instruction_type, custom_instructions, show_result, show_analysis, require_all_answered)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              INSERT INTO rhs_exam_settings (
+                exam_id, start_time, end_time, require_safe_browser, require_seb, seb_config_key, 
+                show_instructions, instruction_type, custom_instructions, show_result, show_analysis, 
+                require_all_answered, require_token, token_type, current_token
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               ON DUPLICATE KEY UPDATE 
                 start_time = VALUES(start_time), 
                 end_time = VALUES(end_time),
@@ -166,9 +177,16 @@ export async function POST(request) {
                 custom_instructions = VALUES(custom_instructions),
                 show_result = VALUES(show_result),
                 show_analysis = VALUES(show_analysis),
-                require_all_answered = VALUES(require_all_answered)
+                require_all_answered = VALUES(require_all_answered),
+                require_token = VALUES(require_token),
+                token_type = VALUES(token_type),
+                current_token = VALUES(current_token)
             `,
-        values: [examId, startTime, endTime, requireSafeBrowser, requireSeb || false, sebConfigKey || '', showInstructions || false, instructionType || 'template', customInstructions || '', showResult || false, showAnalysis || false, requireAllAnswered || false],
+        values: [
+          examId, startTime || null, endTime || null, requireSafeBrowser, requireSeb || false, sebConfigKey || '',
+          showInstructions || false, instructionType || 'template', customInstructions || '', showResult || false, showAnalysis || false, 
+          requireAllAnswered || false, requireToken || false, tokenType || 'static', currentToken || null
+        ],
       });
 
       // 3. Update Allowed Classes

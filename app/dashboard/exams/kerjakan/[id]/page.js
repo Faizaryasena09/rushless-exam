@@ -176,6 +176,8 @@ export default function ExamTakingPage() {
   // Instruction State
   const [showInstructionsScreen, setShowInstructionsScreen] = useState(false);
   const [startingExam, setStartingExam] = useState(false);
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const [tokenInput, setTokenInput] = useState('');
 
   const [branding, setBranding] = useState({ site_name: 'Rushless Exam', site_logo: '/favicon.ico' });
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
@@ -466,7 +468,6 @@ export default function ExamTakingPage() {
         const settingsData = await settingsRes.json();
         setExamDetails(settingsData);
 
-        // If instructions are enabled, check if student already confirmed
         if (settingsData.show_instructions) {
           const alreadyConfirmed = typeof window !== 'undefined' &&
             localStorage.getItem(`exam_instructions_ack_${examId}`) === 'true';
@@ -474,14 +475,24 @@ export default function ExamTakingPage() {
           if (alreadyConfirmed) {
             // Already confirmed — skip instruction screen, go straight to exam
             setInstructionsConfirmed(true);
-            await startExamProcess(settingsData);
+            if (settingsData.require_token) {
+              setShowTokenModal(true);
+              setLoading(false);
+            } else {
+              await startExamProcess(settingsData);
+            }
           } else {
             setShowInstructionsScreen(true);
             setLoading(false);
           }
         } else {
           // No instructions configured, automatically start
-          await startExamProcess(settingsData);
+          if (settingsData.require_token) {
+            setShowTokenModal(true);
+            setLoading(false);
+          } else {
+            await startExamProcess(settingsData);
+          }
         }
       } catch (err) {
         setError(err.message);
@@ -493,13 +504,20 @@ export default function ExamTakingPage() {
   }, [examId]);
 
   const startExamProcess = async (settingsData) => {
+    setStartingExam(true);
+    setError(null);
+
+    const payload = { examId };
+    if (settingsData?.require_token) {
+       payload.token = tokenInput;
+    }
+
     try {
-      setStartingExam(true);
       const [attemptRes, questionsRes, tempAnswersRes] = await Promise.all([
         fetch('/api/exams/start-attempt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ examId }),
+          body: JSON.stringify(payload),
         }),
         fetch(`/api/exams/questions?exam_id=${examId}`),
         fetch(`/api/exams/temporary-answer?exam_id=${examId}`)
@@ -543,6 +561,8 @@ export default function ExamTakingPage() {
       if (tempAnswersRes.ok) setAnswers(await tempAnswersRes.json() || {});
 
       setShowInstructionsScreen(false); // Hide instructions
+      setShowTokenModal(false); // Hide token modal
+      setTokenInput(''); // Clear token input
     } catch (err) {
       setError(err.message);
     } finally {
@@ -787,7 +807,14 @@ export default function ExamTakingPage() {
 
           {/* Start Button */}
           <button
-            onClick={() => startExamProcess(examDetails)}
+            onClick={() => {
+              if (examDetails?.require_token) {
+                 setShowInstructionsScreen(false);
+                 setShowTokenModal(true);
+              } else {
+                 startExamProcess(examDetails);
+              }
+            }}
             disabled={startingExam || !instructionsConfirmed}
             className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-lg transition-all ${
               !instructionsConfirmed
@@ -799,10 +826,58 @@ export default function ExamTakingPage() {
             {!startingExam && instructionsConfirmed && <Icons.ChevronRight />}
           </button>
         </div>
+
       </div>
     );
   }
 
+  if (showTokenModal) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative border border-slate-200 dark:border-slate-700">
+          <button 
+            onClick={() => { setShowTokenModal(false); setTokenInput(''); setError(null); setShowInstructionsScreen(true); }}
+            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+          <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
+             <svg className="w-8 h-8 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+             </svg>
+          </div>
+          <h3 className="text-xl font-bold text-slate-800 dark:text-white text-center mb-2">Masukkan Token Ujian</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-6">Ujian ini dilindungi dengan token. Masukkan token yang valid untuk melanjutkan.</p>
+          
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm text-center">
+              {error}
+            </div>
+          )}
+
+          <input 
+            type="text"
+            value={tokenInput}
+            onChange={(e) => setTokenInput(e.target.value.toUpperCase())}
+            placeholder="Cth: ABCD12"
+            maxLength={6}
+            autoFocus
+            className="w-full text-center text-3xl font-mono font-black tracking-widest uppercase p-4 mb-6 border-2 border-slate-200 dark:border-slate-600 rounded-2xl bg-slate-50 dark:bg-slate-900/50 text-slate-800 dark:text-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 outline-none transition-all"
+          />
+          
+          <button
+            onClick={() => startExamProcess(examDetails)}
+            disabled={startingExam || tokenInput.length < 1}
+            className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {startingExam ? 'Memverifikasi...' : 'Verifikasi & Mulai Ujian'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDERING ACTUAL EXAM ---
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-transparent pb-20">
       {/* Time Added Notification */}
