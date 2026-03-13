@@ -23,19 +23,11 @@ export async function PUT(request) {
     // Optional categoryId (if null, defaults to "Tanpa Nama" category)
     const newCategoryId = categoryId ? parseInt(categoryId) : null;
 
-    // Verify ownership of exam before moving
-    let checkQuery = `SELECT id FROM rhs_exams WHERE id = ?`;
-    let checkValues = [examId];
-
-    if (session.user.roleName === 'teacher') {
-        checkQuery += ` AND created_by = ?`;
-        checkValues.push(session.user.id);
-    }
-
-    const examCheck = await query({ query: checkQuery, values: checkValues });
+    // Verify the exam exists
+    const examCheck = await query({ query: `SELECT id FROM rhs_exams WHERE id = ?`, values: [examId] });
 
     if (examCheck.length === 0) {
-         return NextResponse.json({ message: 'Exam not found or unauthorized' }, { status: 403 });
+         return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
     }
 
     // Move logic

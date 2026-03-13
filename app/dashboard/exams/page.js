@@ -265,6 +265,7 @@ export default function ExamsPage() {
   const [loadingExams, setLoadingExams] = useState(true);
   const [errorExams, setErrorExams] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false); // To trigger re-fetch
+  const [isExecuting, setIsExecuting] = useState(false); // To show loading state on buttons
 
   // Accordion state
   const [openCategories, setOpenCategories] = useState({});
@@ -430,6 +431,7 @@ export default function ExamsPage() {
     const { type, examId, categoryId, categoryName } = modalState;
     if (!type) return;
 
+    setIsExecuting(true);
     try {
       let res;
       if (type === 'duplicate') {
@@ -477,6 +479,8 @@ export default function ExamsPage() {
     } catch (e) {
       alert(e.message);
       closeModal();
+    } finally {
+      setIsExecuting(false);
     }
   };
 
@@ -489,8 +493,38 @@ export default function ExamsPage() {
 
   if (loadingSession || loadingExams) {
     return (
-      <div className="text-center py-20">
-        <p className="text-lg font-semibold text-slate-600 dark:text-slate-400 animate-pulse">Loading Exams...</p>
+      <div className="animate-pulse space-y-8 p-4">
+        {/* Header Skeleton */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-3">
+            <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded-lg w-48"></div>
+            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-64"></div>
+          </div>
+          <div className="flex gap-3">
+            <div className="h-12 bg-slate-200 dark:bg-slate-700 rounded-xl w-32 hidden md:block"></div>
+            <div className="h-12 bg-slate-200 dark:bg-slate-700 rounded-xl w-32"></div>
+          </div>
+        </div>
+        
+        {/* Content Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-64">
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
+              </div>
+              <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/4 mb-4"></div>
+              <div className="space-y-2 mt-2">
+                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-full"></div>
+                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-5/6"></div>
+              </div>
+              <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-700/50 flex gap-2">
+                <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg w-1/2"></div>
+                <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg w-1/2"></div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -605,11 +639,12 @@ export default function ExamsPage() {
               </div>
 
               <div className="flex justify-end gap-3">
-                <button onClick={closeModal} className="px-4 py-2 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                <button onClick={closeModal} disabled={isExecuting} className="px-4 py-2 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50">
                   Batal
                 </button>
-                <button onClick={executeAction} disabled={!modalState.categoryName.trim()} className="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 font-semibold rounded-lg shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                  Simpan
+                <button onClick={executeAction} disabled={!modalState.categoryName.trim() || isExecuting} className="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 font-semibold rounded-lg shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  {isExecuting && <Icons.Cog className="w-4 h-4 animate-spin" />}
+                  <span>{isExecuting ? 'Menyimpan...' : 'Simpan'}</span>
                 </button>
               </div>
             </div>
@@ -644,11 +679,12 @@ export default function ExamsPage() {
               </div>
 
               <div className="flex justify-end gap-3">
-                <button onClick={closeModal} className="px-4 py-2 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                <button onClick={closeModal} disabled={isExecuting} className="px-4 py-2 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50">
                   Batal
                 </button>
-                <button onClick={executeAction} className="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 font-semibold rounded-lg shadow-md transition-all">
-                  Pindahkan
+                <button onClick={executeAction} disabled={isExecuting} className="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 font-semibold rounded-lg shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                  {isExecuting && <Icons.Cog className="w-4 h-4 animate-spin" />}
+                  <span>{isExecuting ? 'Memindahkan...' : 'Pindahkan'}</span>
                 </button>
               </div>
             </div>
@@ -665,6 +701,7 @@ export default function ExamsPage() {
         confirmText="Hapus"
         confirmColor="bg-red-600 hover:bg-red-700"
         icon={() => <Icons.Trash className="w-6 h-6" />}
+        isExecuting={isExecuting}
       />
       <ConfirmationModal
         isOpen={modalState.isOpen && modalState.type === 'duplicate'}
@@ -675,6 +712,7 @@ export default function ExamsPage() {
         confirmText="Duplicate"
         confirmColor="bg-amber-500 hover:bg-amber-600"
         icon={() => <Icons.Duplicate className="w-6 h-6" />}
+        isExecuting={isExecuting}
       />
 
       <ConfirmationModal
@@ -686,12 +724,13 @@ export default function ExamsPage() {
         confirmText="Delete"
         confirmColor="bg-red-600 hover:bg-red-700"
         icon={() => <Icons.Trash className="w-6 h-6" />}
+        isExecuting={isExecuting}
       />
     </div>
   );
 }
 
-function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', confirmColor = 'bg-indigo-600 hover:bg-indigo-700', icon: Icon }) {
+function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', confirmColor = 'bg-indigo-600 hover:bg-indigo-700', icon: Icon, isExecuting = false }) {
   if (!isOpen) return null;
 
   return (
@@ -710,15 +749,18 @@ function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirm
           <div className="flex justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              disabled={isExecuting}
+              className="px-4 py-2 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
-              className={`px-4 py-2 text-white font-semibold rounded-lg shadow-md transition-all active:scale-95 ${confirmColor}`}
+              disabled={isExecuting}
+              className={`px-4 py-2 text-white font-semibold rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 ${confirmColor}`}
             >
-              {confirmText}
+              {isExecuting && <Icons.Cog className="w-4 h-4 animate-spin" />}
+              <span>{isExecuting ? 'Processing...' : confirmText}</span>
             </button>
           </div>
         </div>
