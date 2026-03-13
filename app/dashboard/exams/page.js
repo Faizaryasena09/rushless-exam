@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -41,6 +41,23 @@ const StudentExamActions = ({ exam }) => {
 
 // --- Exam Card Component ---
 const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggleVisibility }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
+
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 flex flex-col">
       <div className="p-6">
@@ -94,24 +111,33 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
               </button>
               
               {/* Exam Actions Dropdown Trigger (Moves & Delete) */}
-              <div className="flex-1 relative">
-                  <button className="w-full flex items-center justify-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 py-1.5 px-2 rounded-lg transition-colors peer">
+              <div className="flex-1 relative" ref={menuRef}>
+                  <button 
+                      onClick={() => setIsMenuOpen(!isMenuOpen)}
+                      className="w-full flex items-center justify-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 py-1.5 px-2 rounded-lg transition-colors"
+                  >
                       <Icons.DotsVertical />
                       <span>Lainnya</span>
                   </button>
                   
                   {/* Dropdown Menu */}
-                  <div className="absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 opacity-0 invisible scale-95 peer-hover:opacity-100 peer-hover:visible peer-hover:scale-100 hover:opacity-100 hover:visible hover:scale-100 transition-all origin-bottom-right z-10">
+                  <div className={`absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 transition-all origin-bottom-right z-10 ${isMenuOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95'}`}>
                       <div className="p-1">
                           <button 
-                              onClick={() => onToggleVisibility && onToggleVisibility()}
+                              onClick={() => {
+                                  if (onToggleVisibility) onToggleVisibility();
+                                  setIsMenuOpen(false);
+                              }}
                               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
                           >
                               {exam.exam_is_hidden ? <><Icons.Eye /><span>Tampilkan Ujian</span></> : <><Icons.EyeOff /><span>Sembunyikan Ujian</span></>}
                           </button>
                           <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2"></div>
                           <button 
-                              onClick={() => openModal('moveExam', exam.id, exam.category_id || '')}
+                              onClick={() => {
+                                  openModal('moveExam', exam.id, exam.category_id || '');
+                                  setIsMenuOpen(false);
+                              }}
                               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
                           >
                               <Icons.Folder />
@@ -119,7 +145,10 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
                           </button>
                           <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2"></div>
                           <button 
-                              onClick={() => openModal('delete', exam.id)}
+                              onClick={() => {
+                                  openModal('delete', exam.id);
+                                  setIsMenuOpen(false);
+                              }}
                               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
                           >
                               <Icons.Trash />
