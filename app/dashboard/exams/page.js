@@ -25,17 +25,135 @@ const Icons = {
 
 // --- Student Action Button Component ---
 const StudentExamActions = ({ exam }) => {
-// ...
-// [Lines 21-135 unchanged, keep them as is and only match the start/end lines properly]
-// ...
-  return (
-    <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
-      <div className="flex items-center gap-2">
-        <Icons.Play />
-        <span>{exam.require_seb ? 'Mulai dengan SEB' : 'Mulai Kerjakan'}</span>
+  const now = Date.now();
+
+  const startTime = exam.start_time ? new Date(exam.start_time).getTime() : null;
+  const endTime = exam.end_time ? new Date(exam.end_time).getTime() : null;
+  const maxAttempts = exam.max_attempts ? Number(exam.max_attempts) : null;
+  const userAttempts = exam.user_attempts || 0;
+  const hasInProgress = !!exam.has_in_progress;
+  const latestAttemptId = exam.latest_attempt_id;
+  const latestScore = exam.latest_score;
+
+  // Determine exam window status
+  const examNotStarted = startTime !== null && now < startTime;
+  const examEnded = endTime !== null && now > endTime;
+  const maxAttemptsReached = maxAttempts !== null && userAttempts >= maxAttempts;
+  const canTakeExam = !examNotStarted && !examEnded && !maxAttemptsReached;
+
+  // Format countdown to start
+  const formatCountdown = (targetMs) => {
+    const diff = Math.max(0, targetMs - now);
+    const totalSec = Math.floor(diff / 1000);
+    const days = Math.floor(totalSec / 86400);
+    const hours = Math.floor((totalSec % 86400) / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    if (days > 0) return `${days}h ${hours}j lagi`;
+    if (hours > 0) return `${hours}j ${mins}m lagi`;
+    if (mins > 0) return `${mins}m ${secs}d lagi`;
+    return `${secs}d lagi`;
+  };
+
+  // Badge status
+  let badge = null;
+  if (examNotStarted) {
+    badge = (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+        🔒 Belum Dimulai
+      </span>
+    );
+  } else if (hasInProgress && !examEnded) {
+    badge = (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400">
+        ⚡ Sedang Dikerjakan
+      </span>
+    );
+  } else if (examEnded || maxAttemptsReached) {
+    badge = (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+        ✅ {examEnded ? 'Ujian Telah Berakhir' : 'Sudah Selesai'}
+      </span>
+    );
+  } else if (canTakeExam) {
+    badge = (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400">
+        🟢 Tersedia
+      </span>
+    );
+  }
+
+  // Attempt counter label
+  const attemptInfo = maxAttempts !== null ? (
+    <span className="text-[11px] text-slate-400 dark:text-slate-500">
+      Percobaan: {userAttempts}/{maxAttempts}
+    </span>
+  ) : userAttempts > 0 ? (
+    <span className="text-[11px] text-slate-400 dark:text-slate-500">
+      {userAttempts}× dicoba
+    </span>
+  ) : null;
+
+  // Action button
+  let actionButton = null;
+
+  if (examNotStarted) {
+    actionButton = (
+      <div className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-not-allowed select-none">
+        <Icons.Clock />
+        <span>Mulai {formatCountdown(startTime)}</span>
       </div>
-      <Icons.ChevronRight className="transition-transform group-hover:translate-x-1" />
-    </Link>
+    );
+  } else if (hasInProgress && !examEnded) {
+    actionButton = (
+      <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors">
+        <div className="flex items-center gap-2">
+          <Icons.Play />
+          <span>Lanjutkan Ujian</span>
+        </div>
+        <Icons.ChevronRight />
+      </Link>
+    );
+  } else if ((examEnded || maxAttemptsReached) && latestAttemptId) {
+    actionButton = (
+      <Link href={`/dashboard/exams/hasil/${latestAttemptId}`} className="group w-full flex items-center justify-between text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors">
+        <div className="flex items-center gap-2">
+          <Icons.ChartBar />
+          <span>Lihat Hasil {latestScore !== null && latestScore !== undefined ? `(${latestScore})` : ''}</span>
+        </div>
+        <Icons.ChevronRight />
+      </Link>
+    );
+  } else if (examEnded && !latestAttemptId) {
+    actionButton = (
+      <div className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-not-allowed select-none">
+        <Icons.Clock />
+        <span>Ujian sudah berakhir</span>
+      </div>
+    );
+  } else if (canTakeExam) {
+    const label = userAttempts > 0 ? 'Ulangi Ujian' : (exam.require_seb ? 'Mulai dengan SEB' : 'Mulai Kerjakan');
+    actionButton = (
+      <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
+        <div className="flex items-center gap-2">
+          <Icons.Play />
+          <span>{label}</span>
+        </div>
+        <Icons.ChevronRight />
+      </Link>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        {badge}
+        {attemptInfo}
+      </div>
+      <div className="pt-1">
+        {actionButton}
+      </div>
+    </div>
   );
 };
 
