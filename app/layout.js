@@ -1,5 +1,7 @@
+import { Suspense } from 'react';
 import { ThemeProvider } from './components/ThemeProvider';
 import LayoutWrapper from './components/LayoutWrapper';
+import NavigationProgress from './components/NavigationProgress';
 import "./globals.css";
 
 export const metadata = {
@@ -12,6 +14,9 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeProvider>
+          <Suspense fallback={null}>
+            <NavigationProgress />
+          </Suspense>
           <LayoutWrapper>
             {children}
           </LayoutWrapper>
