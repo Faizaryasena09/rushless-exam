@@ -91,7 +91,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { href: '/dashboard/users', label: 'Manage Users', icon: Icons.Users, roles: ['admin'] },
     { href: '/dashboard/teachers-assignments', label: 'Teacher Assignments', icon: Icons.TeacherClasses, roles: ['admin'] },
     { href: '/dashboard/control', label: 'Exam Control', icon: Icons.Control, roles: ['admin'] },
-    { href: '/dashboard/classes', label: 'Manage Classes', icon: Icons.Classes, roles: ['admin', 'teacher'] },
+    { href: '/dashboard/classes', label: 'Manage Classes', icon: Icons.Classes, roles: ['admin'] },
     { href: '/dashboard/subjects', label: 'Manage Subjects', icon: Icons.Subjects, roles: ['admin'] },
     { href: '/dashboard/exams', label: 'Manage Exams', icon: Icons.Exams, roles: ['admin', 'teacher', 'students'] },
     { href: '/dashboard/web-settings', label: 'Admin Tools', icon: Icons.Settings, roles: ['admin'] },

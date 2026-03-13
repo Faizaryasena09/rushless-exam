@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 // --- Icons Component (Inline SVG) ---
 const Icons = {
@@ -32,14 +33,29 @@ const Icons = {
 };
 
 const ManageClassesPage = () => {
+  const router = useRouter();
   const [classes, setClasses] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [className, setClassName] = useState('');
+
+  // Check session and restrict to admin only
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/user-session');
+        if (!res.ok) { router.push('/'); return; }
+        const data = await res.json();
+        if (!data.user || data.user.roleName !== 'admin') {
+          router.push('/dashboard');
+          return;
+        }
+        fetchClasses();
+      } catch {
+        router.push('/');
+      }
+    }
+    checkSession();
+  }, [router]);
 
   const fetchClasses = async () => {
     try {
@@ -57,9 +73,9 @@ const ManageClassesPage = () => {
     }
   };
 
-  useEffect(() => {
-    fetchClasses();
-  }, []);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [className, setClassName] = useState('');
 
   const handleAddClass = () => {
     setSelectedClass(null);

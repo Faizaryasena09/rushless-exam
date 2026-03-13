@@ -138,7 +138,9 @@ export default function DashboardPage() {
     if (loading) return <SkeletonLoader />;
     if (!user) return null;
 
-    const isAdminOrTeacher = user.roleName === 'admin' || user.roleName === 'teacher';
+    const isAdmin = user.roleName === 'admin';
+    const isTeacher = user.roleName === 'teacher';
+    const isAdminOrTeacher = isAdmin || isTeacher;
     const isStudent = user.roleName === 'student';
 
     return (
@@ -175,20 +177,24 @@ export default function DashboardPage() {
                                 icon={<DocumentDuplicateIcon className="h-8 w-8 text-white" />}
                                 gradient="bg-gradient-to-br from-blue-500 to-blue-700"
                             />
-                            <DashboardCard
-                                href="/dashboard/classes"
-                                title="Manajemen Kelas"
-                                description="Atur siswa dan grup kelas."
-                                icon={<AcademicCapIcon className="h-8 w-8 text-white" />}
-                                gradient="bg-gradient-to-br from-emerald-500 to-emerald-700"
-                            />
-                            <DashboardCard
-                                href="/dashboard/users"
-                                title="Data Pengguna"
-                                description="Tambah dan kelola akses user."
-                                icon={<UsersIcon className="h-8 w-8 text-white" />}
-                                gradient="bg-gradient-to-br from-violet-500 to-violet-700"
-                            />
+                            {isAdmin && (
+                                <>
+                                    <DashboardCard
+                                        href="/dashboard/classes"
+                                        title="Manajemen Kelas"
+                                        description="Atur siswa dan grup kelas."
+                                        icon={<AcademicCapIcon className="h-8 w-8 text-white" />}
+                                        gradient="bg-gradient-to-br from-emerald-500 to-emerald-700"
+                                    />
+                                    <DashboardCard
+                                        href="/dashboard/users"
+                                        title="Data Pengguna"
+                                        description="Tambah dan kelola akses user."
+                                        icon={<UsersIcon className="h-8 w-8 text-white" />}
+                                        gradient="bg-gradient-to-br from-violet-500 to-violet-700"
+                                    />
+                                </>
+                            )}
                         </>
                     )}
 
