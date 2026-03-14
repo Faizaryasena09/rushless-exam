@@ -4,45 +4,63 @@ import { useState, useEffect, useRef } from 'react';
 import UserModal from '../../components/UserModal';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
+import { 
+  UserPlus, 
+  UserMinus, 
+  Trash2, 
+  Edit3, 
+  User, 
+  Building2, 
+  Download, 
+  Upload, 
+  Search, 
+  Filter, 
+  AlertTriangle,
+  Loader2
+} from 'lucide-react';
 
-// Icons Component
-const Icons = {
-  Add: () => (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-    </svg>
-  ),
-  Edit: () => (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-    </svg>
-  ),
-  Trash: () => (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-    </svg>
-  ),
-  User: () => (
-    <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-    </svg>
-  ),
-  Class: () => (
-    <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-    </svg>
-  ),
-  Download: () => (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-    </svg>
-  ),
-  Upload: () => (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-    </svg>
-  )
-};
+// --- COMPONENTS ---
+
+// Modal Konfirmasi Hapus yang lebih ramah
+function ConfirmDeleteModal({ isOpen, onClose, onConfirm, title, message, itemName, loading }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="relative p-8 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 mb-6">
+            <AlertTriangle size={32} />
+          </div>
+          
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{title}</h3>
+          <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-8">
+            {message}
+            {itemName && <span className="font-bold text-slate-800 dark:text-white mt-1 block">"{itemName}"</span>}
+          </p>
+
+          <div className="flex gap-3 mt-8">
+            <button
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
+            >
+              Batal
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={loading}
+              className="flex-1 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-all disabled:opacity-50 shadow-lg shadow-red-200 dark:shadow-red-900/20 flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <Trash2 size={18} />}
+              {loading ? 'Menghapus...' : 'Ya, Hapus'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const ManageUsersPage = () => {
   const [users, setUsers] = useState([]);
@@ -53,23 +71,20 @@ const ManageUsersPage = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const fileInputRef = useRef(null);
-  const [deleteClassModalOpen, setDeleteClassModalOpen] = useState(false);
-  const [deletingClass, setDeletingClass] = useState(false);
+
+  // Modal states
+  const [deleteModal, setDeleteModal] = useState({ open: false, user: null, loading: false });
+  const [deleteClassModal, setDeleteClassModal] = useState({ open: false, loading: false });
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      if (selectedClass) {
-        params.append('classId', selectedClass);
-      }
-      if (searchTerm) {
-        params.append('search', searchTerm);
-      }
+      if (selectedClass) params.append('classId', selectedClass);
+      if (searchTerm) params.append('search', searchTerm);
+      
       const res = await fetch(`/api/users?${params.toString()}`);
-      if (!res.ok) {
-        throw new Error('Failed to fetch users');
-      }
+      if (!res.ok) throw new Error('Gagal mengambil data pengguna');
       const data = await res.json();
       setUsers(data);
     } catch (err) {
@@ -82,11 +97,10 @@ const ManageUsersPage = () => {
   const fetchClasses = async () => {
     try {
       const res = await fetch('/api/classes');
-      if (!res.ok) throw new Error('Failed to fetch classes');
+      if (!res.ok) throw new Error('Gagal mengambil data kelas');
       const data = await res.json();
       setAllClasses(data);
     } catch (err) {
-      // Don't block user page if classes fail to load
       console.error(err.message);
     }
   };
@@ -98,8 +112,7 @@ const ManageUsersPage = () => {
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       fetchUsers();
-    }, 500); // Debounce to avoid excessive API calls
-
+    }, 500);
     return () => clearTimeout(delayDebounceFn);
   }, [selectedClass, searchTerm]);
 
@@ -107,22 +120,16 @@ const ManageUsersPage = () => {
     setSelectedUser(null);
     setIsModalOpen(true);
   };
-  // ... (rest of the handler functions are the same)
+
   const handleEditUser = (user) => {
     setSelectedUser(user);
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
-
   const handleSaveUser = async (userData) => {
     const method = userData.id ? 'PUT' : 'POST';
-    const url = '/api/users';
-
     try {
-      const res = await fetch(url, {
+      const res = await fetch('/api/users', {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),
@@ -130,42 +137,47 @@ const ManageUsersPage = () => {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.message || 'Failed to save user');
+        throw new Error(data.message || 'Gagal menyimpan user');
       }
 
       setIsModalOpen(false);
       fetchUsers();
-      toast.success('User saved successfully');
+      toast.success('User berhasil disimpan');
     } catch (err) {
       toast.error(err.message);
     }
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      try {
-        const res = await fetch('/api/users', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: userId }),
-        });
+  const triggerDeleteUser = (user) => {
+    setDeleteModal({ open: true, user, loading: false });
+  };
 
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.message || 'Failed to delete user');
-        }
-        fetchUsers();
-        toast.success('User deleted successfully');
-      } catch (err) {
-        toast.error(err.message);
+  const confirmDeleteUser = async () => {
+    const userId = deleteModal.user.id;
+    setDeleteModal(prev => ({ ...prev, loading: true }));
+    try {
+      const res = await fetch('/api/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || 'Gagal menghapus user');
       }
+      fetchUsers();
+      toast.success('User berhasil dihapus');
+      setDeleteModal({ open: false, user: null, loading: false });
+    } catch (err) {
+      toast.error(err.message);
+      setDeleteModal(prev => ({ ...prev, loading: false }));
     }
   };
 
-  // --- Delete by Class ---
   const selectedClassObj = allClasses.find(c => String(c.id) === String(selectedClass));
-  const handleDeleteByClass = async () => {
-    setDeletingClass(true);
+  const confirmDeleteByClass = async () => {
+    setDeleteClassModal(prev => ({ ...prev, loading: true }));
     try {
       const res = await fetch('/api/users', {
         method: 'DELETE',
@@ -173,36 +185,29 @@ const ManageUsersPage = () => {
         body: JSON.stringify({ classId: selectedClass }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to delete');
+      if (!res.ok) throw new Error(data.message || 'Gagal menghapus');
       toast.success(data.message);
-      setDeleteClassModalOpen(false);
+      setDeleteClassModal({ open: false, loading: false });
       fetchUsers();
     } catch (err) {
       toast.error(err.message);
-    } finally {
-      setDeletingClass(false);
+      setDeleteClassModal(prev => ({ ...prev, loading: false }));
     }
   };
 
-  // --- Export Functionality ---
   const handleExport = () => {
     const dataToExport = users.map(user => ({
       username: user.username,
-      name: user.name || '',
-      role: user.role,
-      class_name: user.class_name || ''
+      nama: user.name || '',
+      peran: user.role,
+      kelas: user.class_name || ''
     }));
 
     const ws = XLSX.utils.json_to_sheet(dataToExport);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Users");
-    XLSX.writeFile(wb, "users_export.xlsx");
-    toast.success('Export started!');
-  };
-
-  // --- Import Functionality ---
-  const handleImportClick = () => {
-    fileInputRef.current.click();
+    XLSX.utils.book_append_sheet(wb, ws, "Pengguna");
+    XLSX.writeFile(wb, "data_pengguna.xlsx");
+    toast.success('Export berhasil!');
   };
 
   const handleFileChange = (e) => {
@@ -218,8 +223,7 @@ const ManageUsersPage = () => {
         const ws = wb.Sheets[wsname];
         const data = XLSX.utils.sheet_to_json(ws);
 
-        // Send to API
-        const toastId = toast.loading("Processing import...");
+        const toastId = toast.loading("Sedang mengimport data...");
         const res = await fetch('/api/users/import', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -227,278 +231,237 @@ const ManageUsersPage = () => {
         });
 
         const result = await res.json();
-
         if (res.ok) {
           toast.update(toastId, { render: result.message, type: "success", isLoading: false, autoClose: 3000 });
-          if (result.errors && result.errors.length > 0) {
-            // Show partial errors if any
-            toast.warn(`Import finished with ${result.errors.length} warnings. Check console for details.`, { autoClose: 5000 });
-            console.warn('Import Warnings:', result.errors);
-          }
           fetchUsers();
         } else {
-          toast.update(toastId, { render: result.message || 'Import failed', type: "error", isLoading: false, autoClose: 3000 });
+          toast.update(toastId, { render: result.message || 'Import gagal', type: "error", isLoading: false, autoClose: 3000 });
         }
       } catch (err) {
-        console.error(err);
-        toast.error('Failed to parse file: ' + err.message);
+        toast.error('Gagal membaca file: ' + err.message);
       } finally {
-        e.target.value = null; // Reset input
+        e.target.value = null;
       }
     };
     reader.readAsBinaryString(file);
   };
 
   return (
-    <div className="space-y-6 pb-20"> {/* pb-20 agar tidak tertutup tombol fixed di hp jika ada */}
-
-      {/* Header Section */}
-      <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Manage Users</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              {users.length} registered users
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={handleExport}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-sm font-semibold rounded-xl transition-all"
-            >
-              <Icons.Download />
-              <span>Export</span>
-            </button>
-            <button
-              onClick={handleImportClick}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-sm font-semibold rounded-xl transition-all"
-            >
-              <Icons.Upload />
-              <span>Import</span>
-            </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept=".xlsx, .xls"
-              className="hidden"
-            />
-
-            {/* Delete by Class button — only visible when a class is selected */}
-            {selectedClass && (
-              <button
-                onClick={() => setDeleteClassModalOpen(true)}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/50 border border-red-200 dark:border-red-800 text-sm font-semibold rounded-xl transition-all"
-              >
-                <Icons.Trash />
-                <span>Hapus Kelas {selectedClassObj?.class_name}</span>
-              </button>
-            )}
-
-            <button
-              onClick={handleAddUser}
-              className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30"
-            >
-              <Icons.Add />
-              <span>Add User</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Filter and Search Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-          <input
-            type="text"
-            placeholder="Search by name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-          />
-          <select
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-          >
-            <option value="">All Classes</option>
-            {allClasses.map(c => (
-              <option key={c.id} value={c.id}>{c.class_name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="text-center py-10 text-slate-400 dark:text-slate-500 animate-pulse">Loading users...</div>
-      ) : (
-        <div className="w-full">
-          {/* --- DESKTOP VIEW (Table) --- */}
-          {/* Hidden di Mobile (hidden), Muncul di MD (block) */}
-          <div className="hidden md:block bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
-            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-              <thead className="bg-slate-50/80 dark:bg-slate-700/50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ID</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Class</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-                {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">#{user.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 uppercase font-bold text-sm">
-                          {user.name ? user.name.charAt(0) : user.username.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-slate-900 dark:text-slate-100">{user.name || user.username}</div>
-                          {user.name && <div className="text-xs text-slate-500 dark:text-slate-400">@{user.username}</div>}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${user.role === 'admin' ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-600'
-                        }`}>
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
-                      {user.class_name ? <span className="flex items-center gap-1"><Icons.Class />{user.class_name}</span> : '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                      <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => handleEditUser(user)} className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition-colors"><Icons.Edit /></button>
-                        <button onClick={() => handleDeleteUser(user.id)} className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"><Icons.Trash /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* --- MOBILE VIEW (Cards) --- */}
-          {/* Muncul di Mobile (grid), Hidden di MD (hidden) */}
-          <div className="grid grid-cols-1 gap-4 md:hidden">
-            {users.map((user) => (
-              <div key={user.id} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-4">
-
-                {/* Header Card: User Info */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                      <span className="text-lg font-bold">{user.username.charAt(0).toUpperCase()}</span>
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 dark:text-slate-100">{user.name || user.username}</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">@{user.username} • ID: #{user.id}</p>
-                    </div>
-                  </div>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize border ${user.role === 'admin' ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800' : 'bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-600'
-                    }`}>
-                    {user.role}
-                  </span>
-                </div>
-
-                {/* Body Card: Details */}
-                <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3 flex justify-between items-center border border-slate-100 dark:border-slate-700">
-                  <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 text-sm">
-                    <Icons.Class />
-                    <span>Class:</span>
-                  </div>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">{user.class_name || 'None'}</span>
-                </div>
-
-                {/* Footer Card: Actions (Full Width Buttons) */}
-                <div className="grid grid-cols-2 gap-3 mt-1">
-                  <button
-                    onClick={() => handleEditUser(user)}
-                    className="flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-950/50 rounded-xl transition-colors"
-                  >
-                    <Icons.Edit /> Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteUser(user.id)}
-                    className="flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 rounded-xl transition-colors"
-                  >
-                    <Icons.Trash /> Delete
-                  </button>
-                </div>
-
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {isModalOpen && (
-        <UserModal user={selectedUser} onClose={handleCloseModal} onSave={handleSaveUser} />
-      )}
-
-      {/* Delete by Class Confirmation Modal */}
-      {deleteClassModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in duration-200">
-            {/* Modal Header */}
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-red-50 dark:bg-red-950/30">
-              <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-xl text-red-600 dark:text-red-400">
-                <Icons.Trash />
+    <div className="relative min-h-screen space-y-8 pb-20 bg-slate-50 dark:bg-slate-950">
+      <div className="max-w-7xl mx-auto px-6 pt-10 space-y-8 relative z-10">
+        
+        {/* Header Section */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-md">
+                <User size={28} />
               </div>
               <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Hapus Pengguna per Kelas</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Tindakan ini tidak bisa dibatalkan</p>
-              </div>
-            </div>
-            {/* Modal Body */}
-            <div className="px-6 py-5">
-              <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-xl">
-                <p className="text-sm text-slate-700 dark:text-slate-300">
-                  Anda akan menghapus{' '}
-                  <span className="font-bold text-red-600 dark:text-red-400">{users.length} pengguna</span>{' '}
-                  dari kelas{' '}
-                  <span className="font-bold text-slate-900 dark:text-slate-100">{selectedClassObj?.class_name}</span>.
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 italic">
-                  * Data seperti skor ujian dan riwayat aktivitas terkait juga akan terhapus.
+                <h1 className="text-2xl font-black text-slate-900 dark:text-white">Kelola Pengguna</h1>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                  {users.length} pengguna terdaftar
                 </p>
               </div>
             </div>
-            {/* Modal Footer */}
-            <div className="flex gap-3 px-6 pb-5">
+
+            <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => setDeleteClassModalOpen(false)}
-                disabled={deletingClass}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                onClick={handleExport}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-sm font-bold rounded-xl transition-all shadow-sm"
               >
-                Batal
+                <Download size={18} />
+                <span>Export</span>
               </button>
               <button
-                onClick={handleDeleteByClass}
-                disabled={deletingClass}
-                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-red-200 dark:shadow-red-900/20"
+                onClick={() => fileInputRef.current.click()}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-sm font-bold rounded-xl transition-all shadow-sm"
               >
-                {deletingClass ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Menghapus...
-                  </>
-                ) : (
-                  <>Ya, Hapus Semua</>
-                )}
+                <Upload size={18} />
+                <span>Import</span>
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".xlsx, .xls"
+                className="hidden"
+              />
+
+              {selectedClass && (
+                <button
+                  onClick={() => setDeleteClassModal({ open: true, loading: false })}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-900/50 text-sm font-bold rounded-xl transition-all shadow-sm"
+                >
+                  <UserMinus size={18} />
+                  <span>Hapus Kelas</span>
+                </button>
+              )}
+
+              <button
+                onClick={handleAddUser}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30"
+              >
+                <UserPlus size={18} />
+                <span>Tambah Pengguna</span>
               </button>
             </div>
           </div>
-        </div>
-      )}
-    </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input
+                type="text"
+                placeholder="Cari user berdasarkan nama..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              />
+            </div>
+            <div className="relative">
+              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <select
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer font-medium"
+              >
+                <option value="">Semua Kelas</option>
+                {allClasses.map(c => (
+                  <option key={c.id} value={c.id}>{c.class_name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+             <Loader2 className="animate-spin text-indigo-600" size={40} />
+             <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Memuat Data...</p>
+          </div>
+        ) : (
+          <div className="animate-in fade-in duration-500">
+            {/* Desktop View */}
+            <div className="hidden lg:block bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Nama & Akun</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Peran</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Kelas</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {users.map((user) => (
+                    <tr key={user.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold uppercase">
+                            {user.name ? user.name.charAt(0) : user.username.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900 dark:text-white leading-none">{user.name || user.username}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">@{user.username}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide border ${
+                          user.role === 'admin' 
+                            ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800' 
+                            : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                        }`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {user.class_name ? (
+                          <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium text-sm">
+                            <Building2 size={14} className="text-slate-400" />
+                            {user.class_name}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 italic text-sm">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => handleEditUser(user)} className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-lg transition-colors"><Edit3 size={16} /></button>
+                          <button onClick={() => triggerDeleteUser(user)} className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/40 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {users.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-10 text-center text-slate-400 text-sm italic">Tidak ada pengguna ditemukan.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile View */}
+            <div className="grid grid-cols-1 gap-4 lg:hidden">
+              {users.map((user) => (
+                <div key={user.id} className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+                        {user.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-slate-900 dark:text-white truncate">{user.name || user.username}</h3>
+                        <p className="text-xs text-slate-500">@{user.username}</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                      {user.role}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-4 text-sm font-medium">
+                    <span className="text-slate-400">Kelas</span>
+                    <span className="text-slate-800 dark:text-slate-200">{user.class_name || '-'}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => handleEditUser(user)} className="flex items-center justify-center gap-2 py-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-sm transition-all active:scale-95"><Edit3 size={16} /> Edit</button>
+                    <button onClick={() => triggerDeleteUser(user)} className="flex items-center justify-center gap-2 py-2.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl font-bold text-sm transition-all active:scale-95"><Trash2 size={16} /> Hapus</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {isModalOpen && (
+        <UserModal user={selectedUser} onClose={() => setIsModalOpen(false)} onSave={handleSaveUser} />
+      )}
+
+      <ConfirmDeleteModal 
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, user: null, loading: false })}
+        onConfirm={confirmDeleteUser}
+        loading={deleteModal.loading}
+        title="Konfirmasi Hapus"
+        message="Apakah Anda yakin ingin menghapus pengguna ini? Semua data terkait akan ikut terhapus secara permanen."
+        itemName={deleteModal.user?.name || deleteModal.user?.username}
+      />
+
+      <ConfirmDeleteModal 
+        isOpen={deleteClassModal.open}
+        onClose={() => setDeleteClassModal({ open: false, loading: false })}
+        onConfirm={confirmDeleteByClass}
+        loading={deleteClassModal.loading}
+        title="Hapus Satu Kelas"
+        message={`Peringatan! Anda akan menghapus SELURUH pengguna di kelas "${selectedClassObj?.class_name}".`}
+        itemName={`Total: ${users.length} pengguna`}
+      />
+    </div>
   );
 };
 
