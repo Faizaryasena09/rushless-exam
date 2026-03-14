@@ -12,9 +12,10 @@ async function getSession(request) {
 export async function POST(request) {
     const session = await getSession(request);
 
-    if (!session.user || session.user.roleName !== 'admin') {
+    if (!session.user || !['admin', 'teacher'].includes(session.user.roleName)) {
         return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
+
 
     try {
         const payload = await request.json();

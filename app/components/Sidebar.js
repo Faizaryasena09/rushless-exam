@@ -92,7 +92,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { href: '/dashboard', label: t('nav_dashboard'), icon: Icons.Dashboard, roles: ['admin', 'teacher', 'students'] },
     { href: '/dashboard/users', label: t('nav_manage_users'), icon: Icons.Users, roles: ['admin'] },
     { href: '/dashboard/teachers-assignments', label: t('nav_teacher_assignments'), icon: Icons.TeacherClasses, roles: ['admin'] },
-    { href: '/dashboard/control', label: t('nav_exam_control'), icon: Icons.Control, roles: ['admin'] },
+    { href: '/dashboard/control', label: t('nav_exam_control'), icon: Icons.Control, roles: ['admin', 'teacher'] },
     { href: '/dashboard/classes', label: t('nav_manage_classes'), icon: Icons.Classes, roles: ['admin'] },
     { href: '/dashboard/subjects', label: t('nav_manage_subjects'), icon: Icons.Subjects, roles: ['admin'] },
     { href: '/dashboard/exams', label: t('nav_manage_exams'), icon: Icons.Exams, roles: ['admin', 'teacher', 'students'] },

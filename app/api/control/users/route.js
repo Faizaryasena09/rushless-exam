@@ -13,7 +13,7 @@ async function getSession(request) {
 export async function GET(request) {
   const session = await getSession(request);
 
-  if (!session.user || session.user.roleName !== 'admin') {
+  if (!session.user || !['admin', 'teacher'].includes(session.user.roleName)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
@@ -21,8 +21,28 @@ export async function GET(request) {
     // Auto-submit any expired attempts before fetching current state
     await autoSubmitExpiredAttempts();
 
-    // Fetch all students with their active session info and current exam status
-    // Joined with classes for display
+    const isTeacher = session.user.roleName === 'teacher';
+
+    // If teacher: fetch their assigned class IDs first
+    let teacherClassIds = [];
+    if (isTeacher) {
+      const assignments = await query({
+        query: 'SELECT class_id FROM rhs_teacher_classes WHERE teacher_id = ?',
+        values: [session.user.id],
+      });
+      teacherClassIds = assignments.map(a => a.class_id);
+
+      // Teacher has no assigned classes — return empty list
+      if (teacherClassIds.length === 0) {
+        return NextResponse.json({ students: [] });
+      }
+    }
+
+    // Build WHERE clause based on role
+    const classFilter = isTeacher
+      ? `AND u.class_id IN (${teacherClassIds.map(() => '?').join(',')})`
+      : '';
+
     const sql = `
         SELECT 
             u.id, u.username, u.name, u.role, u.is_locked, u.class_id,
@@ -43,13 +63,16 @@ export async function GET(request) {
         LEFT JOIN rhs_exam_attempts ea ON u.id = ea.user_id AND ea.status = 'in_progress'
         LEFT JOIN rhs_exams e ON ea.exam_id = e.id
         LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
-        WHERE u.role = 'student'
+        WHERE u.role = 'student' ${classFilter}
         ORDER BY 
             (ea.status = 'in_progress') DESC,
             u.last_activity DESC
     `;
 
-    const students = await query({ query: sql });
+    const students = await query({
+      query: sql,
+      values: isTeacher ? teacherClassIds : [],
+    });
 
     const now = Math.floor(Date.now() / 1000);
 
@@ -57,7 +80,6 @@ export async function GET(request) {
       const inactiveSeconds = now - (s.last_activity_ts || 0);
       const isOnline = inactiveSeconds < 300;
 
-      // Calculate seconds_left for active exam
       let seconds_left = null;
 
       if (s.attempt_id) {
@@ -90,3 +112,5 @@ export async function GET(request) {
     return NextResponse.json({ message: 'Database error', error: error.message }, { status: 500 });
   }
 }
+
+
