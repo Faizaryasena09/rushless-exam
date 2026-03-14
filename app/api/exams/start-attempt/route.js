@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
-import { transaction } from '@/app/lib/db'; // Import transaction instead of query
+import { query, transaction } from '@/app/lib/db';
 import { validateUserSession } from '@/app/lib/auth';
 import { generateAutoToken } from '@/app/lib/token';
 
