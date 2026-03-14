@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTheme } from './ThemeProvider';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 // Sun icon for light mode
 const SunIcon = () => (
@@ -22,6 +23,7 @@ const MoonIcon = () => (
 export default function Header({ user, isLoading, toggleSidebar, showToggleButton }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [branding, setBranding] = useState({ site_name: 'Rushless Exam', site_logo: '/favicon.ico' });
@@ -181,7 +183,7 @@ export default function Header({ user, isLoading, toggleSidebar, showToggleButto
                     <svg className="w-4 h-4 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    <span className="font-medium">Profil Saya</span>
+                    <span className="font-medium">{t('header_my_profile')}</span>
                   </Link>
 
                   {/* Theme Toggle in Dropdown */}
@@ -192,7 +194,7 @@ export default function Header({ user, isLoading, toggleSidebar, showToggleButto
                     <span className="text-slate-400 dark:text-slate-500">
                       {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
                     </span>
-                    <span className="font-medium">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                    <span className="font-medium">{theme === 'dark' ? t('header_light_mode') : t('header_dark_mode')}</span>
                     <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium ${theme === 'dark'
                         ? 'bg-indigo-500/20 text-indigo-300'
                         : 'bg-slate-100 text-slate-500'
@@ -210,7 +212,7 @@ export default function Header({ user, isLoading, toggleSidebar, showToggleButto
                     <svg className="w-4 h-4 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
-                    <span className="font-medium">Logout</span>
+                    <span className="font-medium">{t('header_logout')}</span>
                   </button>
                 </div>
               </div>
@@ -219,13 +221,13 @@ export default function Header({ user, isLoading, toggleSidebar, showToggleButto
             // State: Guest
             <div className="flex items-center gap-4">
               <span className="hidden sm:block text-sm font-medium text-slate-500 dark:text-slate-400">
-                Welcome, Guest
+                {t('header_welcome_guest')}
               </span>
               <Link
                 href="/login"
                 className="group relative inline-flex items-center justify-center px-5 py-2 text-sm font-semibold text-white transition-all duration-200 bg-indigo-600 rounded-lg hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-500/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600"
               >
-                <span>Sign In</span>
+                <span>{t('header_sign_in')}</span>
                 <svg className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>

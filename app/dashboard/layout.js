@@ -4,9 +4,11 @@ import { usePathname } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { Toaster } from 'sonner';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
+  const { t } = useLanguage();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,7 +52,7 @@ export default function DashboardLayout({ children }) {
           <Header user={null} isLoading={true} showToggleButton={false} />
           <main className="flex-1 overflow-x-hidden overflow-y-auto">
             <div className="container mx-auto px-6 py-8">
-              <div className="dark:text-slate-300">Loading...</div>
+              <div className="dark:text-slate-300">{t('layout_loading')}</div>
             </div>
           </main>
         </div>

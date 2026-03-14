@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Presentation } from 'lucide-react';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 // Definisi Ikon Sederhana (SVG) agar kode tetap rapi
 const Icons = {
@@ -60,6 +61,7 @@ const Icons = {
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const pathname = usePathname();
+  const { t } = useLanguage();
   const [userRole, setUserRole] = useState(null);
   const [branding, setBranding] = useState({ site_name: 'Rushless Exam', site_logo: '/favicon.ico' });
 
@@ -87,14 +89,14 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   }, []);
 
   const allNavLinks = [
-    { href: '/dashboard', label: 'Dashboard', icon: Icons.Dashboard, roles: ['admin', 'teacher', 'students'] },
-    { href: '/dashboard/users', label: 'Manage Users', icon: Icons.Users, roles: ['admin'] },
-    { href: '/dashboard/teachers-assignments', label: 'Teacher Assignments', icon: Icons.TeacherClasses, roles: ['admin'] },
-    { href: '/dashboard/control', label: 'Exam Control', icon: Icons.Control, roles: ['admin'] },
-    { href: '/dashboard/classes', label: 'Manage Classes', icon: Icons.Classes, roles: ['admin'] },
-    { href: '/dashboard/subjects', label: 'Manage Subjects', icon: Icons.Subjects, roles: ['admin'] },
-    { href: '/dashboard/exams', label: 'Manage Exams', icon: Icons.Exams, roles: ['admin', 'teacher', 'students'] },
-    { href: '/dashboard/web-settings', label: 'Admin Tools', icon: Icons.Settings, roles: ['admin'] },
+    { href: '/dashboard', label: t('nav_dashboard'), icon: Icons.Dashboard, roles: ['admin', 'teacher', 'students'] },
+    { href: '/dashboard/users', label: t('nav_manage_users'), icon: Icons.Users, roles: ['admin'] },
+    { href: '/dashboard/teachers-assignments', label: t('nav_teacher_assignments'), icon: Icons.TeacherClasses, roles: ['admin'] },
+    { href: '/dashboard/control', label: t('nav_exam_control'), icon: Icons.Control, roles: ['admin'] },
+    { href: '/dashboard/classes', label: t('nav_manage_classes'), icon: Icons.Classes, roles: ['admin'] },
+    { href: '/dashboard/subjects', label: t('nav_manage_subjects'), icon: Icons.Subjects, roles: ['admin'] },
+    { href: '/dashboard/exams', label: t('nav_manage_exams'), icon: Icons.Exams, roles: ['admin', 'teacher', 'students'] },
+    { href: '/dashboard/web-settings', label: t('nav_admin_tools'), icon: Icons.Settings, roles: ['admin'] },
   ];
 
   const navLinks = allNavLinks.filter(link => link.roles.includes(userRole));

@@ -104,10 +104,10 @@ export async function GET(request) {
   }
 }
 
-// POST handler to add a new question (Admin Only)
+// POST handler to add a new question (Admin/Teacher Only)
 export async function POST(request) {
   const session = await getSession(request);
-  if (!session.user || session.user.roleName !== 'admin') {
+  if (!session.user || !['admin', 'teacher'].includes(session.user.roleName)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
@@ -128,10 +128,10 @@ export async function POST(request) {
   }
 }
 
-// DELETE handler to remove a question (Admin Only)
+// DELETE handler to remove a question (Admin/Teacher Only)
 export async function DELETE(request) {
   const session = await getSession(request);
-  if (!session.user || session.user.roleName !== 'admin') {
+  if (!session.user || !['admin', 'teacher'].includes(session.user.roleName)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
@@ -156,10 +156,10 @@ export async function DELETE(request) {
   }
 }
 
-// PUT handler to update a question (Admin Only)
+// PUT handler to update a question (Admin/Teacher Only)
 export async function PUT(request) {
   const session = await getSession(request);
-  if (!session.user || session.user.roleName !== 'admin') {
+  if (!session.user || !['admin', 'teacher'].includes(session.user.roleName)) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 

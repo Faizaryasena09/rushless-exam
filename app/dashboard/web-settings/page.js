@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '@/app/components/ThemeProvider';
+import { useLanguage } from '@/app/context/LanguageContext';
 import Link from 'next/link';
 import Cropper from 'react-easy-crop';
 import dynamic from 'next/dynamic';
@@ -15,6 +16,9 @@ export default function WebSettingsPage() {
     const [message, setMessage] = useState(null);
     const [lockedUsers, setLockedUsers] = useState([]);
     const [unlocking, setUnlocking] = useState({});
+    const { lang, setLang } = useLanguage();
+    const [selectedLang, setSelectedLang] = useState(lang);
+    const [langSaving, setLangSaving] = useState(false);
 
     // Cropper State
     const [cropImage, setCropImage] = useState(null);
@@ -78,11 +82,35 @@ export default function WebSettingsPage() {
             if (res.ok) {
                 const data = await res.json();
                 setSettings(data);
+                if (data.app_language) setSelectedLang(data.app_language);
             }
         } catch (err) {
             console.error('Failed to fetch settings:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleLanguageSave = async () => {
+        setLangSaving(true);
+        try {
+            const res = await fetch('/api/web-settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: 'app_language', value: selectedLang }),
+            });
+            if (res.ok) {
+                setLang(selectedLang); // update context immediately
+                setMessage({ type: 'success', text: selectedLang === 'id' ? 'Bahasa berhasil disimpan.' : 'Language saved successfully.' });
+                setTimeout(() => setMessage(null), 3000);
+            } else {
+                const d = await res.json();
+                setMessage({ type: 'error', text: d.message || 'Gagal menyimpan bahasa.' });
+            }
+        } catch {
+            setMessage({ type: 'error', text: 'Terjadi kesalahan.' });
+        } finally {
+            setLangSaving(false);
         }
     };
 
@@ -378,6 +406,60 @@ export default function WebSettingsPage() {
                                 </div>
                             </div>
                         )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Language Section */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+                <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-violet-50/30 dark:from-slate-700/50 dark:to-violet-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+                    <div className="p-1.5 bg-violet-100 dark:bg-violet-900/40 rounded-lg">
+                        <svg className="w-4 h-4 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Bahasa / Language</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Pilih bahasa antarmuka aplikasi</p>
+                    </div>
+                </div>
+                <div className="p-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Bahasa Antarmuka</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">Berlaku untuk semua halaman kecuali konten soal ujian.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex rounded-xl overflow-hidden border border-slate-200 dark:border-slate-600">
+                                <button
+                                    onClick={() => setSelectedLang('id')}
+                                    className={`px-4 py-2 text-sm font-semibold transition-colors ${
+                                        selectedLang === 'id'
+                                            ? 'bg-violet-600 text-white'
+                                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                    }`}
+                                >
+                                    🇮🇩 Indonesia
+                                </button>
+                                <button
+                                    onClick={() => setSelectedLang('en')}
+                                    className={`px-4 py-2 text-sm font-semibold transition-colors border-l border-slate-200 dark:border-slate-600 ${
+                                        selectedLang === 'en'
+                                            ? 'bg-violet-600 text-white'
+                                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                    }`}
+                                >
+                                    🇺🇸 English
+                                </button>
+                            </div>
+                            <button
+                                onClick={handleLanguageSave}
+                                disabled={langSaving}
+                                className="px-3 py-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/30 border border-violet-200 dark:border-violet-800 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                {langSaving ? '...' : 'Simpan'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

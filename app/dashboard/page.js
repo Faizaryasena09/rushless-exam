@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 // --- ICONS ---
 const DocumentDuplicateIcon = ({ className }) => (
@@ -89,6 +90,7 @@ function SkeletonLoader() {
 
 export default function DashboardPage() {
     const router = useRouter();
+    const { t } = useLanguage();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [time, setTime] = useState(new Date());
@@ -129,10 +131,10 @@ export default function DashboardPage() {
     // Fungsi Sapaan Berdasarkan Waktu
     const getGreeting = () => {
         const hour = time.getHours();
-        if (hour < 12) return 'Selamat Pagi';
-        if (hour < 15) return 'Selamat Siang';
-        if (hour < 18) return 'Selamat Sore';
-        return 'Selamat Malam';
+        if (hour < 12) return t('dash_greeting_morning');
+        if (hour < 15) return t('dash_greeting_noon');
+        if (hour < 18) return t('dash_greeting_afternoon');
+        return t('dash_greeting_evening');
     };
 
     if (loading) return <SkeletonLoader />;
@@ -151,18 +153,18 @@ export default function DashboardPage() {
                 <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div>
                         <div className="text-sm font-medium text-blue-600 mb-1">
-                            {time.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                            {time.toLocaleDateString(t('dash_date_locale'), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                         </div>
                         <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight">
                             {getGreeting()}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">{user.name || user.username}</span>!
                         </h1>
                         <p className="text-gray-500 dark:text-slate-400 mt-2 max-w-xl">
-                            Selamat datang kembali di panel kontrol Anda. Berikut adalah ringkasan aktivitas dan menu pintas untuk hari ini.
+                            {t('dash_welcome_back')}
                         </p>
                     </div>
                     {/* Jam Digital Simpel */}
                     <div className="text-3xl font-mono text-gray-300 dark:text-slate-600 font-bold select-none hidden md:block">
-                        {time.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        {time.toLocaleTimeString(t('dash_date_locale'), { hour: '2-digit', minute: '2-digit' })}
                     </div>
                 </div>
 
@@ -172,8 +174,8 @@ export default function DashboardPage() {
                         <>
                             <DashboardCard
                                 href="/dashboard/exams"
-                                title="Kelola Ujian"
-                                description="Buat, edit, dan pantau ujian aktif."
+                                title={t('dash_card_manage_exams_title')}
+                                description={t('dash_card_manage_exams_desc')}
                                 icon={<DocumentDuplicateIcon className="h-8 w-8 text-white" />}
                                 gradient="bg-gradient-to-br from-blue-500 to-blue-700"
                             />
@@ -181,15 +183,15 @@ export default function DashboardPage() {
                                 <>
                                     <DashboardCard
                                         href="/dashboard/classes"
-                                        title="Manajemen Kelas"
-                                        description="Atur siswa dan grup kelas."
+                                        title={t('dash_card_manage_classes_title')}
+                                        description={t('dash_card_manage_classes_desc')}
                                         icon={<AcademicCapIcon className="h-8 w-8 text-white" />}
                                         gradient="bg-gradient-to-br from-emerald-500 to-emerald-700"
                                     />
                                     <DashboardCard
                                         href="/dashboard/users"
-                                        title="Data Pengguna"
-                                        description="Tambah dan kelola akses user."
+                                        title={t('dash_card_manage_users_title')}
+                                        description={t('dash_card_manage_users_desc')}
                                         icon={<UsersIcon className="h-8 w-8 text-white" />}
                                         gradient="bg-gradient-to-br from-violet-500 to-violet-700"
                                     />
@@ -201,8 +203,8 @@ export default function DashboardPage() {
                     {isStudent && (
                         <DashboardCard
                             href="/dashboard/exams"
-                            title="Daftar Ujian"
-                            description="Lihat dan kerjakan ujian yang tersedia."
+                            title={t('dash_card_exam_list_title')}
+                            description={t('dash_card_exam_list_desc')}
                             icon={<ViewListIcon className="h-8 w-8 text-white" />}
                             gradient="bg-gradient-to-br from-indigo-500 to-indigo-700"
                         />

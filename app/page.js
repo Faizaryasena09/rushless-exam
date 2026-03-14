@@ -3,8 +3,10 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 function LoginForm() {
+  const { t } = useLanguage();
   const [branding, setBranding] = useState({ site_name: 'Rushless Exam', site_logo: '/favicon.ico' });
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -32,7 +34,7 @@ function LoginForm() {
         }
         const m = Math.floor(diff / 60);
         const s = diff % 60;
-        setCountdownText(`Coba lagi dalam ${m}m ${s}s`);
+        setCountdownText(`${t('login_retry_in')} ${m}m ${s}s`);
       };
       updateCountdown();
       interval = setInterval(updateCountdown, 1000);
@@ -110,7 +112,7 @@ function LoginForm() {
         throw new Error(data.message || 'Something went wrong');
       }
 
-      setSuccess('Login successful! Redirecting...');
+      setSuccess(t('login_success'));
 
       setTimeout(() => {
         // Clear all exam instruction confirmations so force-logged-out students
@@ -141,7 +143,7 @@ function LoginForm() {
             className="text-3xl font-bold text-gray-800 dark:text-white mb-1 transition-colors duration-300 prose prose-slate dark:prose-invert"
             dangerouslySetInnerHTML={{ __html: branding.site_name }}
           ></h1>
-          <p className="text-gray-500 dark:text-gray-400 transition-colors duration-300">Sign in to begin your session</p>
+          <p className="text-gray-500 dark:text-gray-400 transition-colors duration-300">{t('login_subtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-6">
@@ -164,7 +166,7 @@ function LoginForm() {
 
           <div>
             <label className="block text-gray-600 dark:text-gray-300 text-sm font-semibold mb-2 transition-colors duration-300" htmlFor="username">
-              Username
+              {t('login_username_label')}
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -188,7 +190,7 @@ function LoginForm() {
 
           <div>
             <label className="block text-gray-600 dark:text-gray-300 text-sm font-semibold mb-2 transition-colors duration-300" htmlFor="password">
-              Password
+              {t('login_password_label')}
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -234,10 +236,10 @@ function LoginForm() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Signing In...
+                {t('login_btn_loading')}
               </span>
             ) : (
-              'Sign In'
+              t('login_btn')
             )}
           </button>
         </form>

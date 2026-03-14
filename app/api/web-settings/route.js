@@ -67,7 +67,7 @@ export async function GET(request) {
                 query: `SELECT setting_key, setting_value FROM rhs_web_settings`,
                 values: []
             });
-            const branding = { site_name: 'Rushless Exam', site_logo: '/favicon.ico' };
+            const branding = { site_name: 'Rushless Exam', site_logo: '/favicon.ico', app_language: 'id' };
             brandingRows.forEach(row => branding[row.setting_key] = row.setting_value);
             return NextResponse.json(branding);
         }
@@ -145,7 +145,12 @@ export async function PUT(request) {
         }
 
         // Handle Web Settings (Branding)
-        if (['site_name', 'site_logo'].includes(key)) {
+        if (['site_name', 'site_logo', 'app_language'].includes(key)) {
+            // Validate app_language
+            if (key === 'app_language' && !['id', 'en'].includes(value)) {
+                return NextResponse.json({ message: 'Invalid language value. Use id or en.' }, { status: 400 });
+            }
+
             // Intercept site_logo base64 and save as file
             if (key === 'site_logo' && value.startsWith('data:image')) {
                 try {
