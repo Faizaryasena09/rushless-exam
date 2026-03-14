@@ -14,14 +14,35 @@ export async function PUT(request) {
   }
 
   try {
-    const { categoryId, isHidden } = await request.json();
+    const { categoryId, isHidden, isAdminHidden } = await request.json();
 
-    if (!categoryId || isHidden === undefined) {
-      return NextResponse.json({ message: 'Category ID and visibility status are required' }, { status: 400 });
+    if (!categoryId) {
+      return NextResponse.json({ message: 'Category ID is required' }, { status: 400 });
     }
 
-    let updateQuery = `UPDATE rhs_exam_categories SET is_hidden = ? WHERE id = ?`;
-    let queryValues = [isHidden, categoryId];
+    let updateFields = [];
+    let queryValues = [];
+
+    if (isHidden !== undefined) {
+        updateFields.push("is_hidden = ?");
+        queryValues.push(isHidden);
+    }
+
+    if (isAdminHidden !== undefined) {
+        if (session.user.roleName !== 'admin') {
+            return NextResponse.json({ message: 'Unauthorized: Only admins can hide from teachers.' }, { status: 403 });
+        }
+        updateFields.push("is_admin_hidden = ?");
+        queryValues.push(isAdminHidden);
+    }
+
+    if (updateFields.length === 0) {
+        return NextResponse.json({ message: 'No fields to update' }, { status: 400 });
+    }
+
+    queryValues.push(categoryId);
+
+    let updateQuery = `UPDATE rhs_exam_categories SET ${updateFields.join(', ')} WHERE id = ?`;
 
     if (session.user.roleName === 'teacher') {
         updateQuery += ` AND created_by = ?`;

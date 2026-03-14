@@ -23,7 +23,8 @@ const Icons = {
   Clock: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
   ArrowUp: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" /></svg>,
   ArrowDown: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>,
-  Grip: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>
+  Grip: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>,
+  Shield: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
 };
 
 // --- Student Action Button Component ---
@@ -287,7 +288,7 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
 };
 
 // --- Category Accordion Component ---
-const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, formatDate, openModal, categories, onEdit, onDelete, onToggleVisibility, isHidden, onToggleExamVisibility, userRole, userId, categoryCreatedBy, onMove, onDragStart, onDragOver, onDrop, onDragEnd, isDragging }) => {
+const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, formatDate, openModal, categories, onEdit, onDelete, onToggleVisibility, isHidden, isAdminHidden, onToggleExamVisibility, userRole, userId, categoryCreatedBy, onMove, onDragStart, onDragOver, onDrop, onDragEnd, isDragging }) => {
     // Hide 'Tanpa Nama' (uncategorized) if there are no uncategorized exams AND user has categories
     if (id === 'uncategorized' && exams.length === 0 && categories.length > 0) return null;
 
@@ -323,9 +324,14 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
                             <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
                                 {exams.length}
                             </span>
-                            {id !== 'uncategorized' && !isStudent && isHidden && (
+                            {id !== 'uncategorized' && !isStudent && !!isHidden && (
                                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full">
-                                    Hidden
+                                    Siswa Hidden
+                                </span>
+                            )}
+                            {id !== 'uncategorized' && !isStudent && !!isAdminHidden && (
+                                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full">
+                                    Admin Hidden
                                 </span>
                             )}
                         </h2>
@@ -335,12 +341,23 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
                 {/* Category Actions (Only show for custom categories, not 'Tanpa Nama', and enforce permissions) */}
                 {id !== 'uncategorized' && !isStudent && (userRole === 'admin' || userId === categoryCreatedBy) && (
                     <div className="flex items-center gap-1 sm:gap-2" onClick={(e) => e.stopPropagation() /* Prevent accordion toggle */}>
+                        {/* Admin Only: Global Hide */}
+                        {userRole === 'admin' && (
+                            <button 
+                                onClick={() => onToggleVisibility('admin_hidden')}
+                                className={`p-2 rounded-lg transition-colors ${isAdminHidden ? 'text-red-600 bg-red-50 dark:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'}`}
+                                title={isAdminHidden ? "Tampilkan untuk Guru & Siswa" : "Sembunyikan dari Guru & Siswa"}
+                            >
+                                <Icons.Shield />
+                            </button>
+                        )}
+                        
                         <button 
-                            onClick={onToggleVisibility}
-                            className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
-                            title={isHidden ? "Tampilkan Kategori" : "Sembunyikan Kategori"}
+                            onClick={() => onToggleVisibility('hidden')}
+                            className={`p-2 rounded-lg transition-colors ${isHidden ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'}`}
+                            title={isHidden ? "Tampilkan untuk Siswa" : "Sembunyikan dari Siswa"}
                         >
-                            {isHidden ? <Icons.Eye /> : <Icons.EyeOff />}
+                            {isHidden ? <Icons.EyeOff /> : <Icons.Eye />}
                         </button>
                         <button 
                             onClick={onEdit}
@@ -434,11 +451,23 @@ export default function ExamsPage() {
     setModalState({ type: null, examId: null, categoryId: null, categoryName: '', isOpen: false });
   };
 
-  const handleToggleVisibility = async (type, id, currentState) => {
+  const handleToggleVisibility = async (type, id, currentStatus, mode = 'hidden') => {
     try {
-      const endpoint = type === 'exam' ? '/api/exams/toggle-visibility' : '/api/exams/categories/toggle-visibility';
-      const body = type === 'exam' ? { examId: id, isHidden: !currentState } : { categoryId: id, isHidden: !currentState };
-      
+        let endpoint = '';
+        let body = {};
+
+        if (type === 'exam') {
+            endpoint = '/api/exams/toggle-visibility';
+            body = { examId: id, isHidden: !currentStatus };
+        } else {
+            endpoint = '/api/exams/categories/toggle-visibility';
+            if (mode === 'admin_hidden') {
+                body = { categoryId: id, isAdminHidden: !currentStatus };
+            } else {
+                body = { categoryId: id, isHidden: !currentStatus };
+            }
+        }
+        
       const res = await fetch(endpoint, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -779,6 +808,7 @@ export default function ExamsPage() {
               openModal={openModal}
               categories={categories}
               isHidden={false}
+              isAdminHidden={false}
               onToggleExamVisibility={(id, current) => handleToggleVisibility('exam', id, current)}
             />
 
@@ -795,8 +825,9 @@ export default function ExamsPage() {
                 formatDate={formatDate}
                 openModal={openModal}
                 categories={categories}
-                isHidden={cat.isHidden}
-                onToggleVisibility={(e) => { e.stopPropagation(); handleToggleVisibility('category', cat.id, cat.isHidden); }}
+                isHidden={cat.is_hidden}
+                isAdminHidden={cat.is_admin_hidden}
+                onToggleVisibility={(mode) => handleToggleVisibility('category', cat.id, mode === 'admin_hidden' ? cat.is_admin_hidden : cat.is_hidden, mode)}
                 onToggleExamVisibility={(id, current) => handleToggleVisibility('exam', id, current)}
                 onEdit={(e) => { e.stopPropagation(); openModal('categoryManage', null, cat.id, cat.name); }}
                 onDelete={(e) => { e.stopPropagation(); openModal('categoryDelete', null, cat.id); }}

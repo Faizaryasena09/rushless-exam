@@ -39,17 +39,17 @@ async function GET() {
 
     if (session.user.roleName === 'student') {
       // Students only see exams assigned to their class, and not hidden
+      // Filter out admin-hidden categories too
       examsQuery += `
             INNER JOIN rhs_exam_classes ec ON e.id = ec.exam_id
-            WHERE ec.class_id = ? AND e.is_hidden = FALSE AND (c.is_hidden IS NULL OR c.is_hidden = FALSE)
+            WHERE ec.class_id = ? AND e.is_hidden = FALSE 
+            AND (c.id IS NULL OR (c.is_hidden = FALSE AND c.is_admin_hidden = FALSE))
         `;
       // If student has no class_id, they see nothing (pass null or -1 which matches nothing)
       queryValues.push(session.user.class_id || -1);
     } else if (session.user.roleName === 'teacher') {
-      // Teachers see exams assigned to ANY of their managed classes
-      // AND also the exam MUST belong to a subject they teach (if a subject is assigned).
-      // If the exam has NO subject (subject_id IS NULL), we still show it to them as long as the class matches,
-      // but if it HAS a subject, they MUST be assigned to that subject.
+      // Teachers see exams assigned to managed classes and their subjects
+      // AND filter out admin-hidden categories
       examsQuery += `
             WHERE EXISTS (
                 SELECT 1 FROM rhs_exam_classes ec
@@ -63,6 +63,7 @@ async function GET() {
                     WHERE ts.subject_id = e.subject_id AND ts.teacher_id = ?
                 )
             )
+            AND (c.id IS NULL OR c.is_admin_hidden = FALSE)
         `;
       queryValues.push(session.user.id, session.user.id);
     }

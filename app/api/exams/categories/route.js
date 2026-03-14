@@ -14,8 +14,13 @@ export async function GET(request) {
   }
 
   try {
-    let categoriesQuery = `SELECT id, name, created_by, created_at, is_hidden, sort_order FROM rhs_exam_categories`;
+    let categoriesQuery = `SELECT id, name, created_by, created_at, is_hidden, sort_order, is_admin_hidden FROM rhs_exam_categories`;
     let queryValues = [];
+
+    // Role-based filtering: Non-admins cannot see categories hidden by admin
+    if (session.user.roleName !== 'admin') {
+        categoriesQuery += ` WHERE is_admin_hidden = FALSE`;
+    }
 
     // Order by sort_order
     categoriesQuery += ` ORDER BY sort_order ASC, created_at ASC`;

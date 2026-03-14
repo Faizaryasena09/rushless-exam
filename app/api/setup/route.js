@@ -342,6 +342,18 @@ export async function GET(request) {
       messages.push(`Column 'sort_order' already exists in '${categoriesTableName}'.`);
     }
 
+    // --- Check and add 'is_admin_hidden' column to exam_categories table ---
+    const hasIsAdminHidden = await columnExists(categoriesTableName, 'is_admin_hidden');
+    if (!hasIsAdminHidden) {
+      await query({
+        query: `ALTER TABLE ${categoriesTableName} ADD COLUMN is_admin_hidden BOOLEAN DEFAULT FALSE;`,
+        values: [],
+      });
+      messages.push(`Column 'is_admin_hidden' created successfully in '${categoriesTableName}'.`);
+    } else {
+      messages.push(`Column 'is_admin_hidden' already exists in '${categoriesTableName}'.`);
+    }
+
     // --- Check and add 'show_instructions' column to exam_settings table ---
     const hasShowInstructions = await columnExists(settingsTableName, 'show_instructions');
     if (!hasShowInstructions) {
