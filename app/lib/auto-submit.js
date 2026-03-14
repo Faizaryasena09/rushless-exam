@@ -103,12 +103,21 @@ async function autoSubmitAttempt(attempt) {
     }
 }
 
+// Module-level guard: prevents concurrent scans from multiple simultaneous
+// HTTP requests (e.g. admin polling /control/users every second) from both
+// fetching the same expired attempts and racing to submit them.
+let isScanning = false;
+
 /**
  * Finds all in_progress attempts whose timer has expired and auto-submits them.
  * Call this from any server-side polling endpoint (control/users, timer-stream etc.).
  * Returns the number of attempts auto-submitted.
  */
 export async function autoSubmitExpiredAttempts() {
+    // If a scan is already in progress (e.g. from another concurrent request),
+    // skip this call entirely — the other scan will handle it.
+    if (isScanning) return 0;
+    isScanning = true;
     try {
         // Find all in_progress attempts, joined with exam settings to calculate end time
         const expiredAttempts = await query({
@@ -143,6 +152,8 @@ export async function autoSubmitExpiredAttempts() {
     } catch (err) {
         console.error('[AutoSubmit] Error scanning for expired attempts:', err.message);
         return 0;
+    } finally {
+        isScanning = false;
     }
 }
 

@@ -19,6 +19,15 @@ async function columnExists(tableName, columnName) {
   return result.length > 0;
 }
 
+// This function checks if an index exists on a table.
+async function indexExists(tableName, indexName) {
+  const result = await query({
+    query: `SHOW INDEX FROM \`${tableName}\` WHERE Key_name = '${indexName}'`,
+    values: [],
+  });
+  return result.length > 0;
+}
+
 // GET handler to perform database setup/migration
 export async function GET(request) {
   const session = await getSession(request);
@@ -624,6 +633,28 @@ export async function GET(request) {
            values: []
        });
        messages.push(`Default site settings initialized.`);
+    }
+
+    // --- Migration: Composite index on rhs_exam_attempts (user_id, exam_id, status) ---
+    // Replaces the old single-column idx_status. This index is critical for the
+    // FOR UPDATE in start-attempt to lock only the exact target row (prevents gap-lock deadlocks).
+    const hasOldStatusIndex = await indexExists(attemptsTableName, 'idx_status');
+    if (hasOldStatusIndex) {
+      await query({
+        query: `ALTER TABLE ${attemptsTableName} DROP INDEX idx_status`,
+        values: [],
+      });
+      messages.push(`Old index 'idx_status' dropped from '${attemptsTableName}'.`);
+    }
+    const hasCompositeIndex = await indexExists(attemptsTableName, 'idx_user_exam_status');
+    if (!hasCompositeIndex) {
+      await query({
+        query: `ALTER TABLE ${attemptsTableName} ADD INDEX idx_user_exam_status (user_id, exam_id, status)`,
+        values: [],
+      });
+      messages.push(`Composite index 'idx_user_exam_status' created on '${attemptsTableName}'.`);
+    } else {
+      messages.push(`Composite index 'idx_user_exam_status' already exists on '${attemptsTableName}'.`);
     }
 
     return NextResponse.json({

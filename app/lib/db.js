@@ -340,14 +340,6 @@ export async function setupDatabase() {
       if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
     }
 
-    // Migration: Add index on rhs_exam_attempts.status for faster WHERE status='in_progress' queries
-    // Shorter lock duration = less lock contention between concurrent submit/auto-submit processes
-    try {
-      await connection.query(`ALTER TABLE rhs_exam_attempts ADD INDEX idx_status (status)`);
-      console.log("Index 'idx_status' added to rhs_exam_attempts.status");
-    } catch (err) {
-      if (err.code !== 'ER_DUP_KEYNAME') console.log("Note: " + err.message);
-    }
 
     connection.release();
     return { success: true };

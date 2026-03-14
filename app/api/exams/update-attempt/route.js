@@ -46,7 +46,7 @@ export async function POST(request) {
     const sql = `
         UPDATE rhs_exam_attempts 
         SET ${fieldsToUpdate.join(', ')} 
-        WHERE id = ? AND user_id = ?
+        WHERE id = ? AND user_id = ? AND status = 'in_progress'
     `;
 
     const result = await query({
@@ -55,7 +55,8 @@ export async function POST(request) {
     });
 
     if (result.affectedRows === 0) {
-        return NextResponse.json({ message: 'Attempt not found or you are not authorized to update it.' }, { status: 404 });
+        // Either not found, unauthorized, or already submitted — all are safe to ignore silently
+        return NextResponse.json({ message: 'Attempt not found, unauthorized, or already completed.' }, { status: 200 });
     }
 
     return NextResponse.json({ message: 'Attempt updated successfully' });
