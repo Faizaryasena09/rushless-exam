@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
-import { query } from '@/app/lib/db';
+import { query, transaction } from '@/app/lib/db';
 
 async function getSession(request) {
     const cookieStore = await cookies();
@@ -42,31 +42,38 @@ export async function POST(request) {
 
             case 'reset_exam':
                 if (!attemptId) return NextResponse.json({ message: 'Attempt ID required' }, { status: 400 });
-                // First get the exam_id for this attempt so we can clear temporary answers
-                const attemptInfo = await query({
-                    query: 'SELECT user_id, exam_id FROM rhs_exam_attempts WHERE id = ?',
-                    values: [attemptId]
-                });
 
-                if (attemptInfo.length > 0) {
-                    const { user_id, exam_id } = attemptInfo[0];
-                    await query({
-                        query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
-                        values: [user_id, exam_id]
+                // Wrap entire reset in a transaction.
+                // FOR UPDATE on SELECT prevents auto-submit from touching this attempt
+                // while the reset is in progress, avoiding cascade lock conflicts.
+                await transaction(async (txQuery) => {
+                    // Step 1: Lock the attempt row and get exam/user info
+                    const attemptInfo = await txQuery({
+                        query: 'SELECT user_id, exam_id FROM rhs_exam_attempts WHERE id = ? FOR UPDATE',
+                        values: [attemptId]
                     });
-                }
 
-                // Delete the attempt (this will cascade delete submitted answers if any)
-                // User asked for "dihapus" (deleted)
-                await query({
-                    query: 'DELETE FROM rhs_exam_attempts WHERE id = ?',
-                    values: [attemptId]
-                });
-                // Also force logout to ensure clean state? 
-                // "reset ujian(maka exam pada yang sedang dikerjakan oleh student dihapus lalu di logout juga)"
-                await query({
-                    query: "UPDATE rhs_users SET session_id = NULL, last_activity = '1970-01-01 00:00:00' WHERE id = ?",
-                    values: [userId]
+                    if (attemptInfo.length > 0) {
+                        const { user_id, exam_id } = attemptInfo[0];
+
+                        // Step 2: Delete temporary answers first (foreign key safe)
+                        await txQuery({
+                            query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
+                            values: [user_id, exam_id]
+                        });
+                    }
+
+                    // Step 3: Delete the attempt (cascades to rhs_student_answer)
+                    await txQuery({
+                        query: 'DELETE FROM rhs_exam_attempts WHERE id = ?',
+                        values: [attemptId]
+                    });
+
+                    // Step 4: Force logout the student
+                    await txQuery({
+                        query: "UPDATE rhs_users SET session_id = NULL, last_activity = '1970-01-01 00:00:00' WHERE id = ?",
+                        values: [userId]
+                    });
                 });
                 return NextResponse.json({ message: 'Exam reset and user logged out.' });
 

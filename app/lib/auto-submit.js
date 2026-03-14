@@ -1,4 +1,4 @@
-import { query } from '@/app/lib/db';
+import { query, transaction } from '@/app/lib/db';
 
 /**
  * Calculates the scheduled end timestamp (UNIX seconds) for a given attempt.
@@ -12,25 +12,24 @@ function calcEndTs(settings, attempt) {
 }
 
 /**
- * Auto-submits a single expired attempt.
- * Scores from rhs_temporary_answer, then marks attempt as completed.
- * Returns true on success, false on error.
+ * Auto-submits a single expired attempt inside a transaction.
+ * The UPDATE is the first step — if affectedRows = 0 it means another process
+ * already submitted this attempt, so we exit early (idempotent guard).
+ * Returns true on success, false on error or if already submitted.
  */
 async function autoSubmitAttempt(attempt) {
     try {
-        // Fetch all questions for scoring
+        // Score calculation is done OUTSIDE the transaction (read-only, no lock needed)
         const allQuestions = await query({
             query: 'SELECT id, correct_option FROM rhs_exam_questions WHERE exam_id = ?',
             values: [attempt.exam_id],
         });
 
-        // Fetch temporary answers saved by the student
         const tempAnswers = await query({
             query: 'SELECT question_id, selected_option FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
             values: [attempt.user_id, attempt.exam_id],
         });
 
-        // Build answers map from temp answers
         const answersMap = {};
         tempAnswers.forEach(ta => {
             if (ta.selected_option !== null) {
@@ -38,7 +37,6 @@ async function autoSubmitAttempt(attempt) {
             }
         });
 
-        // Score
         const totalQuestions = allQuestions.length;
         let correctCount = 0;
         const correctOptionsMap = {};
@@ -48,43 +46,57 @@ async function autoSubmitAttempt(attempt) {
         });
         const score = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
 
-        // Mark attempt as completed
-        await query({
-            query: `UPDATE rhs_exam_attempts SET status = 'completed', end_time = NOW(), score = ? WHERE id = ? AND status = 'in_progress'`,
-            values: [score, attempt.id],
+        // Atomically claim + complete the attempt inside a transaction
+        const submitted = await transaction(async (txQuery) => {
+            // Step 1 (IDEMPOTENT GATE): Try to claim this attempt.
+            // The WHERE clause ensures only one concurrent process can succeed.
+            const updateResult = await txQuery({
+                query: `UPDATE rhs_exam_attempts SET status = 'completed', end_time = NOW(), score = ? WHERE id = ? AND status = 'in_progress'`,
+                values: [score, attempt.id],
+            });
+
+            // If affectedRows = 0, another process already submitted this attempt. Bail out.
+            if (updateResult.affectedRows === 0) {
+                return false;
+            }
+
+            // Step 2: Save permanent student answers
+            const answeredIds = Object.keys(answersMap).filter(id => answersMap[id]);
+            if (answeredIds.length > 0) {
+                const valueTuples = answeredIds.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
+                const flatValues = [];
+                answeredIds.forEach(qId => {
+                    const selectedOption = answersMap[qId];
+                    const isCorrect = correctOptionsMap[qId] === selectedOption;
+                    flatValues.push(attempt.user_id, attempt.exam_id, attempt.id, qId, selectedOption, isCorrect);
+                });
+                await txQuery({
+                    query: `INSERT IGNORE INTO rhs_student_answer (user_id, exam_id, attempt_id, question_id, selected_option, is_correct) VALUES ${valueTuples}`,
+                    values: flatValues,
+                });
+            }
+
+            // Step 3: Clean up temporary answers
+            await txQuery({
+                query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
+                values: [attempt.user_id, attempt.exam_id],
+            });
+
+            // Step 4: Log
+            await txQuery({
+                query: `INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, 'SUBMIT', 'Auto-submitted by server: timer expired')`,
+                values: [attempt.id],
+            });
+
+            return true;
         });
 
-        // Save permanent student answers from temp answers
-        const answeredIds = Object.keys(answersMap).filter(id => answersMap[id]);
-        if (answeredIds.length > 0) {
-            const valueTuples = answeredIds.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
-            const flatValues = [];
-            answeredIds.forEach(qId => {
-                const selectedOption = answersMap[qId];
-                const isCorrect = correctOptionsMap[qId] === selectedOption;
-                flatValues.push(attempt.user_id, attempt.exam_id, attempt.id, qId, selectedOption, isCorrect);
-            });
-            // Use INSERT IGNORE to avoid duplicates if already partially saved
-            await query({
-                query: `INSERT IGNORE INTO rhs_student_answer (user_id, exam_id, attempt_id, question_id, selected_option, is_correct) VALUES ${valueTuples}`,
-                values: flatValues,
-            });
+        if (submitted) {
+            console.log(`[AutoSubmit] Attempt ${attempt.id} (user=${attempt.user_id}, exam=${attempt.exam_id}) auto-submitted. Score: ${score.toFixed(1)}`);
+        } else {
+            console.log(`[AutoSubmit] Attempt ${attempt.id} skipped — already submitted by another process.`);
         }
-
-        // Clean up temporary answers
-        await query({
-            query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
-            values: [attempt.user_id, attempt.exam_id],
-        });
-
-        // Log the auto-submit
-        await query({
-            query: `INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, 'SUBMIT', 'Auto-submitted by server: timer expired')`,
-            values: [attempt.id],
-        });
-
-        console.log(`[AutoSubmit] Attempt ${attempt.id} (user=${attempt.user_id}, exam=${attempt.exam_id}) auto-submitted. Score: ${score.toFixed(1)}`);
-        return true;
+        return submitted;
     } catch (err) {
         console.error(`[AutoSubmit] Failed for attempt ${attempt.id}:`, err.message);
         return false;

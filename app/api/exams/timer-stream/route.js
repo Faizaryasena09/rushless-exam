@@ -39,6 +39,10 @@ export async function GET(request) {
 
     // We will establish an SSE stream
     let intervalId;
+    // Guard flag: prevents a new interval tick from running an auto-submit
+    // while the previous tick's auto-submit is still in progress.
+    let isSubmitting = false;
+
     const stream = new ReadableStream({
         async start(controller) {
             // Function to fetch and send data
@@ -83,9 +87,18 @@ export async function GET(request) {
                     const attempt = attemptResult[0];
                     const seconds_left = calculateRemainingSeconds(settings, attempt, now_ts);
 
-                    // If timer expired server-side, auto-submit the attempt
+                    // If timer expired server-side, auto-submit the attempt.
+                    // The isSubmitting guard prevents overlapping concurrent submissions
+                    // from multiple interval ticks firing close together.
                     if (seconds_left === 0) {
-                        await autoSubmitAttemptIfExpired(attempt.id, examId, userId);
+                        if (!isSubmitting) {
+                            isSubmitting = true;
+                            try {
+                                await autoSubmitAttemptIfExpired(attempt.id, examId, userId);
+                            } finally {
+                                isSubmitting = false;
+                            }
+                        }
                         // Notify client that the attempt is now completed
                         controller.enqueue(`data: ${JSON.stringify({ seconds_left: 0, status: 'completed', auto_submitted: true })}\n\n`);
                         clearInterval(intervalId);
