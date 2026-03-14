@@ -149,7 +149,9 @@ export default function DashboardPage() {
                             </span>
                         </h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
-                            Selamat datang kembali di panel kontrol utama Anda.
+                            {user.roleName === 'student' 
+                                ? "Selamat datang kembali! Pantau jadwal dan kerjakan ujianmu dengan teliti." 
+                                : "Selamat datang kembali di panel kontrol utama Anda."}
                         </p>
                     </div>
 
@@ -165,27 +167,35 @@ export default function DashboardPage() {
 
                 {/* Statistik */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard 
-                        title="Total Ujian" 
-                        value={stats?.totalExams || 0} 
-                        icon={<Copy size={18} />} 
-                        colorClass="blue" 
-                    />
-                    <StatCard 
-                        title="Pengguna" 
-                        value={stats?.totalUsers || 0} 
-                        icon={<Users size={18} />} 
-                        colorClass="violet" 
-                    />
-                    <StatCard 
-                        title="Pertanyaan" 
-                        value={stats?.totalQuestions || 0} 
-                        icon={<List size={18} />} 
-                        colorClass="indigo" 
-                    />
+                    {user.roleName === 'admin' && (
+                        <>
+                            <StatCard 
+                                title="Total Ujian" 
+                                value={stats?.totalExams || 0} 
+                                icon={<Copy size={18} />} 
+                                colorClass="blue" 
+                            />
+                            <StatCard 
+                                title="Pengguna" 
+                                value={stats?.totalUsers || 0} 
+                                icon={<Users size={18} />} 
+                                colorClass="violet" 
+                            />
+                            <StatCard 
+                                title="Pertanyaan" 
+                                value={stats?.totalQuestions || 0} 
+                                icon={<List size={18} />} 
+                                colorClass="indigo" 
+                            />
+                        </>
+                    )}
                     <StatCard 
                         title="Role Anda" 
-                        value={user.roleName.replace(/^\w/, c => c.toUpperCase())} 
+                        value={
+                            user.roleName === 'student' ? 'Murid' : 
+                            user.roleName === 'teacher' ? 'Guru' : 
+                            'Administrator'
+                        } 
                         icon={<GraduationCap size={18} />} 
                         colorClass="emerald" 
                     />
@@ -194,8 +204,8 @@ export default function DashboardPage() {
                 {/* Menu Utama */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <DashboardCard
-                        title="Kelola Ujian"
-                        description="Atur semua data ujian, soal, dan jadwal pelaksanaan."
+                        title={user.roleName === 'student' ? "Lihat Ujian" : "Kelola Ujian"}
+                        description={user.roleName === 'student' ? "Lihat daftar ujian yang tersedia untuk Anda." : "Atur semua data ujian, soal, dan jadwal pelaksanaan."}
                         icon={<Copy size={24} />}
                         href="/dashboard/exams"
                         gradient="bg-indigo-600"

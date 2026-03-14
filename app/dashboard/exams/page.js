@@ -119,15 +119,26 @@ const StudentExamActions = ({ exam }) => {
       </Link>
     );
   } else if ((examEnded || maxAttemptsReached) && latestAttemptId) {
-    actionButton = (
-      <Link href={`/dashboard/exams/hasil/${latestAttemptId}`} className="group w-full flex items-center justify-between text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors">
-        <div className="flex items-center gap-2">
-          <Icons.ChartBar />
-          <span>Lihat Hasil {latestScore !== null && latestScore !== undefined ? `(${latestScore})` : ''}</span>
+    const showResultsSetting = !!exam.show_result;
+    
+    if (showResultsSetting) {
+      actionButton = (
+        <Link href={`/dashboard/exams/hasil/${latestAttemptId}`} className="group w-full flex items-center justify-between text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors">
+          <div className="flex items-center gap-2">
+            <Icons.ChartBar />
+            <span>Lihat Hasil {latestScore !== null && latestScore !== undefined ? `(${latestScore})` : ''}</span>
+          </div>
+          <Icons.ChevronRight />
+        </Link>
+      );
+    } else {
+      actionButton = (
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-default select-none">
+          <Icons.Shield className="w-4 h-4" />
+          <span>Hasil disembunyikan</span>
         </div>
-        <Icons.ChevronRight />
-      </Link>
-    );
+      );
+    }
   } else if (examEnded && !latestAttemptId) {
     actionButton = (
       <div className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-not-allowed select-none">

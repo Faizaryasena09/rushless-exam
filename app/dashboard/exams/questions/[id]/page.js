@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { uploadBase64Images } from '@/app/lib/utils';
+import { ArrowLeft } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
@@ -749,10 +750,16 @@ export default function ManageQuestionsPage() {
                 examName={examName}
             />
             <div className="container mx-auto p-4 md:p-6">
+                <Link 
+                    href={`/dashboard/exams/manage/${examId}`}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg transition-all active:scale-95"
+                >
+                    <ArrowLeft size={18} />
+                    Kembali ke Pengaturan Ujian
+                </Link>
                 <div className="mb-8 flex justify-between items-start">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">{examName ? `Manage Questions: ${examName}` : 'Manage Questions'}</h1>
-                        <p className="text-slate-500 dark:text-slate-400 mt-1">Exam ID: <span className="font-mono bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-1 rounded-md">{examId}</span></p>
+                        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">{examName ? `Kelola Soal: ${examName}` : 'Kelola Soal'}</h1>
                     </div>
                     <Link
                         href={`/dashboard/exams/preview/${examId}`}
@@ -852,11 +859,6 @@ export default function ManageQuestionsPage() {
                             )}
                         </div>
                     </div>
-                </div>
-                <div className="mt-8">
-                    <Link href={`/dashboard/exams/manage/${examId}`} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors">
-                        &larr; Back to Exam Settings
-                    </Link>
                 </div>
             </div>
         </>

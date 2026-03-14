@@ -55,7 +55,7 @@ const UserModal = ({ user, onClose, onSave }) => {
       name,
       password,
       role,
-      class_id: role === 'student' ? classId : null
+      class_id: role === 'student' ? (classId ? parseInt(classId) : null) : null
     });
   };
 
@@ -125,21 +125,21 @@ const UserModal = ({ user, onClose, onSave }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider pl-1">Tingkat Akses</label>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider pl-1">Role</label>
               <select
                 className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
               >
-                <option value="student">Siswa / Peserta</option>
-                <option value="teacher">Instruktur / Guru</option>
+                <option value="student">Siswa</option>
+                <option value="teacher">Guru</option>
                 <option value="admin">Administrator</option>
               </select>
             </div>
 
             {role === 'student' && (
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider pl-1">Unit / Kelas</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider pl-1">Kelas</label>
                 <div className="relative">
                   <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                   <select
@@ -148,10 +148,10 @@ const UserModal = ({ user, onClose, onSave }) => {
                     onChange={(e) => setClassId(e.target.value)}
                     required={role === 'student'}
                   >
+                    <option value="" disabled>Pilih Kelas...</option>
                     {classes.map((c) => (
                       <option key={c.id} value={c.id}>{c.class_name}</option>
                     ))}
-                    {classes.length === 0 && <option value="">Tidak ada kelas</option>}
                   </select>
                 </div>
               </div>

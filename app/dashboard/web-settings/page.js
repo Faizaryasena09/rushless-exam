@@ -322,13 +322,13 @@ export default function WebSettingsPage() {
                 </div>
                 <div className="p-5 space-y-6">
                     {/* Site Name Input */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                        <div className="md:max-w-xs">
                             <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Nama Situs (Site Name)</p>
                             <p className="text-xs text-slate-400 dark:text-slate-500">Akan ditampilkan di header, sidebar, judul dokumen, dsb.</p>
                         </div>
-                        <div className="flex flex-col gap-2 w-full sm:w-[60%]">
-                            <div className="border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden prose-sm bg-white dark:bg-slate-700">
+                        <div className="flex flex-col gap-3 w-full md:w-[65%]">
+                            <div className="border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden prose-sm bg-white dark:bg-slate-700 min-h-[100px]">
                                 <JoditEditor
                                     value={settings.site_name || ''}
                                     onBlur={newContent => setSettings(prev => ({ ...prev, site_name: newContent }))}
@@ -336,34 +336,36 @@ export default function WebSettingsPage() {
                                         readonly: saving.site_name,
                                         toolbarInline: true,
                                         theme: 'default',
-                                        placeholder: 'Mendukung format HTML dan teks berwarna...',
+                                        placeholder: 'Mendukung format HTML...',
                                     }}
                                 />
                             </div>
-                            <button
-                                onClick={async () => {
-                                    setSaving(prev => ({ ...prev, site_name: true }));
-                                    try {
-                                        const res = await fetch('/api/web-settings', {
-                                            method: 'PUT',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ key: 'site_name', value: settings.site_name || 'Rushless Exam' }),
-                                        });
-                                        if (res.ok) {
-                                            setMessage({ type: 'success', text: 'Nama situs berhasil disimpan.' });
-                                            setTimeout(() => setMessage(null), 3000);
-                                        } else {
-                                            const d = await res.json();
-                                            setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
-                                        }
-                                    } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
-                                    finally { setSaving(prev => ({ ...prev, site_name: false })); }
-                                }}
-                                disabled={saving.site_name}
-                                className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
-                            >
-                                {saving.site_name ? '...' : 'Simpan'}
-                            </button>
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={async () => {
+                                        setSaving(prev => ({ ...prev, site_name: true }));
+                                        try {
+                                            const res = await fetch('/api/web-settings', {
+                                                method: 'PUT',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ key: 'site_name', value: settings.site_name || 'Rushless Exam' }),
+                                            });
+                                            if (res.ok) {
+                                                setMessage({ type: 'success', text: 'Nama situs berhasil disimpan.' });
+                                                setTimeout(() => setMessage(null), 3000);
+                                            } else {
+                                                const d = await res.json();
+                                                setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
+                                            }
+                                        } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
+                                        finally { setSaving(prev => ({ ...prev, site_name: false })); }
+                                    }}
+                                    disabled={saving.site_name}
+                                    className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
+                                >
+                                    {saving.site_name ? 'Menyimpan...' : 'Simpan Nama Situs'}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -424,26 +426,26 @@ export default function WebSettingsPage() {
                     </div>
                 </div>
                 <div className="p-5">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
                         <div>
                             <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Bahasa Antarmuka</p>
                             <p className="text-xs text-slate-400 dark:text-slate-500">Berlaku untuk semua halaman kecuali konten soal ujian.</p>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <div className="flex rounded-xl overflow-hidden border border-slate-200 dark:border-slate-600">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex w-full sm:w-auto rounded-xl overflow-hidden border border-slate-200 dark:border-slate-600 shadow-sm">
                                 <button
                                     onClick={() => setSelectedLang('id')}
-                                    className={`px-4 py-2 text-sm font-semibold transition-colors ${
+                                    className={`flex-1 sm:flex-none px-4 py-2.5 text-sm font-bold transition-all ${
                                         selectedLang === 'id'
                                             ? 'bg-violet-600 text-white'
                                             : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                                     }`}
                                 >
-                                    🇮🇩 Indonesia
+                                    🇮🇩 Indo
                                 </button>
                                 <button
                                     onClick={() => setSelectedLang('en')}
-                                    className={`px-4 py-2 text-sm font-semibold transition-colors border-l border-slate-200 dark:border-slate-600 ${
+                                    className={`flex-1 sm:flex-none px-4 py-2.5 text-sm font-bold transition-all border-l border-slate-200 dark:border-slate-600 ${
                                         selectedLang === 'en'
                                             ? 'bg-violet-600 text-white'
                                             : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -455,7 +457,7 @@ export default function WebSettingsPage() {
                             <button
                                 onClick={handleLanguageSave}
                                 disabled={langSaving}
-                                className="px-3 py-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/30 border border-violet-200 dark:border-violet-800 rounded-lg transition-colors disabled:opacity-50"
+                                className="w-full sm:w-auto px-6 py-2.5 text-sm font-bold text-white bg-violet-600 hover:bg-violet-700 rounded-xl shadow-lg shadow-violet-100 dark:shadow-none transition-all disabled:opacity-50"
                             >
                                 {langSaving ? '...' : 'Simpan'}
                             </button>
@@ -478,8 +480,9 @@ export default function WebSettingsPage() {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full">
+                <div className="overflow-x-hidden md:overflow-x-auto">
+                    {/* Desktop Table */}
+                    <table className="w-full hidden md:table">
                         <thead>
                             <tr className="border-b border-slate-100 dark:border-slate-700">
                                 <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-5 py-3">Permission</th>
@@ -522,6 +525,45 @@ export default function WebSettingsPage() {
                             ))}
                         </tbody>
                     </table>
+
+                    {/* Mobile Card List */}
+                    <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700">
+                        {permissions.map(perm => (
+                            <div key={perm.key} className="p-5 space-y-4">
+                                <div>
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white">{perm.label}</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">{perm.description}</p>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {roles.map(role => {
+                                        const settingKey = `${role.key}_${perm.key}`;
+                                        const isEnabled = settings[settingKey] ?? false;
+                                        const isSaving = saving[settingKey] ?? false;
+                                        const color = getRoleColorClasses(role.color);
+                                        return (
+                                            <div 
+                                                key={settingKey} 
+                                                onClick={() => !isSaving && handleToggle(settingKey)}
+                                                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${
+                                                    isEnabled 
+                                                        ? `${color.bg} ${color.border}` 
+                                                        : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 opacity-60'
+                                                }`}
+                                            >
+                                                <span className="text-lg mb-1">{role.icon}</span>
+                                                <span className={`text-[10px] font-bold uppercase tracking-tighter ${isEnabled ? color.text : 'text-slate-400'}`}>
+                                                    {role.label}
+                                                </span>
+                                                <div className={`mt-2 w-full h-1 rounded-full ${isEnabled ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                                                    {isSaving && <div className="h-full bg-indigo-400 animate-pulse rounded-full" />}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
 
@@ -541,21 +583,24 @@ export default function WebSettingsPage() {
 
                 <div className="p-5 space-y-4">
                     {/* Max Attempts */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
+                    {/* Max Attempts */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="md:max-w-xs">
                             <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Maksimal Percobaan Gagal</p>
                             <p className="text-xs text-slate-400 dark:text-slate-500">Akun terkunci setelah jumlah ini terlampaui</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="number"
-                                min="1"
-                                max="50"
-                                value={settings.bruteforce_max_attempts ?? 5}
-                                onChange={(e) => setSettings(prev => ({ ...prev, bruteforce_max_attempts: parseInt(e.target.value) || 1 }))}
-                                className="w-20 px-3 py-1.5 text-sm text-center border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                            <span className="text-xs text-slate-400 dark:text-slate-500">kali</span>
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1 flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="50"
+                                    value={settings.bruteforce_max_attempts ?? 5}
+                                    onChange={(e) => setSettings(prev => ({ ...prev, bruteforce_max_attempts: parseInt(e.target.value) || 1 }))}
+                                    className="w-16 bg-transparent text-center font-bold text-slate-900 dark:text-white outline-none"
+                                />
+                                <span className="text-xs font-bold text-slate-400 uppercase">Kali</span>
+                            </div>
                             <button
                                 onClick={async () => {
                                     setSaving(prev => ({ ...prev, bruteforce_max_attempts: true }));
@@ -576,7 +621,7 @@ export default function WebSettingsPage() {
                                     finally { setSaving(prev => ({ ...prev, bruteforce_max_attempts: false })); }
                                 }}
                                 disabled={saving.bruteforce_max_attempts}
-                                className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg transition-colors disabled:opacity-50"
+                                className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
                             >
                                 {saving.bruteforce_max_attempts ? '...' : 'Simpan'}
                             </button>
@@ -586,21 +631,24 @@ export default function WebSettingsPage() {
                     <div className="border-t border-slate-100 dark:border-slate-700/50" />
 
                     {/* Lockout Duration */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
+                    {/* Lockout Duration */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="md:max-w-xs">
                             <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Durasi Penguncian</p>
                             <p className="text-xs text-slate-400 dark:text-slate-500">Berapa lama akun terkunci otomatis</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="number"
-                                min="1"
-                                max="1440"
-                                value={settings.bruteforce_lockout_minutes ?? 15}
-                                onChange={(e) => setSettings(prev => ({ ...prev, bruteforce_lockout_minutes: parseInt(e.target.value) || 1 }))}
-                                className="w-20 px-3 py-1.5 text-sm text-center border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                            <span className="text-xs text-slate-400 dark:text-slate-500">menit</span>
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1 flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="1440"
+                                    value={settings.bruteforce_lockout_minutes ?? 15}
+                                    onChange={(e) => setSettings(prev => ({ ...prev, bruteforce_lockout_minutes: parseInt(e.target.value) || 1 }))}
+                                    className="w-16 bg-transparent text-center font-bold text-slate-900 dark:text-white outline-none"
+                                />
+                                <span className="text-xs font-bold text-slate-400 uppercase">Menit</span>
+                            </div>
                             <button
                                 onClick={async () => {
                                     setSaving(prev => ({ ...prev, bruteforce_lockout_minutes: true }));
@@ -621,7 +669,7 @@ export default function WebSettingsPage() {
                                     finally { setSaving(prev => ({ ...prev, bruteforce_lockout_minutes: false })); }
                                 }}
                                 disabled={saving.bruteforce_lockout_minutes}
-                                className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg transition-colors disabled:opacity-50"
+                                className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
                             >
                                 {saving.bruteforce_lockout_minutes ? '...' : 'Simpan'}
                             </button>

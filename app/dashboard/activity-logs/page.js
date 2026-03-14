@@ -10,6 +10,8 @@ const LEVELS = [
     { value: 'error', label: '🔴 Error' },
 ];
 
+const LIMITS = [10, 30, 50, 100, 200, 500, 1000];
+
 const levelBadge = {
     info: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
     warn: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
@@ -36,6 +38,7 @@ export default function ActivityLogsPage() {
     const [logs, setLogs] = useState([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(50);
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -59,7 +62,7 @@ export default function ActivityLogsPage() {
         try {
             const params = new URLSearchParams();
             params.set('page', page);
-            params.set('limit', '30');
+            params.set('limit', limit);
             if (level) params.set('level', level);
             if (search) params.set('search', search);
             if (dateFrom) params.set('from', dateFrom);
@@ -80,7 +83,7 @@ export default function ActivityLogsPage() {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [page, level, search, dateFrom, dateTo]);
+    }, [page, limit, level, search, dateFrom, dateTo]);
 
     useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -145,34 +148,45 @@ export default function ActivityLogsPage() {
             </div>
 
             {/* Filters */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <form onSubmit={handleSearch} className="flex-1 flex gap-2">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
+                <div className="flex flex-col lg:flex-row gap-3">
+                    <form onSubmit={handleSearch} className="flex-1 flex gap-2 w-full lg:w-auto">
                         <input
                             type="text"
-                            placeholder="Search username, action, IP..."
+                            placeholder="Cari username, action, IP..."
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
-                            className="flex-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                         />
-                        <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
-                            Search
+                        <button type="submit" className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-all shadow-md shadow-indigo-100 dark:shadow-none active:scale-95">
+                            Cari
                         </button>
                     </form>
-                    <select
-                        value={level}
-                        onChange={(e) => { setLevel(e.target.value); setPage(1); }}
-                        className="px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                        {LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-                    </select>
-                    <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} className="px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} className="px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    {(level || search || dateFrom || dateTo) && (
-                        <button onClick={handleClearFilters} className="px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 border border-slate-200 dark:border-slate-600 rounded-lg transition-colors">
-                            Clear
-                        </button>
-                    )}
+                    <div className="flex flex-wrap gap-2 w-full lg:w-auto">
+                        <select
+                            value={limit}
+                            onChange={(e) => { setLimit(parseInt(e.target.value)); setPage(1); }}
+                            className="flex-1 lg:flex-none px-3 py-2.5 text-sm font-bold border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer"
+                        >
+                            {LIMITS.map(lim => <option key={lim} value={lim}>{lim} Logs</option>)}
+                        </select>
+                        <select
+                            value={level}
+                            onChange={(e) => { setLevel(e.target.value); setPage(1); }}
+                            className="flex-1 lg:flex-none px-3 py-2.5 text-sm font-medium border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                        >
+                            {LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                        </select>
+                        <div className="flex gap-2 w-full sm:w-auto flex-1">
+                            <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} className="flex-1 lg:w-36 px-3 py-2.5 text-sm font-medium border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all" />
+                            <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} className="flex-1 lg:w-36 px-3 py-2.5 text-sm font-medium border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all" />
+                        </div>
+                        {(level || search || dateFrom || dateTo) && (
+                            <button onClick={handleClearFilters} className="w-full sm:w-auto px-4 py-2.5 text-sm font-bold text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg transition-all active:scale-95">
+                                Reset Filters
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -183,18 +197,19 @@ export default function ActivityLogsPage() {
                 </div>
             )}
 
-            {/* Table */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="overflow-x-auto">
+            {/* Table / List Container */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                {/* Desktop View (Table) */}
+                <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
-                                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Time</th>
-                                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Level</th>
-                                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">User</th>
-                                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">IP Address</th>
-                                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Action</th>
-                                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Details</th>
+                                <th className="text-left py-3.5 px-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Time</th>
+                                <th className="text-left py-3.5 px-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Level</th>
+                                <th className="text-left py-3.5 px-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">User</th>
+                                <th className="text-left py-3.5 px-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">IP Address</th>
+                                <th className="text-left py-3.5 px-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Action</th>
+                                <th className="text-left py-3.5 px-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Details</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -202,15 +217,19 @@ export default function ActivityLogsPage() {
                                 Array.from({ length: 8 }).map((_, i) => (
                                     <tr key={i} className="border-b border-slate-50 dark:border-slate-700/50">
                                         {Array.from({ length: 6 }).map((_, j) => (
-                                            <td key={j} className="py-3 px-4"><div className="h-4 bg-slate-100 dark:bg-slate-700 rounded animate-pulse" /></td>
+                                            <td key={j} className="py-4 px-4"><div className="h-4 bg-slate-100 dark:bg-slate-700 rounded animate-pulse w-full max-w-[100px]" /></td>
                                         ))}
                                     </tr>
                                 ))
                             ) : logs.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="py-12 text-center text-slate-400 dark:text-slate-500">
-                                        <svg className="w-10 h-10 mx-auto mb-3 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                        No logs found
+                                    <td colSpan={6} className="py-20 text-center text-slate-400 dark:text-slate-500">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-full">
+                                                <svg className="w-10 h-10 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                            </div>
+                                            <p className="font-medium">Tidak ada log ditemukan</p>
+                                        </div>
                                     </td>
                                 </tr>
                             ) : logs.map((log) => {
@@ -221,41 +240,43 @@ export default function ActivityLogsPage() {
                                     <tr
                                         key={log.id}
                                         onClick={() => setExpandedId(isExpanded ? null : log.id)}
-                                        className={`border-b border-slate-50 dark:border-slate-700/50 cursor-pointer transition-colors ${isExpanded ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'}`}
+                                        className={`border-b border-slate-50 dark:border-slate-700/50 cursor-pointer transition-all ${isExpanded ? 'bg-indigo-50/70 dark:bg-indigo-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'}`}
                                     >
-                                        <td className="py-2.5 px-4 whitespace-nowrap">
-                                            <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">{formatTime(log.created_at)}</span>
+                                        <td className="py-3 px-4 whitespace-nowrap">
+                                            <span className="text-xs text-slate-500 dark:text-slate-400 font-mono font-medium">{formatTime(log.created_at)}</span>
                                         </td>
-                                        <td className="py-2.5 px-4">
-                                            <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-full ${levelBadge[log.level]}`}>
+                                        <td className="py-3 px-4">
+                                            <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${levelBadge[log.level]}`}>
                                                 <span className={`w-1.5 h-1.5 rounded-full ${levelDot[log.level]}`} />
-                                                {log.level.toUpperCase()}
+                                                {log.level}
                                             </span>
                                         </td>
-                                        <td className="py-2.5 px-4">
-                                            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{log.username || <span className="text-slate-400 italic">system</span>}</span>
+                                        <td className="py-3 px-4">
+                                            <span className="text-sm font-bold text-slate-700 dark:text-slate-100">{log.username || <span className="text-slate-400 font-normal italic">system</span>}</span>
                                         </td>
-                                        <td className="py-2.5 px-4">
+                                        <td className="py-3 px-4">
                                             <span className="text-xs font-mono text-slate-500 dark:text-slate-400">{log.ip_address || '-'}</span>
                                         </td>
-                                        <td className="py-2.5 px-4">
-                                            <span className="text-xs font-semibold font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded">{log.action}</span>
+                                        <td className="py-3 px-4">
+                                            <span className="text-[10px] font-bold font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded uppercase border border-indigo-100 dark:border-indigo-800/50">{log.action}</span>
                                         </td>
-                                        <td className="py-2.5 px-4 max-w-xs">
-                                            {details && typeof details === 'object' ? (
-                                                <div className="flex flex-wrap gap-1">
-                                                    {Object.entries(details).slice(0, isExpanded ? undefined : 2).map(([k, v]) => (
-                                                        <span key={k} className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded">
-                                                            {k}: <span className="font-medium">{String(v)}</span>
-                                                        </span>
-                                                    ))}
-                                                    {!isExpanded && Object.keys(details).length > 2 && (
-                                                        <span className="text-xs text-slate-400">+{Object.keys(details).length - 2} more</span>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <span className="text-xs text-slate-500 dark:text-slate-400 truncate block max-w-[200px]">{details || '-'}</span>
-                                            )}
+                                        <td className="py-3 px-4">
+                                            <div className="max-w-[250px]">
+                                                {details && typeof details === 'object' ? (
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {Object.entries(details).slice(0, isExpanded ? undefined : 2).map(([k, v]) => (
+                                                            <span key={k} className="text-[10px] font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200/50 dark:border-slate-600/50">
+                                                                {k}: <span className="text-slate-900 dark:text-white">{String(v)}</span>
+                                                            </span>
+                                                        ))}
+                                                        {!isExpanded && Object.keys(details).length > 2 && (
+                                                            <span className="text-[10px] font-bold text-indigo-500">+{Object.keys(details).length - 2} more</span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-slate-500 dark:text-slate-400 truncate block">{details || '-'}</span>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -264,38 +285,116 @@ export default function ActivityLogsPage() {
                     </table>
                 </div>
 
+                {/* Mobile View (Card List) */}
+                <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700/50">
+                    {loading ? (
+                        Array.from({ length: 5 }).map((_, i) => (
+                            <div key={i} className="p-4 space-y-3 animate-pulse">
+                                <div className="flex justify-between"><div className="h-3 w-20 bg-slate-100 dark:bg-slate-700 rounded" /><div className="h-3 w-16 bg-slate-100 dark:bg-slate-700 rounded" /></div>
+                                <div className="h-4 w-1/3 bg-slate-100 dark:bg-slate-700 rounded" />
+                                <div className="h-3 w-1/2 bg-slate-100 dark:bg-slate-700 rounded" />
+                            </div>
+                        ))
+                    ) : logs.length === 0 ? (
+                        <div className="py-12 text-center text-slate-400 px-6">
+                            <svg className="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            <p className="font-semibold text-sm">Tidak ada log aktivitas</p>
+                        </div>
+                    ) : logs.map((log) => {
+                        const details = tryParseJSON(log.details);
+                        const isExpanded = expandedId === log.id;
+
+                        return (
+                            <div 
+                                key={log.id} 
+                                onClick={() => setExpandedId(isExpanded ? null : log.id)}
+                                className={`p-4 transition-all active:bg-slate-50 dark:active:bg-slate-700/50 ${isExpanded ? 'bg-indigo-50/40 dark:bg-indigo-900/10' : ''}`}
+                            >
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 uppercase">
+                                            {formatTime(log.created_at)}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-bold text-slate-800 dark:text-white">
+                                                {log.username || 'System'}
+                                            </span>
+                                            {log.ip_address && (
+                                                <span className="text-[9px] font-mono text-slate-400 bg-slate-50 dark:bg-slate-900 px-1 rounded border border-slate-100 dark:border-slate-800">
+                                                    {log.ip_address}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <span className={`inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter ${levelBadge[log.level]}`}>
+                                        {log.level}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between mt-3">
+                                    <span className="text-[10px] font-black font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-1 rounded uppercase border border-indigo-100/50 dark:border-indigo-800/30">
+                                        {log.action}
+                                    </span>
+                                    <button className={`text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180 text-indigo-500' : ''}`}>
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                                    </button>
+                                </div>
+                                {isExpanded && (
+                                    <div className="mt-4 pt-4 border-t border-slate-200/50 dark:border-slate-700/50 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <div className="bg-white dark:bg-slate-900/50 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">Detail Informasi</p>
+                                            {details && typeof details === 'object' ? (
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    {Object.entries(details).map(([k, v]) => (
+                                                        <div key={k} className="flex justify-between items-start text-xs border-b border-slate-50 dark:border-slate-800/60 pb-1.5 last:border-0">
+                                                            <span className="text-slate-500 dark:text-slate-400 font-medium">{k}</span>
+                                                            <span className="text-right font-bold text-slate-800 dark:text-slate-100 break-all ml-4">{String(v)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{details || '-'}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                            Page {page} of {totalPages} ({total.toLocaleString()} records)
+                    <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-4 gap-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-700/30">
+                        <span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 order-2 sm:order-1">
+                            Halaman {page} dari {totalPages} ({total.toLocaleString()} log)
                         </span>
-                        <div className="flex gap-1">
+                        <div className="flex flex-wrap justify-center gap-1.5 order-1 sm:order-2">
                             <button
                                 onClick={() => setPage(1)}
                                 disabled={page <= 1}
-                                className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                className="px-3 py-1.5 text-[10px] font-black rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 disabled:opacity-30 transition-all uppercase tracking-tighter"
                             >
                                 First
                             </button>
                             <button
                                 onClick={() => setPage(p => Math.max(1, p - 1))}
                                 disabled={page <= 1}
-                                className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                className="px-3 py-1.5 text-[10px] font-black rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 disabled:opacity-30 transition-all"
                             >
                                 ← Prev
                             </button>
                             <button
                                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                                 disabled={page >= totalPages}
-                                className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                className="px-3 py-1.5 text-[10px] font-black rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 disabled:opacity-30 transition-all"
                             >
                                 Next →
                             </button>
                             <button
                                 onClick={() => setPage(totalPages)}
                                 disabled={page >= totalPages}
-                                className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                className="px-3 py-1.5 text-[10px] font-black rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 disabled:opacity-30 transition-all uppercase tracking-tighter"
                             >
                                 Last
                             </button>
@@ -303,6 +402,5 @@ export default function ActivityLogsPage() {
                     </div>
                 )}
             </div>
-        </div>
     );
 }

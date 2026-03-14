@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { ArrowLeft } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
@@ -220,7 +221,7 @@ export default function ManageExamPage() {
 
   const executeAutoSave = async () => {
     setSaving(true);
-    const savingToastId = toast.loading('Saving changes...');
+    const savingToastId = toast.loading('Menyimpan perubahan...');
 
     const examDetailsPromise = fetch('/api/exams', {
       method: 'PUT',
@@ -269,10 +270,10 @@ export default function ManageExamPage() {
         const detailsData = !detailsRes.ok ? await detailsRes.json() : null;
         const settingsData = !settingsRes.ok ? await settingsRes.json() : null;
         const errorMessage = (detailsData?.message || '') + ' ' + (settingsData?.message || '');
-        throw new Error(errorMessage.trim() || 'An error occurred while saving.');
+        throw new Error(errorMessage.trim() || 'Terjadi kesalahan saat menyimpan.');
       }
 
-      toast.success('All changes saved successfully.', { id: savingToastId });
+      toast.success('Semua perubahan berhasil disimpan.', { id: savingToastId });
     } catch (err) {
       toast.error(err.message, { id: savingToastId });
     } finally {
@@ -315,9 +316,16 @@ export default function ManageExamPage() {
 
   return (
     <div className="container mx-auto p-4 md:p-6">
+      <Link 
+        href="/dashboard/exams" 
+        className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg transition-all active:scale-95"
+      >
+        <ArrowLeft size={18} />
+        Kembali ke Daftar Ujian
+      </Link>
       <div className="mb-6">
-        <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100">{examName || 'Manage Exam'}</h1>
-        <p className="text-lg text-slate-500 dark:text-slate-400 mt-1">Edit exam details, settings, and questions. Configuration changes are saved automatically.</p>
+        <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100">{examName || 'Kelola Ujian'}</h1>
+        <p className="text-lg text-slate-500 dark:text-slate-400 mt-1">Atur detail ujian, pengaturan pengerjaan, dan daftar soal. Setiap perubahan disimpan secara otomatis.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -325,12 +333,12 @@ export default function ManageExamPage() {
         <div className="md:col-span-2">
           <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 space-y-6">
             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-4">
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Exam Details</h2>
-              {saving && <span className="text-sm font-semibold text-indigo-500 animate-pulse">Saving...</span>}
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Detail Ujian</h2>
+              {saving && <span className="text-sm font-semibold text-indigo-500 animate-pulse">Menyimpan...</span>}
             </div>
 
             <div>
-              <label htmlFor="examName" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Exam Name</label>
+              <label htmlFor="examName" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Ujian</label>
               <input
                 id="examName"
                 type="text"
@@ -343,7 +351,7 @@ export default function ManageExamPage() {
             </div>
 
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
+              <label htmlFor="description" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Deskripsi</label>
               <textarea
                 id="description"
                 value={description}
@@ -370,13 +378,13 @@ export default function ManageExamPage() {
               </select>
             </div>
 
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4 pt-4">Exam Settings</h2>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4 pt-4">Pengaturan Ujian</h2>
 
             <div className="space-y-4">
               {/* --- Assign Classes Section --- */}
               <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Assign to Classes</label>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Select the classes eligible to take this exam. If no class is selected, the exam will be hidden from all students.</p>
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Tugaskan ke Kelas</label>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Pilih kelas yang berhak mengikuti ujian ini. Jika tidak ada kelas yang dipilih, ujian akan disembunyikan dari semua siswa.</p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {availableClasses.map((cls) => (
                     <label key={cls.id} className="flex items-center gap-2 cursor-pointer">
@@ -390,32 +398,32 @@ export default function ManageExamPage() {
                       <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">{cls.class_name}</span>
                     </label>
                   ))}
-                  {availableClasses.length === 0 && <p className="text-xs text-red-500 dark:text-red-400 italic col-span-3">No classes found. Please create classes first.</p>}
+                  {availableClasses.length === 0 && <p className="text-xs text-red-500 dark:text-red-400 italic col-span-3">Tidak ada data kelas. Silakan buat kelas terlebih dahulu.</p>}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Timer Mode</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Metode Waktu</label>
                 <SegmentedControl
                   name="timer-mode"
                   options={[
-                    { label: 'Synchronous', value: 'sync', disabled: !isScheduled || (saving && false) },
-                    { label: 'Asynchronous', value: 'async', disabled: saving && false },
+                    { label: 'Serentak (Sinkron)', value: 'sync', disabled: !isScheduled || (saving && false) },
+                    { label: 'Mandiri (Asinkron)', value: 'async', disabled: saving && false },
                   ]}
                   value={timerMode}
                   onChange={setTimerMode}
                 />
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                   {timerMode === 'sync'
-                    ? 'All students have the same start and end time. Duration is fixed by the schedule.'
-                    : 'Each student gets a fixed duration from when they start. If a schedule is set, it acts as an availability window.'
+                    ? 'Semua siswa memiliki waktu mulai dan selesai yang sama. Durasi mengacu pada jadwal.'
+                    : 'Setiap siswa mendapatkan durasi pengerjaan tetap sejak mereka menekan tombol mulai. Jadwal bertindak sebagai jendela akses.'
                   }
                 </p>
               </div>
 
               {(timerMode === 'async' || !isScheduled) && (
                 <div>
-                  <label htmlFor="duration" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Exam Duration (minutes)</label>
+                  <label htmlFor="duration" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Durasi Ujian (menit)</label>
                   <input
                     id="duration"
                     type="number"
@@ -429,7 +437,7 @@ export default function ManageExamPage() {
               )}
 
               <div>
-                <label htmlFor="minTime" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Submission Lockout from End (minutes)</label>
+                <label htmlFor="minTime" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Batas Pengumpulan (menit terakhir)</label>
                 <input
                   id="minTime"
                   type="number"
@@ -440,12 +448,12 @@ export default function ManageExamPage() {
                   min="0"
                 />
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                  Set to 0 to disable. Disables submission in the final minutes of the exam. E.g., for a 10-minute exam, a setting of '1' means submission is disabled during the last minute.
+                  Isi 0 untuk menonaktifkan. Melarang siswa mengumpulkan jawaban di menit-menit terakhir ujian. Misal isi '1' berarti siswa tidak bisa submit di 1 menit terakhir.
                 </p>
               </div>
 
               <div>
-                <label htmlFor="maxAttempts" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Attempts</label>
+                <label htmlFor="maxAttempts" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Maksimal Percobaan</label>
                 <input
                   id="maxAttempts"
                   type="number"
@@ -456,7 +464,7 @@ export default function ManageExamPage() {
                   min="1"
                 />
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                  Maximum number of times a student can attempt this exam.
+                  Berapa kali siswa dapat mencoba mengerjakan ujian ini.
                 </p>
               </div>
             </div>
@@ -464,34 +472,34 @@ export default function ManageExamPage() {
             <div className="space-y-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-700">
               <Switch
                 id="req-safe-browser"
-                label="Use Rushless Safer"
-                description="Students must use the Rushless Safer application to take this exam."
+                label="Gunakan Rushless Safer"
+                description="Siswa wajib menggunakan aplikasi Rushless Safer untuk mengerjakan ujian ini."
                 checked={requireSafeBrowser}
                 onChange={() => setRequireSafeBrowser(!requireSafeBrowser)}
                 disabled={saving && false}
               />
               <Switch
                 id="req-seb"
-                label="Use SEB (Safe Exam Browser)"
-                description="Students must use Safe Exam Browser to take this exam."
+                label="Gunakan SEB (Safe Exam Browser)"
+                description="Siswa wajib menggunakan aplikasi Safe Exam Browser untuk mengerjakan ujian ini."
                 checked={requireSeb}
                 onChange={() => setRequireSeb(!requireSeb)}
                 disabled={saving && false}
               />
               {requireSeb && (
                 <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-b-lg">
-                  <label htmlFor="sebConfigKey" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">SEB Config Key</label>
+                  <label htmlFor="sebConfigKey" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Browser Exam Config Key</label>
                   <input
                     id="sebConfigKey"
                     type="text"
                     value={sebConfigKey}
                     onChange={(e) => setSebConfigKey(e.target.value)}
-                    placeholder="Enter X-SafeExamBrowser-ConfigKey string... (optional)"
+                    placeholder="Masukkan kode Config Key Browser Exam... (opsional)"
                     className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
                     disabled={saving && false}
                   />
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                    Validating the Config Key ensures the student hasn't altered the SEB configuration. Leave blank to only check if the browser is SEB.
+                    Validasi Config Key memastikan siswa tidak mengubah konfigurasi Browser Exam. Kosongkan jika hanya ingin cek tipe browser saja.
                   </p>
                 </div>
               )}
@@ -663,7 +671,7 @@ export default function ManageExamPage() {
 
             <div>
               <label htmlFor="startTime" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Availability Start Time (Optional)
+                Waktu Mulai Akses (Opsional)
               </label>
               <input
                 id="startTime"
@@ -677,7 +685,7 @@ export default function ManageExamPage() {
 
             <div>
               <label htmlFor="endTime" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Availability End Time (Optional)
+                Waktu Batas Akses (Opsional)
               </label>
               <input
                 id="endTime"
@@ -689,21 +697,19 @@ export default function ManageExamPage() {
               />
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
-              <Link href="/dashboard/exams" className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors">
-                &larr; Back to exams list
-              </Link>
-            </div>
+             <div className="pt-4 border-t border-slate-200 dark:border-slate-700 text-right">
+              <span className="text-xs text-slate-400 italic">Perubahan disimpan secara otomatis.</span>
+             </div>
           </div>
         </div>
 
         <div className="md:col-span-1">
           <div className="space-y-6 sticky top-24">
             <div className="p-6 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded-2xl text-center">
-              <h3 className="font-bold text-sky-800 dark:text-sky-400 text-lg">Manage Questions</h3>
-              <p className="text-sm text-sky-700 dark:text-sky-300 mt-1 mb-4">Add, edit, or import questions for this exam.</p>
+              <h3 className="font-bold text-sky-800 dark:text-sky-400 text-lg">Kelola Soal</h3>
+              <p className="text-sm text-sky-700 dark:text-sky-300 mt-1 mb-4">Tambah, edit, atau import soal untuk ujian ini.</p>
               <Link href={`/dashboard/exams/questions/${examId}`} className="inline-flex items-center justify-center w-full px-5 py-2.5 bg-sky-500 hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-700 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all shadow-md shadow-sky-200 dark:shadow-sky-900/30">
-                Go to Questions &rarr;
+                Ke Pengaturan Soal &rarr;
               </Link>
             </div>
           </div>

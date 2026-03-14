@@ -128,7 +128,12 @@ export default function Header({ user, isLoading, toggleSidebar, showToggleButto
               >
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 leading-none mb-1">{user.name || user.username}</p>
-                  <p className="text-[10px] uppercase tracking-wider font-medium text-slate-400 dark:text-slate-500">{user.roleName || ''}</p>
+                  <p className="text-[10px] uppercase tracking-wider font-medium text-slate-400 dark:text-slate-500">
+                    {user.roleName === 'student' ? 'Murid' : 
+                     user.roleName === 'teacher' ? 'Guru' : 
+                     user.roleName === 'admin' ? 'Administrator' : 
+                     (user.roleName || '')}
+                  </p>
                 </div>
 
                 <div className="relative">

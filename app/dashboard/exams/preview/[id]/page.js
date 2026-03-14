@@ -50,6 +50,11 @@ const Icons = {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
         </svg>
+    ),
+    Close: () => (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
     )
 };
 
@@ -200,33 +205,50 @@ export default function ExamPreviewPage() {
     );
 
     return (
-        <div className="min-h-screen bg-slate-50/50 pb-20 pt-16">
+        <div className="min-h-screen bg-slate-50/50 pb-20 pt-10">
             {/* Preview Banner */}
-            <div className="fixed top-0 left-0 right-0 bg-amber-500 text-white text-center py-2 z-[60] font-bold shadow-md flex items-center justify-center gap-2">
-                <Icons.Eye />
-                PREVIEW MODE - No answers will be saved
-                <button onClick={() => router.back()} className="absolute right-4 bg-white/20 hover:bg-white/30 px-3 py-1 rounded text-sm transition-colors">
-                    Close Preview
-                </button>
+            <div className="fixed top-0 left-0 right-0 bg-amber-500 text-white z-[60] shadow-md">
+                <div className="max-w-7xl mx-auto px-4 h-10 flex items-center justify-between gap-2 overflow-hidden">
+                    <div className="flex items-center gap-2 font-bold text-sm md:text-base truncate">
+                        <Icons.Eye />
+                        <span className="hidden sm:inline">PREVIEW MODE - No answers will be saved</span>
+                        <span className="sm:hidden">PREVIEW MODE</span>
+                    </div>
+                    <button 
+                        onClick={() => router.back()} 
+                        className="flex-shrink-0 bg-white/20 hover:bg-white/30 px-3 py-1 rounded text-xs md:text-sm font-bold transition-all active:scale-95 whitespace-nowrap"
+                    >
+                        Tutup Preview
+                    </button>
+                </div>
             </div>
 
-            <header className="bg-white border-b border-slate-200 sticky top-10 z-30 shadow-sm mt-1">
-                <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
+            <header className="bg-white border-b border-slate-200 sticky top-10 z-30 shadow-sm">
+                <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <button onClick={() => router.back()} className="flex-shrink-0 p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
                             <Icons.ArrowLeft />
                         </button>
-                        <div><h1 className="text-base md:text-lg font-bold text-slate-800 line-clamp-1">{examDetails?.exam_name} (Preview)</h1></div>
+                        <h1 className="text-sm md:text-lg font-bold text-slate-800 truncate">
+                            {examDetails?.exam_name} <span className="hidden sm:inline text-slate-400 font-normal">(Preview)</span>
+                        </h1>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <div className={`flex items-center gap-2 font-mono px-3 py-1.5 rounded-lg bg-slate-100 text-slate-400`}>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="flex items-center gap-2 font-mono px-2 md:px-3 py-1.5 rounded-lg bg-slate-100 text-slate-400 border border-slate-200">
                             <Icons.Clock />
-                            <span className="text-sm font-semibold tracking-wider">--:--:--</span>
+                            <span className="text-xs md:text-sm font-bold tracking-wider">--:--:--</span>
                         </div>
-                        <button onClick={() => setIsSidebarVisible(!isSidebarVisible)} className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg border border-slate-200"><Icons.Grid /></button>
+                        <button 
+                            onClick={() => setIsSidebarVisible(!isSidebarVisible)} 
+                            className="md:hidden p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-100 transition-colors"
+                        >
+                            <Icons.Grid />
+                        </button>
                     </div>
                 </div>
-                <div className="h-1 w-full bg-slate-100 md:hidden"><div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${progressPercentage}%` }}></div></div>
+                <div className="h-1 w-full bg-slate-100 md:hidden">
+                    <div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${progressPercentage}%` }}></div>
+                </div>
             </header>
 
             <div className="max-w-7xl mx-auto p-4 md:p-8">
@@ -295,6 +317,39 @@ export default function ExamPreviewPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Mobile Navigation Drawer */}
+            {isSidebarVisible && (
+                <div className="md:hidden fixed inset-0 z-[100] flex justify-end">
+                    <div 
+                        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300" 
+                        onClick={() => setIsSidebarVisible(false)}
+                    ></div>
+                    <div className="relative w-80 max-w-[85%] h-full bg-white dark:bg-slate-800 shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
+                        <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+                            <h3 className="font-bold text-slate-700 dark:text-slate-200">Navigasi Soal</h3>
+                            <button 
+                                onClick={() => setIsSidebarVisible(false)} 
+                                className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-slate-500 transition-colors"
+                            >
+                                <Icons.Close />
+                            </button>
+                        </div>
+                        <div className="p-4 overflow-y-auto flex-1">
+                            <QuestionNavigation 
+                                questions={questions} 
+                                answers={answers} 
+                                doubtful={doubtfulAnswers} 
+                                currentIndex={currentQuestionIndex} 
+                                onSelect={(idx) => {
+                                    handleSelectQuestion(idx);
+                                    setIsSidebarVisible(false);
+                                }} 
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

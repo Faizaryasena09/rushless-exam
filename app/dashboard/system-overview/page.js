@@ -595,25 +595,27 @@ export default function WebSettingsPage() {
             )}
 
             {/* Static Info Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* System Info */}
                 {system && (
                     <InfoCard icon={Icons.Server} title="System Information">
-                        <InfoRow label="Hostname" value={system.hostname} mono />
-                        <InfoRow label="Platform" value={`${system.platform} (${system.arch})`} />
-                        <InfoRow label="OS Release" value={system.release} mono />
-                        <InfoRow label="Node.js" value={system.nodeVersion} mono />
-                        <InfoRow label="PID" value={system.pid} mono />
+                        <div className="space-y-0.5">
+                            <InfoRow label="Hostname" value={system.hostname} mono />
+                            <InfoRow label="Platform" value={`${system.platform} (${system.arch})`} />
+                            <InfoRow label="OS Release" value={system.release} mono />
+                            <InfoRow label="Node.js" value={system.nodeVersion} mono />
+                            <InfoRow label="PID" value={system.pid} mono />
+                        </div>
                     </InfoCard>
                 )}
 
                 {/* Uptime */}
                 <InfoCard icon={Icons.Clock} title="Server Uptime" live={isLive}>
                     <div className="text-center py-4">
-                        <div className="text-3xl font-bold text-slate-800 dark:text-white font-mono">
+                        <div className="text-3xl font-black text-slate-800 dark:text-white font-mono tracking-tighter">
                             {formatUptime(currentUptime)}
                         </div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">System uptime</p>
+                        <p className="text-xs font-bold text-indigo-500 uppercase mt-2 tracking-widest">System uptime</p>
                     </div>
                     <div className="mt-2 pt-3 border-t border-slate-100 dark:border-slate-700">
                         <InfoRow label="Server Time" value={realtime?.serverTime ? new Date(realtime.serverTime).toLocaleString('id-ID') : '-'} />
@@ -622,12 +624,14 @@ export default function WebSettingsPage() {
 
                 {/* Database Info */}
                 {database && (
-                    <InfoCard icon={Icons.Database} title="Database">
-                        <InfoRow label="MySQL Version" value={database.version} mono />
-                        <InfoRow label="Active Connections" value={database.connections} />
-                        <InfoRow label="Total Queries" value={parseInt(database.totalQueries).toLocaleString()} />
-                        <InfoRow label="Slow Queries" value={database.slowQueries} />
-                        <InfoRow label="DB Size" value={`${database.totalSizeKB} KB`} mono />
+                    <InfoCard icon={Icons.Database} title="Database Status">
+                        <div className="space-y-0.5">
+                            <InfoRow label="MySQL Version" value={database.version} mono />
+                            <InfoRow label="Connections" value={database.connections} />
+                            <InfoRow label="Total Queries" value={parseInt(database.totalQueries).toLocaleString()} />
+                            <InfoRow label="Slow Queries" value={database.slowQueries} />
+                            <InfoRow label="Storage" value={`${database.totalSizeKB} KB`} mono />
+                        </div>
                     </InfoCard>
                 )}
             </div>
@@ -635,34 +639,31 @@ export default function WebSettingsPage() {
             {/* Network Interfaces */}
             {system?.network && system.network.length > 0 && (
                 <InfoCard icon={Icons.Network} title={`Network Interfaces (${[...new Set(system.network.map(n => n.adapter))].length} adapters)`}>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                    {/* Desktop View */}
+                    <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full text-xs">
                             <thead>
                                 <tr className="border-b border-slate-200 dark:border-slate-700">
-                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Adapter</th>
-                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Address</th>
-                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Family</th>
-                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">MAC</th>
-                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Netmask</th>
-                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">CIDR</th>
-                                    <th className="text-center py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Scope</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 font-bold uppercase tracking-wider">Adapter</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 font-bold uppercase tracking-wider">Address</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 font-bold uppercase tracking-wider">Family</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 font-bold uppercase tracking-wider">MAC</th>
+                                    <th className="text-center py-2 px-3 text-slate-500 font-bold uppercase tracking-wider">Scope</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {system.network.map((iface, idx) => (
-                                    <tr key={idx} className={`border-b border-slate-50 dark:border-slate-700/50 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/50 dark:bg-slate-700/30'}`}>
-                                        <td className="py-2 px-3 font-mono text-slate-700 dark:text-slate-300 font-medium text-xs">{iface.adapter}</td>
-                                        <td className="py-2 px-3 font-mono text-indigo-600 dark:text-indigo-400 text-xs">{iface.address}</td>
-                                        <td className="py-2 px-3">
-                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${iface.family === 'IPv4' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'}`}>
+                                    <tr key={idx} className={`border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors`}>
+                                        <td className="py-2.5 px-3 font-mono text-slate-700 dark:text-slate-300 font-bold">{iface.adapter}</td>
+                                        <td className="py-2.5 px-3 font-mono text-indigo-600 dark:text-indigo-400 font-medium">{iface.address}</td>
+                                        <td className="py-2.5 px-3">
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${iface.family === 'IPv4' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'}`}>
                                                 {iface.family}
                                             </span>
                                         </td>
-                                        <td className="py-2 px-3 font-mono text-slate-500 dark:text-slate-400 text-xs">{iface.mac}</td>
-                                        <td className="py-2 px-3 font-mono text-slate-500 dark:text-slate-400 text-xs">{iface.netmask}</td>
-                                        <td className="py-2 px-3 font-mono text-slate-500 dark:text-slate-400 text-xs">{iface.cidr}</td>
-                                        <td className="py-2 px-3 text-center">
-                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${iface.internal ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'}`}>
+                                        <td className="py-2.5 px-3 font-mono text-slate-500 text-[10px]">{iface.mac}</td>
+                                        <td className="py-2.5 px-3 text-center">
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${iface.internal ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300' : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'}`}>
                                                 {iface.internal ? 'Internal' : 'External'}
                                             </span>
                                         </td>
@@ -671,68 +672,111 @@ export default function WebSettingsPage() {
                             </tbody>
                         </table>
                     </div>
+                    {/* Mobile View */}
+                    <div className="md:hidden space-y-3">
+                        {system.network.map((iface, idx) => (
+                            <div key={idx} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="text-xs font-bold text-slate-800 dark:text-white font-mono">{iface.adapter}</span>
+                                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${iface.family === 'IPv4' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'}`}>
+                                        {iface.family}
+                                    </span>
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-[10px]">
+                                        <span className="text-slate-400">Address:</span>
+                                        <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold">{iface.address}</span>
+                                    </div>
+                                    <div className="flex justify-between text-[10px]">
+                                        <span className="text-slate-400">MAC:</span>
+                                        <span className="font-mono text-slate-500">{iface.mac}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                                        <span className="text-[10px] text-slate-400">Scope:</span>
+                                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${iface.internal ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300' : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'}`}>
+                                            {iface.internal ? 'Internal' : 'External'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </InfoCard>
             )}
-
-            {/* Maintenance */}
-            <InfoCard icon={Icons.Shield} title="Maintenance">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <p className="text-sm text-slate-500 dark:text-slate-400 flex-1">
-                        Jalankan database setup/migration untuk memastikan semua tabel dan kolom terbaru ada.
-                    </p>
-                    <button
-                        onClick={handleRunSetup}
-                        disabled={setupLoading}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:bg-indigo-300 dark:disabled:bg-indigo-800 whitespace-nowrap"
-                    >
-                        <Icons.Play />
-                        {setupLoading ? 'Running...' : 'Run Database Setup'}
-                    </button>
-                </div>
-                {setupMessage && (
-                    <p className={`text-sm p-3 rounded-lg mt-3 ${setupMessage.startsWith('✅') ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
-                        {setupMessage}
-                    </p>
-                )}
-            </InfoCard>
 
             {/* Database Tables */}
             {database?.tables && database.tables.length > 0 && (
                 <InfoCard icon={Icons.Database} title={`Database Tables (${database.tables.length})`}>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                    {/* Desktop View */}
+                    <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full text-xs">
                             <thead>
                                 <tr className="border-b border-slate-200 dark:border-slate-700">
-                                    <th className="text-left py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Table</th>
-                                    <th className="text-right py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Rows</th>
-                                    <th className="text-right py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Data (KB)</th>
-                                    <th className="text-right py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Index (KB)</th>
-                                    <th className="text-right py-2 px-3 text-slate-500 dark:text-slate-400 font-medium">Engine</th>
+                                    <th className="text-left py-2 px-3 text-slate-500 font-bold uppercase tracking-wider">Table Name</th>
+                                    <th className="text-right py-2 px-3 text-slate-500 font-bold uppercase tracking-wider">Rows</th>
+                                    <th className="text-right py-2 px-3 text-slate-500 font-bold uppercase tracking-wider">Data (KB)</th>
+                                    <th className="text-right py-2 px-3 text-slate-500 font-bold uppercase tracking-wider">Index (KB)</th>
+                                    <th className="text-right py-2 px-3 text-slate-500 font-bold uppercase tracking-wider">Engine</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {database.tables.map((table, idx) => (
-                                    <tr key={table.tableName} className={`border-b border-slate-50 dark:border-slate-700/50 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/50 dark:bg-slate-700/30'}`}>
-                                        <td className="py-2 px-3 font-mono text-slate-700 dark:text-slate-300">{table.tableName}</td>
-                                        <td className="py-2 px-3 text-right text-slate-600 dark:text-slate-400">{(table.rowCount || 0).toLocaleString()}</td>
-                                        <td className="py-2 px-3 text-right font-mono text-slate-600 dark:text-slate-400">{table.dataSizeKB}</td>
-                                        <td className="py-2 px-3 text-right font-mono text-slate-600 dark:text-slate-400">{table.indexSizeKB}</td>
-                                        <td className="py-2 px-3 text-right text-slate-500 dark:text-slate-400">{table.engine}</td>
+                                    <tr key={table.tableName} className={`border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors`}>
+                                        <td className="py-2.5 px-3 font-mono font-bold text-slate-700 dark:text-slate-300">{table.tableName}</td>
+                                        <td className="py-2.5 px-3 text-right font-bold text-indigo-600 dark:text-indigo-400">{(table.rowCount || 0).toLocaleString()}</td>
+                                        <td className="py-2.5 px-3 text-right font-mono text-slate-500">{table.dataSizeKB}</td>
+                                        <td className="py-2.5 px-3 text-right font-mono text-slate-500">{table.indexSizeKB}</td>
+                                        <td className="py-2.5 px-3 text-right text-slate-400 text-[10px] uppercase font-bold">{table.engine}</td>
                                     </tr>
                                 ))}
                             </tbody>
                             <tfoot>
-                                <tr className="border-t-2 border-slate-200 dark:border-slate-600 font-semibold">
-                                    <td className="py-2 px-3 text-slate-700 dark:text-slate-300">Total</td>
-                                    <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
+                                <tr className="border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 font-bold">
+                                    <td className="py-3 px-3 text-slate-800 dark:text-white uppercase tracking-widest text-[10px]">Grand Total</td>
+                                    <td className="py-3 px-3 text-right text-indigo-700 dark:text-indigo-300">
                                         {database.tables.reduce((s, t) => s + (t.rowCount || 0), 0).toLocaleString()}
                                     </td>
-                                    <td className="py-2 px-3 text-right font-mono text-slate-700 dark:text-slate-300">{database.totalSizeKB}</td>
-                                    <td className="py-2 px-3" />
-                                    <td className="py-2 px-3" />
+                                    <td className="py-3 px-3 text-right font-mono text-slate-600 dark:text-slate-400" colSpan={3}>
+                                        {database.totalSizeKB} KB Total Storage
+                                    </td>
                                 </tr>
                             </tfoot>
                         </table>
+                    </div>
+                    {/* Mobile View */}
+                    <div className="md:hidden space-y-4">
+                        {database.tables.map((table, idx) => (
+                            <div key={table.tableName} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
+                                <div className="flex justify-between items-center mb-3">
+                                    <span className="text-xs font-black text-slate-800 dark:text-white font-mono">{table.tableName}</span>
+                                    <span className="text-[9px] font-black bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded uppercase">{table.engine}</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 text-center border-t border-slate-200 dark:border-slate-800 pt-3">
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] text-slate-400 uppercase font-bold">Rows</span>
+                                        <span className="text-sm font-black text-slate-800 dark:text-white">{(table.rowCount || 0).toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] text-slate-400 uppercase font-bold">Data</span>
+                                        <span className="text-xs font-bold text-slate-500 font-mono">{table.dataSizeKB}K</span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] text-slate-400 uppercase font-bold">Index</span>
+                                        <span className="text-xs font-bold text-slate-500 font-mono">{table.indexSizeKB}K</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        <div className="mt-4 p-4 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-200 dark:shadow-none">
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="text-[10px] uppercase font-black opacity-80 tracking-widest">Total Database Rows</span>
+                                <span className="text-xl font-black">{database.tables.reduce((s, t) => s + (t.rowCount || 0), 0).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center opacity-90">
+                                <span className="text-[10px] uppercase font-black tracking-widest">Total Storage Size</span>
+                                <span className="text-sm font-bold font-mono">{database.totalSizeKB} KB</span>
+                            </div>
+                        </div>
                     </div>
                 </InfoCard>
             )}

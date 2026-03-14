@@ -235,7 +235,8 @@ export default function ControlPage() {
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50/80">
                         <tr>
@@ -267,7 +268,7 @@ export default function ControlPage() {
                                 </td>
                                 <td className="px-6 py-4">
                                     {s.current_exam ? (
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-1.5 single-line-timer">
                                             <div className="text-sm">
                                                 <span className="font-bold text-indigo-600">Taking Exam: </span>
                                                 <span className="text-slate-700">{s.current_exam}</span>
@@ -319,12 +320,93 @@ export default function ControlPage() {
                                 </td>
                             </tr>
                         ))}
-                        {filteredStudents.length === 0 && (
-                            <tr><td colSpan="4" className="px-6 py-8 text-center text-slate-500">No students found.</td></tr>
-                        )}
                     </tbody>
                 </table>
             </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+                {filteredStudents.map(s => (
+                    <div key={s.id} className={`bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4 ${s.is_online ? 'ring-1 ring-indigo-100 bg-indigo-50/5' : ''}`}>
+                        <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-3">
+                                <div className={`h-2.5 w-2.5 rounded-full ${s.is_online ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-slate-900">{s.name || s.username}</h3>
+                                    <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">{s.class_name}</p>
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${s.is_online ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+                                    {s.is_online ? 'Online' : 'Offline'}
+                                </span>
+                                {s.is_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 uppercase">Locked</span>}
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
+                            {s.current_exam ? (
+                                <div className="space-y-2">
+                                    <p className="text-xs font-semibold text-slate-700 truncate">
+                                        <span className="text-indigo-600">Exam: </span>{s.current_exam}
+                                    </p>
+                                    <div className="flex items-center justify-between">
+                                        {s.seconds_left !== null && <StudentTimer secondsLeft={s.seconds_left} />}
+                                        <span className="text-[10px] text-slate-400">
+                                            Aktif: {s.last_activity_seconds_ago > 3600 ? '> 1j' : `${Math.floor(s.last_activity_seconds_ago / 60)}m`} lalu
+                                        </span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-slate-400 italic">Tidak ada ujian aktif</span>
+                                    <span className="text-[10px] text-slate-400">
+                                        Aktif: {s.last_activity_seconds_ago > 3600 ? '> 1j' : `${Math.floor(s.last_activity_seconds_ago / 60)}m`} lalu
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                            <button onClick={() => handleAction('lock_login', { userId: s.id })}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all ${s.is_locked ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-slate-50 text-slate-600 border border-slate-100'}`}>
+                                {s.is_locked ? <Icons.Lock /> : <Icons.Unlock />}
+                                <span className="text-[10px] font-bold uppercase">{s.is_locked ? 'Unlock' : 'Lock'}</span>
+                            </button>
+                            <button onClick={() => handleAction('force_logout', { userId: s.id })}
+                                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-50 text-slate-600 border border-slate-100 rounded-xl hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all">
+                                <Icons.Logout />
+                                <span className="text-[10px] font-bold uppercase">Logout</span>
+                            </button>
+                            {s.current_exam && (
+                                <div className="grid grid-cols-3 gap-2 w-full mt-2">
+                                    <button onClick={() => setLogStudent(s)}
+                                        className="flex flex-col items-center justify-center gap-1.5 py-3 bg-violet-50 text-violet-600 border border-violet-100 rounded-xl">
+                                        <Icons.Log />
+                                        <span className="text-[9px] font-black uppercase">Logs</span>
+                                    </button>
+                                    <button onClick={() => handleAddTime(s.id, s.attempt_id)}
+                                        className="flex flex-col items-center justify-center gap-1.5 py-3 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl">
+                                        <Icons.Clock />
+                                        <span className="text-[9px] font-black uppercase">+ Waktu</span>
+                                    </button>
+                                    <button onClick={() => handleAction('reset_exam', { userId: s.id, attemptId: s.attempt_id })}
+                                        className="flex flex-col items-center justify-center gap-1.5 py-3 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl">
+                                        <Icons.Stop />
+                                        <span className="text-[9px] font-black uppercase">Reset</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {filteredStudents.length === 0 && (
+                <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
+                    <p className="text-slate-400 text-sm font-medium italic">Tidak ada siswa yang ditemukan.</p>
+                </div>
+            )}
 
             <style jsx global>{`
                 @keyframes slide-in-right {

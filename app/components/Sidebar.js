@@ -89,13 +89,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   }, []);
 
   const allNavLinks = [
-    { href: '/dashboard', label: t('nav_dashboard'), icon: Icons.Dashboard, roles: ['admin', 'teacher', 'students'] },
+    { href: '/dashboard', label: t('nav_dashboard'), icon: Icons.Dashboard, roles: ['admin', 'teacher', 'student'] },
     { href: '/dashboard/users', label: t('nav_manage_users'), icon: Icons.Users, roles: ['admin'] },
     { href: '/dashboard/teachers-assignments', label: t('nav_teacher_assignments'), icon: Icons.TeacherClasses, roles: ['admin'] },
     { href: '/dashboard/control', label: t('nav_exam_control'), icon: Icons.Control, roles: ['admin', 'teacher'] },
     { href: '/dashboard/classes', label: t('nav_manage_classes'), icon: Icons.Classes, roles: ['admin'] },
     { href: '/dashboard/subjects', label: t('nav_manage_subjects'), icon: Icons.Subjects, roles: ['admin'] },
-    { href: '/dashboard/exams', label: t('nav_manage_exams'), icon: Icons.Exams, roles: ['admin', 'teacher', 'students'] },
+    { href: '/dashboard/exams', label: t('nav_manage_exams'), icon: Icons.Exams, roles: ['admin', 'teacher', 'student'] },
     { href: '/dashboard/web-settings', label: t('nav_admin_tools'), icon: Icons.Settings, roles: ['admin'] },
   ];
 
@@ -170,9 +170,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         </nav>
 
         {/* Footer Sidebar */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-700">
-          <p className="text-xs text-center text-slate-400 dark:text-slate-500">
-            v1.0.0 Dashboard
+        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700">
+          <p className="text-[10px] text-center text-slate-400 dark:text-slate-600 font-medium">
+            &copy; {new Date().getFullYear()} {branding?.site_name?.replace(/<[^>]*>?/gm, '') || 'Rushless Exam'}
           </p>
         </div>
       </aside>

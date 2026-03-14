@@ -67,6 +67,16 @@ const Icons = {
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
     </svg>
+  ),
+  XCircle: () => (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  CheckCircleSmall: () => (
+    <svg className="w-3 h-3 text-emerald-600 dark:text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+    </svg>
   )
 };
 
@@ -921,52 +931,90 @@ export default function ExamTakingPage() {
                       </button>
                     </div>
                     <div className="prose prose-slate dark:prose-invert max-w-none mb-8">
-                      <p className="text-lg md:text-xl font-medium text-slate-800 dark:text-slate-100 leading-relaxed" dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }} />
+                      <div 
+                        className="text-lg md:text-xl font-medium text-slate-800 dark:text-slate-100 leading-relaxed overflow-x-auto custom-content-wrapper" 
+                        dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }} 
+                      />
                     </div>
                     <div className="space-y-3">
                       {currentQuestion.options && currentQuestion.options.map((option, idx) => {
                         const optionLabel = String.fromCharCode(65 + idx);
                         const isSelected = answers[currentQuestion.id] === option.originalKey;
                         return (
-                          <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 dark:border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
-                            <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-300 group-hover:bg-slate-200 dark:group-hover:bg-slate-500'}`}>{optionLabel}</div>
-                            <span className={`text-base font-medium ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-700 dark:text-slate-300'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
+                          <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 dark:border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
+                            <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-300 group-hover:bg-indigo-600 group-hover:text-white'}`}>{optionLabel}</div>
+                            <div className="overflow-x-auto flex-1 custom-content-wrapper">
+                                <span className={`text-base font-medium ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-700 dark:text-slate-300 group-hover:text-indigo-900 dark:group-hover:text-white'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
+                            </div>
                             {isSelected && (<div className="absolute right-4 text-indigo-600 dark:text-indigo-400"><Icons.CheckCircle /></div>)}
                           </div>
                         );
                       })}
                     </div>
+
+                    <style jsx global>{`
+                        .custom-content-wrapper img {
+                            max-width: 100% !important;
+                            height: auto !important;
+                            border-radius: 12px;
+                            margin: 1rem 0;
+                        }
+                        .custom-content-wrapper table {
+                            width: 100% !important;
+                            border-collapse: collapse !important;
+                            margin: 1rem 0 !important;
+                            min-width: 300px;
+                        }
+                        .custom-content-wrapper table td, 
+                        .custom-content-wrapper table th {
+                            border: 1px solid #e2e8f0;
+                            padding: 8px 12px;
+                            text-align: left;
+                        }
+                        .dark .custom-content-wrapper table td, 
+                        .dark .custom-content-wrapper table th {
+                            border-color: #334155;
+                        }
+                        .custom-content-wrapper p {
+                            margin-bottom: 0.5rem;
+                        }
+                        .custom-content-wrapper blockquote {
+                            border-left: 4px solid #6366f1;
+                            padding-left: 1rem;
+                            font-style: italic;
+                            color: #64748b;
+                        `}</style>
                   </div>
-                  <div className="bg-slate-50 dark:bg-slate-800/50 p-4 md:p-6 border-t border-slate-200 dark:border-slate-700 flex flex-col-reverse md:flex-row justify-between items-center gap-4">
-                    <button onClick={() => handleClearAnswer(currentQuestion.id)} disabled={!answers[currentQuestion.id]} className={`text-sm font-medium flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${!answers[currentQuestion.id] ? 'opacity-0 pointer-events-none' : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'}`}>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 px-2 md:px-8 py-5 md:py-8 border-t border-slate-200 dark:border-slate-700 flex flex-col-reverse md:flex-row justify-between items-center gap-4">
+                    <button onClick={() => handleClearAnswer(currentQuestion.id)} disabled={!answers[currentQuestion.id]} className={`text-[10px] md:text-sm font-black flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${!answers[currentQuestion.id] ? 'opacity-0 pointer-events-none' : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95'}`}>
                       <Icons.Trash />
-                      Hapus Jawaban
+                      Hapus <span className="hidden sm:inline">Jawaban</span>
                     </button>
-                    <div className="flex w-full md:w-auto gap-3">
-                      <button onClick={handlePrevQuestion} disabled={currentQuestionIndex === 0} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                    <div className="flex w-full md:w-auto gap-2">
+                      <button onClick={handlePrevQuestion} disabled={currentQuestionIndex === 0} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 md:px-6 py-3.5 text-xs md:text-sm font-black text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95">
                         <Icons.ChevronLeft />
-                        Sebelumnya
+                        Prev
                       </button>
                       {currentQuestionIndex === questions.length - 1 ? (
-                        <div className="relative">
-                          <button onClick={handleFinishRequest} disabled={isSubmitDisabled} title={submitTitle} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white rounded-xl active:scale-95 transition-all shadow-md disabled:cursor-not-allowed ${
+                        <div className="relative flex-[2] md:flex-none">
+                          <button onClick={handleFinishRequest} disabled={isSubmitDisabled} title={submitTitle} className={`w-full flex items-center justify-center gap-2 px-4 md:px-8 py-3.5 text-xs md:text-sm font-black text-white rounded-xl active:scale-95 transition-all shadow-xl disabled:cursor-not-allowed ${
                             requireAllAnswered && !allAnswered
                               ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 shadow-none'
-                              : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100 dark:shadow-emerald-900/30 disabled:bg-emerald-300 dark:disabled:bg-emerald-800'
+                              : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100 dark:shadow-none disabled:bg-emerald-300 dark:disabled:bg-emerald-800'
                           }`}>
-                            <Icons.CheckCircle />
+                            <Icons.CheckCircleSmall />
                             {requireAllAnswered && !allAnswered ? (
-                              <span>Jawab Semua ({Object.keys(answers).length}/{questions.length})</span>
+                                <span>Jawab ({Object.keys(answers).length})</span>
                             ) : isSubmitDisabled && minTimeLockoutSeconds > 0 && timeLeft !== null ? (
-                              <span>Selesai Ujian ({formatTime(timeLeft - minTimeLockoutSeconds)})</span>
+                                <span>({formatTime(timeLeft - minTimeLockoutSeconds)})</span>
                             ) : (
-                              <span>Selesai Ujian</span>
+                                <span>Selesai</span>
                             )}
                           </button>
                         </div>
                       ) : (
-                        <button onClick={handleNextQuestion} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all shadow-md shadow-indigo-100 dark:shadow-indigo-900/30">
-                          Selanjutnya
+                        <button onClick={handleNextQuestion} className="flex-[2] md:flex-none flex items-center justify-center gap-2 px-4 md:px-8 py-3.5 text-xs md:text-sm font-black text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 dark:shadow-none text-center">
+                          Next
                           <Icons.ChevronRight />
                         </button>
                       )}
@@ -984,31 +1032,88 @@ export default function ExamTakingPage() {
         </div>
       </div>
       {isSidebarVisible && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setIsSidebarVisible(false)}></div>
-          <div className="absolute right-0 top-0 h-full w-80 bg-white dark:bg-slate-800 shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-700/50">
-              <h3 className="font-bold text-slate-800 dark:text-white">Daftar Soal</h3>
-              <button onClick={() => setIsSidebarVisible(false)} className="p-2 bg-white dark:bg-slate-600 rounded-full text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white shadow-sm border border-slate-200 dark:border-slate-500"><Icons.ChevronRight /></button>
+        <div className="fixed inset-0 z-50 md:hidden overflow-hidden">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-300" onClick={() => setIsSidebarVisible(false)}></div>
+          <div className="absolute right-0 top-0 h-full w-[85%] sm:w-80 bg-white dark:bg-slate-900 shadow-2xl transform transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] flex flex-col animate-in slide-in-from-right">
+            
+            {/* Drawer Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 sticky top-0 z-10">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <Icons.Grid />
+                  Daftar Soal
+                </h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Ujian: {examDetails?.exam_name}</p>
+              </div>
+              <button 
+                onClick={() => setIsSidebarVisible(false)} 
+                className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all active:scale-90 shadow-sm border border-slate-100 dark:border-slate-800"
+              >
+                <Icons.XCircle />
+              </button>
             </div>
-            <div className="p-4 overflow-y-auto flex-1">
-              <div className="grid grid-cols-5 gap-2">
+
+            {/* Stats Summary */}
+            <div className="px-6 py-5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+               <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                    <div className="text-sm font-black text-emerald-600">{Object.keys(answers).length}</div>
+                    <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Dijawab</div>
+                  </div>
+                  <div className="text-center p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                    <div className="text-sm font-black text-amber-600">{Object.keys(doubtfulAnswers).length}</div>
+                    <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Ragu</div>
+                  </div>
+                  <div className="text-center p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                    <div className="text-sm font-black text-slate-500">{questions.length - Object.keys(answers).length}</div>
+                    <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Belum</div>
+                  </div>
+               </div>
+            </div>
+
+            {/* Question Grid */}
+            <div className="p-6 overflow-y-auto flex-1 bg-white dark:bg-slate-900 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 pb-8">
                 {questions.map((q, index) => {
                   const isAnswered = answers[q.id] !== undefined;
                   const isDoubtful = doubtfulAnswers[q.id];
                   const isActive = index === currentQuestionIndex;
-                  let buttonClass = 'h-10 rounded-lg text-sm font-bold transition-all border ';
-                  if (isActive) buttonClass += 'bg-indigo-600 text-white border-indigo-600';
-                  else if (isDoubtful) buttonClass += 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-700';
-                  else if (isAnswered) buttonClass += 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400 border-emerald-200 dark:border-emerald-700';
-                  else buttonClass += 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600';
+                  
+                  let buttonClass = 'h-12 rounded-2xl text-sm font-black transition-all border-2 relative active:scale-90 flex items-center justify-center ';
+                  
+                  if (isActive) {
+                    buttonClass += 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200 dark:shadow-none ring-4 ring-indigo-500/10 drop-shadow-md';
+                  } else if (isDoubtful) {
+                    buttonClass += 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/50 hover:bg-amber-100';
+                  } else if (isAnswered) {
+                    buttonClass += 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-100';
+                  } else {
+                    buttonClass += 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-600 hover:text-indigo-600';
+                  }
+                  
                   return (
-                    <button key={q.id} onClick={() => { handleSelectQuestion(index); setIsSidebarVisible(false); }} className={buttonClass}>
+                    <button 
+                      key={q.id} 
+                      onClick={() => { handleSelectQuestion(index); setIsSidebarVisible(false); }} 
+                      className={buttonClass}
+                    >
                       {index + 1}
+                      {isDoubtful && <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full border border-white dark:border-slate-900 animate-pulse"></span>}
+                      {isAnswered && !isDoubtful && <span className="absolute bottom-1 right-1"><Icons.CheckCircleSmall /></span>}
                     </button>
                   );
                 })}
               </div>
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
+               <button 
+                  onClick={() => setIsSidebarVisible(false)}
+                  className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black rounded-2xl shadow-xl hover:opacity-90 active:scale-[0.98] transition-all uppercase tracking-widest text-xs"
+               >
+                  Tutup Panel
+               </button>
             </div>
           </div>
         </div>
