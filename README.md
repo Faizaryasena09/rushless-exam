@@ -51,6 +51,29 @@ Designed for educational institutions to conduct exams with integrity and ease.
 
 5.  Open [http://localhost:3000](http://localhost:3000) to view the application.
 
+## 🐳 Docker Setup
+
+You can also run the entire stack (App + MySQL) using Docker Compose:
+
+1.  **Ensure Docker and Docker Compose are installed.**
+2.  **Run the following command:**
+    ```bash
+    docker-compose up -d
+    ```
+3.  The application will be available at [http://localhost:3000](http://localhost:3000).
+4.  The MySQL database will be available at `localhost:3306` with credentials:
+    -   **User**: `root`
+    -   **Password**: `root`
+    -   **Database**: `RUSHLESSEXAM`
+
+## 🏗️ CI/CD with Jenkins
+
+A `Jenkinsfile` is included in the root directory to support automated CI/CD pipelines. The pipeline includes stages for:
+-   **Linting**: Ensuring code quality.
+-   **Building**: Creating the production Docker image.
+-   **Deploying**: Automatically starting the services with Docker Compose.
+-   **Verification**: Health check of the deployed application.
+
 ## 📄 License & Usage
 
 **Copyright (c) 2026 Faiz Resta Aryasena**

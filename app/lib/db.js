@@ -1,4 +1,4 @@
-import mysql from 'mysql2/promise';
+import mysql from "mysql2/promise";
 
 const dbConfig = {
   host: process.env.DB_HOST,
@@ -7,7 +7,7 @@ const dbConfig = {
   database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
 };
 
 const pool = mysql.createPool(dbConfig);
@@ -27,30 +27,46 @@ export async function query({ query, values = [] }) {
   }
 }
 
-// Function to execute a transaction
-export async function transaction(callback) {
-  const connection = await pool.getConnection();
-  await connection.beginTransaction();
+// Function to execute a transaction with automatic deadlock retry
+export async function transaction(callback, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
 
-  try {
-    // The callback will receive a special query function that uses the transaction's connection
-    const transactionQuery = async ({ query, values = [] }) => {
-      const [results] = await connection.execute(query, values);
-      return results;
-    };
+    try {
+      const transactionQuery = async ({ query, values = [] }) => {
+        const [results] = await connection.execute(query, values);
+        return results;
+      };
 
-    const result = await callback(transactionQuery);
-    await connection.commit();
-    return result;
-  } catch (error) {
-    await connection.rollback();
-    // Re-throw the error to be handled by the calling function
-    throw new Error(error.message);
-  } finally {
-    connection.release();
+      const result = await callback(transactionQuery);
+      await connection.commit();
+      return result;
+    } catch (error) {
+      await connection.rollback();
+
+      // Check for Deadlock (ER_LOCK_DEADLOCK: 1213)
+      const isDeadlock =
+        error.message.includes("Deadlock") ||
+        error.code === "ER_LOCK_DEADLOCK" ||
+        error.errno === 1213;
+
+      if (isDeadlock && i < retries - 1) {
+        // Random backoff to desynchronize retrying threads
+        const delay = Math.floor(Math.random() * 500) + i * 500;
+        console.warn(
+          `[DB] Deadlock detected. Retrying transaction (Attempt ${i + 2}/${retries}) in ${delay}ms...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+
+      throw new Error(error.message);
+    } finally {
+      connection.release();
+    }
   }
 }
-
 
 // Special function for the one-time setup
 export async function setupDatabase() {
@@ -64,7 +80,9 @@ export async function setupDatabase() {
     });
 
     // 2. Create the database if it doesn't exist
-    await serverConnection.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\``);
+    await serverConnection.query(
+      `CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\``,
+    );
     console.log(`Database ${dbConfig.database} created or already exists.`);
 
     // Close server connection
@@ -98,16 +116,21 @@ export async function setupDatabase() {
     console.log('Table "rhs_users" created or already exists.');
 
     // Check if any user exists, if not create default admin
-    const [users] = await connection.query('SELECT COUNT(*) as count FROM rhs_users');
+    const [users] = await connection.query(
+      "SELECT COUNT(*) as count FROM rhs_users",
+    );
     if (users[0].count === 0) {
       // Password is 'admin123' hashed with bcrypt
-      const hashedPassword = '$2b$10$uAeAjfWBI/nzPRFnDY5PFFEMxOpVNG';
+      const hashedPassword = "$2b$10$uAeAjfWBI/nzPRFnDY5PFFEMxOpVNG";
 
-      await connection.query(`
+      await connection.query(
+        `
           INSERT INTO rhs_users (username, password, role) 
           VALUES ('admin', ?, 'admin')
-      `, [hashedPassword]);
-      console.log('Default admin user created: admin / admin123');
+      `,
+        [hashedPassword],
+      );
+      console.log("Default admin user created: admin / admin123");
     }
 
     // Create the 'rhs_exams' table
@@ -154,7 +177,7 @@ export async function setupDatabase() {
       console.log("Column 'require_safe_browser' added to rhs_exam_settings");
     } catch (err) {
       // Ignore error if column already exists (Error 1060: Duplicate column name)
-      if (err.code !== 'ER_DUP_FIELDNAME') {
+      if (err.code !== "ER_DUP_FIELDNAME") {
         console.log("Note: " + err.message);
       }
     }
@@ -165,9 +188,11 @@ export async function setupDatabase() {
             ADD COLUMN require_seb BOOLEAN DEFAULT FALSE,
             ADD COLUMN seb_config_key VARCHAR(255);
         `);
-      console.log("Columns 'require_seb' and 'seb_config_key' added to rhs_exam_settings");
+      console.log(
+        "Columns 'require_seb' and 'seb_config_key' added to rhs_exam_settings",
+      );
     } catch (err) {
-      if (err.code !== 'ER_DUP_FIELDNAME') {
+      if (err.code !== "ER_DUP_FIELDNAME") {
         console.log("Note: " + err.message);
       }
     }
@@ -182,9 +207,11 @@ export async function setupDatabase() {
             ADD COLUMN show_result BOOLEAN DEFAULT FALSE,
             ADD COLUMN show_analysis BOOLEAN DEFAULT FALSE;
         `);
-      console.log("Columns instructions and results added to rhs_exam_settings");
+      console.log(
+        "Columns instructions and results added to rhs_exam_settings",
+      );
     } catch (err) {
-      if (err.code !== 'ER_DUP_FIELDNAME') {
+      if (err.code !== "ER_DUP_FIELDNAME") {
         console.log("Note: " + err.message);
       }
     }
@@ -212,7 +239,7 @@ export async function setupDatabase() {
         `);
       console.log("Column 'sort_order' added to rhs_exam_questions");
     } catch (err) {
-      if (err.code !== 'ER_DUP_FIELDNAME') {
+      if (err.code !== "ER_DUP_FIELDNAME") {
         console.log("Note: " + err.message);
       }
     }
@@ -300,52 +327,62 @@ export async function setupDatabase() {
 
     // Migration: Add brute force columns to rhs_users
     try {
-      await connection.query(`ALTER TABLE rhs_users ADD COLUMN failed_login_attempts INT DEFAULT 0`);
+      await connection.query(
+        `ALTER TABLE rhs_users ADD COLUMN failed_login_attempts INT DEFAULT 0`,
+      );
       console.log("Column 'failed_login_attempts' added to rhs_users");
     } catch (err) {
-      if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
+      if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
     }
     try {
-      await connection.query(`ALTER TABLE rhs_users ADD COLUMN locked_until TIMESTAMP NULL DEFAULT NULL`);
+      await connection.query(
+        `ALTER TABLE rhs_users ADD COLUMN locked_until TIMESTAMP NULL DEFAULT NULL`,
+      );
       console.log("Column 'locked_until' added to rhs_users");
     } catch (err) {
-      if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
+      if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
     }
 
     // Migration: Add require_all_answered to rhs_exam_settings
     try {
-      await connection.query(`ALTER TABLE rhs_exam_settings ADD COLUMN require_all_answered TINYINT(1) NOT NULL DEFAULT 0`);
+      await connection.query(
+        `ALTER TABLE rhs_exam_settings ADD COLUMN require_all_answered TINYINT(1) NOT NULL DEFAULT 0`,
+      );
       console.log("Column 'require_all_answered' added to rhs_exam_settings");
     } catch (err) {
-      if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
+      if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
     }
 
     // Migration: Add Token feature columns to rhs_exam_settings
     try {
-      await connection.query(`ALTER TABLE rhs_exam_settings ADD COLUMN require_token TINYINT(1) NOT NULL DEFAULT 0`);
+      await connection.query(
+        `ALTER TABLE rhs_exam_settings ADD COLUMN require_token TINYINT(1) NOT NULL DEFAULT 0`,
+      );
       console.log("Column 'require_token' added to rhs_exam_settings");
     } catch (err) {
-      if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
+      if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
     }
     try {
-      await connection.query(`ALTER TABLE rhs_exam_settings ADD COLUMN token_type ENUM('static', 'auto') NOT NULL DEFAULT 'static'`);
+      await connection.query(
+        `ALTER TABLE rhs_exam_settings ADD COLUMN token_type ENUM('static', 'auto') NOT NULL DEFAULT 'static'`,
+      );
       console.log("Column 'token_type' added to rhs_exam_settings");
     } catch (err) {
-      if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
+      if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
     }
     try {
-      await connection.query(`ALTER TABLE rhs_exam_settings ADD COLUMN current_token VARCHAR(10) NULL DEFAULT NULL`);
+      await connection.query(
+        `ALTER TABLE rhs_exam_settings ADD COLUMN current_token VARCHAR(10) NULL DEFAULT NULL`,
+      );
       console.log("Column 'current_token' added to rhs_exam_settings");
     } catch (err) {
-      if (err.code !== 'ER_DUP_FIELDNAME') console.log("Note: " + err.message);
+      if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
     }
-
 
     connection.release();
     return { success: true };
-
   } catch (error) {
-    console.error('Database setup failed:', error.message);
+    console.error("Database setup failed:", error.message);
     if (serverConnection) await serverConnection.end();
     throw new Error(`Database setup failed: ${error.message}`);
   }
