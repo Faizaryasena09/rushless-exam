@@ -134,9 +134,28 @@ export async function DELETE(request) {
   }
 
   try {
-    const { id } = await request.json();
+    const body = await request.json();
+    const { id, classId } = body;
+
+    // --- Delete all users in a class ---
+    if (classId && !id) {
+      // Get the class name first for logging
+      const classInfo = await query({ query: 'SELECT class_name FROM rhs_classes WHERE id = ?', values: [classId] });
+      const className = classInfo.length > 0 ? classInfo[0].class_name : `classId:${classId}`;
+
+      const result = await query({
+        query: 'DELETE FROM rhs_users WHERE class_id = ?',
+        values: [classId],
+      });
+
+      logFromRequest(request, session, 'USER_DELETE_BY_CLASS', 'warn', { className, deletedCount: result.affectedRows });
+
+      return NextResponse.json({ message: `Deleted ${result.affectedRows} user(s) from class "${className}".`, deletedCount: result.affectedRows });
+    }
+
+    // --- Delete single user by ID ---
     if (!id) {
-      return NextResponse.json({ message: 'ID is required' }, { status: 400 });
+      return NextResponse.json({ message: 'ID or classId is required' }, { status: 400 });
     }
 
     // Get username before deleting for the log

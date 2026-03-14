@@ -53,6 +53,8 @@ const ManageUsersPage = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const fileInputRef = useRef(null);
+  const [deleteClassModalOpen, setDeleteClassModalOpen] = useState(false);
+  const [deletingClass, setDeletingClass] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -160,6 +162,28 @@ const ManageUsersPage = () => {
     }
   };
 
+  // --- Delete by Class ---
+  const selectedClassObj = allClasses.find(c => String(c.id) === String(selectedClass));
+  const handleDeleteByClass = async () => {
+    setDeletingClass(true);
+    try {
+      const res = await fetch('/api/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classId: selectedClass }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to delete');
+      toast.success(data.message);
+      setDeleteClassModalOpen(false);
+      fetchUsers();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDeletingClass(false);
+    }
+  };
+
   // --- Export Functionality ---
   const handleExport = () => {
     const dataToExport = users.map(user => ({
@@ -260,6 +284,17 @@ const ManageUsersPage = () => {
               accept=".xlsx, .xls"
               className="hidden"
             />
+
+            {/* Delete by Class button — only visible when a class is selected */}
+            {selectedClass && (
+              <button
+                onClick={() => setDeleteClassModalOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/50 border border-red-200 dark:border-red-800 text-sm font-semibold rounded-xl transition-all"
+              >
+                <Icons.Trash />
+                <span>Hapus Kelas {selectedClassObj?.class_name}</span>
+              </button>
+            )}
 
             <button
               onClick={handleAddUser}
@@ -403,7 +438,67 @@ const ManageUsersPage = () => {
       {isModalOpen && (
         <UserModal user={selectedUser} onClose={handleCloseModal} onSave={handleSaveUser} />
       )}
+
+      {/* Delete by Class Confirmation Modal */}
+      {deleteClassModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-red-50 dark:bg-red-950/30">
+              <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-xl text-red-600 dark:text-red-400">
+                <Icons.Trash />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Hapus Pengguna per Kelas</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Tindakan ini tidak bisa dibatalkan</p>
+              </div>
+            </div>
+            {/* Modal Body */}
+            <div className="px-6 py-5">
+              <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-xl">
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  Anda akan menghapus{' '}
+                  <span className="font-bold text-red-600 dark:text-red-400">{users.length} pengguna</span>{' '}
+                  dari kelas{' '}
+                  <span className="font-bold text-slate-900 dark:text-slate-100">{selectedClassObj?.class_name}</span>.
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 italic">
+                  * Data seperti skor ujian dan riwayat aktivitas terkait juga akan terhapus.
+                </p>
+              </div>
+            </div>
+            {/* Modal Footer */}
+            <div className="flex gap-3 px-6 pb-5">
+              <button
+                onClick={() => setDeleteClassModalOpen(false)}
+                disabled={deletingClass}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDeleteByClass}
+                disabled={deletingClass}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-red-200 dark:shadow-red-900/20"
+              >
+                {deletingClass ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Menghapus...
+                  </>
+                ) : (
+                  <>Ya, Hapus Semua</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+
   );
 };
 
