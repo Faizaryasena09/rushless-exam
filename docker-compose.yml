@@ -6,7 +6,7 @@ services:
     container_name: rushless-app
     restart: always
     ports:
-      - "8081:3000"
+      - "8085:3000"
     env_file:
       - .env
     extra_hosts:
