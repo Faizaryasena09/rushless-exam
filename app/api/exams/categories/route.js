@@ -14,11 +14,11 @@ export async function GET(request) {
   }
 
   try {
-    let categoriesQuery = `SELECT id, name, created_by, created_at, is_hidden FROM rhs_exam_categories`;
+    let categoriesQuery = `SELECT id, name, created_by, created_at, is_hidden, sort_order FROM rhs_exam_categories`;
     let queryValues = [];
 
-    // All roles (admin and teacher) can view all categories to use them.
-    categoriesQuery += ` ORDER BY created_at ASC`;
+    // Order by sort_order
+    categoriesQuery += ` ORDER BY sort_order ASC, created_at ASC`;
 
     const categories = await query({ query: categoriesQuery, values: queryValues });
 
@@ -43,9 +43,13 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Category name is required' }, { status: 400 });
     }
 
+    // Get the max sort_order to append this category at the end
+    const maxSortResult = await query({ query: `SELECT MAX(sort_order) as maxSort FROM rhs_exam_categories` });
+    const nextSort = (maxSortResult[0].maxSort || 0) + 1;
+
     const result = await query({
-      query: `INSERT INTO rhs_exam_categories (name, created_by) VALUES (?, ?)`,
-      values: [name.trim(), session.user.id]
+      query: `INSERT INTO rhs_exam_categories (name, created_by, sort_order) VALUES (?, ?, ?)`,
+      values: [name.trim(), session.user.id, nextSort]
     });
 
     return NextResponse.json({ id: result.insertId, name: name.trim() }, { status: 201 });
@@ -87,6 +91,67 @@ export async function PUT(request) {
     return NextResponse.json({ message: 'Category updated successfully' }, { status: 200 });
   } catch (error) {
     console.error('Error updating category:', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request) {
+  const cookieStore = await cookies();
+  const session = await getIronSession(cookieStore, sessionOptions);
+
+  if (!session.user || !await validateUserSession(session) || session.user.roleName === 'student') {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { orderedIds } = await request.json(); // Array of category IDs in the new desired order
+    if (!orderedIds || !Array.isArray(orderedIds)) {
+      return NextResponse.json({ message: 'Invalid data: orderedIds array required' }, { status: 400 });
+    }
+
+    const { transaction } = require('@/app/lib/db');
+
+    if (session.user.roleName === 'admin') {
+        // Admin: Simple bulk update of sort_order for all provided categories
+        await transaction(async (tQuery) => {
+            for (let i = 0; i < orderedIds.length; i++) {
+                await tQuery({
+                    query: `UPDATE rhs_exam_categories SET sort_order = ? WHERE id = ?`,
+                    values: [i + 1, orderedIds[i]]
+                });
+            }
+        });
+    } else {
+        // Teacher: Can only reorder their own categories relative to each other
+        // 1. Get all categories owned by this teacher
+        const myCategories = await query({
+            query: `SELECT id, sort_order FROM rhs_exam_categories WHERE created_by = ? ORDER BY sort_order ASC`,
+            values: [session.user.id]
+        });
+
+        const myIds = myCategories.map(c => c.id);
+        const mySortOrders = myCategories.map(c => c.sort_order).sort((a, b) => a - b);
+
+        // 2. Validate that orderedIds only contains categories owned by the teacher
+        const unauthorized = orderedIds.find(id => !myIds.includes(Number(id)));
+        if (unauthorized) {
+            return NextResponse.json({ message: 'Unauthorized: You can only reorder your own categories.' }, { status: 403 });
+        }
+
+        // 3. Update their sort_orders using the pool of sort_orders they already occupy
+        await transaction(async (tQuery) => {
+            for (let i = 0; i < orderedIds.length; i++) {
+                await tQuery({
+                    query: `UPDATE rhs_exam_categories SET sort_order = ? WHERE id = ? AND created_by = ?`,
+                    values: [mySortOrders[i], orderedIds[i], session.user.id]
+                });
+            }
+        });
+    }
+
+    return NextResponse.json({ message: 'Reordered successfully' }, { status: 200 });
+  } catch (error) {
+    console.error('Error reordering categories:', error);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

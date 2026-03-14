@@ -20,7 +20,10 @@ const Icons = {
   DotsVertical: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>,
   Eye: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
   EyeOff: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>,
-  Clock: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+  Clock: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+  ArrowUp: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" /></svg>,
+  ArrowDown: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>,
+  Grip: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>
 };
 
 // --- Student Action Button Component ---
@@ -284,18 +287,33 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
 };
 
 // --- Category Accordion Component ---
-const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, formatDate, openModal, categories, onEdit, onDelete, onToggleVisibility, isHidden, onToggleExamVisibility, userRole, userId, categoryCreatedBy }) => {
+const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, formatDate, openModal, categories, onEdit, onDelete, onToggleVisibility, isHidden, onToggleExamVisibility, userRole, userId, categoryCreatedBy, onMove, onDragStart, onDragOver, onDrop, onDragEnd, isDragging }) => {
     // Hide 'Tanpa Nama' (uncategorized) if there are no uncategorized exams AND user has categories
     if (id === 'uncategorized' && exams.length === 0 && categories.length > 0) return null;
 
+    const canReorder = !isStudent && (userRole === 'admin' || userId === categoryCreatedBy);
+
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div 
+            className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300 ${isDragging ? 'opacity-40 scale-[0.98] border-indigo-400 border-dashed' : ''}`}
+            draggable={canReorder}
+            onDragStart={(e) => canReorder && onDragStart(e, id)}
+            onDragOver={(e) => canReorder && onDragOver(e, id)}
+            onDrop={(e) => canReorder && onDrop(e, id)}
+            onDragEnd={onDragEnd}
+        >
             {/* Accordion Header */}
             <div 
                 className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors select-none"
                 onClick={toggleOpen}
             >
                 <div className="flex items-center gap-3">
+                    {/* Move Handle - Only for authorized users */}
+                    {canReorder && id !== 'uncategorized' && (
+                        <div className="p-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing transition-colors" title="Tahan dan Tarik untuk Mengubah Urutan">
+                            <Icons.Grip />
+                        </div>
+                    )}
                     <div className={`p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
                         <Icons.ChevronDown />
                     </div>
@@ -316,7 +334,7 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
                 
                 {/* Category Actions (Only show for custom categories, not 'Tanpa Nama', and enforce permissions) */}
                 {id !== 'uncategorized' && !isStudent && (userRole === 'admin' || userId === categoryCreatedBy) && (
-                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation() /* Prevent accordion toggle */}>
+                    <div className="flex items-center gap-1 sm:gap-2" onClick={(e) => e.stopPropagation() /* Prevent accordion toggle */}>
                         <button 
                             onClick={onToggleVisibility}
                             className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
@@ -432,6 +450,67 @@ export default function ExamsPage() {
     } catch (e) {
       alert(e.message);
     }
+  };
+
+  const handleMoveCategory = async (categoryId, direction) => {
+    // Legacy support or removed? Let's just remove it.
+  };
+
+  const [draggedCategoryId, setDraggedCategoryId] = useState(null);
+
+  const handleDragStart = (e, id) => {
+    setDraggedCategoryId(id);
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, id) => {
+    e.preventDefault();
+    if (id === draggedCategoryId) return;
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e, targetId) => {
+    e.preventDefault();
+    const sourceId = draggedCategoryId;
+    if (sourceId === targetId || !sourceId) return;
+
+    // Optimistic UI update
+    const newCategories = [...categories];
+    const sourceIndex = newCategories.findIndex(c => c.id === sourceId);
+    const targetIndex = newCategories.findIndex(c => c.id === targetId);
+    
+    if (sourceIndex === -1 || targetIndex === -1) return;
+
+    // Splice and insert
+    const [movedItem] = newCategories.splice(sourceIndex, 1);
+    newCategories.splice(targetIndex, 0, movedItem);
+    
+    setCategories(newCategories);
+
+    // Call API
+    try {
+        const orderedIds = newCategories.map(c => c.id);
+        const res = await fetch('/api/exams/categories', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderedIds })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.message);
+        }
+        // No need to refreshData() if optimistic update is correct, 
+        // but let's do it to be safe and ensure sort_order is in sync.
+        refreshData();
+    } catch (e) {
+        alert(e.message);
+        refreshData(); // Revert on error
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedCategoryId(null);
   };
 
   useEffect(() => {
@@ -721,6 +800,11 @@ export default function ExamsPage() {
                 onToggleExamVisibility={(id, current) => handleToggleVisibility('exam', id, current)}
                 onEdit={(e) => { e.stopPropagation(); openModal('categoryManage', null, cat.id, cat.name); }}
                 onDelete={(e) => { e.stopPropagation(); openModal('categoryDelete', null, cat.id); }}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                onDragEnd={handleDragEnd}
+                isDragging={draggedCategoryId === cat.id}
                 userRole={userRole}
                 userId={userId}
                 categoryCreatedBy={cat.created_by}

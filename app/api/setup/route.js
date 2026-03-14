@@ -324,6 +324,24 @@ export async function GET(request) {
       messages.push(`Column 'is_hidden' already exists in '${categoriesTableName}'.`);
     }
 
+    // --- Check and add 'sort_order' column to exam_categories table ---
+    const hasCategorySortOrder = await columnExists(categoriesTableName, 'sort_order');
+    if (!hasCategorySortOrder) {
+      await query({
+        query: `ALTER TABLE ${categoriesTableName} ADD COLUMN sort_order INT DEFAULT 0;`,
+        values: [],
+      });
+      messages.push(`Column 'sort_order' created successfully in '${categoriesTableName}'.`);
+      // Initialize sort_order with id for existing categories
+      await query({
+        query: `UPDATE ${categoriesTableName} SET sort_order = id WHERE sort_order = 0;`,
+        values: [],
+      });
+      messages.push(`Initialized 'sort_order' for existing categories.`);
+    } else {
+      messages.push(`Column 'sort_order' already exists in '${categoriesTableName}'.`);
+    }
+
     // --- Check and add 'show_instructions' column to exam_settings table ---
     const hasShowInstructions = await columnExists(settingsTableName, 'show_instructions');
     if (!hasShowInstructions) {
