@@ -9,6 +9,7 @@ import {
 } from 'docx';
 import fs from 'fs/promises';
 import path from 'path';
+import iconv from 'iconv-lite';
 
 async function getSession() {
     const cookieStore = await cookies();
@@ -48,20 +49,54 @@ function parseContent(html) {
     return parts;
 }
 
+// Helper to clean up encoding issues using iconv-lite
+function sanitizeText(text) {
+    if (!text) return '';
+    try {
+        // Simple heuristic: if we see 'Ã' followed by common artifacts, 
+        // it might be a double-encoded UTF-8 or Windows-1252 mismatch.
+        if (text.includes('Ã') || text.includes('â')) {
+            // Encode as win1252 and decode back to utf8
+            const buf = iconv.encode(text, 'win1252');
+            return iconv.decode(buf, 'utf-8');
+        }
+        // Otherwise ensuring it's valid UTF-8
+        return iconv.decode(iconv.encode(text, 'utf8'), 'utf8');
+    } catch (e) {
+        return text;
+    }
+}
+
 // Strip HTML tags and decode common entities
 function stripHtml(html) {
     if (!html) return '';
-    let text = html
+    
+    // First pass sanitization
+    let cleanHtml = sanitizeText(html);
+
+    let text = cleanHtml
         .replace(/<br\s*\/?>/gi, '\n')
         .replace(/<\/p>/gi, '\n')
         .replace(/<\/div>/gi, '\n')
         .replace(/<[^>]*>/g, '')
+        // Basic HTML Entities
         .replace(/&amp;/g, '&')
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
         .replace(/&#039;/g, "'")
-        .replace(/&nbsp;/g, ' ');
+        .replace(/&nbsp;/g, ' ')
+        // Mathematical / Scientific Symbols
+        .replace(/&alpha;/g, 'α').replace(/&beta;/g, 'β').replace(/&gamma;/g, 'γ').replace(/&delta;/g, 'δ')
+        .replace(/&pi;/g, 'π').replace(/&Sigma;/g, 'Σ').replace(/&omega;/g, 'ω').replace(/&mu;/g, 'μ')
+        .replace(/&radic;/g, '√').replace(/&infin;/g, '∞').replace(/&asymp;/g, '≈').replace(/&ne;/g, '≠')
+        .replace(/&le;/g, '≤').replace(/&ge;/g, '≥').replace(/&plusmn;/g, '±').replace(/&times;/g, '×')
+        .replace(/&divide;/g, '÷').replace(/&sup2;/g, '²').replace(/&sup3;/g, '³').replace(/&deg;/g, '°')
+        // Arrows and other characters
+        .replace(/&larr;/g, '←').replace(/&uarr;/g, '↑').replace(/&rarr;/g, '→').replace(/&darr;/g, '↓')
+        .replace(/&hellip;/g, '…').replace(/&bull;/g, '•').replace(/&copy;/g, '©').replace(/&reg;/g, '®')
+        .replace(/&trade;/g, '™').replace(/&euro;/g, '€').replace(/&pound;/g, '£').replace(/&yen;/g, '¥');
+        
     return text.replace(/\n{3,}/g, '\n\n').trim();
 }
 
@@ -233,8 +268,8 @@ export async function GET(request) {
                                 if (children.length > 0) {
                                     paragraphsToPush.push(new Paragraph({
                                         children: children,
-                                        spacing: { before: children === baseChildren ? 200 : 0, after: 100 },
-                                        indent: indent ? { left: 720 } : undefined
+                                        spacing: { before: children === baseChildren ? 240 : 80, after: 80 },
+                                        indent: indent ? { left: 720 } : { left: 720, hanging: 720 }
                                     }));
                                     children = [];
                                 }
@@ -249,8 +284,8 @@ export async function GET(request) {
                                             },
                                         }),
                                     ],
-                                    spacing: { after: 100 },
-                                    indent: indent ? { left: 720 } : undefined
+                                    spacing: { after: 120 },
+                                    indent: indent ? { left: 720 } : { left: 720 }
                                 }));
                             }
                         }
@@ -267,10 +302,15 @@ export async function GET(request) {
                             }));
                         }
 
+                        const isFirstParaOfQuestion = children.length > 0 && children[0].text && children[0].text.includes(`${index + 1}. `);
+
                         paragraphsToPush.push(new Paragraph({
                             children,
-                            spacing: { before: (children.length > 0 && children[0].text && children[0].text.includes(`${index + 1}. `)) ? 200 : 0, after: 100 },
-                            indent: indent ? { left: 720 } : undefined
+                            spacing: { 
+                                before: isFirstParaOfQuestion ? 400 : (indent ? 40 : 80), 
+                                after: indent ? 40 : 120 
+                            },
+                            indent: indent ? { left: 720 } : { left: 720, hanging: 720 }
                         }));
                     }
                 };
