@@ -5,12 +5,47 @@ import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import {
     Document, Packer, Paragraph, TextRun, AlignmentType,
-    HeadingLevel, BorderStyle
+    HeadingLevel, BorderStyle, ImageRun
 } from 'docx';
+import fs from 'fs/promises';
+import path from 'path';
 
 async function getSession() {
     const cookieStore = await cookies();
     return await getIronSession(cookieStore, sessionOptions);
+}
+
+// Helper to separate text and images from HTML
+function parseContent(html) {
+    if (!html) return [];
+    
+    // This regex captures <img> tags and their src
+    const imgRegex = /<img[^>]+src="([^">]+)"[^>]*>/gi;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = imgRegex.exec(html)) !== null) {
+        // Text before image
+        const textBefore = html.substring(lastIndex, match.index);
+        if (textBefore) {
+            const stripped = stripHtml(textBefore);
+            if (stripped) parts.push({ type: 'text', value: stripped });
+        }
+
+        // Image data
+        parts.push({ type: 'image', value: match[1] });
+        lastIndex = imgRegex.lastIndex;
+    }
+
+    // Remaining text
+    const remainingText = html.substring(lastIndex);
+    if (remainingText) {
+        const stripped = stripHtml(remainingText);
+        if (stripped) parts.push({ type: 'text', value: stripped });
+    }
+
+    return parts;
 }
 
 // Strip HTML tags and decode common entities
@@ -19,6 +54,7 @@ function stripHtml(html) {
     let text = html
         .replace(/<br\s*\/?>/gi, '\n')
         .replace(/<\/p>/gi, '\n')
+        .replace(/<\/div>/gi, '\n')
         .replace(/<[^>]*>/g, '')
         .replace(/&amp;/g, '&')
         .replace(/&lt;/g, '<')
@@ -26,8 +62,23 @@ function stripHtml(html) {
         .replace(/&quot;/g, '"')
         .replace(/&#039;/g, "'")
         .replace(/&nbsp;/g, ' ');
-    // Collapse multiple newlines to single and trim
     return text.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+async function getImageData(src) {
+    try {
+        if (src.startsWith('data:image')) {
+            const base64Data = src.split(',')[1];
+            return Buffer.from(base64Data, 'base64');
+        } else if (src.startsWith('/uploads/')) {
+            const filePath = path.join(process.cwd(), 'public', src);
+            return await fs.readFile(filePath);
+        }
+        return null;
+    } catch (error) {
+        console.error('Failed to get image data:', error);
+        return null;
+    }
 }
 
 export async function GET(request) {
@@ -114,12 +165,13 @@ export async function GET(request) {
                 })
             );
 
-            questions.forEach((q, index) => {
+            for (let i = 0; i < questions.length; i++) {
+                const q = questions[i];
                 docChildren.push(
                     new Paragraph({
                         children: [
                             new TextRun({
-                                text: `${index + 1}. ${q.correct_option}`,
+                                text: `${i + 1}. ${q.correct_option}`,
                                 size: 24,
                                 font: 'Arial',
                             }),
@@ -127,10 +179,13 @@ export async function GET(request) {
                         spacing: { after: 80 },
                     })
                 );
-            });
+            }
         } else {
             // --- Questions (with or without answers) ---
-            questions.forEach((q, index) => {
+            for (let i = 0; i < questions.length; i++) {
+                const q = questions[i];
+                const index = i;
+
                 let opts = {};
                 try {
                     opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || {});
@@ -142,67 +197,104 @@ export async function GET(request) {
                 const reKeyedOptions = {};
                 optionValues.forEach((val, i) => {
                     if (letterKeys[i]) {
-                        const optText = (val && typeof val === 'object' && val.hasOwnProperty('text')) ? val.text : val;
-                        reKeyedOptions[letterKeys[i]] = optText;
+                        // For options, we also support HTML/Images
+                        const optValue = (val && typeof val === 'object' && val.hasOwnProperty('text')) ? val.text : val;
+                        reKeyedOptions[letterKeys[i]] = optValue;
                     }
                 });
 
-                // Question number + text
-                const qText = stripHtml(q.question_text);
-                docChildren.push(
-                    new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: `${index + 1}. `,
-                                bold: true,
-                                size: 24,
-                                font: 'Arial',
-                            }),
-                            new TextRun({
-                                text: qText,
-                                size: 24,
-                                font: 'Arial',
-                            }),
-                        ],
-                        spacing: { before: 200, after: 100 },
+                // Question text with images
+                const qParts = parseContent(q.question_text);
+                const baseQChildren = [
+                    new TextRun({
+                        text: `${index + 1}. `,
+                        bold: true,
+                        size: 24,
+                        font: 'Arial',
                     })
-                );
+                ];
 
-                // Options
-                Object.entries(reKeyedOptions).forEach(([key, value]) => {
-                    const optText = stripHtml(String(value));
-                    const isCorrect = key === q.correct_option;
+                const paragraphsToPush = [];
 
-                    const children = [];
-                    children.push(
-                        new TextRun({
-                            text: `     ${key}. ${optText}`,
-                            size: 22,
-                            font: 'Arial',
-                            bold: mode === 'questions_and_answers' && isCorrect,
-                        })
-                    );
-
-                    if (mode === 'questions_and_answers' && isCorrect) {
-                        children.push(
-                            new TextRun({
+                const processParts = async (parts, baseChildren, indent = false, isCorrect = false) => {
+                    let children = [...baseChildren];
+                    for (const part of parts) {
+                        if (part.type === 'text') {
+                            children.push(new TextRun({
+                                text: part.value,
+                                size: indent ? 22 : 24,
+                                font: 'Arial',
+                                bold: isCorrect && mode === 'questions_and_answers',
+                            }));
+                        } else if (part.type === 'image') {
+                            const buffer = await getImageData(part.value);
+                            if (buffer) {
+                                // Flush text before image
+                                if (children.length > 0) {
+                                    paragraphsToPush.push(new Paragraph({
+                                        children: children,
+                                        spacing: { before: children === baseChildren ? 200 : 0, after: 100 },
+                                        indent: indent ? { left: 720 } : undefined
+                                    }));
+                                    children = [];
+                                }
+                                
+                                paragraphsToPush.push(new Paragraph({
+                                    children: [
+                                        new ImageRun({
+                                            data: buffer,
+                                            transformation: {
+                                                width: 320,
+                                                height: 200,
+                                            },
+                                        }),
+                                    ],
+                                    spacing: { after: 100 },
+                                    indent: indent ? { left: 720 } : undefined
+                                }));
+                            }
+                        }
+                    }
+                    if (children.length > 0) {
+                        // Add checkmark if correct and text part
+                        if (isCorrect && mode === 'questions_and_answers') {
+                            children.push(new TextRun({
                                 text: ' ✓',
                                 bold: true,
                                 size: 22,
                                 font: 'Arial',
                                 color: '2E7D32',
-                            })
-                        );
-                    }
+                            }));
+                        }
 
-                    docChildren.push(
-                        new Paragraph({
+                        paragraphsToPush.push(new Paragraph({
                             children,
-                            spacing: { after: 40 },
+                            spacing: { before: (children.length > 0 && children[0].text && children[0].text.includes(`${index + 1}. `)) ? 200 : 0, after: 100 },
+                            indent: indent ? { left: 720 } : undefined
+                        }));
+                    }
+                };
+
+                // Process Question
+                await processParts(qParts, baseQChildren);
+
+                // Process Options
+                for (const [key, value] of Object.entries(reKeyedOptions)) {
+                    const isCorrect = key === q.correct_option;
+                    const optParts = parseContent(String(value));
+                    const baseOptChildren = [
+                        new TextRun({
+                            text: `     ${key}. `,
+                            size: 22,
+                            font: 'Arial',
+                            bold: isCorrect && mode === 'questions_and_answers',
                         })
-                    );
-                });
-            });
+                    ];
+                    await processParts(optParts, baseOptChildren, true, isCorrect);
+                }
+
+                docChildren.push(...paragraphsToPush);
+            }
         }
 
         // 4. Create doc
