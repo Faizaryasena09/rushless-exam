@@ -5,7 +5,8 @@ import { sessionOptions } from '@/app/lib/session';
 import { validateUserSession } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
 import { logFromRequest } from '@/app/lib/logger';
-import fs from 'fs';
+import fs from 'fs/promises';
+import { existsSync, writeFileSync, mkdirSync } from 'fs'; // For sync checks if needed, but we prefer async
 import path from 'path';
 
 async function getSession() {
@@ -159,13 +160,13 @@ export async function PUT(request) {
                     const buffer = Buffer.from(matches[2], 'base64');
                     // Ensure public/uploads exists
                     const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-                    if (!fs.existsSync(uploadDir)) {
-                        fs.mkdirSync(uploadDir, { recursive: true });
-                    }
+                    await fs.mkdir(uploadDir, { recursive: true });
+                    
                     const filePath = path.join(uploadDir, 'site-logo.png');
-                    fs.writeFileSync(filePath, buffer);
-                    // Update value to the relative URL + timestamp cache buster
-                    value = `/uploads/site-logo.png?v=${Date.now()}`;
+                    await fs.writeFile(filePath, buffer);
+                    
+                    // Update value to the dynamic media URL + timestamp cache buster
+                    value = `/api/media/site-logo.png?v=${Date.now()}`;
                 } catch (err) {
                     console.error('Failed to save logo file:', err);
                     return NextResponse.json({ message: 'Failed to process logo file.' }, { status: 500 });

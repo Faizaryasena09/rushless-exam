@@ -23,12 +23,16 @@ export async function POST(request) {
     // Generate a unique filename
     const filename = `${Date.now()}-${file.name.replace(/\s/g, '_')}`;
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'questions');
+    
+    // Ensure directory exists
+    await fs.mkdir(uploadDir, { recursive: true });
+    
     const filePath = path.join(uploadDir, filename);
 
     // Write the file to the public directory
     await writeFile(filePath, buffer);
 
-    const publicUrl = `/uploads/questions/${filename}`;
+    const publicUrl = `/api/media/questions/${filename}`;
 
     // Jodit expects a specific response format
     return NextResponse.json({
@@ -40,7 +44,7 @@ export async function POST(request) {
         file: publicUrl 
       }],
       path: publicUrl,
-      baseurl: '/uploads/questions/',
+      baseurl: '/api/media/questions/',
     });
 
   } catch (error) {

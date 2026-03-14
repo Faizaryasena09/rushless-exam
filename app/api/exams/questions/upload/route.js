@@ -61,6 +61,7 @@ export async function POST(request) {
             }
 
             // Create upload directory if it doesn't exist
+            // Using process.cwd() for robust path handling
             const uploadDir = path.join(process.cwd(), 'public', 'uploads', `exam-${examId}`);
             await fs.mkdir(uploadDir, { recursive: true });
 
@@ -82,8 +83,8 @@ export async function POST(request) {
                     // Write the buffer to the filesystem
                     await fs.writeFile(filePath, imgBuffer);
 
-                    // Reconstruct a Next.js public URL path
-                    const nextPublicUrl = `/uploads/exam-${examId}/${uniqueFilename}`;
+                    // Reconstruct a dynamic media URL path (bypasses Next.js static build cache)
+                    const nextPublicUrl = `/api/media/exam-${examId}/${uniqueFilename}`;
                     return match.replace(src, nextPublicUrl);
                 }
 

@@ -33,12 +33,16 @@ export async function POST(request) {
     const extension = getExtension(mimeType);
     const filename = `${Date.now()}-image.${extension}`;
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'questions');
+    
+    // Ensure directory exists
+    await fs.mkdir(uploadDir, { recursive: true });
+    
     const filePath = path.join(uploadDir, filename);
 
     // Write the file to the public directory
     await writeFile(filePath, buffer);
 
-    const publicUrl = `/uploads/questions/${filename}`;
+    const publicUrl = `/api/media/questions/${filename}`;
 
     return NextResponse.json({ success: true, url: publicUrl });
 
