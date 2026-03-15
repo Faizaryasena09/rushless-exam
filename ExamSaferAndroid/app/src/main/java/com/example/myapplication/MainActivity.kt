@@ -1,52 +1,63 @@
 package com.example.myapplication
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.KeyEvent
+import android.view.View
+import android.webkit.*
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.OnBackPressedCallback
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
 
     private var volumeUpCount = 0
     private var volumeDownCount = 0
+    
+    // State to track if we are in exam mode
+    private var examMode = mutableStateOf(false)
+    private var targetUrl = mutableStateOf("")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Disable back button
+        // Handle initial intent
+        handleIntent(intent)
+
+        // Disable back button globally or handle normally if not in exam
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                // Do nothing to block back button
-                Toast.makeText(this@MainActivity, "Action not allowed during exam", Toast.LENGTH_SHORT).show()
+                if (examMode.value) {
+                    Toast.makeText(this@MainActivity, "Kembali dilarang saat ujian", Toast.LENGTH_SHORT).show()
+                } else {
+                    // Temporarily disable this callback and call onBackPressed to exit
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                    isEnabled = true
+                }
             }
         })
 
@@ -56,7 +67,46 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    ExamScreen()
+                    MainContent(examMode.value, targetUrl.value, ::onExamFinished)
+                }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        val action = intent?.action
+        val data: Uri? = intent?.data
+
+        if (Intent.ACTION_VIEW == action && data != null) {
+            if (data.scheme == "rushless-safer" && data.host == "lock") {
+                val url = data.getQueryParameter("url")
+                if (!url.isNullOrEmpty()) {
+                    targetUrl.value = url
+                    examMode.value = true
+                    startLockTask() // Trigger pinning
+                    Toast.makeText(this, "Lockdown Active", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun onExamFinished() {
+        runOnUiThread {
+            if (examMode.value) {
+                examMode.value = false
+                targetUrl.value = ""
+                try {
+                    stopLockTask()
+                    Toast.makeText(this, "Ujian selesai, lockdown dilepas.", Toast.LENGTH_LONG).show()
+                } catch (e: Exception) {
+                    Log.e("RushlessSafer", "Failed to stop lock task", e)
+                    // If pinning fail to stop, we might need to finish the activity
+                    finish()
                 }
             }
         }
@@ -64,30 +114,35 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Determine if we should pin. In a real kiosk app, we might check if we are already pinned.
-        startLockTask()
+        // Re-lock if in exam mode and somehow resumed
+        if (examMode.value) {
+            try {
+                startLockTask()
+            } catch (e: Exception) {
+                Log.e("RushlessSafer", "Failed to start lock task in onResume", e)
+            }
+        }
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        when (keyCode) {
-            KeyEvent.KEYCODE_VOLUME_UP -> {
-                volumeUpCount++
-                // Reset down count if up is pressed
-                if (volumeDownCount > 0) volumeDownCount = 0 
-                
-                checkExitSequence()
-                return true // Consume event
-            }
-            KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                if (volumeUpCount >= 3) {
-                    volumeDownCount++
+        if (examMode.value) {
+            when (keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP -> {
+                    volumeUpCount++
+                    if (volumeDownCount > 0) volumeDownCount = 0 
                     checkExitSequence()
-                } else {
-                    // Reset if sequence is broken (down pressed before 3 ups)
-                    volumeUpCount = 0
-                    volumeDownCount = 0
+                    return true
                 }
-                return true // Consume event
+                KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                    if (volumeUpCount >= 3) {
+                        volumeDownCount++
+                        checkExitSequence()
+                    } else {
+                        volumeUpCount = 0
+                        volumeDownCount = 0
+                    }
+                    return true
+                }
             }
         }
         return super.onKeyDown(keyCode, event)
@@ -95,83 +150,108 @@ class MainActivity : ComponentActivity() {
 
     private fun checkExitSequence() {
         if (volumeUpCount >= 3 && volumeDownCount >= 3) {
-            // Emergency Exit
-            try {
-                stopLockTask()
-                finishAndRemoveTask()
-                android.os.Process.killProcess(android.os.Process.myPid()) // Force kill
-            } catch (e: Exception) {
-                e.printStackTrace()
-                finish()
-            }
+            // Emergency Exit - force release
+            onExamFinished()
+            volumeUpCount = 0
+            volumeDownCount = 0
         }
     }
 }
 
 @Composable
-fun ExamScreen() {
+fun MainContent(isExamMode: Boolean, url: String, onFinished: () -> Unit) {
+    if (isExamMode) {
+        ExamWebView(url, onFinished)
+    } else {
+        WelcomeScreen()
+    }
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+fun ExamWebView(url: String, onFinished: () -> Unit) {
+    AndroidView(factory = { context ->
+        WebView(context).apply {
+            layoutParams = android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.useWideViewPort = true
+            settings.loadWithOverviewMode = true
+            settings.allowFileAccess = true
+            
+            // Allow media playback without user gesture
+            settings.mediaPlaybackRequiresUserGesture = false
+
+            // Add Javascript Interface
+            addJavascriptInterface(object {
+                @JavascriptInterface
+                fun finishExam() {
+                    onFinished()
+                }
+            }, "RushlessSafer")
+
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                    // Prevent navigating outside exam host if possible, or just allow all
+                    return false 
+                }
+            }
+            
+            loadUrl(url)
+        }
+    })
+}
+
+@Composable
+fun WelcomeScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(24.dp)
     ) {
         Column(
             modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo
-             // Note: R.drawable.logo needs to be added. 
-             // Using a placeholder icon content if logo isn't found or just text heavily implies it. 
-             // Since I can't verify R.drawable.logo exists yet, I'll comment it out or use a standard icon 
-             // but user request implies logo exists or will be added. 
-             // I'll assume R.drawable.logo will be created by user or I should stick to text if file missing.
-             // Actually, I can use a standard painter and assume user adds it. 
-             // I'll use a placeholder text "LOGO" or similar if logic requires valid resource ID.
-             // But valid kotlin code requires the ID to exist. 
-             // I will assume the user will provide `R.drawable.logo` or rename their file. 
-             // For now, I'll use a placeholder from android defaults or valid generated resource if possible.
-             // Wait, `R.mipmap.ic_launcher` is usually available. I will use that as placeholder.
-             
             Image(
-                painter = painterResource(id = R.mipmap.ic_launcher), // Replace with R.drawable.logo when available
+                painter = painterResource(id = R.drawable.logo),
                 contentDescription = "Rushless Logo",
-                modifier = Modifier.size(100.dp)
+                modifier = Modifier.size(160.dp)
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "Rushless",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
+                text = "Selamat Datang di\nRushless Safer",
+                fontSize = 30.sp,
+                lineHeight = 38.sp,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+                color = Color(0xFF1E293B)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Buka website ujian anda untuk memulai ujian",
-                fontSize = 18.sp,
-                textAlign = TextAlign.Center
+                text = "Buka website ujian Anda di browser biasa, lalu klik tombol 'Buka di Rushless Safer' untuk memulai ujian dengan aman.",
+                fontSize = 16.sp,
+                textAlign = TextAlign.Center,
+                color = Color(0xFF64748B)
             )
         }
 
         Text(
-            text = "Copyright Rushless",
+            text = "Powered by Rushless Engine",
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp),
-            fontSize = 14.sp,
-            color = Color.Gray
+                .padding(bottom = 24.dp),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.LightGray
         )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ExamScreenPreview() {
-    MyApplicationTheme {
-        ExamScreen()
     }
 }

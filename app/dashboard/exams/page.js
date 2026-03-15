@@ -148,14 +148,25 @@ const StudentExamActions = ({ exam }) => {
     );
   } else if (canTakeExam) {
     const label = userAttempts > 0 ? 'Ulangi Ujian' : (exam.require_seb ? 'Mulai dengan SEB' : 'Mulai Kerjakan');
+    const launchUrl = `rushless-safer://lock?url=${encodeURIComponent(window.location.origin + '/dashboard/exams/kerjakan/' + exam.id)}`;
+    
     actionButton = (
-      <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
-        <div className="flex items-center gap-2">
-          <Icons.Play />
-          <span>{label}</span>
-        </div>
-        <Icons.ChevronRight />
-      </Link>
+      <div className="flex flex-col gap-2">
+        <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
+          <div className="flex items-center gap-2">
+            <Icons.Play />
+            <span>{label}</span>
+          </div>
+          <Icons.ChevronRight />
+        </Link>
+        
+        {!!exam.require_safe_browser && (
+          <a href={launchUrl} className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none">
+             <Icons.Shield className="w-4 h-4" />
+             <span>Buka di Rushless Safer (App)</span>
+          </a>
+        )}
+      </div>
     );
   }
 
