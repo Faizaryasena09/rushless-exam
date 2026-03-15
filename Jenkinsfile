@@ -10,6 +10,7 @@ pipeline {
         DB_USER = credentials('RUSHLESS_DB_USER')
         DB_PASSWORD = credentials('RUSHLESS_DB_PASSWORD')
         DB_NAME = credentials('RUSHLESS_DB_NAME')
+        NODE_ENV = credentials('RUSHLESS_NODE_ENV')
     }
 
     stages {
@@ -21,13 +22,16 @@ pipeline {
 
         stage('Prepare Environment') {
             steps {
-                sh """
-                echo "DB_USER=${DB_USER}" > .env
-                echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
-                echo "DB_HOST=${DB_HOST}" >> .env
-                echo "DB_NAME=${DB_NAME}" >> .env
-                echo "NODE_ENV=production" >> .env
-                """
+                sh '''
+                # Jenkins hanya fokus membuat file .env
+                cat > .env <<EOF
+DB_USER=${DB_USER}
+DB_PASSWORD=${DB_PASSWORD}
+DB_HOST=${DB_HOST}
+DB_NAME=${DB_NAME}
+NODE_ENV=${NODE_ENV}
+EOF
+                '''
             }
         }
 
