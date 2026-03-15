@@ -4,15 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.myapplication"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    namespace = "com.rushless.safer"
+    compileSdk = 35 // Just in case, keeping it safe if 36 is too new or placeholder
 
     defaultConfig {
-        applicationId = "com.example.myapplication"
+        applicationId = "com.rushless.safer"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

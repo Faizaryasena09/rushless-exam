@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.rushless.safer
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -177,9 +177,7 @@ fun ExamWebView(url: String, onFinished: () -> Unit) {
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT
             )
             settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.useWideViewPort = true
-            settings.loadWithOverviewMode = true
+            settings.cacheMode = WebSettings.LOAD_DEFAULT
             settings.allowFileAccess = true
             
             // Allow media playback without user gesture
@@ -197,6 +195,10 @@ fun ExamWebView(url: String, onFinished: () -> Unit) {
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     // Prevent navigating outside exam host if possible, or just allow all
                     return false 
+                }
+
+                override fun onFormResubmission(view: WebView?, dontResend: android.os.Message?, resend: android.os.Message?) {
+                    resend?.sendToTarget()
                 }
             }
             
