@@ -9,11 +9,6 @@ ENV NEXT_TELEMETRY_DISABLED 1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# --- PERBAIKAN DI SINI ---
-# Buat folder public dan uploads, lalu berikan kepemilikan ke user nextjs
-RUN mkdir -p public/uploads && chown -R nextjs:nodejs /app
-# -------------------------
-
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
