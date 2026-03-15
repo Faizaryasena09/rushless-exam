@@ -31,6 +31,7 @@ async function indexExists(tableName, indexName) {
 // GET handler to perform database setup/migration
 export async function GET(request) {
   const session = await getSession(request);
+  let messages = [];
 
   // Check if database is empty or users table doesn't exist
   let isEmptyDatabase = false;
@@ -54,6 +55,7 @@ export async function GET(request) {
   if (isEmptyDatabase) {
     try {
       await setupDatabase();
+      messages.push("Initial database setup and default admin (admin/admin) created.");
     } catch (e) {
       console.error("Initial setup failed:", e);
       return NextResponse.json({
@@ -61,11 +63,20 @@ export async function GET(request) {
         error: e.message
       }, { status: 500 });
     }
+  } else {
+    // If not empty, ensure admin still exists/reset password if requested? 
+    // Usually, we just want to make sure an admin exists for safety.
+    const adminHash = "$2b$10$Bip8Jha67dJS2knb5Hd6T.DZI97ugPxUtGwC7qgMpbTFtd4OmHk0e";
+    await query({
+      query: `INSERT IGNORE INTO rhs_users (username, password, role) 
+              VALUES ('admin', ?, 'admin')`,
+      values: [adminHash]
+    });
+    messages.push("Verified admin user 'admin' exists.");
   }
 
   try {
     const tableName = 'rhs_exams';
-    let messages = [];
 
     // --- Check and create 'rhs_subjects' table ---
     const subjectsTableName = 'rhs_subjects';
@@ -634,6 +645,42 @@ export async function GET(request) {
        });
        messages.push(`Default site settings initialized.`);
     }
+
+    // --- Check and create 'rhs_settings' table (For security/bruteforce) ---
+    const securitySettingsTableName = 'rhs_settings';
+    await query({
+      query: `
+            CREATE TABLE IF NOT EXISTS ${securitySettingsTableName} (
+                setting_key VARCHAR(255) PRIMARY KEY,
+                setting_value VARCHAR(255) NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        `,
+      values: [],
+    });
+    messages.push(`Table '${securitySettingsTableName}' created or already exists.`);
+
+    // Populate default security settings
+    const DEFAULT_SETTINGS = {
+      admin_can_change_password: '1',
+      admin_can_change_username: '1',
+      teacher_can_change_password: '1',
+      teacher_can_change_username: '1',
+      student_can_change_password: '0',
+      student_can_change_username: '0',
+      bruteforce_max_attempts: '5',
+      bruteforce_lockout_minutes: '15',
+      reset_max_attempts: '3',
+      reset_lockout_minutes: '15',
+    };
+
+    for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+      await query({
+        query: `INSERT IGNORE INTO ${securitySettingsTableName} (setting_key, setting_value) VALUES (?, ?)`,
+        values: [key, value],
+      });
+    }
+    messages.push(`Default security settings populated in '${securitySettingsTableName}'.`);
 
     // --- Migration: Composite index on rhs_exam_attempts (user_id, exam_id, status) ---
     // Replaces the old single-column idx_status. This index is critical for the

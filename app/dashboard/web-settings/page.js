@@ -19,6 +19,7 @@ export default function WebSettingsPage() {
     const { lang, setLang } = useLanguage();
     const [selectedLang, setSelectedLang] = useState(lang);
     const [langSaving, setLangSaving] = useState(false);
+    const [resetUnlocking, setResetUnlocking] = useState(false);
 
     // Cropper State
     const [cropImage, setCropImage] = useState(null);
@@ -51,6 +52,27 @@ export default function WebSettingsPage() {
             }
         } catch (err) {
             console.error('Failed to fetch locked users:', err);
+        }
+    };
+
+    const handleUnlockReset = async () => {
+        setResetUnlocking(true);
+        try {
+            const res = await fetch('/api/web-settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: 'unlock_session_reset' }),
+            });
+            if (res.ok) {
+                setMessage({ type: 'success', text: 'Endpoint session reset berhasil di-unlock.' });
+                setTimeout(() => setMessage(null), 3000);
+            } else {
+                setMessage({ type: 'error', text: 'Gagal unlock endpoint.' });
+            }
+        } catch {
+            setMessage({ type: 'error', text: 'Terjadi kesalahan.' });
+        } finally {
+            setResetUnlocking(false);
         }
     };
 
@@ -732,6 +754,139 @@ export default function WebSettingsPage() {
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* Session Reset Security Section */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+                <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-indigo-50/30 dark:from-slate-700/50 dark:to-indigo-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+                    <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg">
+                        <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Session Reset Security</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Atur keamanan untuk endpoint reset sesi global</p>
+                    </div>
+                </div>
+
+                <div className="p-5 space-y-4">
+                    {/* Max Reset Attempts */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="md:max-w-xs">
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Maksimal Percobaan Gagal (Reset)</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">Endpoint reset akan terkunci setelah jumlah ini terlampaui</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1 flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="50"
+                                    value={settings.reset_max_attempts ?? 3}
+                                    onChange={(e) => setSettings(prev => ({ ...prev, reset_max_attempts: parseInt(e.target.value) || 1 }))}
+                                    className="w-16 bg-transparent text-center font-bold text-slate-900 dark:text-white outline-none"
+                                />
+                                <span className="text-xs font-bold text-slate-400 uppercase">Kali</span>
+                            </div>
+                            <button
+                                onClick={async () => {
+                                    setSaving(prev => ({ ...prev, reset_max_attempts: true }));
+                                    try {
+                                        const res = await fetch('/api/web-settings', {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ key: 'reset_max_attempts', value: settings.reset_max_attempts ?? 3 }),
+                                        });
+                                        if (res.ok) {
+                                            setMessage({ type: 'success', text: 'Batas percobaan reset berhasil disimpan.' });
+                                            setTimeout(() => setMessage(null), 3000);
+                                        } else {
+                                            const d = await res.json();
+                                            setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
+                                        }
+                                    } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
+                                    finally { setSaving(prev => ({ ...prev, reset_max_attempts: false })); }
+                                }}
+                                disabled={saving.reset_max_attempts}
+                                className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
+                            >
+                                {saving.reset_max_attempts ? '...' : 'Simpan'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 dark:border-slate-700/50" />
+
+                    {/* Reset Lockout Duration */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="md:max-w-xs">
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Durasi Penguncian (Reset)</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">Berapa lama endpoint reset terkunci otomatis</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1 flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="1440"
+                                    value={settings.reset_lockout_minutes ?? 15}
+                                    onChange={(e) => setSettings(prev => ({ ...prev, reset_lockout_minutes: parseInt(e.target.value) || 1 }))}
+                                    className="w-16 bg-transparent text-center font-bold text-slate-900 dark:text-white outline-none"
+                                />
+                                <span className="text-xs font-bold text-slate-400 uppercase">Menit</span>
+                            </div>
+                            <button
+                                onClick={async () => {
+                                    setSaving(prev => ({ ...prev, reset_lockout_minutes: true }));
+                                    try {
+                                        const res = await fetch('/api/web-settings', {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ key: 'reset_lockout_minutes', value: settings.reset_lockout_minutes ?? 15 }),
+                                        });
+                                        if (res.ok) {
+                                            setMessage({ type: 'success', text: 'Durasi penguncian reset berhasil disimpan.' });
+                                            setTimeout(() => setMessage(null), 3000);
+                                        } else {
+                                            const d = await res.json();
+                                            setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
+                                        }
+                                    } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
+                                    finally { setSaving(prev => ({ ...prev, reset_lockout_minutes: false })); }
+                                }}
+                                disabled={saving.reset_lockout_minutes}
+                                className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
+                            >
+                                {saving.reset_lockout_minutes ? '...' : 'Simpan'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 dark:border-slate-700/50" />
+
+                    {/* Unlock Endpoint Action */}
+                    <div className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-950/20 rounded-2xl border border-amber-200 dark:border-amber-900/50">
+                        <div className="flex items-start gap-3">
+                            <div className="mt-0.5 text-amber-600 dark:text-amber-400">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-amber-900 dark:text-amber-100">Unlock Endpoint Reset</p>
+                                <p className="text-xs text-amber-700/70 dark:text-amber-400/70">Klik tombol ini untuk membuka kunci endpoint reset sesi jika sedang dalam masa lockout.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleUnlockReset}
+                            disabled={resetUnlocking}
+                            className="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-amber-200 dark:shadow-none transition-all disabled:opacity-50"
+                        >
+                            {resetUnlocking ? 'Unlocking...' : 'Unlock Now'}
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* Info Note */}

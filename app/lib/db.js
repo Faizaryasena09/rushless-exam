@@ -120,8 +120,8 @@ export async function setupDatabase() {
       "SELECT COUNT(*) as count FROM rhs_users",
     );
     if (users[0].count === 0) {
-      // Password is 'admin123' hashed with bcrypt
-      const hashedPassword = "$2b$10$uAeAjfWBI/nzPRFnDY5PFFEMxOpVNG";
+      // Password is 'admin' hashed with bcrypt
+      const hashedPassword = "$2b$10$Bip8Jha67dJS2knb5Hd6T.DZI97ugPxUtGwC7qgMpbTFtd4OmHk0e";
 
       await connection.query(
         `
@@ -130,7 +130,7 @@ export async function setupDatabase() {
       `,
         [hashedPassword],
       );
-      console.log("Default admin user created: admin / admin123");
+      console.log("Default admin user created: admin / admin");
     }
 
     // Create the 'rhs_exams' table

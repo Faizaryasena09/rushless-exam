@@ -28,10 +28,12 @@ const DEFAULT_SETTINGS = {
     student_can_change_username: '0',
     bruteforce_max_attempts: '5',
     bruteforce_lockout_minutes: '15',
+    reset_max_attempts: '3',
+    reset_lockout_minutes: '15',
 };
 
 // Keys that are numeric (not boolean toggles)
-const NUMERIC_KEYS = ['bruteforce_max_attempts', 'bruteforce_lockout_minutes'];
+const NUMERIC_KEYS = ['bruteforce_max_attempts', 'bruteforce_lockout_minutes', 'reset_max_attempts', 'reset_lockout_minutes'];
 
 async function ensureSettingsTable() {
     try {
@@ -143,6 +145,20 @@ export async function PUT(request) {
 
         if (!key) {
             return NextResponse.json({ message: 'Key is required' }, { status: 400 });
+        }
+
+        // Special Actions
+        if (key === 'unlock_session_reset') {
+            await query({
+                query: `UPDATE rhs_settings SET setting_value = '0' WHERE setting_key = 'reset_attempts'`,
+                values: []
+            });
+            await query({
+                query: `DELETE FROM rhs_settings WHERE setting_key = 'reset_locked_until'`,
+                values: []
+            });
+            logFromRequest(request, session, 'SESSION_RESET_UNLOCK', 'info', { action: 'Manual unlock from dashboard' });
+            return NextResponse.json({ message: 'Endpoint session reset berhasil di-unlock.' });
         }
 
         // Handle Web Settings (Branding)
