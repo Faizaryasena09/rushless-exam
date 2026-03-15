@@ -488,6 +488,65 @@ export default function WebSettingsPage() {
                 </div>
             </div>
 
+            {/* Android App Configuration Section */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+                <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-emerald-50/30 dark:from-slate-700/50 dark:to-emerald-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+                    <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg">
+                        <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Konfigurasi Aplikasi Android</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Atur parameter keamanan aplikasi mobile</p>
+                    </div>
+                </div>
+                <div className="p-5">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+                        <div className="md:max-w-xs">
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Sandi Emergency Exit</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">Sandi yang digunakan siswa untuk keluar paksa dari mode ujian di aplikasi.</p>
+                        </div>
+                        <div className="flex items-center gap-3 w-full md:w-auto">
+                            <div className="relative flex-1 sm:flex-none">
+                                <input
+                                    type="text"
+                                    placeholder="Masukkan sandi..."
+                                    value={settings.app_emergency_password || ''}
+                                    onChange={(e) => setSettings(prev => ({ ...prev, app_emergency_password: e.target.value }))}
+                                    className="w-full sm:w-48 px-4 py-2.5 text-sm font-bold bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                />
+                            </div>
+                            <button
+                                onClick={async () => {
+                                    const key = 'app_emergency_password';
+                                    setSaving(prev => ({ ...prev, [key]: true }));
+                                    try {
+                                        const res = await fetch('/api/web-settings', {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ key, value: settings[key] }),
+                                        });
+                                        if (res.ok) {
+                                            setMessage({ type: 'success', text: 'Sandi emergency exit berhasil disimpan.' });
+                                            setTimeout(() => setMessage(null), 3000);
+                                        } else {
+                                            const d = await res.json();
+                                            setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
+                                        }
+                                    } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
+                                    finally { setSaving(prev => ({ ...prev, [key]: false })); }
+                                }}
+                                disabled={saving.app_emergency_password}
+                                className="px-6 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg shadow-emerald-100 dark:shadow-none transition-all disabled:opacity-50"
+                            >
+                                {saving.app_emergency_password ? '...' : 'Simpan'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Profile Permissions Section */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
                 <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-indigo-50/30 dark:from-slate-700/50 dark:to-indigo-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">

@@ -64,10 +64,10 @@ export async function GET(request) {
         const { searchParams } = new URL(request.url);
         const mode = searchParams.get('mode');
 
-        // Fetch web branding settings universally if requested
+        // Fetch web branding settings universally if requested (Public info)
         if (mode === 'branding') {
             const brandingRows = await query({
-                query: `SELECT setting_key, setting_value FROM rhs_web_settings`,
+                query: `SELECT setting_key, setting_value FROM rhs_web_settings WHERE setting_key IN ('site_name', 'site_logo', 'app_language')`,
                 values: []
             });
             const branding = { site_name: 'Rushless Exam', site_logo: '/favicon.ico', app_language: 'id' };
@@ -78,6 +78,17 @@ export async function GET(request) {
         const session = await getSession();
         if (!session) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
+        // Fetch application config for the Android app (Authenticated)
+        if (mode === 'app-config') {
+            const rows = await query({
+                query: `SELECT setting_key, setting_value FROM rhs_web_settings WHERE setting_key = 'app_emergency_password'`,
+                values: []
+            });
+            const config = { app_emergency_password: '' };
+            rows.forEach(row => config[row.setting_key] = row.setting_value);
+            return NextResponse.json(config);
         }
 
         await ensureSettingsTable();
@@ -161,8 +172,8 @@ export async function PUT(request) {
             return NextResponse.json({ message: 'Endpoint session reset berhasil di-unlock.' });
         }
 
-        // Handle Web Settings (Branding)
-        if (['site_name', 'site_logo', 'app_language'].includes(key)) {
+        // Handle Web Settings (Branding & App Config)
+        if (['site_name', 'site_logo', 'app_language', 'app_emergency_password'].includes(key)) {
             // Validate app_language
             if (key === 'app_language' && !['id', 'en'].includes(value)) {
                 return NextResponse.json({ message: 'Invalid language value. Use id or en.' }, { status: 400 });

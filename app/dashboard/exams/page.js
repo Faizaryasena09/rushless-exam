@@ -99,6 +99,42 @@ const StudentExamActions = ({ exam }) => {
   ) : null;
 
   // Action button
+  const [isLaunching, setIsLaunching] = useState(false);
+  const [isAndroidApp, setIsAndroidApp] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isApp = userAgent.includes('rushlesssaferandroid') || !!window.RushlessSafer;
+      setIsAndroidApp(isApp);
+    }
+  }, []);
+
+  const handleLaunchApp = async (e) => {
+    e.preventDefault();
+    if (isLaunching) return;
+
+    try {
+      setIsLaunching(true);
+      const res = await fetch('/api/auth/generate-token', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || 'Failed to generate handoff token');
+
+      const targetUrl = window.location.origin + '/dashboard/exams/kerjakan/' + exam.id;
+      const launchUrl = `rushless-safer://lock?url=${encodeURIComponent(targetUrl)}&handoff_token=${data.token}`;
+
+      window.location.href = launchUrl;
+    } catch (err) {
+      console.error('Launch failed:', err);
+      // Fallback to direct launch if token generation fails (though it might require login)
+      const targetUrl = window.location.origin + '/dashboard/exams/kerjakan/' + exam.id;
+      window.location.href = `rushless-safer://lock?url=${encodeURIComponent(targetUrl)}`;
+    } finally {
+      setIsLaunching(false);
+    }
+  };
+
   let actionButton = null;
 
   if (examNotStarted) {
@@ -109,18 +145,33 @@ const StudentExamActions = ({ exam }) => {
       </div>
     );
   } else if (hasInProgress && !examEnded) {
+    const showDirectLink = !exam.require_safe_browser || isAndroidApp;
     actionButton = (
-      <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors">
-        <div className="flex items-center gap-2">
-          <Icons.Play />
-          <span>Lanjutkan Ujian</span>
-        </div>
-        <Icons.ChevronRight />
-      </Link>
+      <div className="flex flex-col gap-2">
+        {showDirectLink && (
+          <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors">
+            <div className="flex items-center gap-2">
+              <Icons.Play />
+              <span>Lanjutkan Ujian</span>
+            </div>
+            <Icons.ChevronRight />
+          </Link>
+        )}
+        {exam.require_safe_browser && !isAndroidApp && (
+          <button
+            onClick={handleLaunchApp}
+            disabled={isLaunching}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
+          >
+             <Icons.Shield className="w-4 h-4" />
+             <span>{isLaunching ? 'Menyiapkan...' : 'Buka di Rushless Safer (App)'}</span>
+          </button>
+        )}
+      </div>
     );
   } else if ((examEnded || maxAttemptsReached) && latestAttemptId) {
     const showResultsSetting = !!exam.show_result;
-    
+
     if (showResultsSetting) {
       actionButton = (
         <Link href={`/dashboard/exams/hasil/${latestAttemptId}`} className="group w-full flex items-center justify-between text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors">
@@ -148,23 +199,29 @@ const StudentExamActions = ({ exam }) => {
     );
   } else if (canTakeExam) {
     const label = userAttempts > 0 ? 'Ulangi Ujian' : (exam.require_seb ? 'Mulai dengan SEB' : 'Mulai Kerjakan');
-    const launchUrl = `rushless-safer://lock?url=${encodeURIComponent(window.location.origin + '/dashboard/exams/kerjakan/' + exam.id)}`;
-    
+    const showDirectLink = !exam.require_safe_browser || isAndroidApp;
+
     actionButton = (
       <div className="flex flex-col gap-2">
-        <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
-          <div className="flex items-center gap-2">
-            <Icons.Play />
-            <span>{label}</span>
-          </div>
-          <Icons.ChevronRight />
-        </Link>
-        
-        {!!exam.require_safe_browser && (
-          <a href={launchUrl} className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none">
+        {showDirectLink && (
+          <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
+            <div className="flex items-center gap-2">
+              <Icons.Play />
+              <span>{label}</span>
+            </div>
+            <Icons.ChevronRight />
+          </Link>
+        )}
+
+        {!!exam.require_safe_browser && !isAndroidApp && (
+          <button
+            onClick={handleLaunchApp}
+            disabled={isLaunching}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
+          >
              <Icons.Shield className="w-4 h-4" />
-             <span>Buka di Rushless Safer (App)</span>
-          </a>
+             <span>{isLaunching ? 'Menyiapkan...' : 'Buka di Rushless Safer (App)'}</span>
+          </button>
         )}
       </div>
     );

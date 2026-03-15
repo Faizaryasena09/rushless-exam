@@ -32,9 +32,8 @@ RUN mkdir -p public/uploads && chown -R nextjs:nodejs /app
 
 # COPY DARI STAGE "builder" (Harus sesuai dengan nama AS di stage 2)
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy ecosystem config
 COPY --chown=nextjs:nodejs ecosystem.config.js ./

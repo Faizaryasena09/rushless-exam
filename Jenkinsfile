@@ -31,6 +31,8 @@ DB_HOST=${DB_HOST}
 DB_NAME=${DB_NAME}
 NODE_ENV=${NODE_ENV}
 EOF
+                # Bersihkan karakter \r (Windows) agar tidak merusak variabel env
+                tr -d '\\r' < .env > .env.tmp && mv .env.tmp .env
                 # Bersihkan karakter \r (Windows) yang bisa merusak NODE_ENV
                 tr -d '\\r' < .env > .env.tmp && mv .env.tmp .env
                 '''

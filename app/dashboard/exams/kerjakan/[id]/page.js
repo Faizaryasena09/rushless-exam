@@ -428,62 +428,78 @@ export default function ExamTakingPage() {
 
   // Enforce Browser Checks
   useEffect(() => {
-    if (examDetails?.require_safe_browser) {
-      const userAgent = navigator.userAgent.toLowerCase();
-      const isWebView2 = window.chrome && window.chrome.webview;
-      const isRushless = userAgent.includes('rushless');
-      const isSafeBrowser = isWebView2 || isRushless;
+    const enforceRushlessSafer = async () => {
+      if (examDetails?.require_safe_browser) {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isWebView2 = window.chrome && window.chrome.webview;
+        const isRushless = userAgent.includes('rushless');
+        const isAndroidApp = userAgent.includes('rushlesssaferandroid') || (typeof window !== 'undefined' && !!window.RushlessSafer);
+        const isSafeBrowser = isWebView2 || isRushless || isAndroidApp;
 
-      if (!isSafeBrowser) {
-        // Block access
-        const launchUrl = `rushless-safer://lock?url=${encodeURIComponent(window.location.href)}`;
-        document.body.innerHTML = `
-                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f1f5f9;font-family:sans-serif;text-align:center;padding:24px;">
-                    <div style="font-size:5rem;margin-bottom:24px;">🛡️</div>
-                    <h1 style="color:#0f172a;font-size:2.5rem;font-weight:900;margin-bottom:12px;letter-spacing:-0.05em;">Rushless Safer Required</h1>
-                    <div style="background:white;padding:40px;border-radius:32px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.05), 0 10px 10px -5px rgba(0,0,0,0.02);max-width:500px;width:100%;border:1px solid #e2e8f0;">
-                        <p style="color:#475569;font-size:1.1rem;line-height:1.6;margin-bottom:32px;">Ujian ini diproteksi dan hanya bisa dikerjakan melalui aplikasi <strong>Rushless Safer</strong> untuk menjaga integritas ujian.</p>
-                        
-                        <a id="launchBtn" href="${launchUrl}" style="display:block;width:100%;padding:18px;background:#4f46e5;color:white;text-decoration:none;border-radius:16px;font-weight:800;font-size:1.1rem;margin-bottom:12px;transition:all 0.2s;box-shadow:0 10px 15px -3px rgba(79,70,229,0.3);">Buka di Rushless Safer</a>
-                        
-                        <a href="/dashboard/exams" style="display:block;width:100%;padding:16px;background:transparent;color:#64748b;text-decoration:none;border-radius:16px;font-weight:600;font-size:0.95rem;border:1px solid #e2e8f0;">Kembali ke Dashboard</a>
-                    </div>
-                    <div id="autoLaunchToast" style="margin-top:24px;background:#e2e8f0;padding:8px 16px;border-radius:full;font-size:0.75rem;color:#64748b;font-weight:600;display:none;">Membuka aplikasi otomatis dlm 2 detik...</div>
-                    <p style="color:#94a3b8;font-size:0.875rem;margin-top:32px;font-weight:500;">Belum punya aplikasinya? Hubungi proktor ujian Anda.</p>
-                </div>
-                <script>
-                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                    if (isMobile) {
-                        const toast = document.getElementById('autoLaunchToast');
-                        toast.style.display = 'block';
-                        setTimeout(() => {
-                            window.location.href = "${launchUrl}";
-                        }, 2000);
-                    }
-                </script>
-            `;
-        // Stop further execution
-        return;
+        if (!isSafeBrowser) {
+          let handoffToken = '';
+          try {
+            const tokenRes = await fetch('/api/auth/generate-token', { method: 'POST' });
+            if (tokenRes.ok) {
+              const tokenData = await tokenRes.json();
+              handoffToken = tokenData.token;
+            }
+          } catch (e) {
+            console.error("Failed to generate handoff token for enforcement screen:", e);
+          }
+
+          const baseUrl = window.location.href;
+          const launchUrl = `rushless-safer://lock?url=${encodeURIComponent(baseUrl)}${handoffToken ? `&handoff_token=${handoffToken}` : ''}`;
+          
+          document.body.innerHTML = `
+                  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f1f5f9;font-family:sans-serif;text-align:center;padding:24px;">
+                      <div style="font-size:5rem;margin-bottom:24px;">🛡️</div>
+                      <h1 style="color:#0f172a;font-size:2.5rem;font-weight:900;margin-bottom:12px;letter-spacing:-0.05em;">Rushless Safer Required</h1>
+                      <div style="background:white;padding:40px;border-radius:32px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.05), 0 10px 10px -5px rgba(0,0,0,0.02);max-width:500px;width:100%;border:1px solid #e2e8f0;">
+                          <p style="color:#475569;font-size:1.1rem;line-height:1.6;margin-bottom:32px;">Ujian ini diproteksi dan hanya bisa dikerjakan melalui aplikasi <strong>Rushless Safer</strong> untuk menjaga integritas ujian.</p>
+                          
+                          <a id="launchBtn" href="${launchUrl}" style="display:block;width:100%;padding:18px;background:#4f46e5;color:white;text-decoration:none;border-radius:16px;font-weight:800;font-size:1.1rem;margin-bottom:12px;transition:all 0.2s;box-shadow:0 10px 15px -3px rgba(79,70,229,0.3);">Buka di Rushless Safer</a>
+                          
+                          <a href="/dashboard/exams" style="display:block;width:100%;padding:16px;background:transparent;color:#64748b;text-decoration:none;border-radius:16px;font-weight:600;font-size:0.95rem;border:1px solid #e2e8f0;">Kembali ke Dashboard</a>
+                      </div>
+                      <div id="autoLaunchToast" style="margin-top:24px;background:#e2e8f0;padding:8px 16px;border-radius:full;font-size:0.75rem;color:#64748b;font-weight:600;display:none;">Membuka aplikasi otomatis dlm 2 detik...</div>
+                      <p style="color:#94a3b8;font-size:0.875rem;margin-top:32px;font-weight:500;">Belum punya aplikasinya? Hubungi proktor ujian Anda.</p>
+                  </div>
+                  <script>
+                      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                      if (isMobile) {
+                          const toast = document.getElementById('autoLaunchToast');
+                          toast.style.display = 'block';
+                          setTimeout(() => {
+                              window.location.href = "${launchUrl}";
+                          }, 2000);
+                      }
+                  </script>
+              `;
+          return;
+        }
       }
-    }
 
-    if (examDetails?.require_seb) {
-      const userAgent = navigator.userAgent.toLowerCase();
-      const isSEB = userAgent.includes('seb');
+      if (examDetails?.require_seb) {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isSEB = userAgent.includes('seb');
 
-      if (!isSEB) {
-        document.body.innerHTML = `
-                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f8fafc;font-family:sans-serif;text-align:center;padding:20px;">
-                    <div style="font-size:4rem;margin-bottom:20px;">🔒</div>
-                    <h1 style="color:#1e293b;font-size:2rem;margin-bottom:10px;">Safe Exam Browser Required</h1>
-                    <p style="color:#64748b;font-size:1.1rem;max-width:600px;">Ujian ini hanya bisa dikerjakan menggunakan <strong>Safe Exam Browser (SEB)</strong>.</p>
-                    <p style="color:#64748b;margin-top:10px;">Harap buka ujian ini melalui aplikasi SEB.</p>
-                    <a href="/dashboard/exams" style="margin-top:30px;padding:12px 24px;background:#4f46e5;color:white;text-decoration:none;border-radius:8px;font-weight:bold;">Kembali ke Dashboard</a>
-                </div>
-            `;
-        return;
+        if (!isSEB) {
+          document.body.innerHTML = `
+                  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f8fafc;font-family:sans-serif;text-align:center;padding:20px;">
+                      <div style="font-size:4rem;margin-bottom:20px;">🔒</div>
+                      <h1 style="color:#1e293b;font-size:2rem;margin-bottom:10px;">Safe Exam Browser Required</h1>
+                      <p style="color:#64748b;font-size:1.1rem;max-width:600px;">Ujian ini hanya bisa dikerjakan menggunakan <strong>Safe Exam Browser (SEB)</strong>.</p>
+                      <p style="color:#64748b;margin-top:10px;">Harap buka ujian ini melalui aplikasi SEB.</p>
+                      <a href="/dashboard/exams" style="margin-top:30px;padding:12px 24px;background:#4f46e5;color:white;text-decoration:none;border-radius:8px;font-weight:bold;">Kembali ke Dashboard</a>
+                  </div>
+              `;
+          return;
+        }
       }
-    }
+    };
+
+    enforceRushlessSafer();
   }, [examDetails]);
 
   useEffect(() => {
