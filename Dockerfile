@@ -24,6 +24,9 @@ ENV NEXT_TELEMETRY_DISABLED 1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Install PM2 globally
+RUN npm install pm2 -g
+
 # Buat folder untuk upload dan atur izin
 RUN mkdir -p public/uploads && chown -R nextjs:nodejs /app
 
@@ -33,9 +36,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
+# Copy ecosystem config
+COPY --chown=nextjs:nodejs ecosystem.config.js ./
+
 USER nextjs
 
 EXPOSE 3000
 ENV PORT 3000
 
-CMD ["npm", "start"]
+CMD ["pm2-runtime", "start", "ecosystem.config.js"]
