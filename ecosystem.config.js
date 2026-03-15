@@ -2,9 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'rushless-exam',
-      script: 'node_modules/.bin/next',
+      script: 'node_modules/next/dist/bin/next',
       args: 'start',
-      cwd: './',
       instances: 'max',
       exec_mode: 'cluster',
       env: {

@@ -21,16 +21,13 @@ pipeline {
 
         stage('Prepare Environment') {
             steps {
-                sh '''
-                # Jenkins hanya fokus membuat file .env
-                cat > .env <<EOF
-DB_USER=${DB_USER}
-DB_PASSWORD=${DB_PASSWORD}
-DB_HOST=${DB_HOST}
-DB_NAME=${DB_NAME}
-NODE_ENV=production
-EOF
-                '''
+                sh """
+                echo "DB_USER=${DB_USER}" > .env
+                echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
+                echo "DB_HOST=${DB_HOST}" >> .env
+                echo "DB_NAME=${DB_NAME}" >> .env
+                echo "NODE_ENV=production" >> .env
+                """
             }
         }
 
