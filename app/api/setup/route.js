@@ -562,12 +562,24 @@ export async function GET(request) {
     const hasName = await columnExists(usersTableName, 'name');
     if (!hasName) {
       await query({
-        query: `ALTER TABLE ${usersTableName} ADD COLUMN name VARCHAR(255);`,
+        query: `ALTER TABLE \`${usersTableName}\` ADD COLUMN name VARCHAR(255);`,
         values: [],
       });
       messages.push(`Column 'name' created successfully in '${usersTableName}'.`);
     } else {
       messages.push(`Column 'name' already exists in '${usersTableName}'.`);
+    }
+
+    // --- Check and add 'refresh_requested_at' column to users table ---
+    const hasRefreshReq = await columnExists(usersTableName, 'refresh_requested_at');
+    if (!hasRefreshReq) {
+      await query({
+        query: `ALTER TABLE \`${usersTableName}\` ADD COLUMN refresh_requested_at TIMESTAMP NULL DEFAULT NULL;`,
+        values: [],
+      });
+      messages.push(`Column 'refresh_requested_at' created successfully in '${usersTableName}'.`);
+    } else {
+      messages.push(`Column 'refresh_requested_at' already exists in '${usersTableName}'.`);
     }
 
     // --- Check and add 'time_extension' column to exam attempts table ---

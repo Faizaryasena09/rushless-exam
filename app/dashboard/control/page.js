@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, ArrowUpDown, RefreshCcw, Users, Clock, Send, FileSpreadsheet } from 'lucide-react';
 
 // Format seconds to HH:MM:SS
 function formatTime(seconds) {
@@ -248,40 +248,117 @@ export default function ControlPage() {
         }
     };
 
+    const handleForceSubmit = (userId, attemptId, name) => {
+        if (confirm(`PAKSA KUMPULKAN ujian untuk ${name}? \n\nHal ini akan mengirim sinyal ke siswa untuk submit otomatis, atau disubmit server jika siswa offline.`)) {
+            handleAction('force_submit', { userId, attemptId });
+        }
+    };
+
+    const handleBatchForceSubmit = () => {
+        const active = filteredStudents.filter(s => s.attempt_id);
+        if (active.length === 0) { alert("Tidak ada siswa dengan ujian aktif dalam filter ini."); return; }
+        if (confirm(`PAKSA KUMPULKAN ujian untuk ${active.length} siswa terfilter?`)) {
+            handleAction('force_submit_all', {});
+        }
+    };
+
     if (loading) return <div className="p-10 text-center text-slate-500">Loading Control Panel...</div>;
 
     return (
         <div className="space-y-6">
             {logStudent && <LogPanel student={logStudent} onClose={() => setLogStudent(null)} />}
 
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200 gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-800">Exam Control</h1>
-                    <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                        Updated: {lastUpdated.toLocaleTimeString()}
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse ml-2"></span>
-                    </p>
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden text-slate-800">
+                {/* Upper Header: Title & Main Search/Filter */}
+                <div className="p-5 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-slate-50/30">
+                    <div>
+                        <h1 className="text-xl font-black tracking-tight text-slate-900 flex items-center gap-2">
+                            <span className="p-2 bg-indigo-600 text-white rounded-xl shadow-indigo-100 shadow-lg">
+                                <Icons.Lock />
+                            </span>
+                            Exam Control
+                        </h1>
+                        <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5 mt-2 ml-1">
+                            <RefreshCcw size={10} className="animate-spin-slow" />
+                            Update: <span className="text-slate-700 font-bold">{lastUpdated.toLocaleTimeString('id-ID')}</span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ml-1"></span>
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full lg:w-auto">
+                        <div className="relative w-full sm:w-64 group">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            </div>
+                            <input 
+                                type="text" 
+                                placeholder="Cari nama atau username..." 
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm w-full focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400 font-medium" 
+                            />
+                        </div>
+                        <select 
+                            value={selectedClass} 
+                            onChange={(e) => setSelectedClass(e.target.value)}
+                            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm w-full sm:w-40 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-bold text-slate-700 appearance-none cursor-pointer"
+                            style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2364748b\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1rem' }}
+                        >
+                            {classes.map(c => <option key={c} value={c}>{c === 'All' ? 'Semua Kelas' : c}</option>)}
+                        </select>
+                        <button 
+                            onClick={fetchStatus} 
+                            disabled={loading}
+                            title="Segarkan Data"
+                            className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 transition-all flex items-center justify-center hover:shadow-sm active:scale-95 disabled:opacity-50"
+                        >
+                            <RefreshCcw size={18} className={loading ? 'animate-spin' : ''} />
+                        </button>
+                    </div>
                 </div>
-                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-                    <input type="text" placeholder="Search student..." value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="px-3 py-2 border border-slate-300 rounded-lg text-sm w-full sm:w-48 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                    <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}
-                        className="px-3 py-2 border border-slate-300 rounded-lg text-sm w-full sm:w-40 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        {classes.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    <button onClick={handleBatchAddTime}
-                        className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-semibold whitespace-nowrap">
-                        + Add Time (Filtered)
-                    </button>
-                    <button onClick={handleBatchRefresh}
-                        className="w-full sm:w-auto px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-semibold whitespace-nowrap">
-                        Refresh All (Filtered)
-                    </button>
-                    <button onClick={fetchStatus} title="Refresh Data"
-                        className="w-full sm:w-auto p-2 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors flex justify-center">
-                        <Icons.Refresh />
-                    </button>
+
+                {/* Lower Header: Batch Actions Toolbar */}
+                <div className="px-5 py-3 bg-indigo-50/50 border-b border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 overflow-x-auto no-scrollbar w-full md:w-auto">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-indigo-100 shadow-sm whitespace-nowrap">
+                            <Users size={14} className="text-indigo-600" />
+                            <span className="text-xs font-bold text-slate-700">
+                                {filteredStudents.length} <span className="text-slate-400 font-medium">Siswa Terfilter</span>
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-emerald-100 shadow-sm whitespace-nowrap">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-xs font-bold text-slate-700">
+                                {filteredStudents.filter(s => s.is_online).length} <span className="text-slate-400 font-medium">Online</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                        <div className="h-4 w-px bg-slate-200 mx-2 hidden md:block" />
+                        <span className="text-[10px] font-black uppercase tracking-tighter text-indigo-400 mr-2 hidden lg:block">Tindakan Massal</span>
+                        <button 
+                            onClick={handleBatchAddTime}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all text-xs font-black uppercase tracking-tight shadow-md shadow-indigo-200 active:scale-95 group"
+                        >
+                            <Clock size={14} className="group-hover:rotate-12 transition-transform" />
+                            Tambah Waktu
+                        </button>
+                        <button 
+                            onClick={handleBatchRefresh}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-all text-xs font-black uppercase tracking-tight shadow-md shadow-amber-200 active:scale-95 group"
+                        >
+                            <RefreshCcw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
+                            Refresh Alert
+                        </button>
+                        <button 
+                            onClick={handleBatchForceSubmit}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-all text-xs font-black uppercase tracking-tight shadow-md shadow-rose-200 active:scale-95 group"
+                        >
+                            <FileSpreadsheet size={14} className="group-hover:scale-110 transition-transform" />
+                            Paksa Kumpul
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -371,6 +448,11 @@ export default function ControlPage() {
                                                     className="p-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
                                                     title="Refresh Exam Page (Student)">
                                                     <Icons.Refresh />
+                                                </button>
+                                                <button onClick={() => handleForceSubmit(s.id, s.attempt_id, s.name || s.username)}
+                                                    className="p-2 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-lg transition-colors"
+                                                    title="Paksa Kumpulkan Ujian">
+                                                    <FileSpreadsheet size={16} />
                                                 </button>
                                                 <button onClick={() => handleAction('reset_exam', { userId: s.id, attemptId: s.attempt_id })}
                                                     className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
@@ -463,6 +545,11 @@ export default function ControlPage() {
                                         <Icons.Refresh />
                                         <span className="text-[10px] font-black uppercase">Ref</span>
                                     </button>
+                                    <button onClick={() => handleForceSubmit(s.id, s.attempt_id, s.name || s.username)}
+                                        className="flex flex-col items-center justify-center gap-1.5 py-3 bg-rose-100 text-rose-700 border border-rose-200 rounded-xl col-span-2">
+                                        <FileSpreadsheet size={18} />
+                                        <span className="text-[10px] font-black uppercase">Paksa Kumpulkan</span>
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -483,6 +570,20 @@ export default function ControlPage() {
                 }
                 .animate-slide-in-right {
                     animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+                @keyframes spin-slow {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                .animate-spin-slow {
+                    animation: spin-slow 8s linear infinite;
+                }
+                .no-scrollbar::-webkit-scrollbar {
+                    display: none;
+                }
+                .no-scrollbar {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
                 }
             `}</style>
         </div>

@@ -20,7 +20,7 @@ export async function POST(request) {
   }
 
   try {
-    const { examId, answers, attemptId } = await request.json();
+    const { examId, answers, attemptId, isForce } = await request.json();
 
     if (!examId || !answers || !attemptId) {
       return NextResponse.json({ message: 'Missing examId, answers, or attemptId' }, { status: 400 });
@@ -39,7 +39,7 @@ export async function POST(request) {
     });
     const requireAllAnswered = settingsRows.length > 0 && Boolean(settingsRows[0].require_all_answered);
 
-    if (requireAllAnswered && allQuestions.length > 0) {
+    if (requireAllAnswered && allQuestions.length > 0 && !isForce) {
       const answeredQuestionIds = new Set(Object.keys(answers).filter(id => answers[id] !== null && answers[id] !== undefined));
       const unansweredCount = allQuestions.filter(q => !answeredQuestionIds.has(String(q.id))).length;
       if (unansweredCount > 0) {

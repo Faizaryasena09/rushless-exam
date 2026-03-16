@@ -46,6 +46,10 @@ export async function GET(request) {
 
     const stream = new ReadableStream({
         async start(controller) {
+            // Get initial server time to ignore previous refresh requests
+            const initialNowResult = await query({ query: `SELECT UNIX_TIMESTAMP(NOW()) as start_ts` });
+            let lastKnownRefresh_ts = initialNowResult[0].start_ts;
+
             // Function to fetch and send data
             const sendUpdate = async () => {
                 try {
@@ -86,6 +90,23 @@ export async function GET(request) {
                     }
 
                     const attempt = attemptResult[0];
+
+                    // Removed: Periodic database check for refresh_requested_at
+                    // Removed: const refreshCheck = await query({
+                    // Removed:     query: 'SELECT UNIX_TIMESTAMP(refresh_requested_at) as refresh_ts FROM rhs_users WHERE id = ?',
+                    // Removed:     values: [userId]
+                    // Removed: });
+                    // Removed: if (refreshCheck.length > 0 && refreshCheck[0].refresh_ts && Number(refreshCheck[0].refresh_ts) > Number(lastKnownRefresh_ts)) {
+                    // Removed:     try {
+                    // Removed:         await query({
+                    // Removed:             query: 'INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, "SECURITY", ?)',
+                    // Removed:             values: [attempt.id, `🔄 Refresh dipicu oleh Admin (DB Alert: ${refreshCheck[0].refresh_ts} > ${lastKnownRefresh_ts})`]
+                    // Removed:         });
+                    // Removed:     } catch (logErr) { console.error("Logging failed", logErr); }
+                    // Removed:     controller.enqueue(`data: ${JSON.stringify({ refresh: true })}\n\n`);
+                    // Removed:     lastKnownRefresh_ts = refreshCheck[0].refresh_ts;
+                    // Removed: }
+
                     const seconds_left = calculateRemainingSeconds(settings, attempt, now_ts);
 
                     // If timer expired server-side, auto-submit the attempt.
@@ -126,17 +147,41 @@ export async function GET(request) {
             intervalId = setInterval(sendUpdate, 3000);
 
             // Listen for refresh events from the Control Panel (real-time signaling)
-            const onRefresh = (data) => {
-                if (data.userId === 'all' || data.userId === userId) {
+            const onRefresh = async (data) => {
+                if (data.userId === 'all' || data.userId == userId) {
+                    // Diagnostic Log - Visible in Student Log Panel (Log Realtime)
+                    try {
+                        await query({
+                            query: 'INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, "SECURITY", ?)',
+                            values: [attempt.id, `🔄 Refresh dipicu oleh Admin (Real-time SSE Signal)`]
+                        });
+                    } catch (logErr) { console.error("Logging failed", logErr); }
+
                     controller.enqueue(`data: ${JSON.stringify({ refresh: true })}\n\n`);
                 }
             };
             eventBus.on('refresh', onRefresh);
 
+            // Listen for force submit events
+            const onForceSubmit = async (data) => {
+                if (data.userId === 'all' || data.userId == userId) {
+                    try {
+                        await query({
+                            query: 'INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, "SECURITY", ?)',
+                            values: [attempt.id, `🚀 Force Submit dipicu oleh Admin (Real-time SSE Signal)`]
+                        });
+                    } catch (logErr) { console.error("Logging failed", logErr); }
+
+                    controller.enqueue(`data: ${JSON.stringify({ force_submit: true })}\n\n`);
+                }
+            };
+            eventBus.on('force_submit', onForceSubmit);
+
             // Store the cleanup function
             this.cleanup = () => {
                 clearInterval(intervalId);
                 eventBus.off('refresh', onRefresh);
+                eventBus.off('force_submit', onForceSubmit);
             };
         },
         cancel() {

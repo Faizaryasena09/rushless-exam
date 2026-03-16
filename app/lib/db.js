@@ -342,6 +342,14 @@ export async function setupDatabase() {
     } catch (err) {
       if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
     }
+    try {
+      await connection.query(
+        `ALTER TABLE rhs_users ADD COLUMN refresh_requested_at TIMESTAMP NULL DEFAULT NULL`,
+      );
+      console.log("Column 'refresh_requested_at' added to rhs_users");
+    } catch (err) {
+      if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
+    }
 
     // Migration: Add require_all_answered to rhs_exam_settings
     try {

@@ -114,12 +114,102 @@ export async function POST(request) {
             
             case 'refresh_exams':
                 if (!userId) return NextResponse.json({ message: 'User ID required' }, { status: 400 });
+                
+                // Keep DB update as a minor side-effect but focus on EventBus
+                await query({
+                    query: 'UPDATE rhs_users SET refresh_requested_at = NOW() WHERE id = ?',
+                    values: [userId]
+                });
+                
+                // Diagnostic log
+                try {
+                    await query({
+                        query: 'INSERT INTO rhs_activity_logs (user_id, username, action, level, details) VALUES (?, ?, "REFRESH_ACTION", "info", ?)',
+                        values: [session.user.id, session.user.username, `Target Student ID: ${userId}`]
+                    });
+                } catch (e) { console.error(e); }
+
                 eventBus.emit('refresh', { userId });
                 return NextResponse.json({ message: 'Refresh signal sent to student.' });
 
             case 'refresh_exams_all':
+                await query({
+                    query: 'UPDATE rhs_users SET refresh_requested_at = NOW()'
+                });
+
+                // Diagnostic log
+                try {
+                    await query({
+                        query: 'INSERT INTO rhs_activity_logs (user_id, username, action, level, details) VALUES (?, ?, "REFRESH_ALL_ACTION", "info", "Target: All Students")',
+                        values: [session.user.id, session.user.username]
+                    });
+                } catch (e) { console.error(e); }
+
                 eventBus.emit('refresh', { userId: 'all' });
                 return NextResponse.json({ message: 'Refresh signal sent to all active students.' });
+
+            case 'force_submit':
+                if (!userId || !attemptId) return NextResponse.json({ message: 'Params required' }, { status: 400 });
+                
+                // 1. Emit SSE signal for real-time submission (best for data integrity)
+                eventBus.emit('force_submit', { userId, attemptId });
+
+                // 2. Server-side fallback: check online status
+                const userStatus = await query({
+                    query: 'SELECT (last_activity > NOW() - INTERVAL 15 SECOND) as is_online FROM rhs_users WHERE id = ?',
+                    values: [userId]
+                });
+
+                if (userStatus.length === 0 || !userStatus[0].is_online) {
+                    // Student is offline, trigger auto-submit from server
+                    const { autoSubmitAttempt } = await import('@/app/lib/auto-submit');
+                    
+                    const attemptRows = await query({
+                        query: `
+                            SELECT ea.*, e.timer_mode, e.duration_minutes, UNIX_TIMESTAMP(es.end_time) as end_time_ts
+                            FROM rhs_exam_attempts ea
+                            JOIN rhs_exams e ON ea.exam_id = e.id
+                            LEFT JOIN rhs_exam_settings es ON e.id = es.exam_id
+                            WHERE ea.id = ? AND ea.status = 'in_progress'
+                        `,
+                        values: [attemptId]
+                    });
+
+                    if (attemptRows.length > 0) {
+                        await autoSubmitAttempt(attemptRows[0]);
+                    }
+                }
+
+                return NextResponse.json({ message: 'Force submit signal sent.' });
+
+            case 'force_submit_all':
+                eventBus.emit('force_submit', { userId: 'all' });
+                
+                // Server-side fallback for offline students
+                (async () => {
+                    try {
+                        const { autoSubmitAttempt } = await import('@/app/lib/auto-submit');
+                        const offlineAttempts = await query({
+                            query: `
+                                SELECT ea.*, e.timer_mode, e.duration_minutes, UNIX_TIMESTAMP(es.end_time) as end_time_ts
+                                FROM rhs_exam_attempts ea
+                                JOIN rhs_exams e ON ea.exam_id = e.id
+                                LEFT JOIN rhs_exam_settings es ON e.id = es.exam_id
+                                JOIN rhs_users u ON ea.user_id = u.id
+                                WHERE ea.status = 'in_progress'
+                                AND (u.last_activity IS NULL OR u.last_activity < NOW() - INTERVAL 20 SECOND)
+                            `
+                        });
+
+                        for (const attempt of offlineAttempts) {
+                            await autoSubmitAttempt(attempt);
+                        }
+                    } catch (e) {
+                        console.error("Batch fallback submit failed:", e);
+                    }
+                })();
+
+                return NextResponse.json({ message: 'Force submit signal sent to all active students.' });
 
             default:
                 return NextResponse.json({ message: 'Invalid action' }, { status: 400 });

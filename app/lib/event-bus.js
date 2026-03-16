@@ -7,6 +7,5 @@ const globalForEvents = global;
 /** @type {EventEmitter} */
 export const eventBus = globalForEvents.eventBus || new EventEmitter();
 
-if (process.env.NODE_ENV !== 'production') {
-    globalForEvents.eventBus = eventBus;
-}
+// Always persist to global to ensure singleton behavior across different imports/contexts
+globalForEvents.eventBus = eventBus;

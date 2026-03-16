@@ -250,6 +250,12 @@ export default function ExamTakingPage() {
             return;
           }
 
+            // Handle force_submit signal from Admin
+            if (data.force_submit) {
+              submitExam(true); // Call existing submit logic with isAutoSubmit=true
+              return;
+            }
+
             // Handle refresh signal from Admin
             if (data.refresh) {
               window.location.reload();
@@ -409,7 +415,7 @@ export default function ExamTakingPage() {
       const response = await fetch('/api/exams/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ examId, answers, attemptId: attemptDetails.id }),
+        body: JSON.stringify({ examId, answers, attemptId: attemptDetails.id, isForce: isAutoSubmit }),
       });
       if (!response.ok) throw new Error((await response.json()).message || 'Failed to submit exam.');
 
