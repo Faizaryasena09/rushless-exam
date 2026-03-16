@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import UserModal from '../../components/UserModal';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
@@ -16,7 +16,10 @@ import {
   Search, 
   Filter, 
   AlertTriangle,
-  Loader2
+  Loader2,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown
 } from 'lucide-react';
 
 // --- COMPONENTS ---
@@ -70,6 +73,7 @@ const ManageUsersPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const fileInputRef = useRef(null);
 
   // Modal states
@@ -115,6 +119,52 @@ const ManageUsersPage = () => {
     }, 500);
     return () => clearTimeout(delayDebounceFn);
   }, [selectedClass, searchTerm]);
+
+  const toggleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const SortIcon = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) return <ArrowUpDown size={14} className="opacity-30 group-hover:opacity-100 transition-opacity" />;
+    
+    return (
+      <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 animate-in zoom-in-95 duration-200">
+        {sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        <span className="text-[10px] font-black tracking-tighter uppercase whitespace-nowrap">
+          {sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'}
+        </span>
+      </div>
+    );
+  };
+
+  const sortedUsers = useMemo(() => {
+    const data = [...users];
+    const { key, direction } = sortConfig;
+    
+    data.sort((a, b) => {
+      let valA, valB;
+
+      if (key === 'name') {
+        valA = (a.name || a.username).toLowerCase();
+        valB = (b.name || b.username).toLowerCase();
+      } else if (key === 'class') {
+        valA = (a.class_name || '').toLowerCase();
+        valB = (b.class_name || '').toLowerCase();
+      } else {
+        valA = (a[key] || '').toLowerCase();
+        valB = (b[key] || '').toLowerCase();
+      }
+
+      if (valA < valB) return direction === 'asc' ? -1 : 1;
+      if (valA > valB) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return data;
+  }, [users, sortConfig]);
 
   const handleAddUser = () => {
     setSelectedUser(null);
@@ -347,14 +397,26 @@ const ManageUsersPage = () => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Nama & Akun</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Peran</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Kelas</th>
+                    <th 
+                      className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider cursor-pointer group select-none hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
+                      onClick={() => toggleSort('name')}
+                    >
+                      <div className="flex items-center gap-3">
+                        Nama & Akun
+                        <SortIcon columnKey="name" />
+                      </div>
+                    </th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Peran
+                    </th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Kelas
+                    </th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {users.map((user) => (
+                  {sortedUsers.map((user) => (
                     <tr key={user.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -405,7 +467,7 @@ const ManageUsersPage = () => {
 
             {/* Mobile View */}
             <div className="grid grid-cols-1 gap-4 lg:hidden">
-              {users.map((user) => (
+              {sortedUsers.map((user) => (
                 <div key={user.id} className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
                   <div className="flex items-center justify-between gap-3 mb-4">
                     <div className="flex items-center gap-3">

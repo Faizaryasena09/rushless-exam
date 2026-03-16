@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
 
 // --- Icons ---
 const Icons = {
@@ -26,6 +27,7 @@ export default function ExamResultsPage() {
     const [nameFilter, setNameFilter] = useState('');
     const [classFilter, setClassFilter] = useState('all');
     const [showExportModal, setShowExportModal] = useState(false);
+    const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
     // Export Handler
     const handleExport = (attemptMode) => {
@@ -77,6 +79,42 @@ export default function ExamResultsPage() {
             return nameMatch && classMatch;
         });
     }, [resultsData, nameFilter, classFilter]);
+
+    const toggleSort = (key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const SortIcon = ({ columnKey }) => {
+        if (sortConfig.key !== columnKey) return <ArrowUpDown size={14} className="opacity-30 group-hover:opacity-100 transition-opacity" />;
+        
+        return (
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 animate-in zoom-in-95 duration-200">
+                {sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                <span className="text-[10px] font-black tracking-tighter uppercase whitespace-nowrap">
+                    {sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'}
+                </span>
+            </div>
+        );
+    };
+
+    const sortedResults = useMemo(() => {
+        const data = [...filteredResults];
+        const { direction } = sortConfig;
+        
+        data.sort((a, b) => {
+            const valA = a.studentName.toLowerCase();
+            const valB = b.studentName.toLowerCase();
+
+            if (valA < valB) return direction === 'asc' ? -1 : 1;
+            if (valA > valB) return direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        
+        return data;
+    }, [filteredResults, sortConfig]);
 
     const getScoreColor = (score) => {
         if (score >= 80) return 'text-emerald-600 bg-emerald-50';
@@ -186,11 +224,11 @@ export default function ExamResultsPage() {
                         Student Results
                     </h2>
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
-                        {filteredResults.length} Showing
+                        {sortedResults.length} Showing
                     </span>
                 </div>
 
-                {filteredResults.length === 0 ? (
+                {sortedResults.length === 0 ? (
                     <div className="bg-white dark:bg-slate-800 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-12 text-center">
                         <div className="w-16 h-16 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center text-slate-300 dark:text-slate-600 mx-auto mb-4">
                             <Icons.UserGroup />
@@ -205,7 +243,15 @@ export default function ExamResultsPage() {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50/50 dark:bg-slate-700/30 border-b border-slate-100 dark:border-slate-700">
-                                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student</th>
+                                        <th 
+                                            className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer group select-none hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
+                                            onClick={() => toggleSort('name')}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                Student
+                                                <SortIcon columnKey="name" />
+                                            </div>
+                                        </th>
                                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
                                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Attempts</th>
                                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Performance</th>
@@ -213,7 +259,7 @@ export default function ExamResultsPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
-                                    {filteredResults.map((student) => {
+                                    {sortedResults.map((student) => {
                                         const isCompleted = student.status === 'Completed';
                                         const isSelected = selectedStudent?.studentId === student.studentId;
                                         return (
@@ -276,7 +322,7 @@ export default function ExamResultsPage() {
 
                         {/* Mobile Grid/Card View */}
                         <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {filteredResults.map((student) => {
+                            {sortedResults.map((student) => {
                                 const isCompleted = student.status === 'Completed';
                                 const isSelected = selectedStudent?.studentId === student.studentId;
                                 return (

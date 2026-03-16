@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
 
 const Icons = {
     User: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
@@ -161,6 +162,7 @@ export default function TeachersAssignmentsPage() {
     const [allSubjects, setAllSubjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
     useEffect(() => {
         async function fetchData() {
@@ -212,6 +214,42 @@ export default function TeachersAssignmentsPage() {
         return teacherName.includes(query) || teacherUsername.includes(query);
     });
 
+    const toggleSort = (key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const SortIcon = ({ columnKey }) => {
+        if (sortConfig.key !== columnKey) return <ArrowUpDown size={14} className="opacity-30 group-hover:opacity-100 transition-opacity" />;
+        
+        return (
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 animate-in zoom-in-95 duration-200">
+                {sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                <span className="text-[10px] font-black tracking-tighter uppercase whitespace-nowrap">
+                    {sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'}
+                </span>
+            </div>
+        );
+    };
+
+    const sortedTeachers = useMemo(() => {
+        const data = [...filteredTeachers];
+        const { direction } = sortConfig;
+        
+        data.sort((a, b) => {
+            const valA = (a.name || a.username).toLowerCase();
+            const valB = (b.name || b.username).toLowerCase();
+
+            if (valA < valB) return direction === 'asc' ? -1 : 1;
+            if (valA > valB) return direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        
+        return data;
+    }, [filteredTeachers, sortConfig]);
+
     if (loading) return (
         <div className="flex items-center justify-center p-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -247,13 +285,21 @@ export default function TeachersAssignmentsPage() {
                     <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 md:table flex flex-col">
                         <thead className="bg-slate-50 dark:bg-slate-700/50 hidden md:table-header-group">
                             <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider w-1/4">Informasi Guru</th>
+                                <th 
+                                    className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider w-1/4 cursor-pointer group select-none hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
+                                    onClick={() => toggleSort('name')}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        Informasi Guru
+                                        <SortIcon columnKey="name" />
+                                    </div>
+                                </th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider w-1/3 border-l border-slate-200 dark:border-slate-700">Akses Kelas</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider w-1/3 border-l border-slate-200 dark:border-slate-700">Akses Mata Pelajaran</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700 md:table-row-group flex flex-col">
-                            {filteredTeachers.map(teacher => (
+                            {sortedTeachers.map(teacher => (
                                 <TeacherRow 
                                     key={teacher.id} 
                                     teacher={teacher} 
@@ -262,7 +308,7 @@ export default function TeachersAssignmentsPage() {
                                 />
                             ))}
                             
-                            {filteredTeachers.length === 0 && (
+                            {sortedTeachers.length === 0 && (
                                 <tr>
                                     <td colSpan="3" className="px-6 py-12 text-center text-slate-500 dark:text-slate-400">
                                         <div className="flex flex-col items-center">

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
 
 // Format seconds to HH:MM:SS
 function formatTime(seconds) {
@@ -146,6 +147,7 @@ export default function ControlPage() {
     const [logStudent, setLogStudent] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedClass, setSelectedClass] = useState('All');
+    const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
     const fetchStatus = useCallback(async () => {
         try {
@@ -175,6 +177,42 @@ export default function ControlPage() {
                               student.username?.toLowerCase().includes(searchTerm.toLowerCase());
         return matchesClass && matchesSearch;
     });
+
+    const toggleSort = (key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const SortIcon = ({ columnKey }) => {
+        if (sortConfig.key !== columnKey) return <ArrowUpDown size={14} className="opacity-30 group-hover:opacity-100 transition-opacity" />;
+        
+        return (
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 animate-in zoom-in-95 duration-200">
+                {sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                <span className="text-[10px] font-black tracking-tighter uppercase whitespace-nowrap">
+                    {sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'}
+                </span>
+            </div>
+        );
+    };
+
+    const sortedStudents = useMemo(() => {
+        const data = [...filteredStudents];
+        const { direction } = sortConfig;
+        
+        data.sort((a, b) => {
+            const valA = (a.name || a.username).toLowerCase();
+            const valB = (b.name || b.username).toLowerCase();
+
+            if (valA < valB) return direction === 'asc' ? -1 : 1;
+            if (valA > valB) return direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        
+        return data;
+    }, [filteredStudents, sortConfig]);
 
     const handleAction = async (action, payload) => {
         if (action === 'reset_exam' && !confirm('Warning: This will delete the student\'s active exam attempt and log them out. Continue?')) return;
@@ -240,14 +278,22 @@ export default function ControlPage() {
                 <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50/80">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Student</th>
+                            <th 
+                                className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider cursor-pointer group select-none hover:bg-slate-100/50 transition-colors"
+                                onClick={() => toggleSort('name')}
+                            >
+                                <div className="flex items-center gap-3">
+                                    Student
+                                    <SortIcon columnKey="name" />
+                                </div>
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Aktivitas & Timer</th>
                             <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
-                        {filteredStudents.map(s => (
+                        {sortedStudents.map(s => (
                             <tr key={s.id} className={`hover:bg-slate-50 transition-colors ${s.is_online ? 'bg-indigo-50/10' : ''}`}>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
@@ -326,7 +372,7 @@ export default function ControlPage() {
 
             {/* Mobile Card View */}
             <div className="md:hidden space-y-4">
-                {filteredStudents.map(s => (
+                {sortedStudents.map(s => (
                     <div key={s.id} className={`bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4 ${s.is_online ? 'ring-1 ring-indigo-100 bg-indigo-50/5' : ''}`}>
                         <div className="flex justify-between items-start">
                             <div className="flex items-center gap-3">
@@ -402,7 +448,7 @@ export default function ControlPage() {
                 ))}
             </div>
 
-            {filteredStudents.length === 0 && (
+            {sortedStudents.length === 0 && (
                 <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
                     <p className="text-slate-400 text-sm font-medium italic">Tidak ada siswa yang ditemukan.</p>
                 </div>
