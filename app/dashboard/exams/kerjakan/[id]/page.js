@@ -250,7 +250,13 @@ export default function ExamTakingPage() {
             return;
           }
 
-          // Server auto-submitted the exam (student was offline when timer expired)
+            // Handle refresh signal from Admin
+            if (data.refresh) {
+              window.location.reload();
+              return;
+            }
+
+            // Server auto-submitted the exam (student was offline when timer expired)
           if (data.auto_submitted) {
             finishExamHandled.current = true;
             sse.close();

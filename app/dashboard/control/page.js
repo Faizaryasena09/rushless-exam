@@ -240,6 +240,14 @@ export default function ControlPage() {
         if (minutes && !isNaN(minutes)) handleAction('add_time_batch', { attemptIds: active.map(s => s.attempt_id), minutes: parseInt(minutes) });
     };
 
+    const handleBatchRefresh = () => {
+        const active = filteredStudents.filter(s => s.attempt_id && s.is_online);
+        if (active.length === 0) { alert("None of the currently filtered students are active."); return; }
+        if (confirm(`Refresh exam pages for ${active.length} student(s)?`)) {
+            handleAction('refresh_exams_all', {});
+        }
+    };
+
     if (loading) return <div className="p-10 text-center text-slate-500">Loading Control Panel...</div>;
 
     return (
@@ -265,6 +273,10 @@ export default function ControlPage() {
                     <button onClick={handleBatchAddTime}
                         className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-semibold whitespace-nowrap">
                         + Add Time (Filtered)
+                    </button>
+                    <button onClick={handleBatchRefresh}
+                        className="w-full sm:w-auto px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-semibold whitespace-nowrap">
+                        Refresh All (Filtered)
                     </button>
                     <button onClick={fetchStatus} title="Refresh Data"
                         className="w-full sm:w-auto p-2 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors flex justify-center">
@@ -355,6 +367,11 @@ export default function ControlPage() {
                                                     title="Add Time">
                                                     <Icons.Clock />
                                                 </button>
+                                                <button onClick={() => handleAction('refresh_exams', { userId: s.id })}
+                                                    className="p-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
+                                                    title="Refresh Exam Page (Student)">
+                                                    <Icons.Refresh />
+                                                </button>
                                                 <button onClick={() => handleAction('reset_exam', { userId: s.id, attemptId: s.attempt_id })}
                                                     className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
                                                     title="Reset Exam & Logout">
@@ -440,6 +457,11 @@ export default function ControlPage() {
                                         className="flex flex-col items-center justify-center gap-1.5 py-3 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl">
                                         <Icons.Stop />
                                         <span className="text-[9px] font-black uppercase">Reset</span>
+                                    </button>
+                                    <button onClick={() => handleAction('refresh_exams', { userId: s.id })}
+                                        className="flex flex-col items-center justify-center gap-1.5 py-3 bg-amber-50 text-amber-600 border border-amber-100 rounded-xl">
+                                        <Icons.Refresh />
+                                        <span className="text-[10px] font-black uppercase">Ref</span>
                                     </button>
                                 </div>
                             )}

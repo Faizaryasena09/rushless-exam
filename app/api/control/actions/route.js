@@ -3,6 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query, transaction } from '@/app/lib/db';
+import { eventBus } from '@/app/lib/event-bus';
 
 async function getSession(request) {
     const cookieStore = await cookies();
@@ -21,7 +22,7 @@ export async function POST(request) {
         const payload = await request.json();
         const { action, userId, attemptId, minutes } = payload;
 
-        if (!userId && !attemptId && action !== 'add_time_batch') {
+        if (!userId && !attemptId && action !== 'add_time_batch' && action !== 'refresh_exams_all') {
             return NextResponse.json({ message: 'Missing parameters' }, { status: 400 });
         }
 
@@ -110,6 +111,15 @@ export async function POST(request) {
                      return NextResponse.json({ message: 'Cannot add time to the selected students. Exams may have already been submitted or ended.' }, { status: 400 });
                 }
                 return NextResponse.json({ message: `Added ${batchMinutes} minutes to ${batchUpdateResult.affectedRows} students.` });
+            
+            case 'refresh_exams':
+                if (!userId) return NextResponse.json({ message: 'User ID required' }, { status: 400 });
+                eventBus.emit('refresh', { userId });
+                return NextResponse.json({ message: 'Refresh signal sent to student.' });
+
+            case 'refresh_exams_all':
+                eventBus.emit('refresh', { userId: 'all' });
+                return NextResponse.json({ message: 'Refresh signal sent to all active students.' });
 
             default:
                 return NextResponse.json({ message: 'Invalid action' }, { status: 400 });

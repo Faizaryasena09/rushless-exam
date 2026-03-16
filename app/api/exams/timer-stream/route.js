@@ -5,6 +5,7 @@ import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { validateUserSession } from '@/app/lib/auth';
 import { autoSubmitAttemptIfExpired } from '@/app/lib/auto-submit';
+import { eventBus } from '@/app/lib/event-bus';
 
 // Helper to calculate remaining time
 function calculateRemainingSeconds(settings, attempt, now_ts) {
@@ -123,9 +124,23 @@ export async function GET(request) {
 
             // Then send updates every 3 seconds (reduces DB load compared to 1s but feels real-time for time extensions)
             intervalId = setInterval(sendUpdate, 3000);
+
+            // Listen for refresh events from the Control Panel (real-time signaling)
+            const onRefresh = (data) => {
+                if (data.userId === 'all' || data.userId === userId) {
+                    controller.enqueue(`data: ${JSON.stringify({ refresh: true })}\n\n`);
+                }
+            };
+            eventBus.on('refresh', onRefresh);
+
+            // Store the cleanup function
+            this.cleanup = () => {
+                clearInterval(intervalId);
+                eventBus.off('refresh', onRefresh);
+            };
         },
         cancel() {
-            clearInterval(intervalId);
+            if (this.cleanup) this.cleanup();
         }
     });
 
