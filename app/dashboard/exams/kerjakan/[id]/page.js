@@ -281,6 +281,11 @@ export default function ExamTakingPage() {
              if (typeof window !== 'undefined') {
                localStorage.removeItem(`exam_instructions_ack_${examId}`);
              }
+             
+             // Unlock Android App if running in Rushless Safer
+             if (window.RushlessSafer && typeof window.RushlessSafer.remoteUnlock === 'function') {
+               window.RushlessSafer.remoteUnlock();
+             }
              if (examDetails?.show_result) {
                  router.push(`/dashboard/exams/hasil/${attemptDetails.id}`);
              } else {
@@ -352,6 +357,11 @@ export default function ExamTakingPage() {
           Object.keys(localStorage)
             .filter(k => k.startsWith('exam_instructions_ack_'))
             .forEach(k => localStorage.removeItem(k));
+        }
+        
+        // Unlock Android App if running in Rushless Safer
+        if (window.RushlessSafer && typeof window.RushlessSafer.remoteUnlock === 'function') {
+          window.RushlessSafer.remoteUnlock();
         }
         router.push('/');
       }

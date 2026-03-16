@@ -1,5 +1,8 @@
 package com.rushless.safer
 
+import android.content.IntentFilter
+import android.os.BatteryManager
+import android.content.BroadcastReceiver
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -66,7 +69,7 @@ class MainActivity : ComponentActivity() {
     private val SEQUENCE_TIMEOUT = 2000L // 2 seconds between presses
     
     // State to track if we are in exam mode
-    private var examMode = mutableStateOf(false)
+    internal var examMode = mutableStateOf(false)
     private var targetUrl = mutableStateOf("")
     private var showExitDialog = mutableStateOf(false)
     private var emergencyPassword = mutableStateOf("")
@@ -75,6 +78,25 @@ class MainActivity : ComponentActivity() {
     private var bottomOverlayView: View? = null
     private var hasOverlayPermission = mutableStateOf(false)
     private var showSetupWizard = mutableStateOf(false)
+    private var showViolationWarning = mutableStateOf(false) // New state
+    private var violationDetected = false // Internal flag
+    private var isWaitingForFirstPin = false // New flag to suppress initial warning
+    private var batteryLevel = mutableStateOf(100)
+    private var isCharging = mutableStateOf(false)
+
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            intent?.let {
+                val level = it.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                val scale = it.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                batteryLevel.value = (level * 100 / scale.toFloat()).toInt()
+                
+                val status = it.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                isCharging.value = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                                   status == BatteryManager.BATTERY_STATUS_FULL
+            }
+        }
+    }
 
     private val lockdownHandler = Handler(Looper.getMainLooper())
     private val lockdownCheckRunnable = object : Runnable {
@@ -82,7 +104,10 @@ class MainActivity : ComponentActivity() {
             if (examMode.value) {
                 enforceLockdown()
             }
-            lockdownHandler.postDelayed(this, 300) // Ultra-Aggressive loop
+            // Panic Mode: 100ms if violating, 300ms if safe
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val delay = if (examMode.value && am.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_NONE) 100 else 300
+            lockdownHandler.postDelayed(this, delay.toLong())
         }
     }
 
@@ -96,6 +121,7 @@ class MainActivity : ComponentActivity() {
         )
 
         enableEdgeToEdge()
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // Handle initial intent
         handleIntent(intent)
@@ -127,7 +153,14 @@ class MainActivity : ComponentActivity() {
                                 hasOverlay = hasOverlayPermission.value
                             )
                         } else {
-                            MainContent(examMode.value, targetUrl.value, ::onExamFinished)
+                            MainContent(
+                                isExamMode = examMode.value,
+                                url = targetUrl.value,
+                                batteryLevel = batteryLevel.value,
+                                isCharging = isCharging.value,
+                                showWarning = showViolationWarning,
+                                onFinished = { onExamFinished() }
+                            )
                         }
                         
                         if (showExitDialog.value) {
@@ -155,6 +188,17 @@ class MainActivity : ComponentActivity() {
 
         // Start periodic lockdown check
         lockdownHandler.post(lockdownCheckRunnable)
+
+        // Register battery receiver
+        registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(batteryReceiver)
+        } catch (e: Exception) {}
+        lockdownHandler.removeCallbacks(lockdownCheckRunnable)
     }
 
     private fun checkPermissions() {
@@ -313,7 +357,34 @@ class MainActivity : ComponentActivity() {
 
     override fun onActivityReenter(resultCode: Int, data: Intent?) {
         super.onActivityReenter(resultCode, data)
-        if (examMode.value) enforceLockdown()
+        if (examMode.value) {
+            val inCooldown = System.currentTimeMillis() - lastLockAttemptTime < 5000
+            if (!inCooldown && !isWaitingForFirstPin) {
+                violationDetected = true
+            }
+            enforceLockdown()
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (examMode.value) {
+            val inCooldown = System.currentTimeMillis() - lastLockAttemptTime < 5000
+            if (!inCooldown && !isWaitingForFirstPin) {
+                violationDetected = true
+                forcePullBack()
+            }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (examMode.value) {
+            val inCooldown = System.currentTimeMillis() - lastLockAttemptTime < 5000
+            if (!inCooldown && !isWaitingForFirstPin) {
+                violationDetected = true
+            }
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -321,6 +392,10 @@ class MainActivity : ComponentActivity() {
         if (examMode.value) {
             applyStickyImmersive()
             if (hasFocus) {
+                if (violationDetected) {
+                    showViolationWarning.value = true
+                    violationDetected = false
+                }
                 enforceLockdown()
             }
         }
@@ -371,13 +446,20 @@ class MainActivity : ComponentActivity() {
         
         if (!isPinned) {
             val currentTime = System.currentTimeMillis()
-            val inCooldown = currentTime - lastLockAttemptTime < 3500 // Shortened to 3.5s
+            val inCooldown = currentTime - lastLockAttemptTime < 5000 // 5s for initial dialog
             
             if (inCooldown) {
                 removeStatusBarBlocker()
                 return
             }
-
+            
+            if (!isWaitingForFirstPin) {
+                violationDetected = true // Mark violation ONLY if not in cooldown/initial
+            } else {
+                // If we are still waiting but cooldown passed, it's likely they ignored/canceled
+                // We'll keep trying but maybe warn them now? 
+                // For now, let's keep it quiet until they manage to pin.
+            }
             // Not pinned and not in cooldown -> Try to lock aggressively
             forcePullBack() // Bring to front BEFORE locking
             if (currentTime - lastLockAttemptTime > 2000) { 
@@ -393,6 +475,7 @@ class MainActivity : ComponentActivity() {
             showLockdownOverlay(isViolation = true)
         } else {
             // Already Pinned -> Active the Iron Curtain (Safety Blocker)
+            isWaitingForFirstPin = false // Confirmed pinned!
             showLockdownOverlay(isViolation = false)
         }
     }
@@ -479,6 +562,9 @@ class MainActivity : ComponentActivity() {
                     }
                     
                     examMode.value = true
+                    violationDetected = false // Reset violation state
+                    showViolationWarning.value = false // Reset warning state
+                    isWaitingForFirstPin = true // Guard the initial pinning
                     enforceLockdown()
                     Toast.makeText(this, "Lockdown Active", Toast.LENGTH_SHORT).show()
                 }
@@ -486,7 +572,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun onExamFinished() {
+    internal fun onExamFinished() {
         runOnUiThread {
             if (examMode.value) {
                 examMode.value = false
@@ -520,11 +606,74 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainContent(isExamMode: Boolean, url: String, onFinished: () -> Unit) {
-    if (isExamMode) {
-        ExamWebView(url, onFinished)
-    } else {
-        WelcomeScreen()
+fun MainContent(
+    isExamMode: Boolean, 
+    url: String, 
+    batteryLevel: Int,
+    isCharging: Boolean,
+    showWarning: MutableState<Boolean>, 
+    onFinished: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        if (isExamMode) {
+            // Minimalist Battery Header
+            BatteryHeader(level = batteryLevel, isCharging = isCharging)
+            
+            Box(modifier = Modifier.weight(1f)) {
+                ExamWebView(url, onFinished)
+                
+                if (showWarning.value) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { showWarning.value = false },
+                        title = { Text("PERINGATAN KEAMANAN", color = Color.Red, fontWeight = FontWeight.Bold) },
+                        text = { Text("Anda terdeteksi keluar dari aplikasi ujian. Kejadian ini telah dicatat oleh sistem.") },
+                        confirmButton = {
+                            androidx.compose.material3.Button(onClick = { showWarning.value = false }) {
+                                Text("SAYA MENGERTI")
+                            }
+                        }
+                    )
+                }
+            }
+        } else {
+            WelcomeScreen()
+        }
+    }
+}
+
+@Composable
+fun BatteryHeader(level: Int, isCharging: Boolean) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF0F172A))
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val batteryColor = when {
+            level <= 15 -> Color(0xFFF43F5E) // Red
+            level <= 30 -> Color(0xFFFACC15) // Yellow
+            else -> Color(0xFF22C55E) // Green
+        }
+        
+        if (isCharging) {
+            androidx.compose.material3.Icon(
+                imageVector = Icons.Default.Info, // Fallback
+                contentDescription = null,
+                tint = Color(0xFF38BDF8),
+                modifier = Modifier.size(12.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+        }
+        
+        Text(
+            text = "BATTERY: $level%",
+            color = batteryColor,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 1.sp
+        )
     }
 }
 
@@ -745,10 +894,21 @@ fun ExamWebView(url: String, onFinished: () -> Unit) {
             settings.mediaPlaybackRequiresUserGesture = false
 
             // Add Javascript Interface
+            val activity = context as? MainActivity
             addJavascriptInterface(object {
                 @JavascriptInterface
                 fun finishExam() {
                     onFinished()
+                }
+                
+                @JavascriptInterface
+                fun remoteUnlock() {
+                    activity?.runOnUiThread {
+                        if (activity.examMode.value) {
+                            activity.onExamFinished()
+                            Toast.makeText(activity, "Admin telah melepas penguncian.", Toast.LENGTH_LONG).show()
+                        }
+                    }
                 }
             }, "RushlessSafer")
 
@@ -805,20 +965,6 @@ fun WelcomeScreen() {
                 letterSpacing = 2.sp
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Box(
-                modifier = Modifier
-                    .background(Color(0xFFF43F5E), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = "LOCKED BROWSER ENGINE",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -838,15 +984,7 @@ fun WelcomeScreen() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "SECURE MODE ACTIVE",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Black,
-                color = Color(0xFF22C55E),
-                letterSpacing = 1.sp
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "v2.0.4",
+                text = "Copyright Rushless Exam",
                 fontSize = 10.sp,
                 color = Color(0xFF475569)
             )
