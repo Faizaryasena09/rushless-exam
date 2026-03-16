@@ -115,8 +115,6 @@ function LoginForm() {
       setSuccess(t('login_success'));
 
       setTimeout(() => {
-        // Clear all exam instruction confirmations so force-logged-out students
-        // must re-confirm instructions on their next attempt
         if (typeof window !== 'undefined') {
           Object.keys(localStorage)
             .filter(k => k.startsWith('exam_instructions_ack_'))
