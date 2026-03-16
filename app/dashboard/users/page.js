@@ -74,6 +74,7 @@ const ManageUsersPage = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+  const [selectedRole, setSelectedRole] = useState('');
   const fileInputRef = useRef(null);
 
   // Modal states
@@ -86,6 +87,7 @@ const ManageUsersPage = () => {
       const params = new URLSearchParams();
       if (selectedClass) params.append('classId', selectedClass);
       if (searchTerm) params.append('search', searchTerm);
+      if (selectedRole) params.append('role', selectedRole);
       
       const res = await fetch(`/api/users?${params.toString()}`);
       if (!res.ok) throw new Error('Gagal mengambil data pengguna');
@@ -118,7 +120,7 @@ const ManageUsersPage = () => {
       fetchUsers();
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [selectedClass, searchTerm]);
+  }, [selectedClass, searchTerm, selectedRole]);
 
   const toggleSort = (key) => {
     setSortConfig(prev => ({
@@ -369,18 +371,33 @@ const ManageUsersPage = () => {
                 className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
               />
             </div>
-            <div className="relative">
-              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <select
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer font-medium"
-              >
-                <option value="">Semua Kelas</option>
-                {allClasses.map(c => (
-                  <option key={c.id} value={c.id}>{c.class_name}</option>
-                ))}
-              </select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="relative">
+                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer font-medium"
+                >
+                  <option value="">Semua Peran</option>
+                  <option value="student">Siswa (student)</option>
+                  <option value="teacher">Guru (teacher)</option>
+                  <option value="admin">Admin (admin)</option>
+                </select>
+              </div>
+              <div className="relative">
+                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <select
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                  className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer font-medium"
+                >
+                  <option value="">Semua Kelas</option>
+                  {allClasses.map(c => (
+                    <option key={c.id} value={c.id}>{c.class_name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         </div>

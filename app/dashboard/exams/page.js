@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -24,7 +24,8 @@ const Icons = {
   ArrowUp: (props) => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" /></svg>,
   ArrowDown: (props) => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>,
   Grip: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>,
-  Shield: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+  Shield: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
+  Search: (props) => <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
 };
 
 // --- Student Action Button Component ---
@@ -275,10 +276,6 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
         )}
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 h-10 overflow-hidden">{exam.description || 'No description provided.'}</p>
         <div className="mt-4 flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <Icons.Calendar />
-            <span>Created: {formatDate(exam.created_at)}</span>
-          </div>
           {(exam.start_time || exam.end_time) && (
             <div className="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
               <Icons.Clock />
@@ -498,6 +495,7 @@ export default function ExamsPage() {
   const [errorExams, setErrorExams] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false); // To trigger re-fetch
   const [isExecuting, setIsExecuting] = useState(false); // To show loading state on buttons
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Accordion state
   const [openCategories, setOpenCategories] = useState({});
@@ -510,6 +508,14 @@ export default function ExamsPage() {
     categoryName: '', // for categoryEdit
     isOpen: false
   });
+
+  const filteredExams = useMemo(() => {
+    if (!exams) return [];
+    return exams.filter(e => 
+        e.exam_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (e.subject_name && e.subject_name.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [exams, searchTerm]);
 
   // Session check and role fetching logic
 // ...
@@ -844,34 +850,52 @@ export default function ExamsPage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{isStudent ? 'Available Exams' : 'Manage Exams'}</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            You have {exams.length} exams available.
+            You have {filteredExams.length} exams available.
           </p>
         </div>
-        {!isStudent && (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => openModal('categoryManage')}
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-xl transition-all border border-slate-200 dark:border-slate-700"
-            >
-              <Icons.Folder />
-              <span className="hidden sm:inline">Kategori</span>
-            </button>
-            <Link
-              href="/dashboard/exams/baru"
-              className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30"
-            >
-              <Icons.Plus />
-              <span className="hidden sm:inline">Buat Ujian</span>
-            </Link>
+        <div className="flex flex-col sm:flex-row items-center gap-4 flex-1 max-w-2xl">
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+              <Icons.Search />
+            </div>
+            <input
+              type="text"
+              placeholder="Cari ujian atau mata pelajaran..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium shadow-sm"
+            />
           </div>
-        )}
+          {!isStudent && (
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <button
+                onClick={() => openModal('categoryManage')}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-xl transition-all border border-slate-200 dark:border-slate-700"
+              >
+                <Icons.Folder />
+                <span className="hidden sm:inline">Kategori</span>
+              </button>
+              <Link
+                href="/dashboard/exams/baru"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30 whitespace-nowrap"
+              >
+                <Icons.Plus />
+                <span className="hidden sm:inline">Buat Ujian</span>
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
 
-      {exams.length === 0 ? (
+      {filteredExams.length === 0 ? (
         <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600">
           <Icons.FileText className="block mx-auto w-12 h-12 text-slate-400" />
-          <h3 className="mt-4 text-lg font-semibold text-slate-800 dark:text-white">No Exams Found</h3>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{isStudent ? 'There are no exams available for you at the moment.' : 'Click "Buat Ujian" to get started.'}</p>
+          <h3 className="mt-4 text-lg font-semibold text-slate-800 dark:text-white">
+            {searchTerm ? 'No Exams Match Search' : 'No Exams Found'}
+          </h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {searchTerm ? 'Try adjusting your search criteria.' : (isStudent ? 'There are no exams available for you at the moment.' : 'Click "Buat Ujian" to get started.')}
+          </p>
         </div>
       ) : (
           <div className="space-y-6">
@@ -879,7 +903,7 @@ export default function ExamsPage() {
             <CategoryAccordion
               id="uncategorized"
               name="Tanpa Nama"
-              exams={exams.filter(e => e.category_id == null)}
+              exams={filteredExams.filter(e => e.category_id == null)}
               isOpen={openCategories['uncategorized']}
               toggleOpen={() => toggleCategory('uncategorized')}
               isStudent={isStudent}
@@ -897,7 +921,7 @@ export default function ExamsPage() {
                 key={cat.id}
                 id={cat.id}
                 name={cat.name}
-                exams={exams.filter(e => e.category_id === cat.id)}
+                exams={filteredExams.filter(e => e.category_id === cat.id)}
                 isOpen={openCategories[cat.id]}
                 toggleOpen={() => toggleCategory(cat.id)}
                 isStudent={isStudent}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
 // --- Icons Component (Inline SVG) ---
@@ -29,6 +29,11 @@ const Icons = {
     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
     </svg>
+  ),
+  Search: () => (
+    <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
   )
 };
 
@@ -37,6 +42,7 @@ const ManageClassesPage = () => {
   const [classes, setClasses] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Check session and restrict to admin only
   useEffect(() => {
@@ -72,6 +78,12 @@ const ManageClassesPage = () => {
       setLoading(false);
     }
   };
+
+  const filteredClasses = useMemo(() => {
+    return classes.filter(c => 
+      c.class_name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [classes, searchTerm]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState(null);
@@ -158,13 +170,27 @@ const ManageClassesPage = () => {
             Create and manage class groups for exams.
           </p>
         </div>
-        <button 
-          onClick={handleAddClass} 
-          className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-200"
-        >
-          <Icons.Add />
-          <span>Add Class</span>
-        </button>
+        <div className="flex flex-col sm:flex-row items-center gap-4 flex-1 max-w-2xl">
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+              <Icons.Search />
+            </div>
+            <input
+              type="text"
+              placeholder="Search classes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium"
+            />
+          </div>
+          <button 
+            onClick={handleAddClass} 
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-200 whitespace-nowrap"
+          >
+            <Icons.Add />
+            <span>New Class</span>
+          </button>
+        </div>
       </div>
 
       {/* --- Content Area --- */}
@@ -173,13 +199,17 @@ const ManageClassesPage = () => {
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
           <p className="mt-2 text-slate-400 text-sm">Loading classes...</p>
         </div>
-      ) : classes.length === 0 ? (
+      ) : filteredClasses.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-300">
           <div className="mx-auto h-12 w-12 text-slate-300 mb-3">
             <Icons.Class />
           </div>
-          <h3 className="text-lg font-medium text-slate-900">No classes found</h3>
-          <p className="text-slate-500 text-sm mt-1">Get started by creating a new class.</p>
+          <h3 className="text-lg font-medium text-slate-900">
+            {searchTerm ? 'No classes match your search' : 'No classes found'}
+          </h3>
+          <p className="text-slate-500 text-sm mt-1">
+            {searchTerm ? 'Try adjusting your search term.' : 'Get started by creating a new class.'}
+          </p>
         </div>
       ) : (
         <div className="w-full">
@@ -189,15 +219,13 @@ const ManageClassesPage = () => {
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50/80">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-24">ID</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Class Name</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider w-48">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
-                {classes.map((c) => (
+                {filteredClasses.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">#{c.id}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition-colors">
@@ -230,12 +258,12 @@ const ManageClassesPage = () => {
 
           {/* --- MOBILE VIEW (Cards) --- */}
           <div className="grid grid-cols-1 gap-4 md:hidden">
-            {classes.map((c) => (
+            {filteredClasses.map((c) => (
               <div key={c.id} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-md shadow-indigo-200">
-                      <span className="text-xs font-bold">ID:{c.id}</span>
+                    <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                      <Icons.Class />
                     </div>
                     <div>
                       <h3 className="font-bold text-slate-900 text-lg">{c.class_name}</h3>

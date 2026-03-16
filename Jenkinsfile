@@ -30,6 +30,7 @@ DB_PASSWORD=${DB_PASSWORD}
 DB_HOST=${DB_HOST}
 DB_NAME=${DB_NAME}
 NODE_ENV=${NODE_ENV}
+TZ=Asia/Jakarta
 EOF
                 # Bersihkan karakter \r (Windows) agar tidak merusak variabel env
                 tr -d '\\r' < .env > .env.tmp && mv .env.tmp .env

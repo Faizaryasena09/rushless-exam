@@ -44,13 +44,14 @@ export default function DashboardLayout({ children }) {
   }, []); // Empty dependency array ensures this runs only once on mount
 
   const isPreview = pathname.includes('/preview/');
+  const isExamTaking = pathname.includes('/exams/kerjakan/');
   const isStudent = user?.roleName === 'student';
 
   if (loading) {
     return (
       <div className="relative flex h-screen bg-gray-100 dark:bg-slate-900 overflow-hidden">
         <div className="flex-1 flex flex-col">
-          {!isPreview && <Header user={null} isLoading={true} showToggleButton={false} />}
+          {(!isPreview && !isExamTaking) && <Header user={null} isLoading={true} showToggleButton={false} />}
           <main className="flex-1 overflow-x-hidden overflow-y-auto">
             <div className={`container mx-auto ${isPreview ? 'px-0 py-0' : 'px-6 py-8'}`}>
               <div className="dark:text-slate-300">{!isPreview && t('layout_loading')}</div>
@@ -63,9 +64,9 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="relative flex h-screen bg-gray-100 dark:bg-slate-900 overflow-hidden">
-      {!isStudent && !isPreview && <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${(sidebarOpen && !isStudent && !isPreview) ? 'lg:ml-64' : ''}`}>
-        {!isPreview && (
+      {(!isStudent && !isPreview && !isExamTaking) && <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />}
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${(sidebarOpen && !isStudent && !isPreview && !isExamTaking) ? 'lg:ml-64' : ''}`}>
+        {(!isPreview && !isExamTaking) && (
           <Header
             user={user}
             isLoading={loading}
@@ -74,7 +75,7 @@ export default function DashboardLayout({ children }) {
           />
         )}
         <main className="flex-1 overflow-x-hidden overflow-y-auto">
-          <div className={`container mx-auto ${isPreview ? 'px-0 py-0' : 'px-6 py-8'}`}>
+          <div className={`container mx-auto ${(isPreview || isExamTaking) ? 'px-0 py-0' : 'px-6 py-8'}`}>
             {children}
           </div>
         </main>

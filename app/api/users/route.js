@@ -24,6 +24,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const classId = searchParams.get('classId');
     const search = searchParams.get('search');
+    const role = searchParams.get('role');
 
     let baseQuery = `
       SELECT u.id, u.username, u.name, u.role, u.class_id, c.class_name
@@ -36,6 +37,11 @@ export async function GET(request) {
     if (classId) {
       whereClauses.push('u.class_id = ?');
       values.push(classId);
+    }
+
+    if (role) {
+      whereClauses.push('u.role = ?');
+      values.push(role);
     }
 
     if (search) {

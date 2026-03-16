@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 // --- Icons Component (Inline SVG) ---
 const Icons = {
@@ -28,6 +28,11 @@ const Icons = {
     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
     </svg>
+  ),
+  Search: () => (
+    <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
   )
 };
 
@@ -35,6 +40,7 @@ const ManageSubjectsPage = () => {
   const [subjects, setSubjects] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -56,6 +62,12 @@ const ManageSubjectsPage = () => {
       setLoading(false);
     }
   };
+
+  const filteredSubjects = useMemo(() => {
+    return subjects.filter(s => 
+      s.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [subjects, searchTerm]);
 
   useEffect(() => {
     fetchSubjects();
@@ -140,13 +152,27 @@ const ManageSubjectsPage = () => {
             Create and manage subjects that can be assigned to teachers and exams.
           </p>
         </div>
-        <button 
-          onClick={handleAddSubject} 
-          className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30"
-        >
-          <Icons.Add />
-          <span>Add Subject</span>
-        </button>
+        <div className="flex flex-col sm:flex-row items-center gap-4 flex-1 max-w-2xl">
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+              <Icons.Search />
+            </div>
+            <input
+              type="text"
+              placeholder="Search subjects..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 font-medium"
+            />
+          </div>
+          <button 
+            onClick={handleAddSubject} 
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30 whitespace-nowrap"
+          >
+            <Icons.Add />
+            <span>New Subject</span>
+          </button>
+        </div>
       </div>
 
       {/* --- Content Area --- */}
@@ -155,13 +181,17 @@ const ManageSubjectsPage = () => {
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
           <p className="mt-2 text-slate-400 text-sm">Loading subjects...</p>
         </div>
-      ) : subjects.length === 0 ? (
+      ) : filteredSubjects.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
           <div className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-3">
             <Icons.Subject />
           </div>
-          <h3 className="text-lg font-medium text-slate-900 dark:text-white">No subjects found</h3>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Get started by creating a new subject.</p>
+          <h3 className="text-lg font-medium text-slate-900 dark:text-white">
+            {searchTerm ? 'No subjects match your search' : 'No subjects found'}
+          </h3>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+            {searchTerm ? 'Try adjusting your search term.' : 'Get started by creating a new subject.'}
+          </p>
         </div>
       ) : (
         <div className="w-full">
@@ -171,15 +201,13 @@ const ManageSubjectsPage = () => {
             <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
               <thead className="bg-slate-50/80 dark:bg-slate-700/50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-24">ID</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Subject Name</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-48">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-                {subjects.map((s) => (
+                {filteredSubjects.map((s) => (
                   <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">#{s.id}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-100 transition-colors">
@@ -212,12 +240,12 @@ const ManageSubjectsPage = () => {
 
           {/* --- MOBILE VIEW (Cards) --- */}
           <div className="grid grid-cols-1 gap-4 md:hidden">
-            {subjects.map((s) => (
+            {filteredSubjects.map((s) => (
               <div key={s.id} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-md shadow-indigo-200 dark:shadow-none">
-                      <span className="text-xs font-bold">ID:{s.id}</span>
+                    <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                      <Icons.Subject />
                     </div>
                     <div>
                       <h3 className="font-bold text-slate-900 dark:text-white text-lg">{s.name}</h3>
