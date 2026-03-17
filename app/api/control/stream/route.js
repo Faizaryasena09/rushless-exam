@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { autoSubmitExpiredAttempts } from '@/app/lib/auto-submit';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 export async function GET(request) {
     const cookieStore = await cookies();
@@ -30,21 +31,37 @@ export async function GET(request) {
                 });
                 teacherClassIds = assignments.map(a => a.class_id);
                 if (teacherClassIds.length === 0) {
-                    controller.enqueue('data: {"students": []}\n\n');
-                    // We don't close, just wait for potential assignment changes or heartbeats
+                    controller.enqueue('data: {"students": [], "redisActive": ' + isRedisReady() + '}\n\n');
                 }
             }
 
             const sendData = async () => {
                 if (isClosed) return;
                 try {
-                    // Auto-submit any expired attempts
-                    await autoSubmitExpiredAttempts();
+                    const redisActive = isRedisReady();
+
+                    // Optimized check: only run autoSubmit if we can acquire a short Redis lock
+                    if (redisActive) {
+                        const lockKey = 'lock:auto-submit';
+                        const locked = await redis.set(lockKey, '1', 'EX', 10, 'NX');
+                        if (locked) {
+                            try {
+                                await autoSubmitExpiredAttempts();
+                            } catch (e) {
+                                console.error('AutoSubmit background error:', e);
+                            }
+                        }
+                    } else {
+                        // Fallback: Just run it without lock if Redis is down
+                        // (Risk of contention is higher, but better than not running it at all)
+                        await autoSubmitExpiredAttempts().catch(() => {});
+                    }
 
                     const classFilter = isTeacher
                         ? `AND u.class_id IN (${teacherClassIds.map(() => '?').join(',')})`
                         : '';
 
+                    // In fallback mode, we need u.is_online_realtime and u.last_activity back from DB
                     const sql = `
                         SELECT 
                             u.id, u.username, u.name, u.role, u.is_locked, u.class_id, u.is_online_realtime,
@@ -67,10 +84,6 @@ export async function GET(request) {
                         LEFT JOIN rhs_exams e ON ea.exam_id = e.id
                         LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
                         WHERE u.role = 'student' ${classFilter}
-                        ORDER BY 
-                            (ea.status = 'in_progress') DESC,
-                            u.is_online_realtime DESC,
-                            u.last_activity DESC
                     `;
 
                     const students = await query({
@@ -79,6 +92,25 @@ export async function GET(request) {
                     });
 
                     const now = Math.floor(Date.now() / 1000);
+
+                    const statusMap = {};
+                    if (redisActive && students.length > 0) {
+                        const studentIds = students.map(s => s.id);
+                        const onlineKeys = studentIds.map(id => `online:${id}`);
+                        const activityKeys = studentIds.map(id => `last_activity:${id}`);
+                        
+                        const [onlineStatuses, activityTimes] = await Promise.all([
+                            redis.mget(...onlineKeys),
+                            redis.mget(...activityKeys)
+                        ]);
+
+                        studentIds.forEach((id, idx) => {
+                            statusMap[id] = {
+                                online: !!onlineStatuses[idx],
+                                lastActivity: activityTimes[idx] ? parseInt(activityTimes[idx]) : 0
+                            };
+                        });
+                    }
 
                     const processedStudents = students.map(s => {
                         let seconds_left = null;
@@ -92,6 +124,10 @@ export async function GET(request) {
                             seconds_left = Math.max(0, Math.floor(endTs - s.now_ts));
                         }
 
+                        // Use Redis status if active, otherwise use DB status
+                        const isOnline = redisActive ? (statusMap[s.id]?.online ?? false) : !!s.is_online_realtime;
+                        const lastActivity = redisActive ? (statusMap[s.id]?.lastActivity ?? 0) : s.last_activity_ts;
+
                         return {
                             id: s.id,
                             username: s.username,
@@ -99,16 +135,19 @@ export async function GET(request) {
                             class_name: s.class_name,
                             is_locked: !!s.is_locked,
                             is_violation_locked: !!s.is_violation_locked,
-                            is_online: !!s.is_online_realtime,
-                            last_activity_seconds_ago: now - (s.last_activity_ts || 0),
+                            is_online: isOnline,
+                            last_activity_seconds_ago: lastActivity ? now - lastActivity : 86400,
                             current_exam: s.exam_name || null,
                             attempt_id: s.attempt_id || null,
                             seconds_left,
                         };
+                    }).sort((a, b) => {
+                        if (a.is_online !== b.is_online) return b.is_online ? 1 : -1;
+                        return a.last_activity_seconds_ago - b.last_activity_seconds_ago;
                     });
 
                     if (!isClosed) {
-                        controller.enqueue(`data: ${JSON.stringify({ students: processedStudents })}\n\n`);
+                        controller.enqueue(`data: ${JSON.stringify({ students: processedStudents, redisActive })}\n\n`);
                     }
                 } catch (err) {
                     console.error('Control SSE error:', err);

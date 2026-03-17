@@ -3,6 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query, transaction } from '@/app/lib/db';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 async function getSession(request) {
   const cookieStore = await cookies();
@@ -26,6 +27,14 @@ export async function GET(request) {
   }
 
   try {
+    const cacheKey = `exam:settings-full:${examId}`;
+    if (isRedisReady()) {
+      const cached = await redis.get(cacheKey).catch(() => null);
+      if (cached) {
+        return NextResponse.json(JSON.parse(cached));
+      }
+    }
+
     const results = await query({
       query: `
           SELECT 
@@ -52,6 +61,7 @@ export async function GET(request) {
             s.custom_instructions,
             s.show_result,
             s.show_analysis,
+            s.require_all_answered,
             s.require_all_answered,
             s.require_token,
             s.token_type,
@@ -99,6 +109,9 @@ export async function GET(request) {
       allowed_classes: allowedClasses
     };
 
+    if (isRedisReady()) {
+      await redis.set(cacheKey, JSON.stringify(examData), 'EX', 3600).catch(() => {});
+    }
     return NextResponse.json(examData);
   } catch (error) {
     return NextResponse.json({ message: 'Failed to retrieve exam settings', error: error.message }, { status: 500 });
@@ -261,6 +274,12 @@ export async function POST(request) {
         });
       }
     });
+    
+    // Invalidate Redis Caches
+    if (isRedisReady()) {
+      await redis.del(`exam:settings-full:${examId}`).catch(() => {});
+      await redis.del(`exam:data:${examId}`).catch(() => {});
+    }
 
     return NextResponse.json({ message: 'Settings saved successfully' });
   } catch (error) {

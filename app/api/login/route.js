@@ -5,6 +5,7 @@ import { query } from '@/app/lib/db';
 import { sessionOptions } from '@/app/lib/session';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import redis, { isRedisReady } from '@/app/lib/redis';
 import { logActivity, getClientIP } from '@/app/lib/logger';
 
 // Ensure brute force columns exist (runs once per cold start)
@@ -154,11 +155,18 @@ export async function POST(request) {
 
     // Login successful — reset failed attempts
     const sessionId = crypto.randomUUID();
+    const redisKey = `session:${user.id}`;
 
+    // Update MySQL
     await query({
       query: 'UPDATE rhs_users SET session_id = ?, last_activity = NOW(), failed_login_attempts = 0, locked_until = NULL WHERE id = ?',
       values: [sessionId, user.id]
     });
+
+    // Update Redis (1 hour expiry) - ONLY if ready
+    if (isRedisReady()) {
+      await redis.set(redisKey, sessionId, 'EX', 3600).catch(() => {});
+    }
 
     session.user = {
       id: user.id,

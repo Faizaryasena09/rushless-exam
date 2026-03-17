@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { validateUserSession } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,13 +16,22 @@ export async function GET(request) {
     }
 
     const userId = session.user.id;
+    const now = Math.floor(Date.now() / 1000);
 
-    // Mark as online on connection
+    // Initial online status
     if (session.user.roleName === 'student') {
-        await query({
-            query: 'UPDATE rhs_users SET last_activity = NOW() WHERE id = ?',
-            values: [userId]
-        }).catch(err => console.error('Initial online update failed:', err));
+        if (isRedisReady()) {
+            const pipeline = redis.pipeline();
+            pipeline.set(`online:${userId}`, 1, 'EX', 30);
+            pipeline.set(`last_activity:${userId}`, now, 'EX', 3600);
+            await pipeline.exec().catch(() => {});
+        } else {
+            // Fallback to MySQL for initial connection
+            await query({
+                query: 'UPDATE rhs_users SET last_activity = NOW(), is_online_realtime = 1 WHERE id = ?',
+                values: [userId]
+            }).catch(() => {});
+        }
     }
 
     let intervalId;
@@ -44,7 +54,7 @@ export async function GET(request) {
                         return;
                     }
 
-                    // validateUserSession already updates last_activity in DB
+                    // validateUserSession now checks/updates Redis session key (handles fallback internally)
                     const isValid = await validateUserSession(currentSession);
 
                     if (isClosed) return;
@@ -57,12 +67,21 @@ export async function GET(request) {
                         return;
                     }
 
-                    // Update real-time online status
+                    // Update real-time online status and activity
                     if (currentSession.user.roleName === 'student') {
-                        await query({
-                            query: 'UPDATE rhs_users SET is_online_realtime = 1 WHERE id = ?',
-                            values: [userId]
-                        });
+                        if (isRedisReady()) {
+                            const pulseNow = Math.floor(Date.now() / 1000);
+                            const pipeline = redis.pipeline();
+                            pipeline.set(`online:${userId}`, 1, 'EX', 30);
+                            pipeline.set(`last_activity:${userId}`, pulseNow, 'EX', 3600);
+                            pipeline.exec().catch(() => {});
+                        } else {
+                            // Fallback to MySQL heartbeat
+                            await query({
+                                query: 'UPDATE rhs_users SET last_activity = NOW(), is_online_realtime = 1 WHERE id = ?',
+                                values: [userId]
+                            }).catch(() => {});
+                        }
                     }
 
                     // Send heartbeat
@@ -86,11 +105,16 @@ export async function GET(request) {
             const markOffline = async () => {
                 isClosed = true;
                 if (session.user.roleName === 'student') {
-                    // ONLY set is_online_realtime to 0. DO NOT touch last_activity so session stays alive.
+                    if (isRedisReady()) {
+                        await redis.del(`online:${userId}`).catch(() => {});
+                    }
+                    
+                    // Always try to update DB as online indicator for fallback
                     await query({
                         query: "UPDATE rhs_users SET is_online_realtime = 0 WHERE id = ?",
                         values: [userId]
-                    });
+                    }).catch(() => {});
+
                     console.log(`User ${userId} marked offline (connection lost)`);
                 }
             };

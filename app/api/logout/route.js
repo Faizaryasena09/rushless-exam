@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { logActivity, getClientIP } from '@/app/lib/logger';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 export async function POST(request) {
   const ip = getClientIP(request);
@@ -21,8 +22,15 @@ export async function POST(request) {
           query: "UPDATE rhs_users SET session_id = NULL, last_activity = '1970-01-02 00:00:01', is_online_realtime = 0 WHERE id = ?",
           values: [userId]
         });
+        
+        // Clear Redis session and online status
+        if (isRedisReady()) {
+          await redis.del(`session:${userId}`).catch(() => {});
+          await redis.del(`online:${userId}`).catch(() => {});
+          await redis.del(`last_activity:${userId}`).catch(() => {});
+        }
       } catch (e) {
-        console.error("Failed to clear DB session on logout", e);
+        console.error("Failed to clear DB/Redis session on logout", e);
       }
 
       logActivity({ userId, username, ip, action: 'LOGOUT', level: 'info' });

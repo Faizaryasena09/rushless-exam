@@ -145,6 +145,7 @@ export default function ControlPage() {
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState(new Date());
     const [sseStatus, setSseStatus] = useState('connecting'); // 'connecting', 'connected', 'error'
+    const [redisActive, setRedisActive] = useState(true);
     const [logStudent, setLogStudent] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedClass, setSelectedClass] = useState('All');
@@ -170,6 +171,7 @@ export default function ControlPage() {
                     const data = JSON.parse(event.data);
                     if (data.students) {
                         setStudents(data.students);
+                        setRedisActive(data.redisActive ?? true);
                         setLastUpdated(new Date());
                     }
                 } catch (err) {
@@ -330,6 +332,15 @@ export default function ControlPage() {
                                     'bg-rose-500'
                                 }`}></span>
                                 {sseStatus === 'connected' ? 'Streaming' : sseStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                            </span>
+                            
+                            <span className={`inline-flex items-center gap-1 ml-3 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                redisActive ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100 animate-pulse'
+                            }`}>
+                                <svg className={`w-2.5 h-2.5 ${redisActive ? '' : 'animate-bounce'}`} fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M3 12v3c0 1.1.9 2 2 2h10a2 2 0 002-2v-3a2 2 0 00-2-2H5a2 2 0 00-2 2zm2-1h10a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3a1 1 0 011-1zM3 5v3c0 1.1.9 2 2 2h10a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2zm2-1h10a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z" />
+                                </svg>
+                                Redis {redisActive ? 'Active' : 'Offline'}
                             </span>
                         </p>
                     </div>

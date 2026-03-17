@@ -13,6 +13,7 @@
     "bcryptjs": "^3.0.3",
     "docx": "^9.5.1",
     "iconv-lite": "^0.7.2",
+    "ioredis": "^5.10.0",
     "iron-session": "^8.0.4",
     "jodit-react": "^5.2.38",
     "lucide-react": "^0.562.0",

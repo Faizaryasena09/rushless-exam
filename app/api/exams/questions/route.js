@@ -3,9 +3,10 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
-import { seededShuffle } from '@/app/lib/utils'; // <-- Import the shuffle utility
+import { seededShuffle } from '@/app/lib/utils';
 import { validateUserSession } from '@/app/lib/auth';
 import { recalculateExamScores, distributeExamPoints } from '@/app/lib/exams';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 async function getSession(request) {
   const cookieStore = await cookies();
@@ -28,27 +29,52 @@ export async function GET(request) {
   }
 
   try {
-    // 1. Fetch exam settings first
-    const examSettings = await query({
-      query: 'SELECT shuffle_questions, shuffle_answers FROM rhs_exams WHERE id = ?',
-      values: [examId],
-    });
+    const cacheKey = `exam:data:${examId}`;
+    let examData;
 
-    if (examSettings.length === 0) {
-      return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
+    // Try to get from Redis cache (ONLY if ready)
+    let cachedData = null;
+    if (isRedisReady()) {
+      cachedData = await redis.get(cacheKey).catch(() => null);
     }
-    const { shuffle_questions, shuffle_answers } = examSettings[0];
+    
+    if (cachedData) {
+      examData = JSON.parse(cachedData);
+    } else {
+      // 1. Fetch exam settings
+      const examSettings = await query({
+        query: 'SELECT shuffle_questions, shuffle_answers FROM rhs_exams WHERE id = ?',
+        values: [examId],
+      });
 
-    // 2. Fetch all questions for the exam
-    let questions = await query({
-      query: `
-        SELECT id, exam_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata
-        FROM rhs_exam_questions 
-        WHERE exam_id = ?
-        ORDER BY sort_order ASC, id ASC
-      `,
-      values: [examId],
-    });
+      if (examSettings.length === 0) {
+        return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
+      }
+
+      // 2. Fetch all questions for the exam
+      const questions = await query({
+        query: `
+          SELECT id, exam_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata
+          FROM rhs_exam_questions 
+          WHERE exam_id = ?
+          ORDER BY sort_order ASC, id ASC
+        `,
+        values: [examId],
+      });
+
+      examData = {
+        settings: examSettings[0],
+        questions
+      };
+
+      // Store in Redis for 1 hour (3600s) - ONLY if ready
+      if (isRedisReady()) {
+        await redis.set(cacheKey, JSON.stringify(examData), 'EX', 3600).catch(() => {});
+      }
+    }
+
+    const { shuffle_questions, shuffle_answers } = examData.settings;
+    let questions = [...examData.questions]; // Deep copy for shuffling
 
     // 3. Create a deterministic seed for this user and exam
     const seed = session.user.id + '-' + examId;
@@ -62,7 +88,9 @@ export async function GET(request) {
     const processedQuestions = questions.map(question => {
       let parsedOptions;
       try {
-        parsedOptions = JSON.parse(question.options || '{}');
+        parsedOptions = typeof question.options === 'string' 
+          ? JSON.parse(question.options || '{}') 
+          : (question.options || {});
       } catch (e) {
         console.error('Failed to parse options for question ' + question.id + ': ', e);
         return {
@@ -74,32 +102,27 @@ export async function GET(request) {
         };
       }
 
-      // Convert options object to an array of { originalKey, text }
-      // This is crucial for shuffling text while preserving the correct answer key.
       let optionsArray = Object.entries(parsedOptions).map(([key, text]) => ({
         originalKey: key,
         text,
       }));
 
-      // Shuffle the answers array if enabled only for students
       if (shuffle_answers && session.user.roleName === 'student') {
-        // Use a question-specific seed to ensure different answer shuffles per question
         const answerSeed = seed + '-q' + question.id;
         seededShuffle(optionsArray, answerSeed);
       }
 
-      // Return the new, robust question structure
-        return {
-          id: question.id,
-          exam_id: question.exam_id,
-          question_text: question.question_text,
-          correct_option: question.correct_option, // This still refers to the originalKey
-          options: optionsArray, // The frontend will now receive this array and must adapt
-          question_type: question.question_type,
-          points: question.points,
-          scoring_strategy: question.scoring_strategy,
-          scoring_metadata: question.scoring_metadata,
-        };
+      return {
+        id: question.id,
+        exam_id: question.exam_id,
+        question_text: question.question_text,
+        correct_option: question.correct_option,
+        options: optionsArray,
+        question_type: question.question_type,
+        points: question.points,
+        scoring_strategy: question.scoring_strategy,
+        scoring_metadata: question.scoring_metadata,
+      };
     });
 
     return NextResponse.json(processedQuestions);
@@ -147,6 +170,11 @@ export async function POST(request) {
 
     await recalculateExamScores(examId);
 
+    // Invalidate Redis Cache
+    if (isRedisReady()) {
+      await redis.del(`exam:data:${examId}`).catch(() => {});
+    }
+
     return NextResponse.json({ message: 'Question added successfully', id: result.insertId }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ message: 'Failed to add question', error: error.message }, { status: 500 });
@@ -192,6 +220,11 @@ export async function DELETE(request) {
         await distributeExamPoints(examId);
       }
       await recalculateExamScores(examId);
+      
+      // Invalidate Redis Cache
+      if (isRedisReady()) {
+        await redis.del(`exam:data:${examId}`).catch(() => {});
+      }
     }
 
     return NextResponse.json({ message: 'Question deleted successfully' });
@@ -248,6 +281,11 @@ export async function PUT(request) {
         await distributeExamPoints(examId);
       }
       await recalculateExamScores(examId);
+
+      // Invalidate Redis Cache
+      if (isRedisReady()) {
+        await redis.del(`exam:data:${examId}`).catch(() => {});
+      }
     }
 
     return NextResponse.json({ message: 'Question updated successfully' });
