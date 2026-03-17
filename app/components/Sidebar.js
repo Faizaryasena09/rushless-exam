@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Presentation } from 'lucide-react';
 import { useLanguage } from '@/app/context/LanguageContext';
+import { useUser } from '@/app/context/UserContext';
 
 // Definisi Ikon Sederhana (SVG) agar kode tetap rapi
 const Icons = {
@@ -62,25 +63,13 @@ const Icons = {
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const pathname = usePathname();
   const { t } = useLanguage();
-  const [userRole, setUserRole] = useState(null);
+  const { user } = useUser();
   const [branding, setBranding] = useState({ site_name: 'Rushless Exam', site_logo: '/favicon.ico' });
+  
+  const userRole = user?.roleName;
+
 
   useEffect(() => {
-    // Fetch user session to get the role
-    const fetchUserSession = async () => {
-      try {
-        const response = await fetch('/api/user-session');
-        if (response.ok) {
-          const data = await response.json();
-          setUserRole(data.user?.roleName);
-        }
-      } catch (error) {
-        console.error('Failed to fetch user session:', error);
-      }
-    };
-
-    fetchUserSession();
-
     // Fetch site branding
     fetch('/api/web-settings?mode=branding')
          .then(res => res.json())

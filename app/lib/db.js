@@ -109,6 +109,7 @@ export async function setupDatabase() {
               session_id VARCHAR(255),
               last_activity DATETIME,
               is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+              is_online_realtime BOOLEAN DEFAULT 0,
               createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               FOREIGN KEY (class_id) REFERENCES rhs_classes(id) ON DELETE SET NULL
             )
@@ -347,6 +348,15 @@ export async function setupDatabase() {
         `ALTER TABLE rhs_users ADD COLUMN refresh_requested_at TIMESTAMP NULL DEFAULT NULL`,
       );
       console.log("Column 'refresh_requested_at' added to rhs_users");
+    } catch (err) {
+      if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
+    }
+
+    try {
+      await connection.query(
+        `ALTER TABLE rhs_users ADD COLUMN is_online_realtime BOOLEAN DEFAULT 0`,
+      );
+      console.log("Column 'is_online_realtime' added to rhs_users");
     } catch (err) {
       if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
     }

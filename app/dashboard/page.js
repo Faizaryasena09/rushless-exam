@@ -11,6 +11,7 @@ import {
     GraduationCap, 
     LogOut 
 } from 'lucide-react';
+import { useUser } from '@/app/context/UserContext';
 
 // --- COMPONENTS ---
 
@@ -83,23 +84,18 @@ function SkeletonLoader() {
 export default function DashboardPage() {
     const router = useRouter();
     const { t } = useLanguage();
-    const [user, setUser] = useState(null);
+    const { user, loading: loadingSession } = useUser();
     const [stats, setStats] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loadingStats, setLoadingStats] = useState(true);
     const [time, setTime] = useState(new Date());
 
     useEffect(() => {
         const timer = setInterval(() => setTime(new Date()), 1000);
 
-        async function initDashboard() {
+        async function fetchStats() {
+            if (!user) return;
             try {
-                const sessionRes = await fetch('/api/user-session');
-                if (!sessionRes.ok) throw new Error('Not authenticated');
-                const sessionData = await sessionRes.json();
-                if (!sessionData.user) throw new Error('User data not found');
-                setUser(sessionData.user);
-
-                if (sessionData.user.roleName === 'admin') {
+                if (user.roleName === 'admin') {
                     const statsRes = await fetch('/api/system-info?mode=full');
                     if (statsRes.ok) {
                         const statsData = await statsRes.json();
@@ -109,15 +105,18 @@ export default function DashboardPage() {
                     setStats({ totalExams: '...', totalUsers: '...', totalQuestions: '...' });
                 }
             } catch (error) {
-                console.error('Fetch failed:', error);
-                router.push('/');
+                console.error('Fetch stats failed:', error);
             } finally {
-                setLoading(false);
+                setLoadingStats(false);
             }
         }
-        initDashboard();
+
+        if (user) {
+            fetchStats();
+        }
+        
         return () => clearInterval(timer);
-    }, [router]);
+    }, [user]);
 
     const getGreeting = () => {
         const hour = time.getHours();
@@ -127,7 +126,7 @@ export default function DashboardPage() {
         return "Selamat Malam";
     };
 
-    if (loading) return <SkeletonLoader />;
+    if (loadingSession || (user && loadingStats)) return <SkeletonLoader />;
     if (!user) return null;
 
     const handleLogout = async () => {

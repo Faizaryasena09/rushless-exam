@@ -78,18 +78,11 @@ export async function POST(request) {
             }
         }
 
-        // Verify SEB headers if required
+        // Verify SEB User-Agent if required
         if (settings.require_seb) {
-            const sebConfigKeyHeader = request.headers.get('x-safeexambrowser-configkey') || '';
-            const sebRequestHashHeader = request.headers.get('x-safeexambrowser-requesthash') || '';
-
-            if (!sebConfigKeyHeader && !sebRequestHashHeader) {
-                return NextResponse.json({ message: 'Safe Exam Browser headers missing. Please use SEB to start the exam.' }, { status: 403 });
-            }
-            if (settings.seb_config_key && settings.seb_config_key.trim() !== '') {
-                if (sebConfigKeyHeader !== settings.seb_config_key) {
-                    return NextResponse.json({ message: 'SEB Configuration Key mismatch. Please ensure you are using the correct SEB config file.' }, { status: 403 });
-                }
+            const userAgent = request.headers.get('user-agent')?.toLowerCase() || '';
+            if (!userAgent.includes('seb')) {
+                return NextResponse.json({ message: 'Ujian ini hanya dapat dikerjakan menggunakan Safe Exam Browser (SEB).' }, { status: 403 });
             }
         }
 

@@ -536,145 +536,207 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-100 dark:bg-slate-900 z-50">
-            <div className="bg-white dark:bg-slate-800 shadow-2xl flex flex-col h-full">
-                {/* Header */}
-                <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700">
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Edit Question</h2>
-                    <button onClick={onCancel} className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[60] flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-slate-50 dark:bg-slate-900 w-full max-w-5xl h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/20 dark:border-slate-800 animate-in zoom-in-95 slide-in-from-bottom-8 duration-500 fill-mode-both">
+                {/* Fixed Header */}
+                <div className="bg-white dark:bg-slate-800 px-8 py-5 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 rounded-2xl text-blue-600 dark:text-blue-400">
+                            <Icons.Edit />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Sunting Butir Soal</h2>
+                            <p className="text-xs text-slate-500 font-medium">Ubah konten dan sistem penilaian soal ini</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={onCancel} 
+                        className="p-2.5 rounded-2xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-200 transition-all active:scale-90"
+                    >
                         <Icons.Close />
                     </button>
                 </div>
 
-                {/* Main Content (Scrollable) */}
-                <div className="flex-grow overflow-y-auto p-6 space-y-8">
-                    {/* Question Type & Points Selection */}
-                    <div className="bg-white dark:bg-slate-700 p-6 rounded-xl border border-slate-200 dark:border-slate-600">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Question Type</label>
-                                <select 
-                                    value={questionType} 
-                                    onChange={(e) => handleTypeChange(e.target.value)} 
-                                    className="w-full max-w-xs p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-100"
-                                >
-                                    <option value="multiple_choice">Pilihan Ganda</option>
-                                    <option value="multiple_choice_complex">Pilihan Ganda Kompleks</option>
-                                    <option value="true_false">Benar / Salah</option>
-                                    <option value="matching">Menjodohkan (Matching)</option>
-                                    <option value="essay">Esai</option>
-                                </select>
+                {/* Scrollable Body */}
+                <div className="flex-grow overflow-y-auto p-6 md:p-8 space-y-8 custom-scrollbar">
+                    {/* section: Type & Points */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="md:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                            <div className="flex items-center gap-3 mb-5">
+                                <div className="w-1 h-5 bg-blue-500 rounded-full"></div>
+                                <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Metadata Soal</h3>
                             </div>
-                            <div>
-                                <label className="block text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Poin / Bobot Soal</label>
-                                <input
-                                    type="number"
-                                    step="0.1"
-                                    min="0"
-                                    value={points}
-                                    onChange={(e) => setPoints(parseFloat(e.target.value))}
-                                    className="w-full max-w-xs p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-100"
-                                />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500 tracking-tight pl-1">Tipe Soal</label>
+                                    <div className="relative group">
+                                        <select 
+                                            value={questionType} 
+                                            onChange={(e) => handleTypeChange(e.target.value)} 
+                                            className="w-full p-3.5 border-2 border-slate-100 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 outline-none transition-all font-bold text-slate-700 dark:text-slate-200 appearance-none shadow-sm"
+                                        >
+                                            <option value="multiple_choice">Pilihan Ganda</option>
+                                            <option value="multiple_choice_complex">Pilihan Ganda Kompleks</option>
+                                            <option value="true_false">Benar / Salah</option>
+                                            <option value="matching">Menjodohkan (Matching)</option>
+                                            <option value="essay">Esai</option>
+                                        </select>
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500 tracking-tight pl-1">Poin / Bobot</label>
+                                    <div className="relative group">
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            min="0"
+                                            value={points}
+                                            onChange={(e) => setPoints(parseFloat(e.target.value))}
+                                            className="w-full p-3.5 pl-12 border-2 border-slate-100 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 outline-none transition-all font-bold text-slate-700 dark:text-slate-200 shadow-sm"
+                                        />
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 font-black">#</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        {questionType === 'multiple_choice_complex' && (
-                            <div className="mt-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800">
-                                <label className="block text-sm font-bold text-indigo-900 dark:text-indigo-300 mb-2">Strategi Penyekoran PGK</label>
-                                <div className="flex flex-wrap gap-4">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" name="edit_pgk_strategy" checked={scoringStrategy === 'pgk_partial'} onChange={() => setScoringStrategy('pgk_partial')} />
-                                        <span className="text-sm dark:text-slate-300">Parsial (Poin Proporsional)</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" name="edit_pgk_strategy" checked={scoringStrategy === 'pgk_strict'} onChange={() => setScoringStrategy('pgk_strict')} />
-                                        <span className="text-sm dark:text-slate-300">Strict (Full Poin jika Benar Semua)</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" name="edit_pgk_strategy" checked={scoringStrategy === 'pgk_any'} onChange={() => setScoringStrategy('pgk_any')} />
-                                        <span className="text-sm dark:text-slate-300">Any (Minimal 1 Benar = Full)</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" name="edit_pgk_strategy" checked={scoringStrategy === 'pgk_additive'} onChange={() => setScoringStrategy('pgk_additive')} />
-                                        <span className="text-sm dark:text-slate-300">Additive (Poin Penuh per Benar)</span>
-                                    </label>
-                                </div>
+                        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-3xl text-white shadow-xl shadow-blue-200 dark:shadow-none flex flex-col justify-center overflow-hidden relative">
+                            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
+                            <div className="relative text-sm font-bold opacity-80 uppercase tracking-widest mb-1">Preview Status</div>
+                            <div className="relative flex items-center gap-3">
+                                <div className="text-4xl font-black">{points}</div>
+                                <div className="text-lg font-bold opacity-90 mt-2">Poin</div>
                             </div>
-                        )}
-
-                        {questionType === 'essay' && (
-                            <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800">
-                                <label className="block text-sm font-bold text-emerald-900 dark:text-emerald-300 mb-2">Automasi Koreksi Esai</label>
-                                <div className="space-y-3">
-                                    <div className="flex flex-wrap gap-4">
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input type="radio" name="edit_essay_strategy" checked={scoringStrategy === 'essay_manual'} onChange={() => setScoringStrategy('essay_manual')} />
-                                            <span className="text-sm dark:text-slate-300">Manual (Oleh Guru)</span>
-                                        </label>
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input type="radio" name="edit_essay_strategy" checked={scoringStrategy === 'essay_keywords'} onChange={() => setScoringStrategy('essay_keywords')} />
-                                            <span className="text-sm dark:text-slate-300">Rasio Kata (Parsial)</span>
-                                        </label>
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input type="radio" name="edit_essay_strategy" checked={scoringStrategy === 'edit_essay_any_keyword'} onChange={() => setScoringStrategy('essay_any_keyword')} />
-                                            <span className="text-sm dark:text-slate-300">Any (1 Cocok = Full)</span>
-                                        </label>
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input type="radio" name="edit_essay_strategy" checked={scoringStrategy === 'essay_strict_keywords'} onChange={() => setScoringStrategy('essay_strict_keywords')} />
-                                            <span className="text-sm dark:text-slate-300">Strict (Semua Cocok = Full)</span>
-                                        </label>
-                                    </div>
-                                    {(scoringStrategy === 'essay_keywords' || scoringStrategy === 'essay_any_keyword' || scoringStrategy === 'essay_strict_keywords') && (
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Kata Kunci (Pisahkan dengan koma)</label>
-                                            <input
-                                                type="text"
-                                                placeholder="contoh: ekosistem, biologi, lingkungan"
-                                                value={keywords}
-                                                onChange={(e) => setKeywords(e.target.value)}
-                                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-100 text-sm"
-                                            />
-                                            <p className="mt-1 text-[10px] text-slate-400">
-                                                {scoringStrategy === 'essay_any_keyword' 
-                                                    ? 'Cukup 1 kata kunci yang cocok untuk mendapatkan poin penuh.' 
-                                                    : scoringStrategy === 'essay_strict_keywords'
-                                                        ? 'Harus mengandung SEMUA kata kunci di atas untuk mendapatkan poin penuh.'
-                                                        : 'Sistem akan menghitung kemunculan kata kunci ini di jawaban siswa untuk memberikan poin.'}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
+                            <div className="relative mt-4 flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                <div className="text-[10px] font-bold uppercase tracking-wider opacity-90">Sistem Penilaian: {scoringStrategy.replace(/_/g, ' ')}</div>
                             </div>
-                        )}
+                        </div>
                     </div>
 
-                    {/* Question Editor */}
-                    <div className="bg-white dark:bg-slate-700 p-6 rounded-xl border border-slate-200 dark:border-slate-600">
-                        <label className="block text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Question</label>
+                    {/* section: Question Text */}
+                    <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-1 h-5 bg-amber-500 rounded-full"></div>
+                            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Konten Pertanyaan</h3>
+                        </div>
                         <JoditEditorWithUpload
                             value={questionText}
                             onBlur={newContent => setQuestionText(newContent)}
                         />
                     </div>
 
-                    {/* Options Section */}
+                    {/* section: Scoring Strategy (Conditional) */}
+                    {(questionType === 'multiple_choice_complex' || questionType === 'essay') && (
+                        <div className={`p-6 md:p-8 rounded-3xl border-2 shadow-sm animate-in slide-in-from-left-4 duration-500 ${questionType === 'multiple_choice_complex' ? 'bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/50' : 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/50'}`}>
+                            <div className="flex items-center gap-3 mb-5">
+                                <div className={`w-1 h-5 rounded-full ${questionType === 'multiple_choice_complex' ? 'bg-indigo-500' : 'bg-emerald-500'}`}></div>
+                                <h3 className={`text-sm font-black uppercase tracking-widest ${questionType === 'multiple_choice_complex' ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                                    {questionType === 'multiple_choice_complex' ? 'Strategi Penyekoran PGK' : 'Automasi Koreksi Esai'}
+                                </h3>
+                            </div>
+
+                            {questionType === 'multiple_choice_complex' ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    {[
+                                        { id: 'pgk_partial', label: 'Parsial', sub: 'Correct - Wrong' },
+                                        { id: 'pgk_strict', label: 'Strict', sub: 'Must Correct All' },
+                                        { id: 'pgk_any', label: 'Any', sub: 'Min. 1 Correct' },
+                                        { id: 'pgk_additive', label: 'Additive', sub: 'Point per Item' }
+                                    ].map(strat => (
+                                        <label key={strat.id} className={`flex flex-col p-4 rounded-2xl border-2 transition-all cursor-pointer ${scoringStrategy === strat.id ? 'bg-white dark:bg-slate-800 border-indigo-500 shadow-md ring-4 ring-indigo-500/10' : 'bg-white/40 dark:bg-slate-900/20 border-transparent hover:border-slate-200 dark:hover:border-slate-700'}`}>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className={`text-sm font-black ${scoringStrategy === strat.id ? 'text-indigo-600' : 'text-slate-600 dark:text-slate-400'}`}>{strat.label}</span>
+                                                <input type="radio" name="edit_pgk_strategy" checked={scoringStrategy === strat.id} onChange={() => setScoringStrategy(strat.id)} className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500" />
+                                            </div>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">{strat.sub}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                        {[
+                                            { id: 'essay_manual', label: 'Manual', sub: 'Koreksi Guru' },
+                                            { id: 'essay_keywords', label: 'Rasio Kata', sub: 'Poin Parsial' },
+                                            { id: 'essay_any_keyword', label: 'Any Keyword', sub: 'Min. 1 Cocok' },
+                                            { id: 'essay_strict_keywords', label: 'Strict', sub: 'Semua Cocok' }
+                                        ].map(strat => (
+                                            <label key={strat.id} className={`flex flex-col p-4 rounded-2xl border-2 transition-all cursor-pointer ${scoringStrategy === strat.id ? 'bg-white dark:bg-slate-800 border-emerald-500 shadow-md ring-4 ring-emerald-500/10' : 'bg-white/40 dark:bg-slate-900/20 border-transparent hover:border-slate-200 dark:hover:border-slate-700'}`}>
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className={`text-sm font-black ${scoringStrategy === strat.id ? 'text-emerald-600' : 'text-slate-600 dark:text-slate-400'}`}>{strat.label}</span>
+                                                    <input type="radio" name="edit_essay_strategy" checked={scoringStrategy === strat.id} onChange={() => setScoringStrategy(strat.id)} className="w-4 h-4 text-emerald-600 border-slate-300 focus:ring-emerald-500" />
+                                                </div>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">{strat.sub}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    {(scoringStrategy !== 'essay_manual') && (
+                                        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/50 shadow-sm animate-in fade-in zoom-in-95 duration-300">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-widest pl-1">Kata Kunci Automasi</label>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="Pisahkan dengan koma, contoh: sel, membran, inti"
+                                                value={keywords}
+                                                onChange={(e) => setKeywords(e.target.value)}
+                                                className="w-full p-4 border-2 border-slate-100 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 outline-none transition-all font-bold text-slate-700 dark:text-slate-100 text-sm"
+                                            />
+                                            <p className="mt-3 text-[11px] text-emerald-600 dark:text-emerald-400 font-bold px-2 flex items-start gap-2">
+                                                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                {scoringStrategy === 'essay_any_keyword' 
+                                                    ? 'Cukup 1 kata kunci yang cocok untuk mendapatkan poin penuh.' 
+                                                    : scoringStrategy === 'essay_strict_keywords'
+                                                        ? 'Harus mengandung SEMUA kata kunci di atas untuk mendapatkan poin penuh.'
+                                                        : 'Skor akan dihitung berdasarkan persentase kata kunci yang ditemukan dalam jawaban siswa.'}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* section: Options */}
                     {questionType !== 'essay' && (
-                        <div className="bg-white dark:bg-slate-700 p-6 rounded-xl border border-slate-200 dark:border-slate-600">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Options</h3>
+                        <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                            <div className="flex justify-between items-center mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-1 h-5 bg-indigo-500 rounded-full"></div>
+                                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Pilihan Jawaban</h3>
+                                </div>
                                 {questionType !== 'true_false' && (
-                                    <button type="button" onClick={addOption} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-600 rounded-md">
-                                        <Icons.Plus /> Add Option
+                                    <button 
+                                        type="button" 
+                                        onClick={addOption} 
+                                        className="inline-flex items-center gap-2 px-4 py-2 text-xs font-black bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all active:scale-95"
+                                    >
+                                        <Icons.Plus /> TAMBAH OPSI
                                     </button>
                                 )}
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            <div className="grid grid-cols-1 gap-6">
                                 {options.map((opt) => (
-                                    <div key={opt.id} className="space-y-2 border border-slate-200 dark:border-slate-600 rounded-lg p-4 bg-slate-50 dark:bg-slate-600">
-                                        <div className="flex justify-between items-center">
-                                            <label className="font-semibold text-slate-700 dark:text-slate-200">Option {opt.key}</label>
+                                    <div key={opt.id} className="relative group p-6 rounded-3xl border-2 border-slate-50 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-900/20 hover:border-blue-200 dark:hover:border-blue-900/30 transition-all duration-300">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center font-black text-slate-700 dark:text-slate-300 shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                                    {opt.key}
+                                                </div>
+                                                <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Opsi {opt.key}</span>
+                                            </div>
                                             {options.length > 2 && questionType !== 'true_false' && (
-                                                <button type="button" onClick={() => removeOption(opt.id)} className="p-1 text-red-500 hover:bg-red-100 rounded-full" title={`Remove option ${opt.key}`}>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => removeOption(opt.id)} 
+                                                    className="p-2 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all active:scale-90"
+                                                >
                                                     <Icons.Trash />
                                                 </button>
                                             )}
@@ -684,7 +746,7 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                                                 type="text"
                                                 value={opt.value}
                                                 readOnly
-                                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-slate-100 dark:bg-slate-700 dark:text-slate-100"
+                                                className="w-full p-4 border-2 border-slate-100 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-800 dark:text-slate-100 font-bold opacity-80"
                                             />
                                         ) : (
                                             <JoditEditorWithUpload value={opt.value} onBlur={newContent => handleOptionChange(opt.id, newContent)} />
@@ -695,48 +757,79 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                         </div>
                     )}
 
-                    {/* Correct Answer Section */}
+                    {/* section: Correct Answer Selection */}
                     {questionType !== 'essay' && (
-                        <div className="bg-white dark:bg-slate-700 p-6 rounded-xl border border-slate-200 dark:border-slate-600">
-                            <label className="block text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Correct Answer</label>
-                            {questionType === 'multiple_choice_complex' ? (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {options.map(opt => (
-                                        <label key={opt.id} className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
+                        <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-1 h-5 bg-green-500 rounded-full"></div>
+                                <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Kunci Jawaban</h3>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
+                                {options.map(opt => {
+                                    const isSelected = questionType === 'multiple_choice_complex' 
+                                        ? correctOptions.includes(opt.key) 
+                                        : correctOption === opt.key;
+                                    
+                                    return (
+                                        <label 
+                                            key={opt.id} 
+                                            className={`relative flex flex-col items-center justify-center p-6 rounded-3xl border-2 transition-all cursor-pointer group select-none ${isSelected ? 'bg-green-50 dark:bg-green-900/20 border-green-500 shadow-md ring-4 ring-green-500/5' : 'bg-slate-50 dark:bg-slate-900 border-transparent hover:border-slate-200 dark:hover:border-slate-700'}`}
+                                        >
                                             <input
-                                                type="checkbox"
-                                                checked={correctOptions.includes(opt.key)}
+                                                type={questionType === 'multiple_choice_complex' ? "checkbox" : "radio"}
+                                                name="edit_correct_choice"
+                                                checked={isSelected}
                                                 onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        setCorrectOptions([...correctOptions, opt.key]);
+                                                    if (questionType === 'multiple_choice_complex') {
+                                                        if (e.target.checked) setCorrectOptions([...correctOptions, opt.key]);
+                                                        else setCorrectOptions(correctOptions.filter(k => k !== opt.key));
                                                     } else {
-                                                        setCorrectOptions(correctOptions.filter(k => k !== opt.key));
+                                                        setCorrectOption(opt.key);
                                                     }
                                                 }}
-                                                className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                className="hidden"
                                             />
-                                            <span className="font-medium text-slate-700 dark:text-slate-200">Option {opt.key}</span>
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-black mb-1 transition-all ${isSelected ? 'bg-green-500 text-white scale-110 shadow-lg shadow-green-200 dark:shadow-none' : 'bg-white dark:bg-slate-800 text-slate-400 border-2 border-slate-100 dark:border-slate-700'}`}>
+                                                {isSelected ? (
+                                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
+                                                ) : opt.key}
+                                            </div>
+                                            <span className={`text-[10px] font-black uppercase tracking-widest mt-1 ${isSelected ? 'text-green-600' : 'text-slate-400'}`}>
+                                                Opsi {opt.key}
+                                            </span>
                                         </label>
-                                    ))}
-                                </div>
-                            ) : (
-                                <select value={correctOption} onChange={(e) => setCorrectOption(e.target.value)} className="w-full max-w-xs p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">
-                                    {options.map(opt => (
-                                        <option key={opt.id} value={opt.key}>{`Option ${opt.key}`}</option>
-                                    ))}
-                                </select>
-                            )}
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
 
-                    {error && <p className="text-sm text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 p-3 rounded-md">{error}</p>}
+                    {error && (
+                        <div className="bg-red-50 dark:bg-red-950/30 border-2 border-red-100 dark:border-red-900/50 p-5 rounded-3xl flex items-center gap-4 animate-in slide-in-from-top-2 duration-300">
+                            <div className="p-2 bg-red-500 text-white rounded-xl">
+                                <Icons.Warning />
+                            </div>
+                            <p className="text-sm font-bold text-red-600 dark:text-red-400">{error}</p>
+                        </div>
+                    )}
                 </div>
 
-                {/* Footer (Action Buttons) */}
-                <div className="flex justify-end gap-4 p-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
-                    <button onClick={onCancel} className="px-6 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"></button>
-                    <button onClick={handleSave} disabled={loading} className="inline-flex items-center justify-center px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 text-white text-sm font-semibold rounded-lg disabled:bg-indigo-300 transition-colors">
-                        {loading ? 'Saving...' : 'Save Changes'}
+                {/* Fixed Footer */}
+                <div className="bg-white dark:bg-slate-800 px-8 py-5 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-4 shrink-0">
+                    <button 
+                        onClick={onCancel} 
+                        className="px-6 py-3.5 text-sm font-black text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                    >
+                        BATALKAN
+                    </button>
+                    <button 
+                        onClick={handleSave} 
+                        disabled={loading} 
+                        className="flex items-center gap-3 px-8 py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-sm font-black rounded-2xl transition-all shadow-xl shadow-blue-200 dark:shadow-none disabled:bg-slate-300 disabled:shadow-none"
+                    >
+                        {loading && <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                        {loading ? 'MENYIMPAN...' : 'SIMPAN PERUBAHAN'}
                     </button>
                 </div>
             </div>
@@ -1211,73 +1304,110 @@ export default function ManageQuestionsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-1">
                         {/* Scoring Configuration Panel */}
-                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 mb-8 overflow-hidden transition-all">
-                            <button 
-                                onClick={() => setShowScoringSettings(!showScoringSettings)}
-                                className="w-full flex justify-between items-center group"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor font-bold"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" /></svg>
-                                    </div>
-                                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Pengaturan Penyekoran</h2>
-                                </div>
-                                <svg className={`w-5 h-5 text-slate-400 transition-transform ${showScoringSettings ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                            </button>
-                            
-                            {showScoringSettings && (
-                                <div className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {/* Target Score Input */}
-                                        <div className="space-y-3">
-                                            <label className="text-sm font-bold text-slate-500 uppercase tracking-wider">Target Total Skor</label>
-                                            <div className="relative">
-                                                <input 
-                                                    type="number"
-                                                    value={totalTargetScore}
-                                                    onChange={(e) => setTotalTargetScore(parseFloat(e.target.value))}
-                                                    className="w-full p-3 pl-10 border-2 border-slate-100 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 focus:border-indigo-500 outline-none transition-all font-bold text-slate-700 dark:text-slate-200"
-                                                    placeholder="Contoh: 100"
-                                                />
-                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">#</div>
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 mb-8 overflow-hidden transition-all duration-300 hover:shadow-2xl">
+                            <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-1"></div>
+                            <div className="p-6">
+                                <button 
+                                    onClick={() => setShowScoringSettings(!showScoringSettings)}
+                                    className="w-full flex justify-between items-center group"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="relative">
+                                            <div className="absolute inset-0 bg-indigo-400 blur-lg opacity-20 group-hover:opacity-40 transition-opacity"></div>
+                                            <div className="relative p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-300">
+                                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" />
+                                                </svg>
                                             </div>
-                                            <p className="text-[10px] text-slate-400 italic">Target nilai akhir jika semua soal benar.</p>
+                                        </div>
+                                        <div className="text-left">
+                                            <h2 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">Pengaturan Penyekoran</h2>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Konfigurasi bobot dan distribusi nilai</p>
                                         </div>
                                     </div>
-
-                                    {/* Auto Distribute Toggle */}
-                                    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
-                                        <div>
-                                            <div className="font-bold text-slate-700 dark:text-slate-200 text-sm">Otomatis Bagi Poin</div>
-                                            <div className="text-xs text-slate-500">Sesuaikan poin semua soal tiap kali ada soal ditambah/dihapus.</div>
+                                    <div className={`p-2 rounded-full bg-slate-100 dark:bg-slate-700 transition-all ${showScoringSettings ? 'rotate-180 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600' : 'text-slate-400'}`}>
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                                    </div>
+                                </button>
+                                
+                                {showScoringSettings && (
+                                    <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-top-4 duration-500 fill-mode-both">
+                                        <div className="grid grid-cols-1 gap-6">
+                                            {/* Target Score Input */}
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-1.5 h-4 bg-indigo-500 rounded-full"></div>
+                                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Target Total Skor</label>
+                                                </div>
+                                                <div className="group relative">
+                                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl opacity-0 group-focus-within:opacity-15 transition duration-300"></div>
+                                                    <div className="relative">
+                                                        <input 
+                                                            type="number"
+                                                            value={totalTargetScore}
+                                                            onChange={(e) => setTotalTargetScore(parseFloat(e.target.value))}
+                                                            className="w-full p-4 pl-12 border-2 border-slate-100 dark:border-slate-700/50 rounded-xl bg-slate-50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 outline-none transition-all font-bold text-slate-700 dark:text-slate-100 placeholder-slate-400 shadow-sm"
+                                                            placeholder="Contoh: 100"
+                                                        />
+                                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500">
+                                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor shadow-sm"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <p className="text-[11px] text-slate-500 dark:text-slate-400 px-1 font-medium flex items-center gap-1.5">
+                                                    <svg className="w-3 h-3 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+                                                    Target nilai akhir jika murid menjawab semua soal dengan benar.
+                                                </p>
+                                            </div>
                                         </div>
-                                        <button 
+
+                                        {/* Auto Distribute Toggle */}
+                                        <div 
                                             onClick={() => setAutoDistribute(!autoDistribute)}
-                                            className={`w-12 h-6 rounded-full p-1 transition-colors ${autoDistribute ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                            className={`group flex items-center justify-between p-5 rounded-2xl border-2 transition-all cursor-pointer ${autoDistribute ? 'bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-900/50 shadow-sm shadow-indigo-100/50' : 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-800'}`}
                                         >
-                                            <div className={`w-4 h-4 bg-white rounded-full transition-transform ${autoDistribute ? 'translate-x-6' : 'translate-x-0'}`} />
-                                        </button>
-                                    </div>
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-2.5 rounded-xl transition-colors ${autoDistribute ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                                                </div>
+                                                <div>
+                                                    <div className="font-extrabold text-slate-700 dark:text-slate-200 text-sm tracking-tight">Otomatis Bagi Poin</div>
+                                                    <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">Poin setiap soal akan dihitung otomatis.</div>
+                                                </div>
+                                            </div>
+                                            <div 
+                                                className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${autoDistribute ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                            >
+                                                <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${autoDistribute ? 'translate-x-6' : 'translate-x-0'}`} />
+                                            </div>
+                                        </div>
 
-                                    {/* Actions */}
-                                    <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                                        <button 
-                                            onClick={handleSaveScoringSettings}
-                                            disabled={savingSettings}
-                                            className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-200 dark:shadow-none active:scale-95 disabled:bg-indigo-300"
-                                        >
-                                            {savingSettings ? 'Menyimpan...' : 'Simpan Konfigurasi'}
-                                        </button>
-                                        <button 
-                                            onClick={handleNormalizePoints}
-                                            disabled={normalizeLoading || questions.length === 0}
-                                            className="flex-1 px-4 py-3 bg-white dark:bg-slate-700 border-2 border-slate-100 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-600 transition-all active:scale-95 disabled:opacity-50"
-                                        >
-                                            {normalizeLoading ? 'Memproses...' : 'Bagi Rata Sekarang'}
-                                        </button>
+                                        {/* Actions */}
+                                        <div className="flex flex-col gap-3 pt-2">
+                                            <button 
+                                                onClick={handleSaveScoringSettings}
+                                                disabled={savingSettings}
+                                                className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-black rounded-xl transition-all shadow-xl shadow-indigo-200 dark:shadow-none disabled:bg-indigo-300 disabled:shadow-none"
+                                            >
+                                                {savingSettings ? (
+                                                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                                ) : (
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor text-white"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                                                )}
+                                                {savingSettings ? 'Menyimpan...' : 'Simpan Konfigurasi'}
+                                            </button>
+                                            <button 
+                                                onClick={handleNormalizePoints}
+                                                disabled={normalizeLoading || questions.length === 0}
+                                                className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-extrabold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98] transition-all disabled:opacity-50"
+                                            >
+                                                <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                                {normalizeLoading ? 'Memproses...' : 'Bagi Rata Sekarang'}
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
 
                         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 sticky top-24">
@@ -1375,9 +1505,16 @@ export default function ManageQuestionsPage() {
                                                             const correctOptions = q.correct_option ? String(q.correct_option).split(',') : [];
                                                             const isCorrect = correctOptions.includes(key);
                                                             return (
-                                                                <div key={key} className={`pl-4 flex gap-2 w-full mt-1 ${isCorrect ? 'font-bold text-green-700 dark:text-green-400' : 'text-slate-600 dark:text-slate-400'}`}>
-                                                                    <span>{key}.</span>
-                                                                    <div className="prose dark:prose-invert prose-sm" dangerouslySetInnerHTML={{ __html: `${value} ${isCorrect ? '✓' : ''}` }} />
+                                                                <div key={key} className={`pl-4 flex items-center justify-between gap-4 w-full mt-1.5 p-2 rounded-lg transition-colors ${isCorrect ? 'bg-green-50 dark:bg-green-900/20 font-extrabold text-green-700 dark:text-green-400 border border-green-100 dark:border-green-900/30' : 'text-slate-600 dark:text-slate-400'}`}>
+                                                                    <div className="flex gap-3 items-start flex-1">
+                                                                        <span className={`${isCorrect ? 'text-green-600' : 'text-slate-400 font-bold'}`}>{key}.</span>
+                                                                        <div className="prose dark:prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: value }} />
+                                                                    </div>
+                                                                    {isCorrect && (
+                                                                        <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 bg-green-500 text-white rounded-full shadow-sm">
+                                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             );
                                                         })

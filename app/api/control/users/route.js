@@ -45,7 +45,7 @@ export async function GET(request) {
 
     const sql = `
         SELECT 
-            u.id, u.username, u.name, u.role, u.is_locked, u.class_id,
+            u.id, u.username, u.name, u.role, u.is_locked, u.class_id, u.is_online_realtime,
             UNIX_TIMESTAMP(u.last_activity) as last_activity_ts,
             c.class_name,
             ea.id as attempt_id,
@@ -79,7 +79,7 @@ export async function GET(request) {
 
     const processedStudents = students.map(s => {
       const inactiveSeconds = now - (s.last_activity_ts || 0);
-      const isOnline = inactiveSeconds < 300;
+      const isOnline = !!s.is_online_realtime;
 
       let seconds_left = null;
 

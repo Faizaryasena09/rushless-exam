@@ -78,7 +78,6 @@ export default function ManageExamPage() {
   const [shuffleAnswers, setShuffleAnswers] = useState(false);
   const [requireSafeBrowser, setRequireSafeBrowser] = useState(false);
   const [requireSeb, setRequireSeb] = useState(false);
-  const [sebConfigKey, setSebConfigKey] = useState('');
   const [timerMode, setTimerMode] = useState('sync'); // 'sync' or 'async'
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [minTimeMinutes, setMinTimeMinutes] = useState(0);
@@ -157,7 +156,6 @@ export default function ManageExamPage() {
       setMaxAttempts(data.max_attempts || 1);
       setRequireSafeBrowser(!!data.require_safe_browser);
       setRequireSeb(!!data.require_seb);
-      setSebConfigKey(data.seb_config_key || '');
       setShowInstructions(!!data.show_instructions);
       setInstructionType(data.instruction_type || 'template');
       setCustomInstructions(data.custom_instructions || '');
@@ -251,7 +249,6 @@ export default function ManageExamPage() {
         maxAttempts: maxAttempts,
         requireSafeBrowser: requireSafeBrowser,
         requireSeb: requireSeb,
-        sebConfigKey: sebConfigKey,
         showInstructions: showInstructions,
         instructionType: instructionType,
         customInstructions: customInstructions,
@@ -299,7 +296,7 @@ export default function ManageExamPage() {
     return () => clearTimeout(saveTimeoutRef.current);
   }, [
     examName, description, subjectId, startTime, endTime, shuffleQuestions, shuffleAnswers,
-    timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, sebConfigKey, selectedClasses, showInstructions, instructionType, customInstructions, showResult, showAnalysis, requireAllAnswered, requireToken, tokenType, currentToken, violationAction
+    timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, selectedClasses, showInstructions, instructionType, customInstructions, showResult, showAnalysis, requireAllAnswered, requireToken, tokenType, currentToken, violationAction
   ]);
 
   if (loading) {
@@ -489,23 +486,6 @@ export default function ManageExamPage() {
                 onChange={() => setRequireSeb(!requireSeb)}
                 disabled={saving && false}
               />
-              {requireSeb && (
-                <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-b-lg">
-                  <label htmlFor="sebConfigKey" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Browser Exam Config Key</label>
-                  <input
-                    id="sebConfigKey"
-                    type="text"
-                    value={sebConfigKey}
-                    onChange={(e) => setSebConfigKey(e.target.value)}
-                    placeholder="Masukkan kode Config Key Browser Exam... (opsional)"
-                    className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                    disabled={saving && false}
-                  />
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                    Validasi Config Key memastikan siswa tidak mengubah konfigurasi Browser Exam. Kosongkan jika hanya ingin cek tipe browser saja.
-                  </p>
-                </div>
-              )}
               <Switch
                 id="shuffle-questions"
                 label="Acak Urutan Soal"

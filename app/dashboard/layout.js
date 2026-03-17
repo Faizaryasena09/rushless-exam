@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { Toaster } from 'sonner';
 import { useLanguage } from '../context/LanguageContext';
+import { UserProvider } from '../context/UserContext';
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
@@ -19,14 +20,15 @@ export default function DashboardLayout({ children }) {
       setSidebarOpen(true);
     }
 
-    async function fetchUserSession() {
+    let sse;
+    let handleUnload;
+    const fetchUserSession = async () => {
       try {
         const response = await fetch('/api/user-session');
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
         } else if (response.status === 401) {
-          // Session invalid/expired (or forced logout) - Redirect to login
           window.location.href = '/?redirect=' + encodeURIComponent(pathname);
         }
       } catch (error) {
@@ -34,13 +36,63 @@ export default function DashboardLayout({ children }) {
       } finally {
         setLoading(false);
       }
-    }
+    };
 
-    fetchUserSession();
+    const setupSessionStream = () => {
+      if (sse) sse.close();
+      
+      sse = new EventSource('/api/user-session/stream');
+      
+      // Fallback: Notify server immediately on tab closure
+      const handleUnloadAction = () => {
+          // Use sendBeacon for reliable delivery on closure
+          navigator.sendBeacon('/api/user-session/offline');
+      };
+      handleUnload = handleUnloadAction;
 
-    // Poll session status every 2 seconds to check for force logout
-    const interval = setInterval(fetchUserSession, 2000);
-    return () => clearInterval(interval);
+      window.addEventListener('beforeunload', handleUnload);
+      window.addEventListener('unload', handleUnload);
+
+      sse.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.status === 'invalid' || data.status === 'expired') {
+            sse.close();
+            window.removeEventListener('beforeunload', handleUnload);
+            window.removeEventListener('unload', handleUnload);
+            window.location.href = '/?redirect=' + encodeURIComponent(pathname);
+          } else if (data.status === 'active' && data.user) {
+            setUser(data.user);
+          }
+        } catch (e) {
+          console.error("Failed to parse session stream data", e);
+        }
+      };
+
+      sse.onerror = (err) => {
+        console.error("Session stream connection error, retrying in 10s...", err);
+        sse.close();
+        // Fallback to manual check and then try to restablish stream
+        setTimeout(() => {
+          fetchUserSession();
+          setupSessionStream();
+        }, 10000);
+      };
+    };
+
+    fetchUserSession().then(() => {
+      if (!isExamTaking) { // For exam taking, we might want to keep it simple or use the exam's own SSE
+        setupSessionStream();
+      }
+    });
+
+    return () => {
+      if (sse) sse.close();
+      if (handleUnload) {
+        window.removeEventListener('beforeunload', handleUnload);
+        window.removeEventListener('unload', handleUnload);
+      }
+    };
   }, []); // Empty dependency array ensures this runs only once on mount
 
   const isPreview = pathname.includes('/preview/');
@@ -63,24 +115,26 @@ export default function DashboardLayout({ children }) {
   }
 
   return (
-    <div className="relative flex h-screen bg-gray-100 dark:bg-slate-900 overflow-hidden">
-      {(!isStudent && !isPreview && !isExamTaking) && <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${(sidebarOpen && !isStudent && !isPreview && !isExamTaking) ? 'lg:ml-64' : ''}`}>
-        {(!isPreview && !isExamTaking) && (
-          <Header
-            user={user}
-            isLoading={loading}
-            toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-            showToggleButton={!isStudent}
-          />
-        )}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto">
-          <div className={`container mx-auto ${(isPreview || isExamTaking) ? 'px-0 py-0' : 'px-6 py-8'}`}>
-            {children}
-          </div>
-        </main>
+    <UserProvider value={{ user, loading }}>
+      <div className="relative flex h-screen bg-gray-100 dark:bg-slate-900 overflow-hidden">
+        {(!isStudent && !isPreview && !isExamTaking) && <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />}
+        <div className={`flex-1 flex flex-col transition-all duration-300 ${(sidebarOpen && !isStudent && !isPreview && !isExamTaking) ? 'lg:ml-64' : ''}`}>
+          {(!isPreview && !isExamTaking) && (
+            <Header
+              user={user}
+              isLoading={loading}
+              toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+              showToggleButton={!isStudent}
+            />
+          )}
+          <main className="flex-1 overflow-x-hidden overflow-y-auto">
+            <div className={`container mx-auto ${(isPreview || isExamTaking) ? 'px-0 py-0' : 'px-6 py-8'}`}>
+              {children}
+            </div>
+          </main>
+        </div>
+        <Toaster position="top-right" richColors />
       </div>
-      <Toaster position="top-right" richColors />
-    </div>
+    </UserProvider>
   );
 }

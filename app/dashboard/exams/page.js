@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useUser } from '@/app/context/UserContext';
 
 // --- Icons ---
 const Icons = {
@@ -485,9 +486,10 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
 
 export default function ExamsPage() {
   const router = useRouter();
-  const [userRole, setUserRole] = useState(null);
-  const [userId, setUserId] = useState(null);
-  const [loadingSession, setLoadingSession] = useState(true);
+  const { user, loading: loadingSession } = useUser();
+  
+  const userRole = user?.roleName;
+  const userId = user?.id;
   
   const [exams, setExams] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -627,24 +629,6 @@ export default function ExamsPage() {
     setDraggedCategoryId(null);
   };
 
-  useEffect(() => {
-    async function checkSession() {
-      try {
-        const res = await fetch('/api/user-session');
-        if (!res.ok) throw new Error('Not authenticated');
-        const data = await res.json();
-        if (!data.user) throw new Error('User data not found in session');
-        console.log('Session data:', data);
-        setUserRole(data.user.roleName); // Store user role
-        setUserId(data.user.id); // Store user id
-      } catch (error) {
-        router.push('/');
-      } finally {
-        setLoadingSession(false);
-      }
-    }
-    checkSession();
-  }, [router]);
 
   // Fetch exams logic with polling
   useEffect(() => {

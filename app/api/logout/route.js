@@ -18,7 +18,7 @@ export async function POST(request) {
 
       try {
         await query({
-          query: 'UPDATE rhs_users SET session_id = NULL WHERE id = ?',
+          query: "UPDATE rhs_users SET session_id = NULL, last_activity = '1970-01-02 00:00:01', is_online_realtime = 0 WHERE id = ?",
           values: [userId]
         });
       } catch (e) {

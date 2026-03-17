@@ -690,6 +690,18 @@ export async function GET(request) {
       messages.push(`Column 'refresh_requested_at' already exists in '${usersTableName}'.`);
     }
 
+    // --- Check and add 'is_online_realtime' column to users table ---
+    const hasOnlineRealtime = await columnExists(usersTableName, 'is_online_realtime');
+    if (!hasOnlineRealtime) {
+      await query({
+        query: `ALTER TABLE \`${usersTableName}\` ADD COLUMN is_online_realtime BOOLEAN DEFAULT 0;`,
+        values: [],
+      });
+      messages.push(`Column 'is_online_realtime' created successfully in '${usersTableName}'.`);
+    } else {
+      messages.push(`Column 'is_online_realtime' already exists in '${usersTableName}'.`);
+    }
+
     // --- Check and add 'time_extension' column to exam attempts table ---
     const hasTimeExtension = await columnExists(attemptsTableName, 'time_extension');
     if (!hasTimeExtension) {

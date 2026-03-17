@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { toast } from 'sonner';
+import { Toaster, toast } from 'sonner';
+import { useUser } from '@/app/context/UserContext';
 import dynamic from 'next/dynamic';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
@@ -397,22 +398,7 @@ export default function ExamTakingPage() {
   }, [answers, questions.length]);
 
   useEffect(() => {
-    fetch('/api/user-session').then((res) => {
-      if (!res.ok) {
-        // Session invalidated (force-logout by admin) — clear all instruction confirmations
-        if (typeof window !== 'undefined') {
-          Object.keys(localStorage)
-            .filter(k => k.startsWith('exam_instructions_ack_'))
-            .forEach(k => localStorage.removeItem(k));
-        }
-        
-        // Unlock Android App if running in Rushless Safer
-        if (window.RushlessSafer && typeof window.RushlessSafer.remoteUnlock === 'function') {
-          window.RushlessSafer.remoteUnlock();
-        }
-        router.push('/');
-      }
-    });
+    // Removed redundant /api/user-session fetch. DashboardLayout monitors this via SSE.
 
     // Fetch site branding
     fetch('/api/web-settings?mode=branding')
