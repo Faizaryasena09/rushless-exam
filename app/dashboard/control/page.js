@@ -144,12 +144,58 @@ export default function ControlPage() {
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState(new Date());
+    const [sseStatus, setSseStatus] = useState('connecting'); // 'connecting', 'connected', 'error'
     const [logStudent, setLogStudent] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedClass, setSelectedClass] = useState('All');
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
-    const fetchStatus = useCallback(async () => {
+    useEffect(() => {
+        let eventSource;
+        let retryTimeout;
+
+        const connect = () => {
+            if (eventSource) eventSource.close();
+            setSseStatus('connecting');
+
+            eventSource = new EventSource('/api/control/stream');
+
+            eventSource.onopen = () => {
+                setSseStatus('connected');
+                setLoading(false);
+            };
+
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.students) {
+                        setStudents(data.students);
+                        setLastUpdated(new Date());
+                    }
+                } catch (err) {
+                    console.error('Error parsing SSE data:', err);
+                }
+            };
+
+            eventSource.onerror = (err) => {
+                console.error('SSE Error:', err);
+                setSseStatus('error');
+                eventSource.close();
+                // Retry connection after 5 seconds
+                retryTimeout = setTimeout(connect, 5000);
+            };
+        };
+
+        connect();
+
+        return () => {
+            if (eventSource) eventSource.close();
+            if (retryTimeout) clearTimeout(retryTimeout);
+        };
+    }, []);
+
+    const fetchStatus = async () => {
+        // Manual trigger is still useful for immediate refresh if needed
         try {
             const res = await fetch('/api/control/users');
             if (res.ok) {
@@ -158,17 +204,9 @@ export default function ControlPage() {
                 setLastUpdated(new Date());
             }
         } catch (error) {
-            console.error("Poll error", error);
-        } finally {
-            setLoading(false);
+            console.error("Manual refresh error", error);
         }
-    }, []);
-
-    useEffect(() => {
-        fetchStatus();
-        const interval = setInterval(fetchStatus, 3000);
-        return () => clearInterval(interval);
-    }, [fetchStatus]);
+    };
 
     const classes = ['All', ...new Set(students.map(s => s.class_name).filter(Boolean))];
     const filteredStudents = students.filter(student => {
@@ -281,7 +319,18 @@ export default function ControlPage() {
                         <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5 mt-2 ml-1">
                             <RefreshCcw size={10} className="animate-spin-slow" />
                             Update: <span className="text-slate-700 font-bold">{lastUpdated.toLocaleTimeString('id-ID')}</span>
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ml-1"></span>
+                            <span className={`flex items-center gap-1 ml-2 font-bold uppercase ${
+                                sseStatus === 'connected' ? 'text-emerald-500' : 
+                                sseStatus === 'connecting' ? 'text-amber-500 animate-pulse' : 
+                                'text-rose-500'
+                            }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${
+                                    sseStatus === 'connected' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 
+                                    sseStatus === 'connecting' ? 'bg-amber-500' : 
+                                    'bg-rose-500'
+                                }`}></span>
+                                {sseStatus === 'connected' ? 'Streaming' : sseStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                            </span>
                         </p>
                     </div>
 
