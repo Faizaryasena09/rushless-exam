@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 // --- Custom Hook for Debouncing ---
 function useDebounce(value, delay) {
@@ -197,6 +198,7 @@ export default function ExamTakingPage() {
 
   // Modal State
   const [showFinishModal, setShowFinishModal] = useState(false);
+  const [isViolationLocked, setIsViolationLocked] = useState(false);
 
   // Instruction confirmation state (persisted per-exam in localStorage)
   const [instructionsConfirmed, setInstructionsConfirmed] = useState(false);
@@ -205,7 +207,7 @@ export default function ExamTakingPage() {
   const logAction = useCallback(async (actionType, description) => {
     if (!attemptDetails?.id) return;
     try {
-      await fetch('/api/exams/logs', {
+      const res = await fetch('/api/exams/logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -214,6 +216,13 @@ export default function ExamTakingPage() {
           description
         })
       });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.locked) {
+          setIsViolationLocked(true);
+        }
+      }
     } catch (err) {
       console.error("Failed to log action:", err);
     }
@@ -258,7 +267,14 @@ export default function ExamTakingPage() {
 
             // Handle refresh signal from Admin
             if (data.refresh) {
+              // If we are currently locked, a refresh might clear it if the teacher unlocked it in DB
               window.location.reload();
+              return;
+            }
+
+            // Handle real-time violation lock
+            if (data.violation_lock) {
+              setIsViolationLocked(true);
               return;
             }
 
@@ -330,6 +346,13 @@ export default function ExamTakingPage() {
         logAction('SECURITY', 'Student left the exam page (tab switched or minimized)');
       } else {
         logAction('SECURITY', 'Student returned to the exam page');
+        // Show warning if configured
+        if (examDetails?.violation_action === 'peringatan' && !isViolationLocked) {
+          toast.warning('Peringatan: Anda terdeteksi meninggalkan halaman ujian. Aktivitas ini telah dicatat.', {
+            duration: 5000,
+            position: 'top-center',
+          });
+        }
       }
     };
 
@@ -599,6 +622,7 @@ export default function ExamTakingPage() {
 
       setExamDetails(settingsData);
       setAttemptDetails(attemptData.attempt);
+      setIsViolationLocked(!!attemptData.attempt.is_violation_locked);
       setTimeLeft(attemptData.initial_seconds_left);
       setQuestions(questionsData);
 
@@ -1187,6 +1211,39 @@ export default function ExamTakingPage() {
         answers={answers}
         requireAllAnswered={requireAllAnswered}
       />
+
+      {/* Violation Locked Overlay */}
+      {isViolationLocked && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-red-200 dark:border-red-900/30 text-center animate-in zoom-in duration-300">
+            <div className="w-20 h-20 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center mx-auto mb-6 text-red-600 dark:text-red-400">
+              <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m0 0v2m0-2h2m-2 0H10m4-11a4 4 0 11-8 0 4 4 0 018 0zm-4 7v1a3 3 0 00-3 3v1h10v-1a3 3 0 00-3-3v-1" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-4 uppercase tracking-tight">Ujian Terkunci!</h2>
+            <p className="text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
+              Ujian Anda telah dikunci secara otomatis karena terdeteksi meninggalkan halaman pengerjaan. 
+              <br /><br />
+              Silakan <strong>hubungi pengawas atau admin ujian</strong> untuk membuka kembali akses Anda.
+            </p>
+            <div className="space-y-3">
+              <button 
+                onClick={() => window.location.reload()}
+                className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg hover:bg-indigo-700 active:scale-95 transition-all"
+              >
+                Cek Status Kunci (Refresh)
+              </button>
+              <button 
+                onClick={() => router.push('/dashboard/exams')}
+                className="w-full py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
+              >
+                Kembali ke Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

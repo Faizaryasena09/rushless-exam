@@ -114,7 +114,7 @@ export async function POST(request) {
             // targets only the exact rows we care about.
             const existingAttempts = await txQuery({
                 query: `
-                SELECT id, status, UNIX_TIMESTAMP(start_time) as start_time_ts, doubtful_questions, last_question_index, time_extension
+                SELECT id, status, UNIX_TIMESTAMP(start_time) as start_time_ts, doubtful_questions, last_question_index, time_extension, is_violation_locked
                 FROM rhs_exam_attempts 
                 WHERE user_id = ? AND exam_id = ? AND status = 'in_progress'
                 FOR UPDATE
@@ -123,6 +123,11 @@ export async function POST(request) {
             });
 
             let activeAttempt = existingAttempts.length > 0 ? existingAttempts[0] : null;
+
+            // Check if violation lock is active
+            if (activeAttempt && activeAttempt.is_violation_locked) {
+                throw new Error('VIOLATION_LOCKED');
+            }
 
             // Handle expired in_progress attempt (async timer mode only)
             if (activeAttempt && settings.timer_mode === 'async') {
@@ -178,6 +183,9 @@ export async function POST(request) {
         console.error('Failed to start/resume exam attempt:', error);
         if (error.message === 'You have reached the maximum number of attempts for this exam.') {
             return NextResponse.json({ message: error.message }, { status: 403 });
+        }
+        if (error.message === 'VIOLATION_LOCKED') {
+            return NextResponse.json({ message: 'Ujian Anda terkunci karena terdeteksi meninggalkan halaman ujian. Silakan lapor pengawas/admin untuk membuka kunci.' }, { status: 403 });
         }
         return NextResponse.json({ message: 'An error occurred', error: error.message }, { status: 500 });
     }

@@ -176,12 +176,21 @@ export async function GET(request) {
                 }
             };
             eventBus.on('force_submit', onForceSubmit);
+            
+            // Listen for violation lock events
+            const onViolationLock = async (data) => {
+                if (data.userId == userId) {
+                    controller.enqueue(`data: ${JSON.stringify({ violation_lock: true })}\n\n`);
+                }
+            };
+            eventBus.on('violation_lock', onViolationLock);
 
             // Store the cleanup function
             this.cleanup = () => {
                 clearInterval(intervalId);
                 eventBus.off('refresh', onRefresh);
                 eventBus.off('force_submit', onForceSubmit);
+                eventBus.off('violation_lock', onViolationLock);
             };
         },
         cancel() {

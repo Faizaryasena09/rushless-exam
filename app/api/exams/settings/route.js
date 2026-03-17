@@ -52,7 +52,8 @@ export async function GET(request) {
             s.require_all_answered,
             s.require_token,
             s.token_type,
-            s.current_token
+            s.current_token,
+            s.violation_action
           FROM rhs_exams e
           LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
           WHERE e.id = ?
@@ -89,6 +90,7 @@ export async function GET(request) {
       require_token: Boolean(results[0].require_token),
       token_type: results[0].token_type || 'static',
       current_token: results[0].current_token || '',
+      violation_action: results[0].violation_action || 'abaikan',
       allowed_classes: allowedClasses
     };
 
@@ -116,6 +118,7 @@ export async function POST(request) {
       showResult, showAnalysis,
       requireAllAnswered,
       requireToken, tokenType, currentToken,
+      violationAction,
       allowedClasses
     } = await request.json();
 
@@ -163,9 +166,9 @@ export async function POST(request) {
               INSERT INTO rhs_exam_settings (
                 exam_id, start_time, end_time, require_safe_browser, require_seb, seb_config_key, 
                 show_instructions, instruction_type, custom_instructions, show_result, show_analysis, 
-                require_all_answered, require_token, token_type, current_token
+                require_all_answered, require_token, token_type, current_token, violation_action
               )
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               ON DUPLICATE KEY UPDATE 
                 start_time = VALUES(start_time), 
                 end_time = VALUES(end_time),
@@ -180,12 +183,13 @@ export async function POST(request) {
                 require_all_answered = VALUES(require_all_answered),
                 require_token = VALUES(require_token),
                 token_type = VALUES(token_type),
-                current_token = VALUES(current_token)
+                current_token = VALUES(current_token),
+                violation_action = VALUES(violation_action)
             `,
         values: [
           examId, startTime || null, endTime || null, requireSafeBrowser, requireSeb || false, sebConfigKey || '',
           showInstructions || false, instructionType || 'template', customInstructions || '', showResult || false, showAnalysis || false, 
-          requireAllAnswered || false, requireToken || false, tokenType || 'static', currentToken || null
+          requireAllAnswered || false, requireToken || false, tokenType || 'static', currentToken || null, violationAction || 'abaikan'
         ],
       });
 

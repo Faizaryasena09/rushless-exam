@@ -28,6 +28,34 @@ export async function POST(request) {
       values: [attemptId, actionType, description],
     });
 
+    // --- Violation Handling Logic ---
+    if (actionType === 'SECURITY' && description.includes('left the exam page')) {
+      // 1. Get the violation setting for this exam
+      const examSettings = await query({
+        query: `
+          SELECT s.violation_action, ea.user_id, ea.exam_id 
+          FROM rhs_exam_attempts ea
+          JOIN rhs_exam_settings s ON ea.exam_id = s.exam_id
+          WHERE ea.id = ?
+        `,
+        values: [attemptId]
+      });
+
+      if (examSettings.length > 0 && examSettings[0].violation_action === 'kunci') {
+        // 2. Lock the attempt
+        await query({
+          query: 'UPDATE rhs_exam_attempts SET is_violation_locked = 1 WHERE id = ?',
+          values: [attemptId]
+        });
+
+        // 3. Notify the student via EventBus
+        const { eventBus } = await import('@/app/lib/event-bus');
+        eventBus.emit('violation_lock', { userId: examSettings[0].user_id });
+        
+        return NextResponse.json({ message: 'Log saved and exam LOCKED due to violation', locked: true });
+      }
+    }
+
     return NextResponse.json({ message: 'Log saved' });
   } catch (error) {
     console.error('Log Error:', error);

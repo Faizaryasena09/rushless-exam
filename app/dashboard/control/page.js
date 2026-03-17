@@ -399,6 +399,7 @@ export default function ControlPage() {
                                             {s.is_online ? 'Online' : 'Offline'}
                                         </span>
                                         {s.is_locked && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700 w-fit">Locked</span>}
+                                        {s.is_violation_locked && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 w-fit border border-amber-200">Violation Lock</span>}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
@@ -439,6 +440,13 @@ export default function ControlPage() {
                                                     title="Lihat Log Realtime">
                                                     <Icons.Log />
                                                 </button>
+                                                {s.is_violation_locked && (
+                                                    <button onClick={() => handleAction('unlock_exam', { userId: s.id, attemptId: s.attempt_id })}
+                                                        className="p-2 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg transition-colors animate-pulse"
+                                                        title="Buka Kunci Pelanggaran">
+                                                        <Icons.Unlock />
+                                                    </button>
+                                                )}
                                                 <button onClick={() => handleAddTime(s.id, s.attempt_id)}
                                                     className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
                                                     title="Add Time">
@@ -486,6 +494,7 @@ export default function ControlPage() {
                                     {s.is_online ? 'Online' : 'Offline'}
                                 </span>
                                 {s.is_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 uppercase">Locked</span>}
+                                {s.is_violation_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase border border-amber-200">Violation Locked</span>}
                             </div>
                         </div>
 
@@ -530,11 +539,19 @@ export default function ControlPage() {
                                         <Icons.Log />
                                         <span className="text-[9px] font-black uppercase">Logs</span>
                                     </button>
-                                    <button onClick={() => handleAddTime(s.id, s.attempt_id)}
-                                        className="flex flex-col items-center justify-center gap-1.5 py-3 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl">
-                                        <Icons.Clock />
-                                        <span className="text-[9px] font-black uppercase">+ Waktu</span>
-                                    </button>
+                                    {s.is_violation_locked ? (
+                                        <button onClick={() => handleAction('unlock_exam', { userId: s.id, attemptId: s.attempt_id })}
+                                            className="flex flex-col items-center justify-center gap-1.5 py-3 bg-amber-100 text-amber-700 border border-amber-200 rounded-xl animate-pulse">
+                                            <Icons.Unlock />
+                                            <span className="text-[9px] font-black uppercase">Unlock</span>
+                                        </button>
+                                    ) : (
+                                        <button onClick={() => handleAddTime(s.id, s.attempt_id)}
+                                            className="flex flex-col items-center justify-center gap-1.5 py-3 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl">
+                                            <Icons.Clock />
+                                            <span className="text-[9px] font-black uppercase">+ Waktu</span>
+                                        </button>
+                                    )}
                                     <button onClick={() => handleAction('reset_exam', { userId: s.id, attemptId: s.attempt_id })}
                                         className="flex flex-col items-center justify-center gap-1.5 py-3 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl">
                                         <Icons.Stop />

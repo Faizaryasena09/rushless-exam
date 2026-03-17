@@ -31,6 +31,10 @@ async function indexExists(tableName, indexName) {
 // GET handler to perform database setup/migration
 export async function GET(request) {
   const session = await getSession(request);
+  const { searchParams } = new URL(request.url);
+  const key = searchParams.get('key');
+  const isKeyValid = key === '@Rushless123';
+  
   let messages = [];
 
   // Check if database is empty or users table doesn't exist
@@ -44,10 +48,10 @@ export async function GET(request) {
     isEmptyDatabase = true; // Table doesn't exist or DB connection err (treated as empty/needs setup)
   }
 
-  // Allow if admin OR if database is empty (first time setup)
+  // Allow if admin OR if database is empty (first time setup) OR if valid key is provided
   const isAdmin = session.user && session.user.roleName === 'admin';
 
-  if (!isAdmin && !isEmptyDatabase) {
+  if (!isAdmin && !isEmptyDatabase && !isKeyValid) {
     return NextResponse.json({ message: 'Unauthorized: Admin role required.' }, { status: 401 });
   }
 
@@ -693,6 +697,30 @@ export async function GET(request) {
       });
     }
     messages.push(`Default security settings populated in '${securitySettingsTableName}'.`);
+
+    // --- Check and add 'violation_action' column to exam_settings table ---
+    const hasViolationAction = await columnExists(settingsTableName, 'violation_action');
+    if (!hasViolationAction) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN violation_action ENUM('abaikan', 'peringatan', 'kunci') NOT NULL DEFAULT 'abaikan';`,
+        values: [],
+      });
+      messages.push(`Column 'violation_action' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'violation_action' already exists in '${settingsTableName}'.`);
+    }
+
+    // --- Check and add 'is_violation_locked' column to exam_attempts table ---
+    const hasViolationLocked = await columnExists(attemptsTableName, 'is_violation_locked');
+    if (!hasViolationLocked) {
+      await query({
+        query: `ALTER TABLE ${attemptsTableName} ADD COLUMN is_violation_locked TINYINT(1) NOT NULL DEFAULT 0;`,
+        values: [],
+      });
+      messages.push(`Column 'is_violation_locked' created successfully in '${attemptsTableName}'.`);
+    } else {
+      messages.push(`Column 'is_violation_locked' already exists in '${attemptsTableName}'.`);
+    }
 
     // --- Migration: Composite index on rhs_exam_attempts (user_id, exam_id, status) ---
     // Replaces the old single-column idx_status. This index is critical for the

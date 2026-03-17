@@ -100,6 +100,7 @@ export default function ManageExamPage() {
   const [tokenType, setTokenType] = useState('static');
   const [currentToken, setCurrentToken] = useState('');
   const [liveAutoToken, setLiveAutoToken] = useState('');
+  const [violationAction, setViolationAction] = useState('abaikan');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -166,6 +167,7 @@ export default function ManageExamPage() {
       setRequireToken(!!data.require_token);
       setTokenType(data.token_type || 'static');
       setCurrentToken(data.current_token || '');
+      setViolationAction(data.violation_action || 'abaikan');
       setSelectedClasses(data.allowed_classes || []);
 
       // Marking initial load completed so auto-save works exclusively on user edits
@@ -259,6 +261,7 @@ export default function ManageExamPage() {
         requireToken: requireToken,
         tokenType: tokenType,
         currentToken: currentToken,
+        violationAction: violationAction,
         allowedClasses: selectedClasses
       }),
     });
@@ -296,7 +299,7 @@ export default function ManageExamPage() {
     return () => clearTimeout(saveTimeoutRef.current);
   }, [
     examName, description, subjectId, startTime, endTime, shuffleQuestions, shuffleAnswers,
-    timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, sebConfigKey, selectedClasses, showInstructions, instructionType, customInstructions, showResult, showAnalysis, requireAllAnswered, requireToken, tokenType, currentToken
+    timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, sebConfigKey, selectedClasses, showInstructions, instructionType, customInstructions, showResult, showAnalysis, requireAllAnswered, requireToken, tokenType, currentToken, violationAction
   ]);
 
   if (loading) {
@@ -527,6 +530,30 @@ export default function ManageExamPage() {
                 onChange={() => setRequireAllAnswered(!requireAllAnswered)}
                 disabled={saving && false}
               />
+
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800/50">
+                <label className="block text-sm font-bold text-amber-800 dark:text-amber-400 mb-1 flex items-center gap-2">
+                  Tindakan Pelanggaran Layar
+                </label>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mb-3">
+                  Tentukan tindakan jika siswa terdeteksi meninggalkan halaman ujian (misal: ganti tab, buka aplikasi lain).
+                </p>
+                <SegmentedControl
+                  name="violation-action"
+                  options={[
+                    { label: 'Abaikan', value: 'abaikan', disabled: saving && false },
+                    { label: 'Peringatan', value: 'peringatan', disabled: saving && false },
+                    { label: 'Kunci Ujian', value: 'kunci', disabled: saving && false },
+                  ]}
+                  value={violationAction}
+                  onChange={setViolationAction}
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                  {violationAction === 'abaikan' && 'Tidak ada tindakan khusus, hanya tercatat di log security.'}
+                  {violationAction === 'peringatan' && 'Menampilkan pesan peringatan kepada siswa saat kembali ke halaman ujian.'}
+                  {violationAction === 'kunci' && 'Otomatis mengunci ujian. Siswa tidak bisa melanjutkan sampai dibuka oleh pengawas di kontrol ujian.'}
+                </p>
+              </div>
             </div>
 
             {/* Token Settings */}

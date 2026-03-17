@@ -211,6 +211,18 @@ export async function POST(request) {
 
                 return NextResponse.json({ message: 'Force submit signal sent to all active students.' });
 
+            case 'unlock_exam':
+                if (!attemptId) return NextResponse.json({ message: 'Attempt ID required' }, { status: 400 });
+                await query({
+                    query: 'UPDATE rhs_exam_attempts SET is_violation_locked = 0 WHERE id = ?',
+                    values: [attemptId]
+                });
+                
+                // Signal the student to refresh and clear the lock overlay
+                eventBus.emit('refresh', { userId });
+                
+                return NextResponse.json({ message: 'Exam violation lock removed.' });
+
             default:
                 return NextResponse.json({ message: 'Invalid action' }, { status: 400 });
         }
