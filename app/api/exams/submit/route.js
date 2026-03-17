@@ -5,6 +5,7 @@ import { sessionOptions } from '@/app/lib/session';
 import { query, transaction } from '@/app/lib/db';
 import { validateUserSession } from '@/app/lib/auth';
 import { logFromRequest } from '@/app/lib/logger';
+import { calculateQuestionScore } from '@/app/lib/scoring';
 
 async function getSession() {
   const cookieStore = await cookies();
@@ -28,7 +29,7 @@ export async function POST(request) {
 
     // 1. Get all questions for the exam to get the total number and correct options
     const allQuestions = await query({
-      query: 'SELECT id, correct_option FROM rhs_exam_questions WHERE exam_id = ?',
+      query: 'SELECT id, correct_option, question_type, points, scoring_strategy, scoring_metadata FROM rhs_exam_questions WHERE exam_id = ?',
       values: [examId],
     });
 
@@ -66,20 +67,38 @@ export async function POST(request) {
     }
 
     // 2. Calculate score
-    let correctCount = 0;
-    const correctOptionsMap = allQuestions.reduce((acc, q) => {
-      acc[q.id] = q.correct_option;
+    let earnedPointsTotal = 0;
+    let maxPointsTotal = 0;
+    const itemScores = {}; // Map to store earned points per question for DB insertion
+    
+    const questionInfoMap = allQuestions.reduce((acc, q) => {
+      acc[q.id] = { 
+        correct: q.correct_option, 
+        type: q.question_type,
+        points: q.points || 1,
+        strategy: q.scoring_strategy || 'standard',
+        metadata: typeof q.scoring_metadata === 'string' ? JSON.parse(q.scoring_metadata) : (q.scoring_metadata || {})
+      };
       return acc;
     }, {});
 
-    for (const questionId in answers) {
-      if (answers[questionId] === correctOptionsMap[questionId]) {
-        correctCount++;
+    for (const q of allQuestions) {
+      const qId = String(q.id);
+      const qInfo = questionInfoMap[qId];
+      if (!qInfo) continue;
+
+      maxPointsTotal += qInfo.points;
+      const studentAnswer = answers[qId];
+      
+      let earnedForThisQuestion = 0;
+      if (studentAnswer !== undefined && studentAnswer !== null && studentAnswer !== '') {
+        earnedForThisQuestion = calculateQuestionScore(qInfo, studentAnswer);
       }
+       earnedPointsTotal += earnedForThisQuestion;
+       itemScores[qId] = earnedForThisQuestion;
     }
 
-    const totalQuestions = allQuestions.length;
-    const score = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
+    const score = maxPointsTotal > 0 ? (earnedPointsTotal / maxPointsTotal) * 100 : 0;
 
     // 3-5. Atomically: update attempt + save answers + clean up temp answers
     await transaction(async (txQuery) => {
@@ -102,18 +121,29 @@ export async function POST(request) {
       // 4. Save the answers to the permanent student_answer table
       const receivedQuestionIds = Object.keys(answers).filter(id => answers[id] !== null);
       if (receivedQuestionIds.length > 0) {
-        const valueTuples = receivedQuestionIds.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
+        const valueTuples = receivedQuestionIds.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(', ');
         const flattenedValues = [];
         receivedQuestionIds.forEach(qId => {
           const selectedOption = answers[qId];
-          const isCorrect = correctOptionsMap[qId] === selectedOption;
-          flattenedValues.push(session.user.id, examId, attemptId, qId, selectedOption, isCorrect);
+          const qInfo = questionInfoMap[qId];
+          let isCorrect = false;
+          if (qInfo) {
+              if (qInfo.type === 'essay') {
+                  isCorrect = (itemScores[qId] || 0) > 0; // Better indicator
+              } else if (qInfo.type === 'multiple_choice_complex') {
+                  isCorrect = qInfo.correct === selectedOption;
+              } else {
+                  isCorrect = qInfo.correct === selectedOption;
+              }
+          }
+          const earned = itemScores[qId] || 0;
+          flattenedValues.push(session.user.id, examId, attemptId, qId, selectedOption, isCorrect, earned);
         });
 
         // INSERT IGNORE: if auto-submit already saved some answers, skip duplicates
         await txQuery({
           query: `
-            INSERT IGNORE INTO rhs_student_answer (user_id, exam_id, attempt_id, question_id, selected_option, is_correct) 
+            INSERT IGNORE INTO rhs_student_answer (user_id, exam_id, attempt_id, question_id, selected_option, is_correct, score_earned) 
             VALUES ${valueTuples}
           `,
           values: flattenedValues,
@@ -127,7 +157,7 @@ export async function POST(request) {
       });
     });
 
-    logFromRequest(request, session, 'EXAM_SUBMIT', 'info', { examId, score: score.toFixed(1), correct: correctCount, total: totalQuestions });
+    logFromRequest(request, session, 'EXAM_SUBMIT', 'info', { examId, score: score.toFixed(1), earned: earnedPointsTotal.toFixed(1), max: maxPointsTotal });
 
     return NextResponse.json({ message: 'Exam submitted successfully', score: score });
 

@@ -58,7 +58,7 @@ export async function GET(request, { params }) {
 
     // 3. Fetch Exam Details
     const examRows = await query({
-        query: `SELECT exam_name, description FROM rhs_exams WHERE id = ?`,
+        query: `SELECT exam_name, description, scoring_mode FROM rhs_exams WHERE id = ?`,
         values: [attempt.exam_id]
     });
     const exam = examRows[0];
@@ -74,19 +74,20 @@ export async function GET(request, { params }) {
 
     // Always fetch questions and answers to compute stats
     const questions = await query({
-        query: `SELECT id as question_id, question_text, options, correct_option FROM rhs_exam_questions WHERE exam_id = ?`,
+        query: `SELECT id as question_id, question_text, options, correct_option, points FROM rhs_exam_questions WHERE exam_id = ?`,
         values: [attempt.exam_id]
     });
 
     const studentAnswers = await query({
-        query: `SELECT question_id, selected_option, is_correct FROM rhs_student_answer WHERE attempt_id = ?`,
+        query: `SELECT question_id, selected_option, is_correct, score_earned FROM rhs_student_answer WHERE attempt_id = ?`,
         values: [attemptId]
     });
 
     const answersMap = studentAnswers.reduce((acc, row) => {
         acc[row.question_id] = {
             selected_option: row.selected_option,
-            is_correct: row.is_correct
+            is_correct: row.is_correct,
+            score_earned: row.score_earned
         };
         return acc;
     }, {});
@@ -147,13 +148,16 @@ export async function GET(request, { params }) {
                 options: optionsParsed,
                 correct_option: q.correct_option,
                 student_option: studentAnswerRecord ? studentAnswerRecord.selected_option : null,
-                is_correct: studentAnswerRecord ? !!studentAnswerRecord.is_correct : false
+                is_correct: studentAnswerRecord ? !!studentAnswerRecord.is_correct : false,
+                points: q.points,
+                score_earned: studentAnswerRecord ? studentAnswerRecord.score_earned : 0
             };
         });
     }
 
     return NextResponse.json({ 
         exam_name: exam.exam_name, 
+        scoring_mode: exam.scoring_mode || 'percentage',
         score: attempt.score,
         status: attempt.status,
         show_analysis: showAnalysisData,

@@ -62,7 +62,8 @@ export default function AnalysisPage() {
     );
   }
 
-  const score = Math.round(Number(data.score));
+  const isRaw = data.scoring_mode === 'raw';
+  const score = isRaw ? data.score : Math.round(Number(data.score));
   
   // Use stats from API if available, fallback to 0
   const stats = data.stats || { total: 0, correct: 0, wrong: 0, unanswered: 0 };
@@ -133,19 +134,15 @@ export default function AnalysisPage() {
                                 <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">
                                     Soal No. {index + 1}
                                 </span>
-                                {isCorrect ? (
-                                    <span className="inline-flex flex-col md:flex-row items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-sm bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1 rounded-lg">
-                                        <Icons.CheckCircle /> Benar
-                                    </span>
-                                ) : isUnanswered ? (
-                                    <span className="inline-flex flex-col md:flex-row items-center gap-1.5 text-slate-500 dark:text-slate-400 font-bold text-sm bg-slate-100 dark:bg-slate-700/50 px-3 py-1 rounded-lg">
-                                        <Icons.Dash /> Kosong
-                                    </span>
-                                ) : (
-                                    <span className="inline-flex flex-col md:flex-row items-center gap-1.5 text-red-600 dark:text-red-400 font-bold text-sm bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-lg">
-                                        <Icons.XCircle /> Salah
-                                    </span>
-                                )}
+                                    <div className="flex flex-col items-end gap-1">
+                                        <span className={`inline-flex items-center gap-1.5 font-bold text-sm px-3 py-1 rounded-lg ${isCorrect ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' : isUnanswered ? 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50' : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'}`}>
+                                            {isCorrect ? <Icons.CheckCircle /> : isUnanswered ? <Icons.Dash /> : <Icons.XCircle />}
+                                            {isCorrect ? 'Benar' : isUnanswered ? 'Kosong' : 'Salah'}
+                                        </span>
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-2 py-0.5 rounded-md">
+                                            {q.score_earned} / {q.points} Poin
+                                        </span>
+                                    </div>
                             </div>
 
                             {/* Question Text */}

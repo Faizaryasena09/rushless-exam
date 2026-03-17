@@ -39,6 +39,9 @@ export async function GET(request) {
             e.duration_minutes,
             e.min_time_minutes,
             e.max_attempts,
+            e.scoring_mode,
+            e.total_target_score,
+            e.auto_distribute,
             s.start_time, 
             s.end_time,
             s.require_safe_browser,
@@ -78,6 +81,9 @@ export async function GET(request) {
       subject_id: results[0].subject_id || '',
       shuffle_questions: Boolean(results[0].shuffle_questions),
       shuffle_answers: Boolean(results[0].shuffle_answers),
+      scoring_mode: results[0].scoring_mode || 'percentage',
+      total_target_score: results[0].total_target_score || 100,
+      auto_distribute: Boolean(results[0].auto_distribute),
       require_safe_browser: Boolean(results[0].require_safe_browser),
       require_seb: Boolean(results[0].require_seb),
       seb_config_key: results[0].seb_config_key || '',
@@ -113,6 +119,7 @@ export async function POST(request) {
       examId, startTime, endTime,
       shuffleQuestions, shuffleAnswers,
       timerMode, durationMinutes, minTimeMinutes, maxAttempts,
+      scoringMode, totalTargetScore, autoDistribute,
       requireSafeBrowser, requireSeb, sebConfigKey,
       showInstructions, instructionType, customInstructions,
       showResult, showAnalysis,
@@ -141,57 +148,97 @@ export async function POST(request) {
     }
 
     // If no start or end time is provided, force the mode to async
-    const finalTimerMode = (!startTime || !endTime) ? 'async' : timerMode;
+    // But ONLY if we are actually updating timing/mode
+    let finalTimerMode = timerMode;
+    if (startTime !== undefined || endTime !== undefined) {
+      if (!startTime || !endTime) {
+        finalTimerMode = 'async';
+      }
+    }
 
     await transaction(async (txQuery) => {
-      // 1. Update main exam details
-      await txQuery({
-        query: `
-              UPDATE rhs_exams 
-              SET 
-                shuffle_questions = ?, 
-                shuffle_answers = ?,
-                timer_mode = ?,
-                duration_minutes = ?,
-                min_time_minutes = ?,
-                max_attempts = ?
-              WHERE id = ?
-            `,
-        values: [shuffleQuestions, shuffleAnswers, finalTimerMode, durationMinutes, minTimeMinutes, maxAttempts, examId],
-      });
+      // 1. Update main exam details (rhs_exams)
+      const examFields = {
+        shuffle_questions: shuffleQuestions,
+        shuffle_answers: shuffleAnswers,
+        timer_mode: finalTimerMode,
+        duration_minutes: durationMinutes,
+        min_time_minutes: minTimeMinutes,
+        max_attempts: maxAttempts,
+        scoring_mode: scoringMode,
+        total_target_score: totalTargetScore,
+        auto_distribute: autoDistribute
+      };
 
-      // 2. Update exam time settings
-      await txQuery({
-        query: `
-              INSERT INTO rhs_exam_settings (
-                exam_id, start_time, end_time, require_safe_browser, require_seb, seb_config_key, 
-                show_instructions, instruction_type, custom_instructions, show_result, show_analysis, 
-                require_all_answered, require_token, token_type, current_token, violation_action
-              )
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              ON DUPLICATE KEY UPDATE 
-                start_time = VALUES(start_time), 
-                end_time = VALUES(end_time),
-                require_safe_browser = VALUES(require_safe_browser),
-                require_seb = VALUES(require_seb),
-                seb_config_key = VALUES(seb_config_key),
-                show_instructions = VALUES(show_instructions),
-                instruction_type = VALUES(instruction_type),
-                custom_instructions = VALUES(custom_instructions),
-                show_result = VALUES(show_result),
-                show_analysis = VALUES(show_analysis),
-                require_all_answered = VALUES(require_all_answered),
-                require_token = VALUES(require_token),
-                token_type = VALUES(token_type),
-                current_token = VALUES(current_token),
-                violation_action = VALUES(violation_action)
-            `,
-        values: [
-          examId, startTime || null, endTime || null, requireSafeBrowser, requireSeb || false, sebConfigKey || '',
-          showInstructions || false, instructionType || 'template', customInstructions || '', showResult || false, showAnalysis || false, 
-          requireAllAnswered || false, requireToken || false, tokenType || 'static', currentToken || null, violationAction || 'abaikan'
-        ],
-      });
+      const examUpdates = [];
+      const examValues = [];
+      for (const [key, value] of Object.entries(examFields)) {
+        if (value !== undefined) {
+          examUpdates.push(`${key} = ?`);
+          examValues.push(value);
+        }
+      }
+
+      if (examUpdates.length > 0) {
+        examValues.push(examId);
+        await txQuery({
+          query: `UPDATE rhs_exams SET ${examUpdates.join(', ')} WHERE id = ?`,
+          values: examValues,
+        });
+      }
+
+      // 2. Update exam time settings (rhs_exam_settings)
+      // We use INSERT ... ON DUPLICATE KEY UPDATE
+      // But we only update fields that are provided
+      const settingsFields = {
+        start_time: startTime,
+        end_time: endTime,
+        require_safe_browser: requireSafeBrowser,
+        require_seb: requireSeb,
+        seb_config_key: sebConfigKey,
+        show_instructions: showInstructions,
+        instruction_type: instructionType,
+        custom_instructions: customInstructions,
+        show_result: showResult,
+        show_analysis: showAnalysis,
+        require_all_answered: requireAllAnswered,
+        require_token: requireToken,
+        token_type: tokenType,
+        current_token: currentToken,
+        violation_action: violationAction
+      };
+
+      const providedSettingsKeys = Object.entries(settingsFields)
+        .filter(([_, value]) => value !== undefined)
+        .map(([key, _]) => key);
+
+      if (providedSettingsKeys.length > 0) {
+        // Since we want to support partial update even on first insert, 
+        // we might need to handle the case where it doesn't exist yet.
+        // However, usually rhs_exams and rhs_exam_settings are created together or settings added later.
+        
+        // Build the query
+        const keys = ['exam_id', ...providedSettingsKeys];
+        const placeholders = keys.map(() => '?').join(', ');
+        const updateClause = providedSettingsKeys.map(key => `${key} = VALUES(${key})`).join(', ');
+        
+        const settingsValues = [examId];
+        providedSettingsKeys.forEach(key => {
+          let val = settingsFields[key];
+          // convert undefined to null for safety if somehow slipped, 
+          // but we filtered them out
+          settingsValues.push(val === undefined ? null : val);
+        });
+
+        await txQuery({
+          query: `
+                INSERT INTO rhs_exam_settings (${keys.join(', ')})
+                VALUES (${placeholders})
+                ON DUPLICATE KEY UPDATE ${updateClause}
+              `,
+          values: settingsValues,
+        });
+      }
 
       // 3. Update Allowed Classes
       // First, clear existing

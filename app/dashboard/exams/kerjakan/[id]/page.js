@@ -3,6 +3,9 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import dynamic from 'next/dynamic';
+
+const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
 // --- Custom Hook for Debouncing ---
 function useDebounce(value, delay) {
@@ -192,6 +195,15 @@ export default function ExamTakingPage() {
 
   const [branding, setBranding] = useState({ site_name: 'Rushless Exam', site_logo: '/favicon.ico' });
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
+  const editorRef = useRef(null);
+
+  const editorConfig = useMemo(() => ({
+    readonly: false,
+    toolbar: true,
+    placeholder: 'Tulis jawaban esai Anda di sini...',
+    height: 300,
+    buttons: ['bold', 'italic', 'underline', 'strikethrough', '|', 'ul', 'ol', '|', 'font', 'fontsize', 'brush', 'paragraph', '|', 'image', 'table', 'link', '|', 'align', 'undo', 'redo', '|', 'hr', 'eraser', 'fullsize']
+  }), []);
   const finishExamHandled = useRef(false);
   const initExamRef = useRef(false);
   const [showTimeAddedAlert, setShowTimeAddedAlert] = useState(false);
@@ -687,17 +699,57 @@ export default function ExamTakingPage() {
 
   const handleAnswerSelect = async (questionId, option) => {
     const qIndex = questions.findIndex(q => q.id === questionId);
-    logAction('ANSWER', `Selected option ${option} for question #${qIndex + 1}`);
-    setAnswers((prev) => ({ ...prev, [questionId]: option }));
+    const qType = questions[qIndex].question_type || 'multiple_choice';
+    let newAnswer;
+
+    if (qType === 'multiple_choice_complex') {
+        const currentAnswer = answers[questionId] || '';
+        const selectedOptions = currentAnswer ? currentAnswer.split(',') : [];
+        if (selectedOptions.includes(option)) {
+            newAnswer = selectedOptions.filter(o => o !== option).sort().join(',');
+        } else {
+            newAnswer = [...selectedOptions, option].sort().join(',');
+        }
+    } else {
+        newAnswer = option;
+    }
+
+    logAction('ANSWER', `Updated answer for question #${qIndex + 1}`);
+    setAnswers((prev) => {
+        if (!newAnswer) {
+            const next = { ...prev };
+            delete next[questionId];
+            return next;
+        }
+        return { ...prev, [questionId]: newAnswer };
+    });
+
     try {
       await fetch('/api/exams/temporary-answer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ examId, questionId, selectedOption: option }),
+        body: JSON.stringify({ examId, questionId, selectedOption: newAnswer || null }),
       });
     } catch (error) {
       console.error('Failed to save temporary answer:', error);
     }
+  };
+
+  const handleEssayChange = async (questionId, text) => {
+      setAnswers((prev) => ({ ...prev, [questionId]: text }));
+      // We'll save this via a separate mechanism or on blur
+  };
+
+  const saveEssayAnswer = async (questionId, text) => {
+      try {
+          await fetch('/api/exams/temporary-answer', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ examId, questionId, selectedOption: text }),
+          });
+      } catch (error) {
+          console.error('Failed to save essay answer:', error);
+      }
   };
 
   const handleClearAnswer = async (questionId) => {
@@ -1020,19 +1072,48 @@ export default function ExamTakingPage() {
                       />
                     </div>
                     <div className="space-y-3">
-                      {currentQuestion.options && currentQuestion.options.map((option, idx) => {
-                        const optionLabel = String.fromCharCode(65 + idx);
-                        const isSelected = answers[currentQuestion.id] === option.originalKey;
-                        return (
-                          <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 dark:border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
-                            <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-300 group-hover:bg-indigo-600 group-hover:text-white'}`}>{optionLabel}</div>
-                            <div className="overflow-x-auto flex-1 custom-content-wrapper">
-                                <span className={`text-base font-medium ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-700 dark:text-slate-300 group-hover:text-indigo-900 dark:group-hover:text-white'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
-                            </div>
-                            {isSelected && (<div className="absolute right-4 text-indigo-600 dark:text-indigo-400"><Icons.CheckCircle /></div>)}
+                      {currentQuestion.question_type === 'essay' ? (
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Jawaban Anda:</label>
+                          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                            <JoditEditor
+                              ref={editorRef}
+                              value={answers[currentQuestion.id] || ''}
+                              config={editorConfig}
+                              onBlur={(newContent) => {
+                                handleEssayChange(currentQuestion.id, newContent);
+                                saveEssayAnswer(currentQuestion.id, newContent);
+                              }}
+                            />
                           </div>
-                        );
-                      })}
+                          <p className="mt-2 text-xs text-slate-400 italic font-medium flex items-center gap-1.5">
+                            <Icons.CheckCircleSmall /> Jawaban otomatis tersimpan saat Anda pindah soal atau selesai mengetik.
+                          </p>
+                        </div>
+                      ) : (
+                        currentQuestion.options && currentQuestion.options.map((option, idx) => {
+                          const optionLabel = String.fromCharCode(65 + idx);
+                          const isSelected = currentQuestion.question_type === 'multiple_choice_complex'
+                            ? (answers[currentQuestion.id] || '').split(',').includes(option.originalKey)
+                            : answers[currentQuestion.id] === option.originalKey;
+                          
+                          return (
+                            <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 dark:border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
+                              <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-300 group-hover:bg-indigo-600 group-hover:text-white'}`}>{optionLabel}</div>
+                              <div className="overflow-x-auto flex-1 custom-content-wrapper">
+                                  <span className={`text-base font-medium ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-700 dark:text-slate-300 group-hover:text-indigo-900 dark:group-hover:text-white'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
+                              </div>
+                              {currentQuestion.question_type === 'multiple_choice_complex' ? (
+                                <div className={`w-6 h-6 rounded flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-slate-500'}`}>
+                                  {isSelected && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                                </div>
+                              ) : (
+                                isSelected && (<div className="absolute right-4 text-indigo-600 dark:text-indigo-400"><Icons.CheckCircle /></div>)
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
 
                     <style jsx global>{`

@@ -85,6 +85,11 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
         { id: 2, key: 'B', value: '' },
     ]);
     const [correctOption, setCorrectOption] = useState('A');
+    const [questionType, setQuestionType] = useState('multiple_choice');
+    const [correctOptions, setCorrectOptions] = useState(['A']); // For complex choice
+    const [points, setPoints] = useState(1);
+    const [scoringStrategy, setScoringStrategy] = useState('standard');
+    const [keywords, setKeywords] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const nextOptionId = useRef(3);
@@ -118,7 +123,45 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
         ]);
         nextOptionId.current = 3;
         setCorrectOption('A');
+        setCorrectOptions(['A']);
+        setQuestionType('multiple_choice');
+        setPoints(1);
+        setScoringStrategy('standard');
+        setKeywords('');
     }
+
+    const handleTypeChange = (type) => {
+        setQuestionType(type);
+        setScoringStrategy('standard');
+        if (type === 'true_false') {
+            setOptions([
+                { id: 1, key: 'A', value: 'Benar' },
+                { id: 2, key: 'B', value: 'Salah' },
+            ]);
+            setCorrectOption('A');
+        } else if (type === 'essay') {
+            setOptions([]);
+            setCorrectOption('');
+            setScoringStrategy('essay_manual');
+        } else if (type === 'multiple_choice') {
+            if (options.length === 0) {
+                setOptions([
+                    { id: 1, key: 'A', value: '' },
+                    { id: 2, key: 'B', value: '' },
+                ]);
+            }
+            setCorrectOption('A');
+        } else if (type === 'multiple_choice_complex') {
+            if (options.length === 0) {
+                setOptions([
+                    { id: 1, key: 'A', value: '' },
+                    { id: 2, key: 'B', value: '' },
+                ]);
+            }
+            setCorrectOptions(['A']);
+            setScoringStrategy('pgk_partial');
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -144,10 +187,23 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                 return acc;
             }, {});
 
+            const finalCorrectOption = questionType === 'multiple_choice_complex' 
+                ? correctOptions.sort().join(',') 
+                : correctOption;
+
             const res = await fetch('/api/exams/questions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ examId, questionText: processedQuestionText, options: optionsForApi, correctOption }),
+                body: JSON.stringify({ 
+                    examId, 
+                    questionText: processedQuestionText, 
+                    options: optionsForApi, 
+                    correctOption: finalCorrectOption,
+                    questionType,
+                    points,
+                    scoringStrategy,
+                    scoringMetadata: questionType === 'essay' ? { keywords: keywords.split(',').map(k => k.trim()).filter(k => k) } : null
+                }),
             });
             if (!res.ok) throw new Error((await res.json()).message || 'Failed to add question');
 
@@ -163,42 +219,173 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Question Type</label>
+                    <select 
+                        value={questionType} 
+                        onChange={(e) => handleTypeChange(e.target.value)} 
+                        className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-100"
+                    >
+                        <option value="multiple_choice">Pilihan Ganda</option>
+                        <option value="multiple_choice_complex">Pilihan Ganda Kompleks</option>
+                        <option value="true_false">Benar / Salah</option>
+                        <option value="matching">Menjodohkan (Matching)</option>
+                        <option value="essay">Esai</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Poin / Bobot Soal</label>
+                    <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={points}
+                        onChange={(e) => setPoints(parseFloat(e.target.value))}
+                        className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-100"
+                    />
+                </div>
+            </div>
+
+            {questionType === 'multiple_choice_complex' && (
+                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                    <label className="block text-sm font-bold text-indigo-900 dark:text-indigo-300 mb-2">Strategi Penyekoran PGK</label>
+                    <div className="flex flex-wrap gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="pgk_strategy" checked={scoringStrategy === 'pgk_partial'} onChange={() => setScoringStrategy('pgk_partial')} />
+                            <span className="text-sm dark:text-slate-300">Parsial (Correct - Wrong)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="pgk_strategy" checked={scoringStrategy === 'pgk_strict'} onChange={() => setScoringStrategy('pgk_strict')} />
+                            <span className="text-sm dark:text-slate-300">Strict (Full Poin jika Benar Semua)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="pgk_strategy" checked={scoringStrategy === 'pgk_any'} onChange={() => setScoringStrategy('pgk_any')} />
+                            <span className="text-sm dark:text-slate-300">Any (Minimal 1 Benar = Full)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="pgk_strategy" checked={scoringStrategy === 'pgk_additive'} onChange={() => setScoringStrategy('pgk_additive')} />
+                            <span className="text-sm dark:text-slate-300">Additive (Poin per Item Benar)</span>
+                        </label>
+                    </div>
+                </div>
+            )}
+
+            {questionType === 'essay' && (
+                <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800">
+                    <label className="block text-sm font-bold text-emerald-900 dark:text-emerald-300 mb-2">Automasi Koreksi Esai</label>
+                    <div className="space-y-3">
+                        <div className="flex flex-wrap gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="essay_strategy" checked={scoringStrategy === 'essay_manual'} onChange={() => setScoringStrategy('essay_manual')} />
+                                <span className="text-sm dark:text-slate-300">Manual (Oleh Guru)</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="essay_strategy" checked={scoringStrategy === 'essay_keywords'} onChange={() => setScoringStrategy('essay_keywords')} />
+                                <span className="text-sm dark:text-slate-300">Rasio Kata (Parsial)</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="essay_strategy" checked={scoringStrategy === 'essay_any_keyword'} onChange={() => setScoringStrategy('essay_any_keyword')} />
+                                <span className="text-sm dark:text-slate-300">Any (1 Cocok = Full)</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="essay_strategy" checked={scoringStrategy === 'essay_strict_keywords'} onChange={() => setScoringStrategy('essay_strict_keywords')} />
+                                <span className="text-sm dark:text-slate-300">Strict (Semua Cocok = Full)</span>
+                            </label>
+                        </div>
+                        {(scoringStrategy === 'essay_keywords' || scoringStrategy === 'essay_any_keyword' || scoringStrategy === 'essay_strict_keywords') && (
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Kata Kunci (Pisahkan dengan koma)</label>
+                                <input
+                                    type="text"
+                                    placeholder="contoh: ekosistem, biologi, lingkungan"
+                                    value={keywords}
+                                    onChange={(e) => setKeywords(e.target.value)}
+                                    className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-100 text-sm"
+                                />
+                                <p className="mt-1 text-[10px] text-slate-400">
+                                    {scoringStrategy === 'essay_any_keyword' 
+                                        ? 'Cukup 1 kata kunci yang cocok untuk mendapatkan poin penuh.' 
+                                        : scoringStrategy === 'essay_strict_keywords'
+                                            ? 'Harus mengandung SEMUA kata kunci di atas untuk mendapatkan poin penuh.'
+                                            : 'Sistem akan menghitung kemunculan kata kunci ini di jawaban siswa untuk memberikan poin.'}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
             <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Question</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Question Content</label>
                 <JoditEditorWithUpload
                     value={questionText}
                     onBlur={newContent => setQuestionText(newContent)}
                 />
             </div>
-            {options.map((opt, index) => (
+            {questionType !== 'essay' && options.map((opt, index) => (
                 <div key={opt.id} className="space-y-1">
                     <div className="flex justify-between items-center">
                         <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Option {opt.key}</label>
-                        {options.length > 2 && (
+                        {options.length > 2 && questionType !== 'true_false' && (
                             <button type="button" onClick={() => removeOption(opt.id)} className="p-1 text-red-500 hover:bg-red-100 rounded-full" title={`Remove option ${opt.key}`}>
                                 <Icons.Trash />
                             </button>
                         )}
                     </div>
-                    <JoditEditorWithUpload
-                        value={opt.value}
-                        onBlur={newContent => handleOptionChange(opt.id, newContent)}
-                    />
+                    {questionType === 'true_false' ? (
+                        <input
+                            type="text"
+                            value={opt.value}
+                            readOnly
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-700 dark:text-slate-100"
+                        />
+                    ) : (
+                        <JoditEditorWithUpload
+                            value={opt.value}
+                            onBlur={newContent => handleOptionChange(opt.id, newContent)}
+                        />
+                    )}
                 </div>
             ))}
-            <div className="text-left pt-2">
-                <button type="button" onClick={addOption} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-700 rounded-md">
-                    <Icons.Plus /> Add Option
-                </button>
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Correct Answer</label>
-                <select value={correctOption} onChange={(e) => setCorrectOption(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-100">
-                    {options.map(opt => (
-                        <option key={opt.id} value={opt.key}>{opt.key}</option>
-                    ))}
-                </select>
-            </div>
+            {questionType !== 'essay' && questionType !== 'true_false' && (
+                <div className="text-left pt-2">
+                    <button type="button" onClick={addOption} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-700 rounded-md">
+                        <Icons.Plus /> Add Option
+                    </button>
+                </div>
+            )}
+            {questionType !== 'essay' && (
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Correct Answer</label>
+                    {questionType === 'multiple_choice_complex' ? (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            {options.map(opt => (
+                                <label key={opt.id} className="flex items-center gap-2 p-2 border border-slate-200 dark:border-slate-700 rounded-md cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700">
+                                    <input
+                                        type="checkbox"
+                                        checked={correctOptions.includes(opt.key)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setCorrectOptions([...correctOptions, opt.key]);
+                                            } else {
+                                                setCorrectOptions(correctOptions.filter(k => k !== opt.key));
+                                            }
+                                        }}
+                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <span className="text-sm font-medium dark:text-slate-200">Option {opt.key}</span>
+                                </label>
+                            ))}
+                        </div>
+                    ) : (
+                        <select value={correctOption} onChange={(e) => setCorrectOption(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-100">
+                            {options.map(opt => (
+                                <option key={opt.id} value={opt.key}>{opt.key}</option>
+                            ))}
+                        </select>
+                    )}
+                </div>
+            )}
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
             <div className="text-right">
                 <button type="submit" disabled={loading} className="inline-flex items-center justify-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 text-white text-sm font-semibold rounded-lg disabled:bg-indigo-300">
@@ -227,7 +414,21 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
     }, [question.options]);
 
     const [options, setOptions] = useState(initialOptions);
-    const [correctOption, setCorrectOption] = useState(question.correct_option);
+    const [correctOption, setCorrectOption] = useState(question.correct_option || 'A');
+    const [questionType, setQuestionType] = useState(question.question_type || 'multiple_choice');
+    const [correctOptions, setCorrectOptions] = useState(
+        (question.question_type === 'multiple_choice_complex' && question.correct_option) 
+            ? question.correct_option.split(',') 
+            : [question.correct_option || 'A']
+    );
+    const [points, setPoints] = useState(question.points || 1);
+    const [scoringStrategy, setScoringStrategy] = useState(question.scoring_strategy || 'standard');
+    const [keywords, setKeywords] = useState(() => {
+        try {
+            const meta = typeof question.scoring_metadata === 'string' ? JSON.parse(question.scoring_metadata) : (question.scoring_metadata || {});
+            return (meta.keywords || []).join(', ');
+        } catch (e) { return ''; }
+    });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const nextOptionId = useRef(options.length + 1);
@@ -245,10 +446,49 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
 
     const removeOption = (id) => {
         const optionToRemove = options.find(opt => opt.id === id);
-        if (optionToRemove && correctOption === optionToRemove.key) {
-            setCorrectOption(options[0].key);
+        if (optionToRemove) {
+            if (correctOption === optionToRemove.key) {
+                setCorrectOption(options[0].key);
+            }
+            setCorrectOptions(prev => prev.filter(k => k !== optionToRemove.key));
         }
         setOptions(prev => prev.filter(opt => opt.id !== id));
+    };
+
+    const handleTypeChange = (type) => {
+        setQuestionType(type);
+        setScoringStrategy('standard');
+        if (type === 'true_false') {
+            setOptions([
+                { id: 1, key: 'A', value: 'Benar' },
+                { id: 2, key: 'B', value: 'Salah' },
+            ]);
+            setCorrectOption('A');
+            setCorrectOptions(['A']);
+        } else if (type === 'essay') {
+            setOptions([]);
+            setCorrectOption('');
+            setCorrectOptions([]);
+            setScoringStrategy('essay_manual');
+        } else if (type === 'multiple_choice') {
+            if (options.length === 0) {
+                setOptions([
+                    { id: 1, key: 'A', value: '' },
+                    { id: 2, key: 'B', value: '' },
+                ]);
+            }
+            setCorrectOption('A');
+            setCorrectOptions(['A']);
+        } else if (type === 'multiple_choice_complex') {
+            if (options.length === 0) {
+                setOptions([
+                    { id: 1, key: 'A', value: '' },
+                    { id: 2, key: 'B', value: '' },
+                ]);
+            }
+            setCorrectOptions(['A']);
+            setScoringStrategy('pgk_partial');
+        }
     };
 
     const handleSave = async () => {
@@ -274,11 +514,19 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                 return acc;
             }, {});
 
+            const finalCorrectOption = questionType === 'multiple_choice_complex' 
+                ? correctOptions.sort().join(',') 
+                : correctOption;
+
             await onSave({
                 id: question.id,
                 questionText: processedQuestionText,
                 options: optionsForApi,
-                correctOption,
+                correctOption: finalCorrectOption,
+                questionType,
+                points,
+                scoringStrategy,
+                scoringMetadata: questionType === 'essay' ? { keywords: keywords.split(',').map(k => k.trim()).filter(k => k) } : null
             });
         } catch (err) {
             setError('An error occurred while saving. ' + err.message);
@@ -300,6 +548,106 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
 
                 {/* Main Content (Scrollable) */}
                 <div className="flex-grow overflow-y-auto p-6 space-y-8">
+                    {/* Question Type & Points Selection */}
+                    <div className="bg-white dark:bg-slate-700 p-6 rounded-xl border border-slate-200 dark:border-slate-600">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Question Type</label>
+                                <select 
+                                    value={questionType} 
+                                    onChange={(e) => handleTypeChange(e.target.value)} 
+                                    className="w-full max-w-xs p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-100"
+                                >
+                                    <option value="multiple_choice">Pilihan Ganda</option>
+                                    <option value="multiple_choice_complex">Pilihan Ganda Kompleks</option>
+                                    <option value="true_false">Benar / Salah</option>
+                                    <option value="matching">Menjodohkan (Matching)</option>
+                                    <option value="essay">Esai</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Poin / Bobot Soal</label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    value={points}
+                                    onChange={(e) => setPoints(parseFloat(e.target.value))}
+                                    className="w-full max-w-xs p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-100"
+                                />
+                            </div>
+                        </div>
+
+                        {questionType === 'multiple_choice_complex' && (
+                            <div className="mt-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                                <label className="block text-sm font-bold text-indigo-900 dark:text-indigo-300 mb-2">Strategi Penyekoran PGK</label>
+                                <div className="flex flex-wrap gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="edit_pgk_strategy" checked={scoringStrategy === 'pgk_partial'} onChange={() => setScoringStrategy('pgk_partial')} />
+                                        <span className="text-sm dark:text-slate-300">Parsial (Poin Proporsional)</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="edit_pgk_strategy" checked={scoringStrategy === 'pgk_strict'} onChange={() => setScoringStrategy('pgk_strict')} />
+                                        <span className="text-sm dark:text-slate-300">Strict (Full Poin jika Benar Semua)</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="edit_pgk_strategy" checked={scoringStrategy === 'pgk_any'} onChange={() => setScoringStrategy('pgk_any')} />
+                                        <span className="text-sm dark:text-slate-300">Any (Minimal 1 Benar = Full)</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="edit_pgk_strategy" checked={scoringStrategy === 'pgk_additive'} onChange={() => setScoringStrategy('pgk_additive')} />
+                                        <span className="text-sm dark:text-slate-300">Additive (Poin Penuh per Benar)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+
+                        {questionType === 'essay' && (
+                            <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800">
+                                <label className="block text-sm font-bold text-emerald-900 dark:text-emerald-300 mb-2">Automasi Koreksi Esai</label>
+                                <div className="space-y-3">
+                                    <div className="flex flex-wrap gap-4">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="edit_essay_strategy" checked={scoringStrategy === 'essay_manual'} onChange={() => setScoringStrategy('essay_manual')} />
+                                            <span className="text-sm dark:text-slate-300">Manual (Oleh Guru)</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="edit_essay_strategy" checked={scoringStrategy === 'essay_keywords'} onChange={() => setScoringStrategy('essay_keywords')} />
+                                            <span className="text-sm dark:text-slate-300">Rasio Kata (Parsial)</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="edit_essay_strategy" checked={scoringStrategy === 'edit_essay_any_keyword'} onChange={() => setScoringStrategy('essay_any_keyword')} />
+                                            <span className="text-sm dark:text-slate-300">Any (1 Cocok = Full)</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="edit_essay_strategy" checked={scoringStrategy === 'essay_strict_keywords'} onChange={() => setScoringStrategy('essay_strict_keywords')} />
+                                            <span className="text-sm dark:text-slate-300">Strict (Semua Cocok = Full)</span>
+                                        </label>
+                                    </div>
+                                    {(scoringStrategy === 'essay_keywords' || scoringStrategy === 'essay_any_keyword' || scoringStrategy === 'essay_strict_keywords') && (
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Kata Kunci (Pisahkan dengan koma)</label>
+                                            <input
+                                                type="text"
+                                                placeholder="contoh: ekosistem, biologi, lingkungan"
+                                                value={keywords}
+                                                onChange={(e) => setKeywords(e.target.value)}
+                                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 dark:text-slate-100 text-sm"
+                                            />
+                                            <p className="mt-1 text-[10px] text-slate-400">
+                                                {scoringStrategy === 'essay_any_keyword' 
+                                                    ? 'Cukup 1 kata kunci yang cocok untuk mendapatkan poin penuh.' 
+                                                    : scoringStrategy === 'essay_strict_keywords'
+                                                        ? 'Harus mengandung SEMUA kata kunci di atas untuk mendapatkan poin penuh.'
+                                                        : 'Sistem akan menghitung kemunculan kata kunci ini di jawaban siswa untuk memberikan poin.'}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Question Editor */}
                     <div className="bg-white dark:bg-slate-700 p-6 rounded-xl border border-slate-200 dark:border-slate-600">
                         <label className="block text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Question</label>
@@ -310,39 +658,76 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                     </div>
 
                     {/* Options Section */}
-                    <div className="bg-white dark:bg-slate-700 p-6 rounded-xl border border-slate-200 dark:border-slate-600">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Options</h3>
-                            <button type="button" onClick={addOption} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-600 rounded-md">
-                                <Icons.Plus /> Add Option
-                            </button>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {options.map((opt) => (
-                                <div key={opt.id} className="space-y-2 border border-slate-200 dark:border-slate-600 rounded-lg p-4 bg-slate-50 dark:bg-slate-600">
-                                    <div className="flex justify-between items-center">
-                                        <label className="font-semibold text-slate-700 dark:text-slate-200">Option {opt.key}</label>
-                                        {options.length > 2 && (
-                                            <button type="button" onClick={() => removeOption(opt.id)} className="p-1 text-red-500 hover:bg-red-100 rounded-full" title={`Remove option ${opt.key}`}>
-                                                <Icons.Trash />
-                                            </button>
+                    {questionType !== 'essay' && (
+                        <div className="bg-white dark:bg-slate-700 p-6 rounded-xl border border-slate-200 dark:border-slate-600">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Options</h3>
+                                {questionType !== 'true_false' && (
+                                    <button type="button" onClick={addOption} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-600 rounded-md">
+                                        <Icons.Plus /> Add Option
+                                    </button>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {options.map((opt) => (
+                                    <div key={opt.id} className="space-y-2 border border-slate-200 dark:border-slate-600 rounded-lg p-4 bg-slate-50 dark:bg-slate-600">
+                                        <div className="flex justify-between items-center">
+                                            <label className="font-semibold text-slate-700 dark:text-slate-200">Option {opt.key}</label>
+                                            {options.length > 2 && questionType !== 'true_false' && (
+                                                <button type="button" onClick={() => removeOption(opt.id)} className="p-1 text-red-500 hover:bg-red-100 rounded-full" title={`Remove option ${opt.key}`}>
+                                                    <Icons.Trash />
+                                                </button>
+                                            )}
+                                        </div>
+                                        {questionType === 'true_false' ? (
+                                            <input
+                                                type="text"
+                                                value={opt.value}
+                                                readOnly
+                                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-slate-100 dark:bg-slate-700 dark:text-slate-100"
+                                            />
+                                        ) : (
+                                            <JoditEditorWithUpload value={opt.value} onBlur={newContent => handleOptionChange(opt.id, newContent)} />
                                         )}
                                     </div>
-                                    <JoditEditorWithUpload value={opt.value} onBlur={newContent => handleOptionChange(opt.id, newContent)} />
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Correct Answer Section */}
-                    <div className="bg-white dark:bg-slate-700 p-6 rounded-xl border border-slate-200 dark:border-slate-600">
-                        <label className="block text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Correct Answer</label>
-                        <select value={correctOption} onChange={(e) => setCorrectOption(e.target.value)} className="w-full max-w-xs p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">
-                            {options.map(opt => (
-                                <option key={opt.id} value={opt.key}>{`Option ${opt.key}`}</option>
-                            ))}
-                        </select>
-                    </div>
+                    {questionType !== 'essay' && (
+                        <div className="bg-white dark:bg-slate-700 p-6 rounded-xl border border-slate-200 dark:border-slate-600">
+                            <label className="block text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Correct Answer</label>
+                            {questionType === 'multiple_choice_complex' ? (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {options.map(opt => (
+                                        <label key={opt.id} className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
+                                            <input
+                                                type="checkbox"
+                                                checked={correctOptions.includes(opt.key)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setCorrectOptions([...correctOptions, opt.key]);
+                                                    } else {
+                                                        setCorrectOptions(correctOptions.filter(k => k !== opt.key));
+                                                    }
+                                                }}
+                                                className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <span className="font-medium text-slate-700 dark:text-slate-200">Option {opt.key}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            ) : (
+                                <select value={correctOption} onChange={(e) => setCorrectOption(e.target.value)} className="w-full max-w-xs p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                                    {options.map(opt => (
+                                        <option key={opt.id} value={opt.key}>{`Option ${opt.key}`}</option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+                    )}
 
                     {error && <p className="text-sm text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 p-3 rounded-md">{error}</p>}
                 </div>
@@ -573,6 +958,12 @@ export default function ManageQuestionsPage() {
 
     const [editingQuestion, setEditingQuestion] = useState(null);
     const [examName, setExamName] = useState('');
+    const [scoringMode, setScoringMode] = useState('percentage');
+    const [totalTargetScore, setTotalTargetScore] = useState(100);
+    const [autoDistribute, setAutoDistribute] = useState(false);
+    const [showScoringSettings, setShowScoringSettings] = useState(false);
+    const [savingSettings, setSavingSettings] = useState(false);
+    const [normalizeLoading, setNormalizeLoading] = useState(false);
 
     // Delete All Modal state
     const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
@@ -598,6 +989,9 @@ export default function ManageQuestionsPage() {
             if (examRes.ok) {
                 const examData = await examRes.json();
                 setExamName(examData.exam_name || '');
+                setScoringMode(examData.scoring_mode || 'raw');
+                setTotalTargetScore(examData.total_target_score || 100);
+                setAutoDistribute(Boolean(examData.auto_distribute));
             }
 
             const normalizedData = data.map(q => {
@@ -640,6 +1034,48 @@ export default function ManageQuestionsPage() {
     useEffect(() => {
         fetchQuestions();
     }, [fetchQuestions]);
+
+    const handleSaveScoringSettings = async () => {
+        setSavingSettings(true);
+        try {
+            const res = await fetch('/api/exams/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    examId,
+                    scoringMode,
+                    totalTargetScore,
+                    autoDistribute,
+                }),
+            });
+            if (!res.ok) throw new Error('Failed to save settings');
+            alert('Pengaturan penyekoran berhasil disimpan.');
+            fetchQuestions();
+        } catch (err) {
+            alert('Gagal menyimpan: ' + err.message);
+        } finally {
+            setSavingSettings(false);
+        }
+    };
+
+    const handleNormalizePoints = async () => {
+        if (!confirm('Apakah Anda yakin ingin membagi skor soal secara merata? Poin soal yang sudah ada akan berubah.')) return;
+        setNormalizeLoading(true);
+        try {
+            const res = await fetch('/api/exams/questions/normalize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ examId }),
+            });
+            if (!res.ok) throw new Error('Failed to normalize');
+            alert('Skor soal telah dinormalisasi secara merata.');
+            fetchQuestions();
+        } catch (err) {
+            alert('Gagal normalisasi: ' + err.message);
+        } finally {
+            setNormalizeLoading(false);
+        }
+    };
 
     const handleDelete = async (questionId) => {
         if (!window.confirm('Are you sure you want to delete this question?')) return;
@@ -774,6 +1210,76 @@ export default function ManageQuestionsPage() {
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-1">
+                        {/* Scoring Configuration Panel */}
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 mb-8 overflow-hidden transition-all">
+                            <button 
+                                onClick={() => setShowScoringSettings(!showScoringSettings)}
+                                className="w-full flex justify-between items-center group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor font-bold"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" /></svg>
+                                    </div>
+                                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Pengaturan Penyekoran</h2>
+                                </div>
+                                <svg className={`w-5 h-5 text-slate-400 transition-transform ${showScoringSettings ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                            </button>
+                            
+                            {showScoringSettings && (
+                                <div className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {/* Target Score Input */}
+                                        <div className="space-y-3">
+                                            <label className="text-sm font-bold text-slate-500 uppercase tracking-wider">Target Total Skor</label>
+                                            <div className="relative">
+                                                <input 
+                                                    type="number"
+                                                    value={totalTargetScore}
+                                                    onChange={(e) => setTotalTargetScore(parseFloat(e.target.value))}
+                                                    className="w-full p-3 pl-10 border-2 border-slate-100 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 focus:border-indigo-500 outline-none transition-all font-bold text-slate-700 dark:text-slate-200"
+                                                    placeholder="Contoh: 100"
+                                                />
+                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">#</div>
+                                            </div>
+                                            <p className="text-[10px] text-slate-400 italic">Target nilai akhir jika semua soal benar.</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Auto Distribute Toggle */}
+                                    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
+                                        <div>
+                                            <div className="font-bold text-slate-700 dark:text-slate-200 text-sm">Otomatis Bagi Poin</div>
+                                            <div className="text-xs text-slate-500">Sesuaikan poin semua soal tiap kali ada soal ditambah/dihapus.</div>
+                                        </div>
+                                        <button 
+                                            onClick={() => setAutoDistribute(!autoDistribute)}
+                                            className={`w-12 h-6 rounded-full p-1 transition-colors ${autoDistribute ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                        >
+                                            <div className={`w-4 h-4 bg-white rounded-full transition-transform ${autoDistribute ? 'translate-x-6' : 'translate-x-0'}`} />
+                                        </button>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                                        <button 
+                                            onClick={handleSaveScoringSettings}
+                                            disabled={savingSettings}
+                                            className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-200 dark:shadow-none active:scale-95 disabled:bg-indigo-300"
+                                        >
+                                            {savingSettings ? 'Menyimpan...' : 'Simpan Konfigurasi'}
+                                        </button>
+                                        <button 
+                                            onClick={handleNormalizePoints}
+                                            disabled={normalizeLoading || questions.length === 0}
+                                            className="flex-1 px-4 py-3 bg-white dark:bg-slate-700 border-2 border-slate-100 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-600 transition-all active:scale-95 disabled:opacity-50"
+                                        >
+                                            {normalizeLoading ? 'Memproses...' : 'Bagi Rata Sekarang'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 sticky top-24">
                             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">Add Questions</h2>
                             <div className="flex border-b border-slate-200 dark:border-slate-700 mb-4">
@@ -837,7 +1343,22 @@ export default function ManageQuestionsPage() {
                                                         <div className="pt-1 flex-shrink-0 cursor-grab">
                                                             <Icons.Grip />
                                                         </div>
-                                                        <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: `<p><strong>Q${index + 1}:</strong> ${q.question_text}</p>` }} />
+                                                        <div className="prose dark:prose-invert max-w-none flex flex-col gap-1 flex-1">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="text-xs font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600">
+                                                                    {q.question_type.replace(/_/g, ' ')}
+                                                                </span>
+                                                                <span className="text-xs font-bold uppercase px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800">
+                                                                    {q.points} Poin
+                                                                </span>
+                                                                {q.scoring_strategy && q.scoring_strategy !== 'standard' && q.scoring_strategy !== 'essay_manual' && (
+                                                                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800">
+                                                                        {q.scoring_strategy.replace(/_/g, ' ')}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div dangerouslySetInnerHTML={{ __html: `<p><strong>Q${index + 1}:</strong> ${q.question_text}</p>` }} />
+                                                        </div>
                                                     </div>
                                                     <div className="flex gap-2 flex-shrink-0 ml-4">
                                                         <button onClick={() => setEditingQuestion(q)} className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 p-1 rounded-full hover:bg-blue-50 dark:hover:bg-slate-700"><Icons.Edit /></button>
@@ -845,12 +1366,22 @@ export default function ManageQuestionsPage() {
                                                     </div>
                                                 </div>
                                                 <div className="mt-2 text-sm max-w-none ml-8">
-                                                    {Object.entries(q.options).map(([key, value]) => (
-                                                        <div key={key} className={`pl-4 flex gap-2 w-full mt-1 ${key === q.correct_option ? 'font-bold text-green-700 dark:text-green-400' : 'text-slate-600 dark:text-slate-400'}`}>
-                                                            <span>{key}.</span>
-                                                            <div className="prose dark:prose-invert prose-sm" dangerouslySetInnerHTML={{ __html: `${value} ${key === q.correct_option ? '✓' : ''}` }} />
+                                                    {q.question_type === 'essay' ? (
+                                                        <div className="pl-4 py-1 text-slate-500 italic">
+                                                            Pilihan jawaban disembunyikan untuk tipe Esai.
                                                         </div>
-                                                    ))}
+                                                    ) : (
+                                                        Object.entries(q.options).map(([key, value]) => {
+                                                            const correctOptions = q.correct_option ? String(q.correct_option).split(',') : [];
+                                                            const isCorrect = correctOptions.includes(key);
+                                                            return (
+                                                                <div key={key} className={`pl-4 flex gap-2 w-full mt-1 ${isCorrect ? 'font-bold text-green-700 dark:text-green-400' : 'text-slate-600 dark:text-slate-400'}`}>
+                                                                    <span>{key}.</span>
+                                                                    <div className="prose dark:prose-invert prose-sm" dangerouslySetInnerHTML={{ __html: `${value} ${isCorrect ? '✓' : ''}` }} />
+                                                                </div>
+                                                            );
+                                                        })
+                                                    )}
                                                 </div>
                                             </div>
                                         ))

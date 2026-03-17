@@ -28,7 +28,7 @@ export async function GET(request) {
     // 1. Get attempt details to verify ownership/permission and get exam_id
     const attemptResult = await query({
         query: `
-            SELECT id, user_id, exam_id, status 
+            SELECT id, user_id, exam_id, status, score
             FROM rhs_exam_attempts 
             WHERE id = ?
         `,
@@ -49,11 +49,17 @@ export async function GET(request) {
          return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
+    const examResult = await query({
+        query: `SELECT scoring_mode FROM rhs_exams WHERE id = ?`,
+        values: [attempt.exam_id]
+    });
+    const scoringMode = examResult[0]?.scoring_mode || 'percentage';
+
     // 2. Get All Questions for this Exam
     // We need the question text and correct option (since this is analysis, we show correct answers)
     const questions = await query({
         query: `
-            SELECT id, question_text, options, correct_option 
+            SELECT id, question_text, options, correct_option, question_type, points, scoring_strategy 
             FROM rhs_exam_questions 
             WHERE exam_id = ?
             ORDER BY id ASC
@@ -64,7 +70,7 @@ export async function GET(request) {
     // 3. Get Student's Answers
     const studentAnswers = await query({
         query: `
-            SELECT question_id, selected_option, is_correct 
+            SELECT question_id, selected_option, is_correct, score_earned 
             FROM rhs_student_answer 
             WHERE attempt_id = ?
         `,
@@ -83,14 +89,22 @@ export async function GET(request) {
         return {
             questionId: q.id,
             questionText: q.question_text,
+            questionType: q.question_type,
             options: JSON.parse(q.options || '{}'),
             correctAnswer: q.correct_option,
             studentAnswer: studentAns ? studentAns.selected_option : null,
-            isCorrect: studentAns ? Boolean(studentAns.is_correct) : false
+            isCorrect: studentAns ? Boolean(studentAns.is_correct) : false,
+            points: q.points || 1.0,
+            scoreEarned: studentAns ? studentAns.score_earned : 0.0,
+            scoringStrategy: q.scoring_strategy
         };
     });
 
-    return NextResponse.json(analysis);
+    return NextResponse.json({
+        score: attempt.score,
+        scoringMode: scoringMode,
+        analysis: analysis
+    });
 
   } catch (error) {
     console.error('Error fetching analysis:', error);

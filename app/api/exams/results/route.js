@@ -25,7 +25,7 @@ export async function GET(request) {
     try {
         // Query 1: Get Exam Details
         const examDetails = await query({
-            query: 'SELECT exam_name FROM rhs_exams WHERE id = ?',
+            query: 'SELECT exam_name, scoring_mode FROM rhs_exams WHERE id = ?',
             values: [examId]
         });
 
@@ -149,6 +149,7 @@ export async function GET(request) {
 
         const responsePayload = {
             examName: examDetails[0].exam_name,
+            scoringMode: examDetails[0].scoring_mode || 'percentage',
             totalQuestions: totalQuestions,
             results: detailedResults,
         };

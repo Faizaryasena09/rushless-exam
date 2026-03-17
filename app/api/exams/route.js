@@ -156,8 +156,8 @@ async function POST(request) {
   // 4. Insert into the database
   try {
     const result = await query({
-      query: 'INSERT INTO rhs_exams (exam_name, description, timer_mode, duration_minutes, subject_id) VALUES (?, ?, ?, ?, ?)',
-      values: [exam_name, description, 'async', 60, subject_id || null],
+      query: 'INSERT INTO rhs_exams (exam_name, description, timer_mode, duration_minutes, subject_id, scoring_mode, auto_distribute) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      values: [exam_name, description, 'async', 60, subject_id || null, 'raw', 1],
     });
 
     if (result.affectedRows) {

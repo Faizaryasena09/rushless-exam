@@ -13,6 +13,8 @@ const Icons = {
     CheckCircle: () => <svg className="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     XCircle: () => <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     MinusCircle: () => <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    AlertCircle: () => <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    Refresh: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>,
 };
 
 export default function ExamResultsPage() {
@@ -28,6 +30,24 @@ export default function ExamResultsPage() {
     const [classFilter, setClassFilter] = useState('all');
     const [showExportModal, setShowExportModal] = useState(false);
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+    const [recalculating, setRecalculating] = useState(false);
+
+    const fetchResults = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch(`/api/exams/results?exam_id=${examId}`);
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.message || 'Failed to fetch results');
+            }
+            const data = await res.json();
+            setResultsData(data);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Export Handler
     const handleExport = (attemptMode) => {
@@ -44,25 +64,31 @@ export default function ExamResultsPage() {
 
     useEffect(() => {
         if (!examId) return;
-
-        async function fetchResults() {
-            try {
-                const res = await fetch(`/api/exams/results?exam_id=${examId}`);
-                if (!res.ok) {
-                    const errorData = await res.json();
-                    throw new Error(errorData.message || 'Failed to fetch results');
-                }
-                const data = await res.json();
-                setResultsData(data);
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        }
-
         fetchResults();
     }, [examId]);
+
+    const handleRecalculate = async () => {
+        if (!confirm('Recalculate all student scores for this exam? This will update all existing attempt scores based on current questions and points.')) return;
+        
+        try {
+            setRecalculating(true);
+            const res = await fetch('/api/exams/recalculate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ examId })
+            });
+            
+            if (!res.ok) throw new Error('Failed to recalculate');
+            
+            // Refetch results to show updated scores
+            await fetchResults();
+            alert('Recalculation complete!');
+        } catch (err) {
+            alert('Error: ' + err.message);
+        } finally {
+            setRecalculating(false);
+        }
+    };
 
     const classOptions = useMemo(() => {
         if (!resultsData) return [];
@@ -160,6 +186,15 @@ export default function ExamResultsPage() {
                 </div>
                 
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
+                    <button
+                        onClick={handleRecalculate}
+                        disabled={recalculating}
+                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-2xl shadow-xl shadow-amber-200 dark:shadow-none font-black text-xs uppercase tracking-widest transition-all active:scale-95 group"
+                    >
+                        <Icons.Refresh />
+                        {recalculating ? 'Processing...' : 'Recalculate'}
+                    </button>
+
                     <button
                         onClick={() => setShowExportModal(true)}
                         className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl shadow-xl shadow-indigo-200 dark:shadow-none font-black text-xs uppercase tracking-widest transition-all active:scale-95 group"
@@ -309,7 +344,7 @@ export default function ExamResultsPage() {
                                                 <td className="px-6 py-4 text-right">
                                                     {isCompleted ? (
                                                         <span className={`inline-block px-4 py-2 rounded-2xl font-black text-lg ${student.bestScore >= 80 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' : student.bestScore >= 60 ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20' : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'}`}>
-                                                            {student.bestScore}%
+                                                            {student.bestScore}
                                                         </span>
                                                     ) : <span className="text-slate-300 dark:text-slate-600 font-black">—</span>}
                                                 </td>
@@ -367,9 +402,7 @@ export default function ExamResultsPage() {
 
                                                 <div className="flex items-center justify-between pt-2">
                                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Performance Score</span>
-                                                    <span className={`text-xl font-black ${student.bestScore >= 80 ? 'text-emerald-600' : student.bestScore >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
-                                                        {student.bestScore}%
-                                                    </span>
+                                                        {student.bestScore}
                                                 </div>
                                             </div>
                                         )}
@@ -385,6 +418,7 @@ export default function ExamResultsPage() {
             {selectedStudent && (
                 <StudentAnalysisDetail
                     student={selectedStudent}
+                    scoringMode={resultsData?.scoringMode}
                     onClose={() => setSelectedStudent(null)}
                 />
             )}
@@ -399,7 +433,7 @@ export default function ExamResultsPage() {
     );
 }
 
-function StudentAnalysisDetail({ student, onClose }) {
+function StudentAnalysisDetail({ student, scoringMode, onClose }) {
     const [selectedAttemptId, setSelectedAttemptId] = useState(null);
     const [attemptIdForLog, setAttemptIdForLog] = useState(null);
 
@@ -468,7 +502,7 @@ function StudentAnalysisDetail({ student, onClose }) {
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <span className={`inline-block px-3 py-1.5 rounded-xl font-black text-base ${attempt.score >= 80 ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' : attempt.score >= 60 ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' : 'text-red-600 bg-red-50 dark:bg-red-900/20'}`}>
-                                                {Math.round(attempt.score)}%
+                                                {scoringMode === 'raw' ? attempt.score : Math.round(attempt.score)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
@@ -499,7 +533,7 @@ function StudentAnalysisDetail({ student, onClose }) {
                                 
                                 <div className="mb-4">
                                     <span className={`inline-block px-4 py-1.5 rounded-2xl font-black text-xl mb-1 ${attempt.score >= 80 ? 'text-emerald-600' : attempt.score >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
-                                        {Math.round(attempt.score)}%
+                                        {scoringMode === 'raw' ? attempt.score : Math.round(attempt.score)}
                                     </span>
                                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Overall Score</div>
                                 </div>
@@ -653,6 +687,11 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
                         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
                             <span className="p-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-xl"><Icons.CheckCircle /></span>
                             Analysis: {studentName}
+                            {analysis?.score !== undefined && (
+                                <span className={`ml-3 px-3 py-1 rounded-xl text-sm font-black ${analysis.score >= 80 ? 'bg-emerald-100 text-emerald-600' : analysis.score >= 60 ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
+                                    Score: {analysis.scoringMode === 'raw' ? analysis.score : Math.round(analysis.score)}
+                                </span>
+                            )}
                         </h2>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Detailed Question-by-Question breakdown</p>
                     </div>
@@ -676,38 +715,104 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
                     </div>
                 ) : (
                     <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/30 dark:bg-slate-900/30 space-y-4 sm:space-y-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
-                        {analysis?.map((ans, index) => (
+                        {analysis?.analysis?.map((ans, index) => (
                             <div key={ans.questionId} className="group p-5 sm:p-8 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:shadow-md">
                                 <div className="flex items-start justify-between gap-6 mb-8">
-                                    <div className="flex items-start gap-4 flex-1">
-                                        <span className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center text-sm font-black text-slate-400 group-hover:bg-slate-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-slate-900 transition-colors shrink-0">
-                                            {index + 1}
-                                        </span>
-                                        <div className="pt-1.5 prose dark:prose-invert max-w-none text-base font-bold text-slate-800 dark:text-slate-200 leading-relaxed" dangerouslySetInnerHTML={{ __html: ans.questionText }} />
-                                    </div>
-                                    <div className="shrink-0 flex items-center justify-center w-12 h-12 rounded-2xl transition-transform group-hover:rotate-12">
-                                        {ans.isCorrect ? <Icons.CheckCircle /> : (ans.studentAnswer ? <Icons.XCircle /> : <Icons.MinusCircle />)}
+                                        <div className="flex-1 space-y-2">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600">
+                                                    {ans.questionType?.replace(/_/g, ' ') || 'MULTIPLE CHOICE'}
+                                                </span>
+                                            </div>
+                                            <div className="prose dark:prose-invert max-w-none text-base font-bold text-slate-800 dark:text-slate-200 leading-relaxed custom-content-wrapper" dangerouslySetInnerHTML={{ __html: ans.questionText }} />
+                                        </div>
+                                    <div className="shrink-0 flex flex-col items-center gap-2">
+                                        <div className="shrink-0 flex items-center justify-center w-12 h-12 rounded-2xl transition-transform group-hover:rotate-12 border bg-white dark:bg-slate-900 shadow-sm border-slate-100 dark:border-slate-800">
+                                            {ans.scoreEarned >= ans.points ? <Icons.CheckCircle /> : (ans.scoreEarned > 0 ? <Icons.AlertCircle /> : ((ans.studentAnswer && ans.scoringStrategy !== 'essay_manual') ? <Icons.XCircle /> : <Icons.MinusCircle />))}
+                                        </div>
+                                        <div className={`text-[10px] font-black px-2 py-1 rounded-lg border ${ans.scoreEarned >= ans.points ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : (ans.scoreEarned > 0 ? 'bg-amber-50 text-amber-600 border-amber-100' : (ans.scoringStrategy === 'essay_manual' ? 'bg-slate-50 text-slate-500 border-slate-100' : 'bg-red-50 text-red-600 border-red-100'))}`}>
+                                            {ans.scoreEarned} / {ans.points} Poin
+                                        </div>
                                     </div>
                                 </div>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className={`p-5 rounded-2xl border transition-colors ${ans.isCorrect ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/50' : (ans.studentAnswer ? 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-800/50' : 'bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700')}`}>
-                                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Student Answer</div>
-                                        <div className={`text-sm font-black ${ans.isCorrect ? 'text-emerald-700 dark:text-emerald-400' : (ans.studentAnswer ? 'text-red-700 dark:text-red-400' : 'text-slate-500 italic')}`}>
-                                            {ans.studentAnswer || 'Skipped / Not Answered'}
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className={`p-5 rounded-2xl border transition-colors ${ans.isCorrect ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/50' : (ans.studentAnswer ? (ans.scoringStrategy === 'essay_manual' ? 'bg-slate-50 border-slate-200' : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-800/50') : 'bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700')}`}>
+                                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Student Answer</div>
+                                            <div className={`text-sm font-black ${ans.isCorrect ? 'text-emerald-700 dark:text-emerald-400' : (ans.studentAnswer ? (ans.scoringStrategy === 'essay_manual' ? 'text-slate-700' : 'text-red-700 dark:text-red-400') : 'text-slate-500 italic')}`}>
+                                                {ans.questionType === 'essay' ? (
+                                                    <div className="prose dark:prose-invert prose-sm max-w-none custom-content-wrapper" dangerouslySetInnerHTML={{ __html: ans.studentAnswer || 'Skipped / Not Answered' }} />
+                                                ) : (
+                                                    ans.studentAnswer || 'Skipped / Not Answered'
+                                                )}
+                                            </div>
                                         </div>
+                                        {ans.questionType !== 'essay' && !ans.isCorrect && (
+                                            <div className="p-5 rounded-2xl border bg-emerald-50/30 dark:bg-emerald-900/5 border-emerald-100/50 dark:border-emerald-800/30">
+                                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Correct Answer</div>
+                                                <div className="text-sm font-black text-emerald-700 dark:text-emerald-400">
+                                                    {ans.correctAnswer}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    {!ans.isCorrect && (
-                                        <div className="p-5 rounded-2xl border bg-emerald-50/30 dark:bg-emerald-900/5 border-emerald-100/50 dark:border-emerald-800/30">
-                                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Correct Answer</div>
-                                            <div className="text-sm font-black text-emerald-700 dark:text-emerald-400">
-                                                {ans.correctAnswer}
+
+                                    {ans.questionType !== 'essay' && ans.options && Object.keys(ans.options).length > 0 && (
+                                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
+                                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Options Detail</div>
+                                            <div className="space-y-2">
+                                                {Object.entries(ans.options).map(([key, value]) => {
+                                                    const studentChoices = ans.studentAnswer ? String(ans.studentAnswer).split(',') : [];
+                                                    const correctChoices = ans.correctAnswer ? String(ans.correctAnswer).split(',') : [];
+                                                    const isSelected = studentChoices.includes(key);
+                                                    const isCorrect = correctChoices.includes(key);
+                                                    
+                                                    let statusClass = "border-slate-100 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/30 text-slate-600 dark:text-slate-400";
+                                                    if (isCorrect) statusClass = "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 font-bold";
+                                                    else if (isSelected && !isCorrect) statusClass = "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 font-bold";
+
+                                                    return (
+                                                        <div key={key} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${statusClass}`}>
+                                                            <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-black shrink-0 ${isCorrect ? 'bg-emerald-500 text-white' : (isSelected ? 'bg-red-500 text-white' : 'bg-slate-200 dark:bg-slate-600')}`}>
+                                                                {key}
+                                                            </div>
+                                                            <div className="prose dark:prose-invert prose-sm max-w-none flex-1 custom-content-wrapper" dangerouslySetInnerHTML={{ __html: value }} />
+                                                            {isCorrect && <Icons.CheckCircle />}
+                                                            {isSelected && !isCorrect && <Icons.XCircle />}
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     )}
                                 </div>
                             </div>
                         ))}
+                        <style jsx global>{`
+                            .custom-content-wrapper img {
+                                max-width: 100% !important;
+                                height: auto !important;
+                                border-radius: 12px;
+                                margin: 1rem 0;
+                            }
+                            .custom-content-wrapper table {
+                                width: 100% !important;
+                                border-collapse: collapse !important;
+                                margin: 1rem 0 !important;
+                                min-width: 200px;
+                            }
+                            .custom-content-wrapper table td, 
+                            .custom-content-wrapper table th {
+                                border: 1px solid #e2e8f0;
+                                padding: 8px 12px;
+                                text-align: left;
+                            }
+                            .dark .custom-content-wrapper table td, 
+                            .dark .custom-content-wrapper table th {
+                                border-color: #334155;
+                            }
+                        `}</style>
                     </div>
                 )}
             </div>

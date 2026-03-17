@@ -1,7 +1,10 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+
+const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
 // --- Icons Component ---
 const Icons = {
@@ -55,6 +58,11 @@ const Icons = {
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
+    ),
+    CheckCircleSmall: () => (
+        <svg className="w-3 h-3 text-emerald-600 dark:text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
     )
 };
 
@@ -62,6 +70,14 @@ export default function ExamPreviewPage() {
     const router = useRouter();
     const params = useParams();
     const examId = params.id;
+
+    const editorConfig = useMemo(() => ({
+        readonly: false,
+        toolbar: true,
+        placeholder: 'Tulis jawaban esai Anda di sini...',
+        height: 300,
+        buttons: ['bold', 'italic', 'underline', 'strikethrough', '|', 'ul', 'ol', '|', 'font', 'fontsize', 'brush', 'paragraph', '|', 'image', 'table', 'link', '|', 'align', 'undo', 'redo', '|', 'hr', 'eraser', 'fullsize']
+    }), []);
 
     const [examDetails, setExamDetails] = useState(null);
     const [questions, setQuestions] = useState([]);
@@ -128,7 +144,33 @@ export default function ExamPreviewPage() {
 
 
     const handleAnswerSelect = (questionId, option) => {
-        setAnswers((prev) => ({ ...prev, [questionId]: option }));
+        const qIndex = questions.findIndex(q => q.id === questionId);
+        const qType = questions[qIndex].question_type || 'multiple_choice';
+
+        let newAnswer;
+        if (qType === 'multiple_choice_complex') {
+            const currentAnswers = answers[questionId] ? String(answers[questionId]).split(',') : [];
+            if (currentAnswers.includes(option)) {
+                newAnswer = currentAnswers.filter(a => a !== option).sort().join(',');
+            } else {
+                newAnswer = [...currentAnswers, option].sort().join(',');
+            }
+        } else {
+            newAnswer = option;
+        }
+
+        setAnswers((prev) => {
+            if (!newAnswer) {
+                const next = { ...prev };
+                delete next[questionId];
+                return next;
+            }
+            return { ...prev, [questionId]: newAnswer };
+        });
+    };
+
+    const handleEssayChange = (questionId, text) => {
+        setAnswers((prev) => ({ ...prev, [questionId]: text }));
     };
 
     const handleClearAnswer = (questionId) => {
@@ -269,17 +311,46 @@ export default function ExamPreviewPage() {
                                             <p className="text-lg md:text-xl font-medium text-slate-800 leading-relaxed" dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }} />
                                         </div>
                                         <div className="space-y-3">
-                                            {currentQuestion.options && currentQuestion.options.map((option, idx) => {
-                                                const optionLabel = String.fromCharCode(65 + idx);
-                                                const isSelected = answers[currentQuestion.id] === option.originalKey;
-                                                return (
-                                                    <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}>
-                                                        <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'}`}>{optionLabel}</div>
-                                                        <span className={`text-base font-medium ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
-                                                        {isSelected && (<div className="absolute right-4 text-indigo-600"><Icons.CheckCircle /></div>)}
+                                            {currentQuestion.question_type === 'essay' ? (
+                                                <div className="mt-4">
+                                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Jawaban Esai Anda:</label>
+                                                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                                                        <JoditEditor
+                                                            value={answers[currentQuestion.id] || ''}
+                                                            config={editorConfig}
+                                                            onBlur={(newContent) => handleEssayChange(currentQuestion.id, newContent)}
+                                                        />
                                                     </div>
-                                                );
-                                            })}
+                                                    <p className="mt-2 text-xs text-slate-400 italic font-medium flex items-center gap-1.5">
+                                                        <Icons.CheckCircleSmall /> Preview Mode - Konten editor dapat diinteraksi
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                currentQuestion.options && currentQuestion.options.map((option, idx) => {
+                                                    const optionLabel = String.fromCharCode(65 + idx);
+                                                    const isSelected = currentQuestion.question_type === 'multiple_choice_complex'
+                                                        ? (answers[currentQuestion.id] ? String(answers[currentQuestion.id]).split(',').includes(option.originalKey) : false)
+                                                        : answers[currentQuestion.id] === option.originalKey;
+
+                                                    return (
+                                                        <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}>
+                                                            <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'}`}>{optionLabel}</div>
+                                                            <span className={`text-base font-medium ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
+                                                            {isSelected && (
+                                                                <div className="absolute right-4 text-indigo-600">
+                                                                    {currentQuestion.question_type === 'multiple_choice_complex' ? (
+                                                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                        </svg>
+                                                                    ) : (
+                                                                        <Icons.CheckCircle />
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
                                         </div>
                                     </div>
                                     <div className="bg-slate-50 p-4 md:p-6 border-t border-slate-200 flex flex-col-reverse md:flex-row justify-between items-center gap-4">

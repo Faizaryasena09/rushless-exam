@@ -5,6 +5,7 @@ import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { seededShuffle } from '@/app/lib/utils'; // <-- Import the shuffle utility
 import { validateUserSession } from '@/app/lib/auth';
+import { recalculateExamScores, distributeExamPoints } from '@/app/lib/exams';
 
 async function getSession(request) {
   const cookieStore = await cookies();
@@ -41,7 +42,7 @@ export async function GET(request) {
     // 2. Fetch all questions for the exam
     let questions = await query({
       query: `
-        SELECT id, exam_id, question_text, options, correct_option 
+        SELECT id, exam_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata
         FROM rhs_exam_questions 
         WHERE exam_id = ?
         ORDER BY sort_order ASC, id ASC
@@ -88,13 +89,17 @@ export async function GET(request) {
       }
 
       // Return the new, robust question structure
-      return {
-        id: question.id,
-        exam_id: question.exam_id,
-        question_text: question.question_text,
-        correct_option: question.correct_option, // This still refers to the originalKey
-        options: optionsArray, // The frontend will now receive this array and must adapt
-      };
+        return {
+          id: question.id,
+          exam_id: question.exam_id,
+          question_text: question.question_text,
+          correct_option: question.correct_option, // This still refers to the originalKey
+          options: optionsArray, // The frontend will now receive this array and must adapt
+          question_type: question.question_type,
+          points: question.points,
+          scoring_strategy: question.scoring_strategy,
+          scoring_metadata: question.scoring_metadata,
+        };
     });
 
     return NextResponse.json(processedQuestions);
@@ -112,15 +117,35 @@ export async function POST(request) {
   }
 
   try {
-    const { examId, questionText, options, correctOption } = await request.json();
-    if (!examId || !questionText || !options || !correctOption) {
+    const { examId, questionText, options, correctOption, questionType, points, scoringStrategy, scoringMetadata } = await request.json();
+    if (!examId || !questionText || (!options && questionType !== 'essay') || (!correctOption && questionType !== 'essay')) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
     const result = await query({
-      query: 'INSERT INTO rhs_exam_questions (exam_id, question_text, options, correct_option) VALUES (?, ?, ?, ?)',
-      values: [examId, questionText, JSON.stringify(options), correctOption],
+      query: 'INSERT INTO rhs_exam_questions (exam_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      values: [
+          examId, 
+          questionText, 
+          JSON.stringify(options || {}), 
+          correctOption || '', 
+          questionType || 'multiple_choice',
+          points || 1.0,
+          scoringStrategy || 'standard',
+          scoringMetadata ? JSON.stringify(scoringMetadata) : null
+      ],
     });
+
+    const examSettings = await query({
+      query: 'SELECT auto_distribute FROM rhs_exams WHERE id = ?',
+      values: [examId],
+    });
+
+    if (examSettings.length > 0 && examSettings[0].auto_distribute) {
+      await distributeExamPoints(examId);
+    }
+
+    await recalculateExamScores(examId);
 
     return NextResponse.json({ message: 'Question added successfully', id: result.insertId }, { status: 201 });
   } catch (error) {
@@ -141,6 +166,12 @@ export async function DELETE(request) {
       return NextResponse.json({ message: 'Question ID is required' }, { status: 400 });
     }
 
+    // Get examId before deleting
+    const qData = await query({
+      query: 'SELECT exam_id FROM rhs_exam_questions WHERE id = ?',
+      values: [id],
+    });
+
     const result = await query({
       query: 'DELETE FROM rhs_exam_questions WHERE id = ?',
       values: [id],
@@ -148,6 +179,19 @@ export async function DELETE(request) {
 
     if (result.affectedRows === 0) {
       return NextResponse.json({ message: 'Question not found' }, { status: 404 });
+    }
+
+    if (qData.length > 0) {
+      const examId = qData[0].exam_id;
+      const examSettings = await query({
+        query: 'SELECT auto_distribute FROM rhs_exams WHERE id = ?',
+        values: [examId],
+      });
+
+      if (examSettings.length > 0 && examSettings[0].auto_distribute) {
+        await distributeExamPoints(examId);
+      }
+      await recalculateExamScores(examId);
     }
 
     return NextResponse.json({ message: 'Question deleted successfully' });
@@ -164,18 +208,46 @@ export async function PUT(request) {
   }
 
   try {
-    const { id, questionText, options, correctOption } = await request.json();
-    if (!id || !questionText || !options || !correctOption) {
+    const { id, questionText, options, correctOption, questionType, points, scoringStrategy, scoringMetadata } = await request.json();
+    if (!id || !questionText || (!options && questionType !== 'essay') || (!correctOption && questionType !== 'essay')) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
+    // Get examId to recalculate scores
+    const qData = await query({
+      query: 'SELECT exam_id FROM rhs_exam_questions WHERE id = ?',
+      values: [id],
+    });
+
     const result = await query({
-      query: 'UPDATE rhs_exam_questions SET question_text = ?, options = ?, correct_option = ? WHERE id = ?',
-      values: [questionText, JSON.stringify(options), correctOption, id],
+      query: 'UPDATE rhs_exam_questions SET question_text = ?, options = ?, correct_option = ?, question_type = ?, points = ?, scoring_strategy = ?, scoring_metadata = ? WHERE id = ?',
+      values: [
+          questionText, 
+          JSON.stringify(options || {}), 
+          correctOption || '', 
+          questionType || 'multiple_choice', 
+          points || 1.0,
+          scoringStrategy || 'standard',
+          scoringMetadata ? JSON.stringify(scoringMetadata) : null,
+          id
+      ],
     });
 
     if (result.affectedRows === 0) {
       return NextResponse.json({ message: 'Question not found' }, { status: 404 });
+    }
+
+    if (qData.length > 0) {
+      const examId = qData[0].exam_id;
+      const examSettings = await query({
+        query: 'SELECT auto_distribute FROM rhs_exams WHERE id = ?',
+        values: [examId],
+      });
+
+      if (examSettings.length > 0 && examSettings[0].auto_distribute) {
+        await distributeExamPoints(examId);
+      }
+      await recalculateExamScores(examId);
     }
 
     return NextResponse.json({ message: 'Question updated successfully' });

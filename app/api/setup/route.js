@@ -334,6 +334,42 @@ export async function GET(request) {
     } else {
       messages.push(`Column 'is_hidden' already exists in '${tableName}'.`);
     }
+    
+    // --- Check and add 'scoring_mode' column to exams table ---
+    const hasScoringMode = await columnExists(tableName, 'scoring_mode');
+    if (!hasScoringMode) {
+      await query({
+        query: `ALTER TABLE ${tableName} ADD COLUMN scoring_mode ENUM('percentage', 'raw') NOT NULL DEFAULT 'raw';`,
+        values: [],
+      });
+      messages.push(`Column 'scoring_mode' created successfully in '${tableName}'.`);
+    } else {
+      messages.push(`Column 'scoring_mode' already exists in '${tableName}'.`);
+    }
+
+    // --- Check and add 'total_target_score' column to exams table ---
+    const hasTotalTargetScore = await columnExists(tableName, 'total_target_score');
+    if (!hasTotalTargetScore) {
+      await query({
+        query: `ALTER TABLE ${tableName} ADD COLUMN total_target_score FLOAT DEFAULT 100;`,
+        values: [],
+      });
+      messages.push(`Column 'total_target_score' created successfully in '${tableName}'.`);
+    } else {
+      messages.push(`Column 'total_target_score' already exists in '${tableName}'.`);
+    }
+
+    // --- Check and add 'auto_distribute' column to exams table ---
+    const hasAutoDistribute = await columnExists(tableName, 'auto_distribute');
+    if (!hasAutoDistribute) {
+      await query({
+        query: `ALTER TABLE ${tableName} ADD COLUMN auto_distribute TINYINT(1) DEFAULT 1;`,
+        values: [],
+      });
+      messages.push(`Column 'auto_distribute' created successfully in '${tableName}'.`);
+    } else {
+      messages.push(`Column 'auto_distribute' already exists in '${tableName}'.`);
+    }
 
     // --- Check and add 'is_hidden' column to exam_categories table ---
     const categoriesTableName = 'rhs_exam_categories';
@@ -500,6 +536,62 @@ export async function GET(request) {
       messages.push(`Column 'sort_order' already exists in '${questionsTableName}'.`);
     }
 
+    // --- Check and add 'question_type' column to exam_questions table ---
+    const hasQuestionType = await columnExists(questionsTableName, 'question_type');
+    if (!hasQuestionType) {
+      await query({
+        query: `ALTER TABLE ${questionsTableName} ADD COLUMN question_type ENUM('multiple_choice', 'multiple_choice_complex', 'true_false', 'essay', 'matching') NOT NULL DEFAULT 'multiple_choice';`,
+        values: [],
+      });
+      messages.push(`Column 'question_type' created successfully in '${questionsTableName}'.`);
+    } else {
+      messages.push(`Column 'question_type' already exists in '${questionsTableName}'.`);
+    }
+    
+    // --- Check and add 'points' column to exam_questions table ---
+    const hasPointsValue = await columnExists(questionsTableName, 'points');
+    if (!hasPointsValue) {
+      await query({
+        query: `ALTER TABLE ${questionsTableName} ADD COLUMN points FLOAT NOT NULL DEFAULT 1.0;`,
+        values: [],
+      });
+      messages.push(`Column 'points' created successfully in '${questionsTableName}'.`);
+    } else {
+      messages.push(`Column 'points' already exists in '${questionsTableName}'.`);
+    }
+
+    // --- Check and add 'scoring_strategy' column to exam_questions table ---
+    const hasScoringStrategy = await columnExists(questionsTableName, 'scoring_strategy');
+    if (!hasScoringStrategy) {
+      await query({
+        query: `ALTER TABLE ${questionsTableName} ADD COLUMN scoring_strategy VARCHAR(50) NOT NULL DEFAULT 'standard';`,
+        values: [],
+      });
+      messages.push(`Column 'scoring_strategy' created successfully in '${questionsTableName}'.`);
+    } else {
+      messages.push(`Column 'scoring_strategy' already exists in '${questionsTableName}'.`);
+    }
+
+    // --- Check and add 'scoring_metadata' column to exam_questions table ---
+    const hasScoringMetadata = await columnExists(questionsTableName, 'scoring_metadata');
+    if (!hasScoringMetadata) {
+      await query({
+        query: `ALTER TABLE ${questionsTableName} ADD COLUMN scoring_metadata JSON;`,
+        values: [],
+      });
+      messages.push(`Column 'scoring_metadata' created successfully in '${questionsTableName}'.`);
+    } else {
+      messages.push(`Column 'scoring_metadata' already exists in '${questionsTableName}'.`);
+    }
+
+    // --- Increase 'correct_option' column length in exam_questions table ---
+    // Check current type/length - for simplicity, we'll just run ALTER, it's safe if it's already VARCHAR(255)
+    await query({
+      query: `ALTER TABLE ${questionsTableName} MODIFY COLUMN correct_option VARCHAR(255) NOT NULL;`,
+      values: [],
+    });
+    messages.push(`Column 'correct_option' in '${questionsTableName}' updated to VARCHAR(255).`);
+
     // --- Check and add 'score' column to attempts table ---
     const hasScore = await columnExists(attemptsTableName, 'score');
     if (!hasScore) {
@@ -523,6 +615,18 @@ export async function GET(request) {
       messages.push(`Column 'attempt_id' created successfully in '${studentAnswerTableName}'.`);
     } else {
       messages.push(`Column 'attempt_id' already exists in '${studentAnswerTableName}'.`);
+    }
+
+    // --- Check and add 'score_earned' column to student_answer table ---
+    const hasScoreEarned = await columnExists(studentAnswerTableName, 'score_earned');
+    if (!hasScoreEarned) {
+      await query({
+        query: `ALTER TABLE ${studentAnswerTableName} ADD COLUMN score_earned FLOAT NOT NULL DEFAULT 0.0;`,
+        values: [],
+      });
+      messages.push(`Column 'score_earned' created successfully in '${studentAnswerTableName}'.`);
+    } else {
+      messages.push(`Column 'score_earned' already exists in '${studentAnswerTableName}'.`);
     }
 
     // --- Check and add 'session_id' column to users table ---
