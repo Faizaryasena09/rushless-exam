@@ -395,3 +395,40 @@ export async function setupDatabase() {
     throw new Error(`Database setup failed: ${error.message}`);
   }
 }
+
+// Function to reset the entire database
+export async function resetDatabase() {
+  let serverConnection;
+  try {
+    // 1. Connect to the server
+    serverConnection = await mysql.createConnection({
+      host: dbConfig.host,
+      user: dbConfig.user,
+      password: dbConfig.password,
+    });
+
+    // 2. Drop the database if it exists
+    await serverConnection.query(
+      `DROP DATABASE IF EXISTS \`${dbConfig.database}\``,
+    );
+    console.log(`Database ${dbConfig.database} dropped.`);
+
+    // 3. Recreate the database
+    await serverConnection.query(
+      `CREATE DATABASE \`${dbConfig.database}\``,
+    );
+    console.log(`Database ${dbConfig.database} recreated.`);
+
+    // Close server connection
+    await serverConnection.end();
+
+    // 4. Run the setup to create tables and default admin
+    await setupDatabase();
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Database reset failed:", error.message);
+    if (serverConnection) await serverConnection.end();
+    throw new Error(`Database reset failed: ${error.message}`);
+  }
+}
