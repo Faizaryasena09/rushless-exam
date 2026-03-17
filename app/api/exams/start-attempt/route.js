@@ -43,8 +43,7 @@ export async function POST(request) {
         const cacheKey = `exam:settings-full:${examId}`;
 
         // ─── PHASE 1: All read-only validation (from Cache or DB) ───
-        const now_ts_result = await query({ query: `SELECT UNIX_TIMESTAMP(NOW()) as server_now_ts` });
-        const now_ts = now_ts_result[0].server_now_ts;
+        const now_ts = Math.floor(Date.now() / 1000);
 
         let settings;
         if (isRedisReady()) {

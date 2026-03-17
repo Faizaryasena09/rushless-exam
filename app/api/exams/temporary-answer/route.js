@@ -61,14 +61,15 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
-    await query({
+    // FIRE-AND-FORGET: Save to DB without awaiting to keep UI snappy
+    query({
       query: `
         INSERT INTO rhs_temporary_answer (user_id, exam_id, question_id, selected_option)
         VALUES (?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE selected_option = VALUES(selected_option)
       `,
       values: [session.user.id, examId, questionId, selectedOption],
-    });
+    }).catch(e => console.error("[TempSave Error]", e.message));
 
     return NextResponse.json({ message: 'Answer saved temporarily' }, { status: 200 });
   } catch (error) {
