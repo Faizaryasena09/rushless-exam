@@ -8,29 +8,29 @@ import crypto from 'crypto';
 import redis, { isRedisReady } from '@/app/lib/redis';
 import { logActivity, getClientIP } from '@/app/lib/logger';
 
-// Ensure brute force columns exist (runs once per cold start)
-let columnsChecked = false;
-async function ensureBruteforceColumns() {
-  if (columnsChecked) return;
-  try {
-    await query({ query: `ALTER TABLE rhs_users ADD COLUMN failed_login_attempts INT DEFAULT 0` }).catch(() => { });
-    await query({ query: `ALTER TABLE rhs_users ADD COLUMN locked_until TIMESTAMP NULL DEFAULT NULL` }).catch(() => { });
-    columnsChecked = true;
-  } catch { }
-}
+// Cache brute force settings for 1 minute
+let cachedSettings = null;
+let lastSettingsFetch = 0;
 
-// Get brute force settings from DB
 async function getBruteforceSettings() {
+  const now = Date.now();
+  if (cachedSettings && (now - lastSettingsFetch < 60000)) {
+    return cachedSettings;
+  }
+
   try {
     const rows = await query({
       query: `SELECT setting_key, setting_value FROM rhs_settings WHERE setting_key IN ('bruteforce_max_attempts', 'bruteforce_lockout_minutes')`,
     });
     const s = {};
     rows.forEach(r => { s[r.setting_key] = parseInt(r.setting_value) || 0; });
-    return {
+    
+    cachedSettings = {
       maxAttempts: s.bruteforce_max_attempts || 5,
       lockoutMinutes: s.bruteforce_lockout_minutes || 15,
     };
+    lastSettingsFetch = now;
+    return cachedSettings;
   } catch {
     return { maxAttempts: 5, lockoutMinutes: 15 };
   }
@@ -40,13 +40,27 @@ export async function POST(request) {
   const ip = getClientIP(request);
 
   try {
-    await ensureBruteforceColumns();
     const cookieStore = await cookies();
     const session = await getIronSession(cookieStore, sessionOptions);
 
     const { username, password } = await request.json();
 
-    // Find the user in the database
+    // 1. Check Redis for Brute Force Lockout (Fast path)
+    const redisReady = isRedisReady();
+    const bfSettings = await getBruteforceSettings();
+    const redisBfKey = `bf:lock:${username}`;
+    
+    if (redisReady) {
+      const isLocked = await redis.get(redisBfKey);
+      if (isLocked) {
+        logActivity({ username, ip, action: 'LOGIN_BRUTEFORCE_LOCKED', level: 'warn', details: 'Account locked (Redis)' });
+        return NextResponse.json({
+          message: `Akun terkunci karena terlalu banyak percobaan login gagal. Mohon tunggu beberapa saat.`
+        }, { status: 429 });
+      }
+    }
+
+    // 2. Find user
     const users = await query({
       query: 'SELECT id, username, name, password, role, class_id, session_id, is_locked, failed_login_attempts, UNIX_TIMESTAMP(locked_until) as locked_until_ts, UNIX_TIMESTAMP(last_activity) as last_activity_ts FROM rhs_users WHERE username = ?',
       values: [username],
@@ -59,103 +73,90 @@ export async function POST(request) {
 
     const user = users[0];
 
-    // Check admin lock
+    // 3. Admin lock check
     if (user.is_locked) {
       logActivity({ userId: user.id, username, ip, action: 'LOGIN_LOCKED', level: 'warn', details: 'Account is locked by admin' });
       return NextResponse.json({ message: 'Username Anda dikunci oleh admin. Mohon hubungi pengawas.' }, { status: 403 });
     }
 
-    // Check brute force lockout
-    const bfSettings = await getBruteforceSettings();
+    // 4. MySQL Brute Force Lockout check (Fallback/Persistence)
     const now = Math.floor(Date.now() / 1000);
-
     if (user.role !== 'admin' && user.locked_until_ts && user.locked_until_ts > now) {
       const remainingMinutes = Math.ceil((user.locked_until_ts - now) / 60);
-      logActivity({ userId: user.id, username, ip, action: 'LOGIN_BRUTEFORCE_LOCKED', level: 'warn', details: `Locked for ${remainingMinutes} more minutes` });
       return NextResponse.json({
-        message: `Akun terkunci karena terlalu banyak percobaan login gagal. Coba lagi dalam ${remainingMinutes} menit.`,
+        message: `Akun terkunci. Coba lagi dalam ${remainingMinutes} menit.`,
         locked_until_ts: user.locked_until_ts
       }, { status: 429 });
     }
 
-    // If lockout has expired, reset the counter
-    if (user.locked_until_ts && user.locked_until_ts <= now && user.failed_login_attempts > 0) {
-      await query({
-        query: 'UPDATE rhs_users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?',
-        values: [user.id]
-      });
-      user.failed_login_attempts = 0;
-    }
-
-    // Compare the provided password with the stored hash
+    // 5. Password verify
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      if (user.role === 'admin') {
-        logActivity({ userId: user.id, username, ip, action: 'LOGIN_FAILED', level: 'warn', details: 'Wrong password (Admin login failed)' });
-        return NextResponse.json({
-          message: 'Username atau password salah.'
-        }, { status: 401 });
+      const redisAttemptKey = `bf:att:${username}`;
+      let attempts = 0;
+
+      if (redisReady) {
+        attempts = await redis.incr(redisAttemptKey);
+        await redis.expire(redisAttemptKey, 600); // 10 min window
+      } else {
+        attempts = (user.failed_login_attempts || 0) + 1;
       }
 
-      const newAttempts = (user.failed_login_attempts || 0) + 1;
-
-      if (newAttempts >= bfSettings.maxAttempts) {
-        // Lock the account
-        await query({
+      if (attempts >= bfSettings.maxAttempts) {
+        // Lock in Redis
+        if (redisReady) {
+          await redis.set(redisBfKey, '1', 'EX', bfSettings.lockoutMinutes * 60);
+        }
+        
+        // Lock in MySQL (Async, don't block response)
+        query({
           query: 'UPDATE rhs_users SET failed_login_attempts = ?, locked_until = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?',
-          values: [newAttempts, bfSettings.lockoutMinutes, user.id]
-        });
-        const lockedUntilTs = now + (bfSettings.lockoutMinutes * 60);
-        logActivity({ userId: user.id, username, ip, action: 'LOGIN_BRUTEFORCE_TRIGGERED', level: 'error', details: `Locked for ${bfSettings.lockoutMinutes} min after ${newAttempts} failed attempts` });
+          values: [attempts, bfSettings.lockoutMinutes, user.id]
+        }).catch(() => {});
+
+        logActivity({ userId: user.id, username, ip, action: 'LOGIN_BRUTEFORCE_TRIGGERED', level: 'error', details: `Locked for ${bfSettings.lockoutMinutes}m` });
         return NextResponse.json({
-          message: `Akun terkunci selama ${bfSettings.lockoutMinutes} menit karena ${newAttempts} percobaan login gagal.`,
-          locked_until_ts: lockedUntilTs
+          message: `Akun terkunci selama ${bfSettings.lockoutMinutes} menit karena terlalu banyak percobaan gagal.`
         }, { status: 429 });
       } else {
-        await query({
-          query: 'UPDATE rhs_users SET failed_login_attempts = ? WHERE id = ?',
-          values: [newAttempts, user.id]
-        });
-        logActivity({ userId: user.id, username, ip, action: 'LOGIN_FAILED', level: 'warn', details: `Wrong password (attempt ${newAttempts}/${bfSettings.maxAttempts})` });
-        const remaining = bfSettings.maxAttempts - newAttempts;
+        // Update MySQL failure counter (Async)
+        if (!redisReady) {
+          query({
+            query: 'UPDATE rhs_users SET failed_login_attempts = ? WHERE id = ?',
+            values: [attempts, user.id]
+          }).catch(() => {});
+        }
+        
+        logActivity({ userId: user.id, username, ip, action: 'LOGIN_FAILED', level: 'warn', details: `Wrong password (${attempts}/${bfSettings.maxAttempts})` });
         return NextResponse.json({
-          message: `Username atau password salah. ${remaining} percobaan tersisa sebelum akun terkunci.`
+          message: `Username atau password salah. ${bfSettings.maxAttempts - attempts} percobaan tersisa.`
         }, { status: 401 });
       }
     }
 
-    // --- CHECK FOR EXISTING ACTIVE SESSION ---
+    // 6. Active Session Check
     if (user.session_id) {
-      const lastActivity = user.last_activity_ts || 0;
-      const elapsed = now - lastActivity;
+      const elapsed = now - (user.last_activity_ts || 0);
+      let isSessionActive = elapsed < 3600;
 
-      let isSessionActive = false;
-
-      if (elapsed < 3600) {
-        isSessionActive = true;
-      } else {
+      if (!isSessionActive) {
         const activeAttempts = await query({
-          query: `SELECT id FROM rhs_exam_attempts WHERE user_id = ? AND status = 'in_progress'`,
+          query: "SELECT id FROM rhs_exam_attempts WHERE user_id = ? AND status = 'in_progress' LIMIT 1",
           values: [user.id]
         });
-        if (activeAttempts.length > 0) {
-          isSessionActive = true;
-        }
+        if (activeAttempts.length > 0) isSessionActive = true;
       }
 
       if (isSessionActive) {
-        logActivity({ userId: user.id, username, ip, action: 'LOGIN_DENIED', level: 'warn', details: 'Active session on another device' });
-        return NextResponse.json({
-          message: 'Account is currently active on another device. Login denied.'
-        }, { status: 409 });
+        logActivity({ userId: user.id, username, ip, action: 'LOGIN_DENIED', level: 'warn', details: 'Dual login attempt' });
+        return NextResponse.json({ message: 'Akun ini sedang aktif di perangkat lain.' }, { status: 409 });
       }
     }
-    // -----------------------------------------
 
-    // Login successful — reset failed attempts
+    // 7. Success
     const sessionId = crypto.randomUUID();
-    const redisKey = `session:${user.id}`;
+    const redisSessionKey = `session:${user.id}`;
 
     // Update MySQL
     await query({
@@ -163,9 +164,11 @@ export async function POST(request) {
       values: [sessionId, user.id]
     });
 
-    // Update Redis (1 hour expiry) - ONLY if ready
-    if (isRedisReady()) {
-      await redis.set(redisKey, sessionId, 'EX', 3600).catch(() => {});
+    // Update Redis
+    if (redisReady) {
+      await redis.set(redisSessionKey, sessionId, 'EX', 3600).catch(() => {});
+      await redis.del(`bf:att:${username}`).catch(() => {});
+      await redis.del(redisBfKey).catch(() => {});
     }
 
     session.user = {
@@ -178,11 +181,12 @@ export async function POST(request) {
     };
     await session.save();
 
-    logActivity({ userId: user.id, username, ip, action: 'LOGIN_SUCCESS', level: 'info', details: `Role: ${user.role}` });
-
+    logActivity({ userId: user.id, username, ip, action: 'LOGIN_SUCCESS', level: 'info' });
     return NextResponse.json({ message: 'Login successful' }, { status: 200 });
+
   } catch (error) {
     logActivity({ ip, action: 'LOGIN_ERROR', level: 'error', details: error.message });
-    return NextResponse.json({ message: 'An error occurred during login.', error: error.message }, { status: 500 });
+    return NextResponse.json({ message: 'Terjadi kesalahan sistem.', error: error.message }, { status: 500 });
   }
 }
+

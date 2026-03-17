@@ -75,13 +75,11 @@ export function logActivity({ userId = null, username = null, ip = null, action,
     const detailsStr = details && typeof details === 'object' ? JSON.stringify(details) : details;
 
     // Fire-and-forget — don't await, don't block the response
-    ensureTable().then(() => {
-        query({
-            query: 'INSERT INTO rhs_activity_logs (user_id, username, ip_address, action, level, details) VALUES (?, ?, ?, ?, ?, ?)',
-            values: [userId, username, ip, action, level, detailsStr]
-        }).catch(err => {
-            console.error('[Logger] Failed to write activity log:', err.message);
-        });
+    query({
+        query: 'INSERT INTO rhs_activity_logs (user_id, username, ip_address, action, level, details) VALUES (?, ?, ?, ?, ?, ?)',
+        values: [userId, username, ip, action, level, detailsStr]
+    }).catch(err => {
+        console.error('[Logger] Failed to write activity log:', err.message);
     });
 }
 
