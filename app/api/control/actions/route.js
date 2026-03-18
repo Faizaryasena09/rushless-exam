@@ -4,6 +4,8 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query, transaction } from '@/app/lib/db';
 import { eventBus } from '@/app/lib/event-bus';
+import { logActivity } from '@/app/lib/logger';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 async function getSession(request) {
     const cookieStore = await cookies();
@@ -35,10 +37,25 @@ export async function POST(request) {
                 return NextResponse.json({ message: 'User logged out.' });
 
             case 'lock_login':
-                await query({
+                const lockResult = await query({
                     query: 'UPDATE rhs_users SET is_locked = NOT is_locked WHERE id = ?',
                     values: [userId]
                 });
+                
+                // Fetch the new state to sync with Redis
+                const userState = await query({
+                    query: 'SELECT is_locked FROM rhs_users WHERE id = ?',
+                    values: [userId]
+                });
+
+                if (userState.length > 0 && isRedisReady()) {
+                    const lockedKey = `user:locked:${userId}`;
+                    if (userState[0].is_locked) {
+                        await redis.set(lockedKey, '1', 'EX', 3600);
+                    } else {
+                        await redis.del(lockedKey);
+                    }
+                }
                 return NextResponse.json({ message: 'Login lock toggled.' });
 
             case 'reset_exam':
@@ -75,6 +92,17 @@ export async function POST(request) {
                         query: "UPDATE rhs_users SET session_id = NULL, last_activity = '1970-01-01 00:00:00' WHERE id = ?",
                         values: [userId]
                     });
+
+                    // Step 5: Invalidate Redis Caches (Attempt & Temp Answers)
+                    if (isRedisReady()) {
+                        const { user_id, exam_id } = attemptInfo[0];
+                        await Promise.all([
+                            redis.del(`exam:active-attempt:${user_id}:${exam_id}`),
+                            redis.del(`exam:attempt-meta:${user_id}:${exam_id}`),
+                            redis.del(`temp:ans:${user_id}:${exam_id}`),
+                            redis.srem(`user:active_exams:${user_id}`, exam_id)
+                        ]).catch(() => {});
+                    }
                 });
                 return NextResponse.json({ message: 'Exam reset and user logged out.' });
 
@@ -85,8 +113,16 @@ export async function POST(request) {
                     query: 'UPDATE rhs_exam_attempts SET time_extension = COALESCE(time_extension, 0) + ? WHERE id = ? AND status = "in_progress"',
                     values: [minutes, attemptId]
                 });
-                if (updateResult.affectedRows === 0) {
-                    return NextResponse.json({ message: 'Cannot add time. Exam may have already been submitted or ended.' }, { status: 400 });
+                if (updateResult.affectedRows > 0 && isRedisReady()) {
+                    // Fetch user/exam ID to clear cache
+                    const attemptData = await query({
+                        query: 'SELECT user_id, exam_id FROM rhs_exam_attempts WHERE id = ?',
+                        values: [attemptId]
+                    });
+                    if (attemptData.length > 0) {
+                        const { user_id, exam_id } = attemptData[0];
+                        await redis.del(`exam:attempt-meta:${user_id}:${exam_id}`).catch(() => {});
+                    }
                 }
                 return NextResponse.json({ message: `Added ${minutes} minutes.` });
 
@@ -107,8 +143,15 @@ export async function POST(request) {
                     values: updateValues
                 });
 
-                if (batchUpdateResult.affectedRows === 0) {
-                     return NextResponse.json({ message: 'Cannot add time to the selected students. Exams may have already been submitted or ended.' }, { status: 400 });
+                if (batchUpdateResult.affectedRows > 0 && isRedisReady()) {
+                    // Fetch all affected user/exam pairs to clear caches
+                    const affected = await query({
+                        query: `SELECT user_id, exam_id FROM rhs_exam_attempts WHERE id IN (${placeholders})`,
+                        values: attemptIds
+                    });
+                    await Promise.all(affected.map(row => 
+                        redis.del(`exam:attempt-meta:${row.user_id}:${row.exam_id}`)
+                    )).catch(() => {});
                 }
                 return NextResponse.json({ message: `Added ${batchMinutes} minutes to ${batchUpdateResult.affectedRows} students.` });
             
@@ -122,12 +165,12 @@ export async function POST(request) {
                 });
                 
                 // Diagnostic log
-                try {
-                    await query({
-                        query: 'INSERT INTO rhs_activity_logs (user_id, username, action, level, details) VALUES (?, ?, "REFRESH_ACTION", "info", ?)',
-                        values: [session.user.id, session.user.username, `Target Student ID: ${userId}`]
-                    });
-                } catch (e) { console.error(e); }
+                logActivity({
+                    userId: session.user.id,
+                    username: session.user.username,
+                    action: 'REFRESH_ACTION',
+                    details: `Target Student ID: ${userId}`
+                });
 
                 eventBus.emit('refresh', { userId });
                 return NextResponse.json({ message: 'Refresh signal sent to student.' });
@@ -138,12 +181,12 @@ export async function POST(request) {
                 });
 
                 // Diagnostic log
-                try {
-                    await query({
-                        query: 'INSERT INTO rhs_activity_logs (user_id, username, action, level, details) VALUES (?, ?, "REFRESH_ALL_ACTION", "info", "Target: All Students")',
-                        values: [session.user.id, session.user.username]
-                    });
-                } catch (e) { console.error(e); }
+                logActivity({
+                    userId: session.user.id,
+                    username: session.user.username,
+                    action: 'REFRESH_ALL_ACTION',
+                    details: 'Target: All Students'
+                });
 
                 eventBus.emit('refresh', { userId: 'all' });
                 return NextResponse.json({ message: 'Refresh signal sent to all active students.' });

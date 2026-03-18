@@ -3,6 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 // DELETE handler to remove ALL questions for an exam
 export async function DELETE(request) {
@@ -21,6 +22,11 @@ export async function DELETE(request) {
             query: 'DELETE FROM rhs_exam_questions WHERE exam_id = ?',
             values: [examId],
         });
+
+        // Invalidate Redis cache
+        if (isRedisReady()) {
+            await redis.del(`exam:data:${examId}`).catch(() => {});
+        }
 
         return NextResponse.json({ message: `Successfully deleted ${result.affectedRows} questions.` });
     } catch (error) {

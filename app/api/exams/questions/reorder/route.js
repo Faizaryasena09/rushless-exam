@@ -3,6 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 // PATCH handler to reorder questions
 export async function PATCH(request) {
@@ -26,6 +27,19 @@ export async function PATCH(request) {
         );
 
         await Promise.all(promises);
+
+        // Invalidate Redis cache
+        if (isRedisReady() && orderedIds.length > 0) {
+            // We need the examId. We can fetch it from one of the questions.
+            const qInfo = await query({
+                query: 'SELECT exam_id FROM rhs_exam_questions WHERE id = ?',
+                values: [orderedIds[0]],
+            });
+            if (qInfo.length > 0) {
+                const examId = qInfo[0].exam_id;
+                await redis.del(`exam:data:${examId}`).catch(() => {});
+            }
+        }
 
         return NextResponse.json({ message: 'Questions reordered successfully' });
     } catch (error) {

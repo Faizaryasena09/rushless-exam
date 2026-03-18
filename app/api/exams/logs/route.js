@@ -3,6 +3,8 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
+import { logExamActivity } from '@/app/lib/logger';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 async function getSession() {
   const cookieStore = await cookies();
@@ -23,10 +25,8 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
-    await query({
-      query: 'INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, ?, ?)',
-      values: [attemptId, actionType, description],
-    });
+    // Use Redis-buffered logging (Ultra Fast)
+    logExamActivity({ attemptId, actionType, description });
 
     // --- Violation Handling Logic ---
     if (actionType === 'SECURITY' && description.includes('left the exam page')) {
@@ -78,12 +78,49 @@ export async function GET(request) {
   }
 
   try {
-    const logs = await query({
+    // 1. Fetch persistent logs from MySQL
+    const dbLogs = await query({
       query: 'SELECT * FROM rhs_exam_logs WHERE attempt_id = ? ORDER BY created_at ASC',
       values: [attemptId],
     });
 
-    return NextResponse.json({ logs });
+    // 2. Fetch "flying" logs from Redis (not yet flushed to DB)
+    let recentLogs = [];
+    if (isRedisReady()) {
+      const redisLogsRaw = await redis.lrange(`exam:logs:recent:${attemptId}`, 0, -1).catch(() => []);
+      recentLogs = redisLogsRaw.map(raw => {
+        const parsed = JSON.parse(raw);
+        return {
+          id: `temp-${Date.now()}-${Math.random()}`,
+          attempt_id: attemptId,
+          action_type: parsed.actionType,
+          description: parsed.description,
+          created_at: parsed.timestamp
+        };
+      }).reverse(); // L-pushed logs are newest first, so reverse to match ASC order
+    }
+
+    // 3. Merge and Deduplicate (simple sort by timestamp)
+    // We use a Map to avoid duplicates if flushing happened during our GET
+    const allLogsMap = new Map();
+    dbLogs.forEach(log => {
+        // Unique key: timestamp + type + description
+        const key = `${new Date(log.created_at).getTime()}-${log.action_type}-${log.description}`;
+        allLogsMap.set(key, log);
+    });
+    
+    recentLogs.forEach(log => {
+        const key = `${new Date(log.created_at).getTime()}-${log.action_type}-${log.description}`;
+        if (!allLogsMap.has(key)) {
+            allLogsMap.set(key, log);
+        }
+    });
+
+    const mergedLogs = Array.from(allLogsMap.values()).sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    return NextResponse.json({ logs: mergedLogs });
   } catch (error) {
     return NextResponse.json({ message: 'Failed to fetch logs', error: error.message }, { status: 500 });
   }

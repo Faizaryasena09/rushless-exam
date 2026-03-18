@@ -64,11 +64,27 @@ function StudentTimer({ secondsLeft }) {
 }
 
 // --- Realtime Log Panel ---
-function LogPanel({ student, onClose }) {
+function LogPanel({ student, onClose, sseLog }) {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const bottomRef = useRef(null);
     const knownIdsRef = useRef(new Set());
+
+    // Effect for the new SSE-pushed log
+    useEffect(() => {
+        if (sseLog && sseLog.attemptId == student.attempt_id) {
+            if (!knownIdsRef.current.has(sseLog.id)) {
+                knownIdsRef.current.add(sseLog.id);
+                setLogs(prev => [...prev, {
+                    id: sseLog.id,
+                    attempt_id: sseLog.attemptId,
+                    action_type: sseLog.actionType,
+                    description: sseLog.description,
+                    created_at: sseLog.timestamp
+                }]);
+            }
+        }
+    }, [sseLog, student.attempt_id]);
 
     const fetchLogs = useCallback(async () => {
         if (!student?.attempt_id) return;
@@ -90,8 +106,7 @@ function LogPanel({ student, onClose }) {
 
     useEffect(() => {
         fetchLogs();
-        const interval = setInterval(fetchLogs, 3000);
-        return () => clearInterval(interval);
+        // Polling removed — updates now come via SSE stream
     }, [fetchLogs]);
 
     useEffect(() => {
@@ -133,7 +148,7 @@ function LogPanel({ student, onClose }) {
                     <div ref={bottomRef} />
                 </div>
                 <div className="p-3 border-t border-slate-200 bg-slate-50 flex-shrink-0">
-                    <p className="text-xs text-slate-400 text-center">{logs.length} entri log • Auto-refresh setiap 3 detik</p>
+                    <p className="text-xs text-slate-400 text-center">{logs.length} entri log • Real-time (SSE)</p>
                 </div>
             </div>
         </div>
@@ -150,6 +165,7 @@ export default function ControlPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedClass, setSelectedClass] = useState('All');
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+    const [sseLog, setSseLog] = useState(null);
 
     useEffect(() => {
         let eventSource;
@@ -173,6 +189,9 @@ export default function ControlPage() {
                         setStudents(data.students);
                         setRedisActive(data.redisActive ?? true);
                         setLastUpdated(new Date());
+                    }
+                    if (data.log_update) {
+                        setSseLog(data.log_update);
                     }
                 } catch (err) {
                     console.error('Error parsing SSE data:', err);
@@ -306,7 +325,7 @@ export default function ControlPage() {
 
     return (
         <div className="space-y-6">
-            {logStudent && <LogPanel student={logStudent} onClose={() => setLogStudent(null)} />}
+            {logStudent && <LogPanel student={logStudent} sseLog={sseLog} onClose={() => setLogStudent(null)} />}
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden text-slate-800">
                 {/* Upper Header: Title & Main Search/Filter */}

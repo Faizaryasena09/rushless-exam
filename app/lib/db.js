@@ -6,10 +6,11 @@ const dbConfig = {
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   waitForConnections: true,
-  connectionLimit: 150, 
+  connectionLimit: 300, 
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
+  connectTimeout: 10000, // 10 seconds timeout for new connections
 };
 
 const pool = mysql.createPool(dbConfig);
@@ -32,10 +33,11 @@ export async function query({ query, values = [] }) {
 // Function to execute a transaction with automatic deadlock retry
 export async function transaction(callback, retries = 3) {
   for (let i = 0; i < retries; i++) {
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
-
+    let connection;
     try {
+      connection = await pool.getConnection();
+      await connection.beginTransaction();
+
       const transactionQuery = async ({ query, values = [] }) => {
         const [results] = await connection.execute(query, values);
         return results;
@@ -45,7 +47,7 @@ export async function transaction(callback, retries = 3) {
       await connection.commit();
       return result;
     } catch (error) {
-      await connection.rollback();
+      if (connection) await connection.rollback();
 
       // Check for Deadlock (ER_LOCK_DEADLOCK: 1213)
       const isDeadlock =
@@ -65,7 +67,7 @@ export async function transaction(callback, retries = 3) {
 
       throw new Error(error.message);
     } finally {
-      connection.release();
+      if (connection) connection.release();
     }
   }
 }
@@ -91,85 +93,87 @@ export async function setupDatabase() {
     await serverConnection.end();
 
     // 3. Use the pool for setting up tables
-    const connection = await pool.getConnection();
+    let connection;
+    try {
+      connection = await pool.getConnection();
 
-    await connection.query(`
-            CREATE TABLE IF NOT EXISTS rhs_classes (
-              id INT AUTO_INCREMENT PRIMARY KEY,
-              class_name VARCHAR(255) NOT NULL UNIQUE
-            )
-        `);
-    console.log('Table "rhs_classes" created or already exists.');
+      await connection.query(`
+              CREATE TABLE IF NOT EXISTS rhs_classes (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                class_name VARCHAR(255) NOT NULL UNIQUE
+              )
+          `);
+      console.log('Table "rhs_classes" created or already exists.');
 
-    await connection.query(`
-            CREATE TABLE IF NOT EXISTS rhs_users (
-              id INT AUTO_INCREMENT PRIMARY KEY,
-              username VARCHAR(255) NOT NULL UNIQUE,
-              password VARCHAR(255) NOT NULL,
-              role ENUM('admin', 'teacher', 'student') NOT NULL,
-              class_id INT,
-              session_id VARCHAR(255),
-              last_activity DATETIME,
-              is_locked BOOLEAN NOT NULL DEFAULT FALSE,
-              is_online_realtime BOOLEAN DEFAULT 0,
-              createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-              FOREIGN KEY (class_id) REFERENCES rhs_classes(id) ON DELETE SET NULL
-            )
-        `);
-    console.log('Table "rhs_users" created or already exists.');
+      await connection.query(`
+              CREATE TABLE IF NOT EXISTS rhs_users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(255) NOT NULL UNIQUE,
+                password VARCHAR(255) NOT NULL,
+                role ENUM('admin', 'teacher', 'student') NOT NULL,
+                class_id INT,
+                session_id VARCHAR(255),
+                last_activity DATETIME,
+                is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+                is_online_realtime BOOLEAN DEFAULT 0,
+                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (class_id) REFERENCES rhs_classes(id) ON DELETE SET NULL
+              )
+          `);
+      console.log('Table "rhs_users" created or already exists.');
 
-    // Check if any user exists, if not create default admin
-    const [users] = await connection.query(
-      "SELECT COUNT(*) as count FROM rhs_users",
-    );
-    if (users[0].count === 0) {
-      // Password is 'admin' hashed with bcrypt
-      const hashedPassword = "$2b$10$Bip8Jha67dJS2knb5Hd6T.DZI97ugPxUtGwC7qgMpbTFtd4OmHk0e";
-
-      await connection.query(
-        `
-          INSERT INTO rhs_users (username, password, role) 
-          VALUES ('admin', ?, 'admin')
-      `,
-        [hashedPassword],
+      // Check if any user exists, if not create default admin
+      const [users] = await connection.query(
+        "SELECT COUNT(*) as count FROM rhs_users",
       );
-      console.log("Default admin user created: admin / admin");
-    }
+      if (users[0].count === 0) {
+        // Password is 'admin' hashed with bcrypt
+        const hashedPassword = "$2b$10$Bip8Jha67dJS2knb5Hd6T.DZI97ugPxUtGwC7qgMpbTFtd4OmHk0e";
 
-    // Create the 'rhs_exams' table
-    await connection.query(`
-            CREATE TABLE IF NOT EXISTS rhs_exams (
-              id INT AUTO_INCREMENT PRIMARY KEY,
-              exam_name VARCHAR(255) NOT NULL,
-              description TEXT,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-    console.log('Table "rhs_exams" created or already exists.');
+        await connection.query(
+          `
+            INSERT INTO rhs_users (username, password, role) 
+            VALUES ('admin', ?, 'admin')
+        `,
+          [hashedPassword],
+        );
+        console.log("Default admin user created: admin / admin");
+      }
 
-    // Create the 'rhs_exam_settings' table
-    await connection.query(`
-            CREATE TABLE IF NOT EXISTS rhs_exam_settings (
-              id INT AUTO_INCREMENT PRIMARY KEY,
-              exam_id INT NOT NULL UNIQUE,
-              start_time DATETIME,
-              end_time DATETIME,
-              duration INT,
-              max_attempts INT DEFAULT 1,
-              require_safe_browser BOOLEAN DEFAULT FALSE,
-              require_seb BOOLEAN DEFAULT FALSE,
-              seb_config_key VARCHAR(255),
-              show_instructions BOOLEAN DEFAULT FALSE,
-              instruction_type ENUM('template', 'custom') DEFAULT 'template',
-              custom_instructions TEXT,
-              show_result BOOLEAN DEFAULT FALSE,
-              show_analysis BOOLEAN DEFAULT FALSE,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-              FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE
-            )
-        `);
-    console.log('Table "rhs_exam_settings" created or already exists.');
+      // Create the 'rhs_exams' table
+      await connection.query(`
+              CREATE TABLE IF NOT EXISTS rhs_exams (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                exam_name VARCHAR(255) NOT NULL,
+                description TEXT,
+                timer_mode ENUM('sync', 'async') NOT NULL DEFAULT 'sync',
+                duration_minutes INT DEFAULT 60,
+                max_attempts INT DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              )
+          `);
+      console.log('Table "rhs_exams" created or already exists.');
+
+      // Create the 'rhs_exam_settings' table
+      await connection.query(`
+              CREATE TABLE IF NOT EXISTS rhs_exam_settings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                exam_id INT NOT NULL UNIQUE,
+                start_time DATETIME,
+                end_time DATETIME,
+                require_seb BOOLEAN DEFAULT FALSE,
+                seb_config_key VARCHAR(255),
+                show_instructions BOOLEAN DEFAULT FALSE,
+                instruction_type ENUM('template', 'custom') DEFAULT 'template',
+                custom_instructions TEXT,
+                show_result BOOLEAN DEFAULT FALSE,
+                show_analysis BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE
+              )
+          `);
+      console.log('Table "rhs_exam_settings" created or already exists.');
 
     // Migration: Ensure 'require_safe_browser' exists (for existing tables)
     try {
@@ -399,12 +403,21 @@ export async function setupDatabase() {
       if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
     }
 
-    connection.release();
+    } finally {
+      if (connection) connection.release();
+    }
     return { success: true };
   } catch (error) {
     console.error("Database setup failed:", error.message);
-    if (serverConnection) await serverConnection.end();
     throw new Error(`Database setup failed: ${error.message}`);
+  } finally {
+    if (serverConnection) {
+      try {
+        await serverConnection.end();
+      } catch (e) {
+        console.error("Error closing server connection:", e.message);
+      }
+    }
   }
 }
 

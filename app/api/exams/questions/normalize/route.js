@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { distributeExamPoints, recalculateExamScores } from '@/app/lib/exams';
 import { validateUserSession } from '@/app/lib/auth';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 async function getSession() {
     const cookieStore = await cookies();
@@ -26,6 +27,15 @@ export async function POST(request) {
 
         await distributeExamPoints(examId);
         await recalculateExamScores(examId);
+
+        // Invalidate Redis cache for questions and list
+        if (isRedisReady()) {
+            await Promise.all([
+                redis.del(`exam:data:${examId}`),
+                redis.del(`exam:settings-full:${examId}`),
+                redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
+            ]).catch(() => {});
+        }
 
         return NextResponse.json({ message: 'Points distributed and scores recalculated successfully.' });
     } catch (error) {

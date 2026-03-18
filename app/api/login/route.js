@@ -8,16 +8,17 @@ import crypto from 'crypto';
 import redis, { isRedisReady } from '@/app/lib/redis';
 import { logActivity, getClientIP } from '@/app/lib/logger';
 
-// Cache brute force settings for 1 minute
-let cachedSettings = null;
-let lastSettingsFetch = 0;
-
 async function getBruteforceSettings() {
-  const now = Date.now();
-  if (cachedSettings && (now - lastSettingsFetch < 60000)) {
-    return cachedSettings;
+  const cacheKey = 'settings:bruteforce';
+  
+  if (isRedisReady()) {
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch {}
   }
 
+  // Fallback to DB
   try {
     const rows = await query({
       query: `SELECT setting_key, setting_value FROM rhs_settings WHERE setting_key IN ('bruteforce_max_attempts', 'bruteforce_lockout_minutes')`,
@@ -25,12 +26,15 @@ async function getBruteforceSettings() {
     const s = {};
     rows.forEach(r => { s[r.setting_key] = parseInt(r.setting_value) || 0; });
     
-    cachedSettings = {
+    const settings = {
       maxAttempts: s.bruteforce_max_attempts || 5,
       lockoutMinutes: s.bruteforce_lockout_minutes || 15,
     };
-    lastSettingsFetch = now;
-    return cachedSettings;
+
+    if (isRedisReady()) {
+      await redis.set(cacheKey, JSON.stringify(settings), 'EX', 3600).catch(() => {});
+    }
+    return settings;
   } catch {
     return { maxAttempts: 5, lockoutMinutes: 15 };
   }
@@ -135,12 +139,17 @@ export async function POST(request) {
       }
     }
 
-    // 6. Active Session Check
+    // 6. Active Session Check (Redis-First)
     if (user.session_id) {
       const elapsed = now - (user.last_activity_ts || 0);
       let isSessionActive = elapsed < 3600;
 
-      if (!isSessionActive) {
+      if (!isSessionActive && redisReady) {
+        // Check Redis Set first (Zero Query)
+        const activeExamsCount = await redis.scard(`user:active_exams:${user.id}`);
+        if (activeExamsCount > 0) isSessionActive = true;
+      } else if (!isSessionActive) {
+        // Fallback to DB if Redis is down
         const activeAttempts = await query({
           query: "SELECT id FROM rhs_exam_attempts WHERE user_id = ? AND status = 'in_progress' LIMIT 1",
           values: [user.id]
@@ -158,17 +167,22 @@ export async function POST(request) {
     const sessionId = crypto.randomUUID();
     const redisSessionKey = `session:${user.id}`;
 
-    // Update MySQL
+    // Update MySQL (Critical: session_id must match for persistence)
+    // Non-critical updates like last_activity can be handled here too
     await query({
       query: 'UPDATE rhs_users SET session_id = ?, last_activity = NOW(), failed_login_attempts = 0, locked_until = NULL WHERE id = ?',
       values: [sessionId, user.id]
     });
 
-    // Update Redis
+    // Update Redis (Session & Safety Cleanups)
     if (redisReady) {
-      await redis.set(redisSessionKey, sessionId, 'EX', 3600).catch(() => {});
-      await redis.del(`bf:att:${username}`).catch(() => {});
-      await redis.del(redisBfKey).catch(() => {});
+      Promise.all([
+        redis.set(redisSessionKey, sessionId, 'EX', 3600),
+        redis.del(`bf:att:${username}`),
+        redis.del(redisBfKey),
+        redis.del(`user:locked:${user.id}`),
+        redis.del(`user:lastlockcheck:${user.id}`)
+      ]).catch(() => {});
     }
 
     session.user = {

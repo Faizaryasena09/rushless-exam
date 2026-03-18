@@ -3,6 +3,8 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
+import { getClientIP, logFromRequest } from '@/app/lib/logger';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 async function getSession() {
   const cookieStore = await cookies();
@@ -25,20 +27,37 @@ export async function GET(request) {
   }
 
   try {
+    const userId = session.user.id;
+    const redisKey = `temp:ans:${userId}:${examId}`;
+
+    // 1. Try Redis first (High speed)
+    if (isRedisReady()) {
+      const cached = await redis.hgetall(redisKey);
+      if (cached && Object.keys(cached).length > 0) {
+        return NextResponse.json(cached);
+      }
+    }
+
+    // 2. Fallback to DB
     const answers = await query({
       query: `
         SELECT question_id, selected_option 
         FROM rhs_temporary_answer 
         WHERE user_id = ? AND exam_id = ?
       `,
-      values: [session.user.id, examId],
+      values: [userId, examId],
     });
 
-    // Convert the array of objects to a more convenient { questionId: selectedOption } format
     const answersMap = answers.reduce((acc, answer) => {
       acc[answer.question_id] = answer.selected_option;
       return acc;
     }, {});
+
+    // 3. Backfill Redis if it was a cache miss
+    if (isRedisReady() && Object.keys(answersMap).length > 0) {
+      await redis.hmset(redisKey, answersMap).catch(() => {});
+      await redis.expire(redisKey, 7200).catch(() => {}); // 2 hour TTL
+    }
 
     return NextResponse.json(answersMap);
   } catch (error) {
@@ -56,20 +75,32 @@ export async function POST(request) {
 
   try {
     const { examId, questionId, selectedOption } = await request.json();
+    const userId = session.user.id;
 
     if (examId === undefined || questionId === undefined) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
-    // FIRE-AND-FORGET: Save to DB without awaiting to keep UI snappy
-    query({
+    // 1. Save to Redis IMMEDIATELY (Instant response)
+    if (isRedisReady()) {
+      const redisKey = `temp:ans:${userId}:${examId}`;
+      // Use HSET to store question_id -> selected_option mapping
+      await redis.hset(redisKey, questionId, selectedOption || '').catch(() => {});
+      await redis.expire(redisKey, 7200).catch(() => {}); // Refresh TTL
+    }
+
+    // 2. Async Sync to MySQL (Don't await if we want absolute speed, but user asked for "fire-and-forget" correction earlier)
+    // Actually, to balance reliability and speed, we'll await but since it's one INSERT it's fast.
+    // If we truly want "Instant", we'd skip await, but then we lose the "Error 200" fix.
+    // DECISION: Await it for safety, but with Redis it's already redundant for most GETs.
+    await query({
       query: `
         INSERT INTO rhs_temporary_answer (user_id, exam_id, question_id, selected_option)
         VALUES (?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE selected_option = VALUES(selected_option)
       `,
-      values: [session.user.id, examId, questionId, selectedOption],
-    }).catch(e => console.error("[TempSave Error]", e.message));
+      values: [userId, examId, questionId, selectedOption],
+    });
 
     return NextResponse.json({ message: 'Answer saved temporarily' }, { status: 200 });
   } catch (error) {

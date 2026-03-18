@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { autoSubmitExpiredAttempts } from '@/app/lib/auto-submit';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 async function getSession(request) {
   const cookieStore = await cookies();
@@ -18,10 +19,27 @@ export async function GET(request) {
   }
 
   try {
-    // Auto-submit any expired attempts before fetching current state
-    await autoSubmitExpiredAttempts();
-
+    const redisReady = isRedisReady();
     const isTeacher = session.user.roleName === 'teacher';
+    const cacheKey = `proctor:list:${isTeacher ? `teacher:${session.user.id}` : 'admin'}`;
+
+    // 1. Check Redis Cache First (2-second TTL for "near-realtime" feel)
+    if (redisReady) {
+      const cached = await redis.get(cacheKey).catch(() => null);
+      if (cached) return NextResponse.json(JSON.parse(cached));
+    }
+
+    // 2. "Lazy" Auto-submit: Only scan every 10 seconds to avoid slamming DB
+    if (redisReady) {
+      const lastScan = await redis.get('last_autosubmit_scan').catch(() => null);
+      if (!lastScan) {
+        await redis.set('last_autosubmit_scan', '1', 'EX', 10).catch(() => {});
+        // Run in background if possible, but for simplicity here we await
+        await autoSubmitExpiredAttempts();
+      }
+    } else {
+        await autoSubmitExpiredAttempts();
+    }
 
     // If teacher: fetch their assigned class IDs first
     let teacherClassIds = [];
@@ -57,8 +75,7 @@ export async function GET(request) {
             e.exam_name,
             e.timer_mode,
             e.duration_minutes,
-            UNIX_TIMESTAMP(s.end_time) as exam_end_ts,
-            UNIX_TIMESTAMP(NOW()) as now_ts
+            UNIX_TIMESTAMP(s.end_time) as exam_end_ts
         FROM rhs_users u
         LEFT JOIN rhs_classes c ON u.class_id = c.id
         LEFT JOIN rhs_exam_attempts ea ON u.id = ea.user_id AND ea.status = 'in_progress'
@@ -90,7 +107,7 @@ export async function GET(request) {
         } else {
           endTs = Number(s.exam_end_ts) + (Number(s.time_extension || 0) * 60);
         }
-        seconds_left = Math.max(0, Math.floor(endTs - s.now_ts));
+        seconds_left = Math.max(0, Math.floor(endTs - now));
       }
 
       return {
@@ -108,7 +125,14 @@ export async function GET(request) {
       };
     });
 
-    return NextResponse.json({ students: processedStudents });
+    const responseData = { students: processedStudents };
+
+    // 4. Update Redis Cache
+    if (redisReady) {
+      await redis.set(cacheKey, JSON.stringify(responseData), 'EX', 2).catch(() => {});
+    }
+
+    return NextResponse.json(responseData);
 
   } catch (error) {
     return NextResponse.json({ message: 'Database error', error: error.message }, { status: 500 });

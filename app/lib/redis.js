@@ -13,33 +13,36 @@ const redisConfig = {
 
 let redis;
 
+const setupListeners = (client) => {
+    let lastErrorTime = 0;
+    client.on('error', (err) => {
+        const now = Date.now();
+        if (now - lastErrorTime > 30000) {
+            console.warn('Redis is currently offline - system running in MySQL fallback mode.');
+            lastErrorTime = now;
+        }
+    });
+
+    client.on('connect', () => {
+        console.log('Successfully connected to Redis');
+    });
+
+    client.on('ready', () => {
+        console.log('Redis is ready and accepting commands');
+    });
+};
+
 if (process.env.NODE_ENV === 'production') {
     redis = new Redis(redisConfig);
+    setupListeners(redis);
 } else {
     // Prevent multiple instances during hot-reload in development
     if (!global.redis) {
         global.redis = new Redis(redisConfig);
+        setupListeners(global.redis);
     }
     redis = global.redis;
 }
-
-let lastErrorTime = 0;
-redis.on('error', (err) => {
-    const now = Date.now();
-    // Only log error once every 30 seconds to avoid terminal spam
-    if (now - lastErrorTime > 30000) {
-        console.warn('Redis is currently offline - system running in MySQL fallback mode.');
-        lastErrorTime = now;
-    }
-});
-
-redis.on('connect', () => {
-    console.log('Successfully connected to Redis');
-});
-
-redis.on('ready', () => {
-    console.log('Redis is ready and accepting commands');
-});
 
 /**
  * Helper to check if Redis is currently usable

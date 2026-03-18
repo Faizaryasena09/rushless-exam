@@ -16,24 +16,24 @@ export async function validateUserSession(session) {
     const cookieSessionId = session.user.session_id;
 
     try {
-        // 1. Check Redis for session (ONLY if Redis is ready)
+        // 1. Check Redis for session and lock status
         const redisKey = `session:${userId}`;
+        const lockedKey = `user:locked:${userId}`;
+
         if (isRedisReady()) {
-            const cachedSessionId = await redis.get(redisKey);
+            const [cachedSessionId, isLockedCache] = await Promise.all([
+                redis.get(redisKey),
+                redis.get(lockedKey)
+            ]);
 
             if (cachedSessionId) {
-                // CHECK 1: Single Device Enforcement (Cache Match)
+                // CHECK 1: Single Device Enforcement
                 if (cachedSessionId !== cookieSessionId) {
-                    console.log(`Session mismatch for user ${userId} in Redis.`);
                     return false;
                 }
 
-                // CHECK 2: Account Locked (Still need to check DB for this as it's admin-controlled)
-                const userLocks = await query({
-                    query: 'SELECT is_locked FROM rhs_users WHERE id = ?',
-                    values: [userId]
-                });
-                if (userLocks.length > 0 && userLocks[0].is_locked) {
+                // CHECK 2: Account Locked (Cached - updated instantly by Admin API)
+                if (isLockedCache === '1') {
                     return false;
                 }
 
@@ -52,7 +52,10 @@ export async function validateUserSession(session) {
         if (users.length === 0) return false;
         const user = users[0];
 
-        if (user.is_locked) return false;
+        if (user.is_locked) {
+            if (isRedisReady()) await redis.set(lockedKey, '1', 'EX', 3600);
+            return false;
+        }
 
         // Verify session ID from DB
         if (user.session_id !== cookieSessionId) return false;
@@ -62,15 +65,25 @@ export async function validateUserSession(session) {
         const elapsed = now - (user.last_activity_ts || 0);
 
         if (elapsed > 3600) {
-            // Check for active exams before expiring
+            // Check for active exams before expiring (Redis-First)
+            if (isRedisReady()) {
+                const activeCount = await redis.scard(`user:active_exams:${userId}`);
+                if (activeCount > 0) {
+                    // Update TTL and return valid
+                    await redis.set(redisKey, cookieSessionId, 'EX', 3600);
+                    return true;
+                }
+            }
+            
+            // Fallback to DB
             const activeAttempts = await query({
-                query: `SELECT id FROM rhs_exam_attempts WHERE user_id = ? AND status = 'in_progress'`,
+                query: `SELECT id FROM rhs_exam_attempts WHERE user_id = ? AND status = 'in_progress' LIMIT 1`,
                 values: [userId]
             });
             if (activeAttempts.length === 0) return false;
         }
 
-        // Repopulate Redis Cache (ONLY if Redis is ready)
+        // Repopulate Redis Cache
         if (isRedisReady()) {
             await redis.set(redisKey, cookieSessionId, 'EX', 3600).catch(() => {});
         }

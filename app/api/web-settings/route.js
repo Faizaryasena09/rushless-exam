@@ -5,6 +5,7 @@ import { sessionOptions } from '@/app/lib/session';
 import { validateUserSession } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
 import { logFromRequest } from '@/app/lib/logger';
+import redis, { isRedisReady } from '@/app/lib/redis';
 import fs from 'fs/promises';
 import { existsSync, writeFileSync, mkdirSync } from 'fs'; // For sync checks if needed, but we prefer async
 import path from 'path';
@@ -232,6 +233,11 @@ export async function PUT(request) {
         });
 
         logFromRequest(request, session, 'SETTING_CHANGE', 'info', { setting: key, value: NUMERIC_KEYS.includes(key) ? parseInt(storeValue) : !!value });
+
+        // Invalidate Redis Cache for login settings
+        if (isRedisReady() && NUMERIC_KEYS.includes(key)) {
+            await redis.del('settings:bruteforce').catch(() => {});
+        }
 
         return NextResponse.json({ message: 'Setting updated', key, value: NUMERIC_KEYS.includes(key) ? parseInt(storeValue) : !!value });
     } catch (error) {

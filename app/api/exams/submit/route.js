@@ -6,6 +6,7 @@ import { query, transaction } from '@/app/lib/db';
 import { validateUserSession } from '@/app/lib/auth';
 import { logFromRequest } from '@/app/lib/logger';
 import { calculateQuestionScore } from '@/app/lib/scoring';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 async function getSession() {
   const cookieStore = await cookies();
@@ -155,6 +156,17 @@ export async function POST(request) {
         query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
         values: [session.user.id, examId],
       });
+
+      // 6. Invalidate Redis Caches
+      if (isRedisReady()) {
+        const userId = session.user.id;
+        await Promise.all([
+            redis.del(`exam:active-attempt:${userId}:${examId}`),
+            redis.del(`exam:attempt-meta:${userId}:${examId}`),
+            redis.del(`temp:ans:${userId}:${examId}`),
+            redis.srem(`user:active_exams:${userId}`, examId)
+        ]).catch(() => {});
+      }
     });
 
     logFromRequest(request, session, 'EXAM_SUBMIT', 'info', { examId, score: score.toFixed(1), earned: earnedPointsTotal.toFixed(1), max: maxPointsTotal });

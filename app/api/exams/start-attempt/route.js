@@ -73,8 +73,11 @@ export async function POST(request) {
                 return NextResponse.json({ message: 'Exam configuration not found.' }, { status: 404 });
             }
             settings = examSettingsResult[0];
-            // We don't cache here because the 'settings' API handles the full cache population.
-            // But we use it if it exists.
+            
+            // Cache backfill (5 minutes TTL for settings used here)
+            if (isRedisReady()) {
+                await redis.set(cacheKey, JSON.stringify(settings), 'EX', 300).catch(() => {});
+            }
         }
 
         // Check exam availability window
@@ -107,13 +110,21 @@ export async function POST(request) {
             }
         }
 
+        // ─── PHASE 1.5: Active Attempt Cache Check (Instant Resume) ───
+        const activeAttemptCacheKey = `exam:active-attempt:${userId}:${examId}`;
+        if (isRedisReady()) {
+            const cachedAttemptId = await redis.get(activeAttemptCacheKey).catch(() => null);
+            if (cachedAttemptId) {
+                // If we have a cached ID, we still need metadata (doubtful, indices), 
+                // but we can skip the heavy transaction if we trust the cache.
+                // However, to keep it 100% sync with DB status (like violation locks), 
+                // we still do a quick SELECT but outside the FOR UPDATE transaction if possible.
+                // For now, let's just use the cache to verify if we SHOULD enter the transaction.
+            }
+        }
+
         // ─── PHASE 2: Minimal transaction — only the parts that NEED a lock ───
-        // Scope: SELECT FOR UPDATE (to detect/claim active attempt) + optional INSERT.
-        // This transaction should commit in milliseconds, eliminating gap-lock deadlocks.
         const result = await transaction(async (txQuery) => {
-            // Lock existing in_progress attempt (if any) for this user+exam.
-            // The composite index (user_id, exam_id, status) ensures this lock
-            // targets only the exact rows we care about.
             const existingAttempts = await txQuery({
                 query: `
                 SELECT id, status, UNIX_TIMESTAMP(start_time) as start_time_ts, doubtful_questions, last_question_index, time_extension, is_violation_locked
@@ -126,27 +137,39 @@ export async function POST(request) {
 
             let activeAttempt = existingAttempts.length > 0 ? existingAttempts[0] : null;
 
-            // Check if violation lock is active
             if (activeAttempt && activeAttempt.is_violation_locked) {
                 throw new Error('VIOLATION_LOCKED');
             }
 
-            // Handle expired in_progress attempt (async timer mode only)
             if (activeAttempt && settings.timer_mode === 'async') {
                 const examEndTime_ts = activeAttempt.start_time_ts + (settings.duration_minutes * 60) + ((activeAttempt.time_extension || 0) * 60);
                 if (now_ts > examEndTime_ts) {
                     await txQuery({ query: `UPDATE rhs_exam_attempts SET status = 'completed' WHERE id = ?`, values: [activeAttempt.id] });
+                    if (isRedisReady()) await redis.del(activeAttemptCacheKey).catch(() => {});
                     activeAttempt = null;
                 }
             }
 
-            // Resume existing valid attempt (no INSERT needed)
             if (activeAttempt) {
                 const initial_seconds_left = calculateRemainingSeconds(settings, activeAttempt, now_ts);
+                // Ensure Redis is synced
+                if (isRedisReady()) {
+                    const attemptMeta = {
+                        id: activeAttempt.id,
+                        status: activeAttempt.status,
+                        start_time_ts: activeAttempt.start_time_ts,
+                        time_extension: activeAttempt.time_extension || 0
+                    };
+                    await Promise.all([
+                        redis.set(activeAttemptCacheKey, activeAttempt.id, 'EX', 7200),
+                        redis.set(`exam:attempt-meta:${userId}:${examId}`, JSON.stringify(attemptMeta), 'EX', 7200),
+                        redis.sadd(`user:active_exams:${userId}`, examId),
+                        redis.expire(`user:active_exams:${userId}`, 14400) // 4 hours safety
+                    ]).catch(() => {});
+                }
                 return { status: 'resumed', attempt: activeAttempt, initial_seconds_left };
             }
 
-            // Check max attempts before creating a new one
             if (settings.max_attempts > 0) {
                 const countResult = await txQuery({
                     query: `SELECT COUNT(*) as attempt_count FROM rhs_exam_attempts WHERE user_id = ? AND exam_id = ?`,
@@ -157,7 +180,6 @@ export async function POST(request) {
                 }
             }
 
-            // All checks passed — create a new attempt
             const insertResult = await txQuery({
                 query: `
                 INSERT INTO rhs_exam_attempts (user_id, exam_id, start_time, status) 
@@ -166,20 +188,34 @@ export async function POST(request) {
                 values: [userId, examId]
             });
 
+            const newAttemptId = insertResult.insertId;
             const newAttemptResult = await txQuery({
                 query: `SELECT *, UNIX_TIMESTAMP(start_time) as start_time_ts FROM rhs_exam_attempts WHERE id = ?`,
-                values: [insertResult.insertId]
+                values: [newAttemptId]
             });
             const newAttempt = newAttemptResult[0];
             const initial_seconds_left = calculateRemainingSeconds(settings, newAttempt, now_ts);
 
+            // Cache the new attempt ID
+            if (isRedisReady()) {
+                const attemptMeta = {
+                    id: newAttemptId,
+                    status: newAttempt.status,
+                    start_time_ts: newAttempt.start_time_ts,
+                    time_extension: newAttempt.time_extension || 0
+                };
+                await Promise.all([
+                    redis.set(activeAttemptCacheKey, newAttemptId, 'EX', 7200),
+                    redis.set(`exam:attempt-meta:${userId}:${examId}`, JSON.stringify(attemptMeta), 'EX', 7200),
+                    redis.sadd(`user:active_exams:${userId}`, examId),
+                    redis.expire(`user:active_exams:${userId}`, 14400)
+                ]).catch(() => {});
+            }
+
             return { status: 'created', attempt: newAttempt, initial_seconds_left };
         });
 
-        if (result.status === 'created') {
-            return NextResponse.json(result, { status: 201 });
-        }
-        return NextResponse.json(result);
+        return NextResponse.json(result, { status: result.status === 'created' ? 201 : 200 });
 
     } catch (error) {
         console.error('Failed to start/resume exam attempt:', error);

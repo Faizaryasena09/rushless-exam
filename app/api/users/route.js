@@ -120,6 +120,16 @@ export async function PUT(request) {
 
     await query({ query: q, values });
 
+    // Update Redis Lock Status (Instant enforcement)
+    if (typeof is_locked === 'boolean' && isRedisReady()) {
+      const lockedKey = `user:locked:${id}`;
+      if (is_locked) {
+        await redis.set(lockedKey, '1', 'EX', 3600);
+      } else {
+        await redis.del(lockedKey);
+      }
+    }
+
     // Log specific actions
     if (typeof is_locked === 'boolean') {
       logFromRequest(request, session, is_locked ? 'USER_LOCK' : 'USER_UNLOCK', 'warn', { targetUser: username });

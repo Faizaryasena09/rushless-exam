@@ -277,8 +277,12 @@ export async function POST(request) {
     
     // Invalidate Redis Caches
     if (isRedisReady()) {
-      await redis.del(`exam:settings-full:${examId}`).catch(() => {});
-      await redis.del(`exam:data:${examId}`).catch(() => {});
+      await Promise.all([
+        redis.del(`exam:settings-full:${examId}`),
+        redis.del(`exam:data:${examId}`),
+        // Invalidate lists because settings contain start/end times shown in lists
+        redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
+      ]).catch(() => {});
     }
 
     return NextResponse.json({ message: 'Settings saved successfully' });

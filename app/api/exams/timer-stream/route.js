@@ -6,6 +6,8 @@ import { query } from '@/app/lib/db';
 import { validateUserSession } from '@/app/lib/auth';
 import { autoSubmitAttemptIfExpired } from '@/app/lib/auto-submit';
 import { eventBus } from '@/app/lib/event-bus';
+import { logExamActivity } from '@/app/lib/logger';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 // Helper to calculate remaining time
 function calculateRemainingSeconds(settings, attempt, now_ts) {
@@ -49,47 +51,80 @@ export async function GET(request) {
             // Get initial server time to ignore previous refresh requests
             const initialNowResult = await query({ query: `SELECT UNIX_TIMESTAMP(NOW()) as start_ts` });
             let lastKnownRefresh_ts = initialNowResult[0].start_ts;
+            let currentAttempt = null; 
 
             // Function to fetch and send data
             const sendUpdate = async () => {
                 try {
-                    const nowResult = await query({ query: `SELECT UNIX_TIMESTAMP(NOW()) as server_now_ts` });
-                    const now_ts = nowResult[0].server_now_ts;
+                    const now_ts = Math.floor(Date.now() / 1000);
+                    const redisReady = isRedisReady();
 
-                    const examSettingsResult = await query({
-                        query: `
-                            SELECT 
-                                e.id, e.timer_mode, e.duration_minutes,
-                                UNIX_TIMESTAMP(s.start_time) as start_time_ts, 
-                                UNIX_TIMESTAMP(s.end_time) as end_time_ts
-                            FROM rhs_exams e
-                            LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
-                            WHERE e.id = ?
-                        `,
-                        values: [examId]
-                    });
+                    let settings = null;
+                    let attempt = null;
 
-                    if (examSettingsResult.length === 0) {
+                    // ─── Phase 1: Try Redis ───
+                    if (redisReady) {
+                        const [cachedSettings, cachedMeta] = await Promise.all([
+                            redis.get(`exam:settings-full:${examId}`).catch(() => null),
+                            redis.get(`exam:attempt-meta:${userId}:${examId}`).catch(() => null)
+                        ]);
+
+                        if (cachedSettings) settings = JSON.parse(cachedSettings);
+                        if (cachedMeta) attempt = JSON.parse(cachedMeta);
+                    }
+
+                    // ─── Phase 2: Fallback to DB if Redis is missing data ───
+                    if (!settings) {
+                        const examSettingsResult = await query({
+                            query: `
+                                SELECT e.id, e.timer_mode, e.duration_minutes,
+                                    UNIX_TIMESTAMP(s.start_time) as start_time_ts, 
+                                    UNIX_TIMESTAMP(s.end_time) as end_time_ts
+                                FROM rhs_exams e
+                                LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
+                                WHERE e.id = ?
+                            `,
+                            values: [examId]
+                        });
+                        if (examSettingsResult.length > 0) {
+                            settings = examSettingsResult[0];
+                            if (redisReady) await redis.set(`exam:settings-full:${examId}`, JSON.stringify(settings), 'EX', 300).catch(() => {});
+                        }
+                    }
+
+                    if (settings && !attempt) {
+                        const attemptResult = await query({
+                            query: `
+                                SELECT id, status, UNIX_TIMESTAMP(start_time) as start_time_ts, time_extension
+                                FROM rhs_exam_attempts 
+                                WHERE user_id = ? AND exam_id = ? AND status = 'in_progress'
+                            `,
+                            values: [userId, examId]
+                        });
+                        if (attemptResult.length > 0) {
+                            attempt = attemptResult[0];
+                            // Match the metadata structure
+                            const attemptMeta = {
+                                id: attempt.id,
+                                status: attempt.status,
+                                start_time_ts: attempt.start_time_ts,
+                                time_extension: attempt.time_extension || 0
+                            };
+                            if (redisReady) await redis.set(`exam:attempt-meta:${userId}:${examId}`, JSON.stringify(attemptMeta), 'EX', 7200).catch(() => {});
+                        }
+                    }
+
+                    // ─── Phase 3: Final Validation and Calculation ───
+                    if (!settings) {
                         controller.enqueue('data: {"error": "Not found"}\n\n');
                         return;
                     }
-                    const settings = examSettingsResult[0];
 
-                    const attemptResult = await query({
-                        query: `
-                            SELECT id, status, UNIX_TIMESTAMP(start_time) as start_time_ts, time_extension
-                            FROM rhs_exam_attempts 
-                            WHERE user_id = ? AND exam_id = ? AND status = 'in_progress'
-                        `,
-                        values: [userId, examId]
-                    });
-
-                    if (attemptResult.length === 0) {
+                    if (!attempt) {
                         controller.enqueue('data: {"error": "No active attempt"}\n\n');
                         return;
                     }
-
-                    const attempt = attemptResult[0];
+                    currentAttempt = attempt;
 
                     // Removed: Periodic database check for refresh_requested_at
                     // Removed: const refreshCheck = await query({
@@ -150,12 +185,13 @@ export async function GET(request) {
             const onRefresh = async (data) => {
                 if (data.userId === 'all' || data.userId == userId) {
                     // Diagnostic Log - Visible in Student Log Panel (Log Realtime)
-                    try {
-                        await query({
-                            query: 'INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, "SECURITY", ?)',
-                            values: [attempt.id, `🔄 Refresh dipicu oleh Admin (Real-time SSE Signal)`]
+                    if (currentAttempt) {
+                        logExamActivity({
+                            attemptId: currentAttempt.id,
+                            actionType: 'SECURITY',
+                            description: '🔄 Refresh dipicu oleh Admin (Real-time SSE Signal)'
                         });
-                    } catch (logErr) { console.error("Logging failed", logErr); }
+                    }
 
                     controller.enqueue(`data: ${JSON.stringify({ refresh: true })}\n\n`);
                 }
@@ -165,12 +201,13 @@ export async function GET(request) {
             // Listen for force submit events
             const onForceSubmit = async (data) => {
                 if (data.userId === 'all' || data.userId == userId) {
-                    try {
-                        await query({
-                            query: 'INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, "SECURITY", ?)',
-                            values: [attempt.id, `🚀 Force Submit dipicu oleh Admin (Real-time SSE Signal)`]
+                    if (currentAttempt) {
+                        logExamActivity({
+                            attemptId: currentAttempt.id,
+                            actionType: 'SECURITY',
+                            description: '🚀 Force Submit dipicu oleh Admin (Real-time SSE Signal)'
                         });
-                    } catch (logErr) { console.error("Logging failed", logErr); }
+                    }
 
                     controller.enqueue(`data: ${JSON.stringify({ force_submit: true })}\n\n`);
                 }

@@ -1,4 +1,6 @@
 import { query } from './db';
+import redis, { isRedisReady } from './redis';
+import { eventBus } from './event-bus';
 
 // Ensure table exists (runs once per cold start)
 let tableReady = false;
@@ -46,17 +48,14 @@ function normalizeIP(ip) {
 
 /**
  * Extract client IP address from request headers
- * Supports: Cloudflare, nginx, and standard proxies
  */
 export function getClientIP(request) {
-    // Cloudflare-specific headers (highest priority when behind CF tunnel)
     const cfIP = request.headers.get('cf-connecting-ip');
     if (cfIP) return normalizeIP(cfIP);
 
     const trueClientIP = request.headers.get('true-client-ip');
     if (trueClientIP) return normalizeIP(trueClientIP);
 
-    // Standard proxy headers
     const forwarded = request.headers.get('x-forwarded-for');
     if (forwarded) {
         return normalizeIP(forwarded.split(',')[0]);
@@ -69,22 +68,153 @@ export function getClientIP(request) {
 }
 
 /**
- * Log an activity to the database (fire-and-forget)
+ * Format Date to MySQL compatible YYYY-MM-DD HH:MM:SS
  */
-export function logActivity({ userId = null, username = null, ip = null, action, level = 'info', details = null }) {
-    const detailsStr = details && typeof details === 'object' ? JSON.stringify(details) : details;
+function formatMySQLDate(date = new Date()) {
+    return date.toISOString().slice(0, 19).replace('T', ' ');
+}
 
-    // Fire-and-forget — don't await, don't block the response
+const ACTIVITY_LOG_QUEUE = 'logs:buffer:activity';
+const EXAM_LOG_QUEUE     = 'logs:buffer:exam';
+
+/**
+ * General Activity Log (Buffered)
+ */
+export async function logActivity({ userId = null, username = null, ip = null, action, level = 'info', details = null }) {
+    const logEntry = {
+        userId,
+        username,
+        ip,
+        action,
+        level,
+        details: details && typeof details === 'object' ? JSON.stringify(details) : details,
+        timestamp: formatMySQLDate()
+    };
+
+    if (isRedisReady()) {
+        try {
+            await redis.lpush(ACTIVITY_LOG_QUEUE, JSON.stringify(logEntry));
+            return;
+        } catch (err) {
+            console.error('[Logger] Redis push failed:', err.message);
+        }
+    }
+
     query({
         query: 'INSERT INTO rhs_activity_logs (user_id, username, ip_address, action, level, details) VALUES (?, ?, ?, ?, ?, ?)',
-        values: [userId, username, ip, action, level, detailsStr]
-    }).catch(err => {
-        console.error('[Logger] Failed to write activity log:', err.message);
-    });
+        values: [userId, username, ip, action, level, logEntry.details]
+    }).catch(err => console.error('[Logger] MySQL fallback failed:', err.message));
 }
 
 /**
- * Helper: Log from a request context with session info
+ * Exam Specific Log (Buffered + Real-time Recent List)
+ */
+export async function logExamActivity({ attemptId, actionType, description }) {
+    const logEntry = {
+        attemptId,
+        actionType,
+        description,
+        timestamp: formatMySQLDate()
+    };
+
+    if (isRedisReady()) {
+        try {
+            const multi = redis.multi();
+            // 1. Push to global flush queue (for MySQL sync)
+            multi.lpush(EXAM_LOG_QUEUE, JSON.stringify(logEntry));
+            
+            // 2. Push to per-attempt "recent" list (for instant admin view)
+            const recentKey = `exam:logs:recent:${attemptId}`;
+            multi.lpush(recentKey, JSON.stringify(logEntry));
+            multi.ltrim(recentKey, 0, 49); // Keep only last 50 logs
+            multi.expire(recentKey, 600);   // Live for 10 minutes
+            
+            await multi.exec();
+
+            // 3. Emit event for SSE streams (Real-time No Polling)
+            eventBus.emit('log_added', { 
+                ...logEntry, 
+                id: `temp-${Date.now()}-${Math.random()}` 
+            });
+
+            return;
+        } catch (err) {
+            console.error('[Logger] Exam Redis push failed:', err.message);
+        }
+    }
+
+    query({
+        query: 'INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, ?, ?)',
+        values: [attemptId, actionType, description]
+    }).catch(err => console.error('[Logger] Exam MySQL fallback failed:', err.message));
+}
+
+/**
+ * Flush Activity Logs to MySQL
+ */
+export async function flushActivityLogs() {
+    if (!isRedisReady()) return;
+    try {
+        const batch = [];
+        for (let i = 0; i < 100; i++) {
+            const rawLog = await redis.rpop(ACTIVITY_LOG_QUEUE);
+            if (!rawLog) break;
+            batch.push(JSON.parse(rawLog));
+        }
+        if (batch.length === 0) return;
+
+        const values = [];
+        const placeholders = batch.map(log => {
+            values.push(log.userId, log.username, log.ip, log.action, log.level, log.details, log.timestamp);
+            return '(?, ?, ?, ?, ?, ?, ?)';
+        }).join(', ');
+
+        await query({
+            query: `INSERT INTO rhs_activity_logs (user_id, username, ip_address, action, level, details, created_at) VALUES ${placeholders}`,
+            values
+        });
+        console.log(`[Logger] Flushed ${batch.length} activity logs.`);
+    } catch (err) { console.error('[Logger] Activity flush error:', err.message); }
+}
+
+/**
+ * Flush Exam Logs to MySQL
+ */
+export async function flushExamLogs() {
+    if (!isRedisReady()) return;
+    try {
+        const batch = [];
+        for (let i = 0; i < 100; i++) {
+            const rawLog = await redis.rpop(EXAM_LOG_QUEUE);
+            if (!rawLog) break;
+            batch.push(JSON.parse(rawLog));
+        }
+        if (batch.length === 0) return;
+
+        const values = [];
+        const placeholders = batch.map(log => {
+            values.push(log.attemptId, log.actionType, log.description, log.timestamp);
+            return '(?, ?, ?, ?)';
+        }).join(', ');
+
+        await query({
+            query: `INSERT INTO rhs_exam_logs (attempt_id, action_type, description, created_at) VALUES ${placeholders}`,
+            values
+        });
+        console.log(`[Logger] Flushed ${batch.length} exam logs.`);
+    } catch (err) { console.error('[Logger] Exam flush error:', err.message); }
+}
+
+// Background Sync Timer (Sync every 15 seconds)
+if (typeof setInterval !== 'undefined') {
+    setInterval(() => {
+        flushActivityLogs().catch(() => {});
+        flushExamLogs().catch(() => {});
+    }, 15000);
+}
+
+/**
+ * Helper: Log from a request context
  */
 export function logFromRequest(request, session, action, level = 'info', details = null) {
     const ip = getClientIP(request);

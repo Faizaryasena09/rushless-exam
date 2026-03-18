@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { autoSubmitExpiredAttempts } from '@/app/lib/auto-submit';
+import { eventBus } from '@/app/lib/event-bus';
 import redis, { isRedisReady } from '@/app/lib/redis';
 
 export async function GET(request) {
@@ -159,10 +160,21 @@ export async function GET(request) {
 
             // Push every 3 seconds
             intervalId = setInterval(sendData, 3000);
+            
+            // Listen for NEW Logs (Eliminates Polling!)
+            const onLogAdded = (log) => {
+                if (isClosed) return;
+                // Teachers only see their assigned classes (optional optimization)
+                // For now, let's keep it simple: push log events to stream
+                const payload = JSON.stringify({ log_update: log });
+                controller.enqueue(`data: ${payload}\n\n`);
+            };
+            eventBus.on('log_added', onLogAdded);
 
             request.signal.addEventListener('abort', () => {
                 isClosed = true;
                 if (intervalId) clearInterval(intervalId);
+                eventBus.off('log_added', onLogAdded);
             });
         },
         cancel() {

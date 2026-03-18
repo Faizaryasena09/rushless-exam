@@ -1,4 +1,5 @@
 import { query, transaction } from '@/app/lib/db';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 /**
  * Calculates the scheduled end timestamp (UNIX seconds) for a given attempt.
@@ -95,6 +96,16 @@ export async function autoSubmitAttempt(attempt) {
                 query: `INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, 'SUBMIT', 'Auto-submitted by server: timer expired')`,
                 values: [attempt.id],
             });
+
+            // Step 5: Invalidate Redis Caches
+            if (isRedisReady()) {
+                await Promise.all([
+                    redis.del(`exam:active-attempt:${attempt.user_id}:${attempt.exam_id}`),
+                    redis.del(`exam:attempt-meta:${attempt.user_id}:${attempt.exam_id}`),
+                    redis.del(`temp:ans:${attempt.user_id}:${attempt.exam_id}`),
+                    redis.srem(`user:active_exams:${attempt.user_id}`, attempt.exam_id)
+                ]).catch(() => {});
+            }
 
             return true;
         });
