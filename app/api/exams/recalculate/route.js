@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
-import { recalculateExamScores } from '@/app/lib/exams';
+import { recalculateExamScores, invalidateExamCache } from '@/app/lib/exams';
 import { validateUserSession } from '@/app/lib/auth';
 
 async function getSession() {
@@ -25,6 +25,7 @@ export async function POST(request) {
         }
 
         await recalculateExamScores(examId);
+        await invalidateExamCache(examId);
 
         return NextResponse.json({ message: 'All scores have been recalculated successfully.' });
     } catch (error) {

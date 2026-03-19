@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query, transaction } from '@/app/lib/db';
 import redis, { isRedisReady } from '@/app/lib/redis';
+import { invalidateExamCache } from '@/app/lib/exams';
 
 async function getSession(request) {
     const cookieStore = await cookies();
@@ -146,16 +147,8 @@ export async function POST(request) {
         });
 
         // 6. Invalidate Redis Cache
-        if (isRedisReady()) {
-            try {
-                await Promise.all([
-                    redis.del(`exam:settings-full:${examId}`),
-                    redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
-                ]);
-            } catch (e) {
-                console.error("Redis Invalidation Error during duplication:", e);
-            }
-        }
+        await invalidateExamCache(examId);
+        await invalidateExamCache(null); // Also clear lists for the new exam
 
         return NextResponse.json({ message: 'Exam duplicated successfully', newExamId: newExamId });
 

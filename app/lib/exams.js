@@ -1,5 +1,10 @@
 import { query, transaction } from './db';
 import { calculateQuestionScore } from './scoring';
+import redis, { isRedisReady } from './redis';
+import { cookies } from 'next/headers';
+import { getIronSession } from 'iron-session';
+import { sessionOptions } from './session';
+import { validateUserSession } from './auth';
 
 /**
  * Recalculates all scores for a given exam.
@@ -7,7 +12,7 @@ import { calculateQuestionScore } from './scoring';
  */
 export async function recalculateExamScores(examId) {
     console.log(`[Recalculation] Starting for exam ${examId}`);
-    
+
     // 1. Get all current questions for this exam
     const questions = await query({
         query: 'SELECT id, correct_option, question_type, points, scoring_strategy, scoring_metadata FROM rhs_exam_questions WHERE exam_id = ?',
@@ -93,8 +98,8 @@ export async function recalculateExamScores(examId) {
             });
             const scoringMode = examSettings[0]?.scoring_mode || 'percentage';
 
-            const finalScore = (scoringMode === 'raw') 
-                ? earnedTotal 
+            const finalScore = (scoringMode === 'raw')
+                ? earnedTotal
                 : (totalMaxPoints > 0 ? (earnedTotal / totalMaxPoints) * 100 : 0);
 
             await txQuery({
@@ -112,7 +117,7 @@ export async function recalculateExamScores(examId) {
  */
 export async function distributeExamPoints(examId) {
     console.log(`[Distribution] Starting for exam ${examId}`);
-    
+
     const examData = await query({
         query: "SELECT total_target_score FROM rhs_exams WHERE id = ?",
         values: [examId]
@@ -140,4 +145,139 @@ export async function distributeExamPoints(examId) {
     });
 
     console.log(`[Distribution] Finished. Set ${pointsPerQuestion} points for ${questions.length} questions.`);
+}
+
+/**
+ * Fetches the complete exam settings object (standardized for Redis and DB)
+ */
+export async function getExamSettings(examId, forceFresh = false) {
+    const cacheKey = `exam:settings-full:${examId}`;
+
+    if (!forceFresh && isRedisReady()) {
+        const cached = await redis.get(cacheKey).catch(() => null);
+        if (cached) return JSON.parse(cached);
+    }
+
+    const results = await query({
+        query: `
+            SELECT 
+                e.id, e.id as exam_id, e.exam_name, e.description, e.subject_id,
+                e.shuffle_questions, e.shuffle_answers, e.timer_mode, 
+                e.duration_minutes, e.min_time_minutes, e.max_attempts,
+                e.scoring_mode, e.total_target_score, e.auto_distribute,
+                s.start_time, s.end_time,
+                UNIX_TIMESTAMP(s.start_time) as start_time_ts,
+                UNIX_TIMESTAMP(s.end_time) as end_time_ts,
+                s.require_safe_browser, s.require_seb, s.seb_config_key,
+                s.show_instructions, s.instruction_type, s.custom_instructions,
+                s.show_result, s.show_analysis, s.require_all_answered,
+                s.require_token, s.token_type, s.current_token, s.violation_action
+            FROM rhs_exams e
+            LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
+            WHERE e.id = ?
+        `,
+        values: [examId],
+    });
+
+    if (results.length === 0) return null;
+
+    const classResults = await query({
+        query: `SELECT class_id FROM rhs_exam_classes WHERE exam_id = ?`,
+        values: [examId]
+    });
+    const allowedClasses = classResults.map(r => r.class_id);
+
+    const examData = {
+        ...results[0],
+        subject_id: results[0].subject_id || '',
+        shuffle_questions: Boolean(results[0].shuffle_questions),
+        shuffle_answers: Boolean(results[0].shuffle_answers),
+        scoring_mode: results[0].scoring_mode || 'percentage',
+        total_target_score: results[0].total_target_score || 100,
+        auto_distribute: Boolean(results[0].auto_distribute),
+        require_safe_browser: Boolean(results[0].require_safe_browser),
+        require_seb: Boolean(results[0].require_seb),
+        show_instructions: Boolean(results[0].show_instructions),
+        instruction_type: results[0].instruction_type || 'template',
+        custom_instructions: results[0].custom_instructions || '',
+        show_result: Boolean(results[0].show_result),
+        show_analysis: Boolean(results[0].show_analysis),
+        require_all_answered: Boolean(results[0].require_all_answered),
+        require_token: Boolean(results[0].require_token),
+        token_type: results[0].token_type || 'static',
+        current_token: results[0].current_token || '',
+        violation_action: results[0].violation_action || 'abaikan',
+        allowed_classes: allowedClasses
+    };
+
+    if (isRedisReady()) {
+        await redis.set(cacheKey, JSON.stringify(examData), 'EX', 3600).catch(() => { });
+    }
+
+    return examData;
+}
+
+/**
+ * Fetches exam questions (standardized for Redis and DB)
+ */
+export async function getExamQuestions(examId, forceFresh = false) {
+    const cacheKey = `exam:data:${examId}`;
+
+    if (!forceFresh && isRedisReady()) {
+        const cached = await redis.get(cacheKey).catch(() => null);
+        if (cached) return JSON.parse(cached);
+    }
+
+    // 1. Fetch minimal settings needed for questions view
+    const examSettings = await query({
+        query: 'SELECT shuffle_questions, shuffle_answers FROM rhs_exams WHERE id = ?',
+        values: [examId],
+    });
+
+    if (examSettings.length === 0) return null;
+
+    // 2. Fetch all questions
+    const questions = await query({
+        query: `
+            SELECT id, exam_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata
+            FROM rhs_exam_questions 
+            WHERE exam_id = ?
+            ORDER BY sort_order ASC, id ASC
+        `,
+        values: [examId],
+    });
+
+    const examData = {
+        settings: examSettings[0],
+        questions
+    };
+
+    if (isRedisReady()) {
+        await redis.set(cacheKey, JSON.stringify(examData), 'EX', 3600).catch(() => { });
+    }
+
+    return examData;
+}
+
+/**
+ * Invalidates all related Redis caches for an exam
+ */
+export async function invalidateExamCache(examId) {
+    if (!isRedisReady()) return;
+
+    try {
+        const pipeline = redis.pipeline();
+        pipeline.del(`exam:settings-full:${examId}`);
+        pipeline.del(`exam:data:${examId}`);
+
+        // Find and delete all exam lists
+        const keys = await redis.keys('exams:list:*');
+        if (keys.length > 0) {
+            pipeline.del(keys);
+        }
+
+        await pipeline.exec();
+    } catch (e) {
+        console.error(`Redis Invalidation Error [Exam ${examId}]:`, e);
+    }
 }

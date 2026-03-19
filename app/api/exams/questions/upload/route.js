@@ -7,7 +7,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { query } from '@/app/lib/db';
 import { sessionOptions } from '@/app/lib/session';
-import { recalculateExamScores, distributeExamPoints } from '@/app/lib/exams';
+import { recalculateExamScores, distributeExamPoints, invalidateExamCache } from '@/app/lib/exams';
 import redis, { isRedisReady } from '@/app/lib/redis';
 
 // Helper for ASYNC string replace
@@ -114,10 +114,10 @@ export async function POST(request) {
         // 2. Flatten array for values mapping
         const values = parsedQuestions.flatMap(q =>
             [
-                examId, 
-                q.question_text, 
-                JSON.stringify(q.options), 
-                q.correct_option || '', 
+                examId,
+                q.question_text,
+                JSON.stringify(q.options),
+                q.correct_option || '',
                 q.question_type || 'multiple_choice',
                 q.points || 1.0,
                 q.scoring_strategy || 'standard',
@@ -138,15 +138,9 @@ export async function POST(request) {
         }
 
         await recalculateExamScores(examId);
-        
+
         // Invalidate Redis Cache IMMEDIATELY after update
-        if (isRedisReady()) {
-          await Promise.all([
-            redis.del(`exam:data:${examId}`),
-            redis.del(`exam:settings-full:${examId}`),
-            redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
-          ]).catch(() => {});
-        }
+        await invalidateExamCache(examId);
 
         return NextResponse.json({ message: `Successfully imported ${parsedQuestions.length} questions.` });
 
@@ -262,11 +256,11 @@ function parseHtmlContent(html) {
             // Handle True/False option without prefix (e.g., "*Benar" or "Salah")
             const isCorrect = tfMatch[1] === '*' || tfMatch[3] === '*';
             const tfText = tfMatch[2].charAt(0).toUpperCase() + tfMatch[2].slice(1).toLowerCase();
-            
+
             // Assign sequential keys A, B...
             const existingKeys = Object.keys(currentQuestion.options);
             const key = String.fromCharCode(65 + existingKeys.length);
-            
+
             currentOptionKey = key;
             currentQuestion.options[key] = tfText;
 
@@ -335,7 +329,7 @@ function parseHtmlContent(html) {
         const kwMatch = q.question_text.match(/\[KEYWORDS:\s*([^\]]+)\]/i);
         const kwAnyMatch = q.question_text.match(/\[ESSAY_ANY:\s*([^\]]+)\]/i);
         const kwStrictMatch = q.question_text.match(/\[ESSAY_STRICT:\s*([^\]]+)\]/i);
-        
+
         if (kwMatch) {
             q.scoring_metadata = { keywords: kwMatch[1].split(',').map(k => k.trim()).filter(k => k) };
             q.scoring_strategy = 'essay_keywords';
@@ -366,10 +360,10 @@ function parseHtmlContent(html) {
                 q.question_type = 'multiple_choice_complex';
                 q.correct_option = correctKeys.sort().join(',');
                 if (!q.scoring_strategy) q.scoring_strategy = 'pgk_partial'; // Default to partial for PGK
-            } 
+            }
             // Detect True/False
-            else if (keys.length === 2 && 
-                     keys.every(k => q.options[k].toLowerCase() === 'benar' || q.options[k].toLowerCase() === 'salah')) {
+            else if (keys.length === 2 &&
+                keys.every(k => q.options[k].toLowerCase() === 'benar' || q.options[k].toLowerCase() === 'salah')) {
                 q.question_type = 'true_false';
                 q.correct_option = correctKeys[0] || 'A';
                 q.scoring_strategy = 'standard';
@@ -385,4 +379,4 @@ function parseHtmlContent(html) {
     });
 
     return questions;
-}
+}

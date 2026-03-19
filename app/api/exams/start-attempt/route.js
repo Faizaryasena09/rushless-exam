@@ -6,6 +6,7 @@ import { query, transaction } from '@/app/lib/db';
 import { validateUserSession } from '@/app/lib/auth';
 import { generateAutoToken } from '@/app/lib/token';
 import redis, { isRedisReady } from '@/app/lib/redis';
+import { getExamSettings } from '@/app/lib/exams';
 
 async function getSession() {
     const cookieStore = await cookies();
@@ -35,49 +36,12 @@ export async function POST(request) {
 
     try {
         const { examId, token } = await request.json();
-        if (!examId) {
-            return NextResponse.json({ message: 'Exam ID is required' }, { status: 400 });
-        }
-
         const userId = session.user.id;
-        const cacheKey = `exam:settings-full:${examId}`;
-
-        // ─── PHASE 1: All read-only validation (from Cache or DB) ───
         const now_ts = Math.floor(Date.now() / 1000);
-
-        let settings;
-        if (isRedisReady()) {
-            const cachedSettings = await redis.get(cacheKey).catch(() => null);
-            if (cachedSettings) {
-                settings = JSON.parse(cachedSettings);
-            }
-        }
+        let settings = await getExamSettings(examId);
 
         if (!settings) {
-            const examSettingsResult = await query({
-                query: `
-                SELECT 
-                    e.id, e.timer_mode, e.duration_minutes, e.max_attempts,
-                    UNIX_TIMESTAMP(s.start_time) as start_time_ts, 
-                    UNIX_TIMESTAMP(s.end_time) as end_time_ts,
-                    s.require_seb, s.seb_config_key, s.show_result,
-                    s.require_token, s.token_type, s.current_token
-                FROM rhs_exams e
-                LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
-                WHERE e.id = ?
-            `,
-                values: [examId]
-            });
-
-            if (examSettingsResult.length === 0) {
-                return NextResponse.json({ message: 'Exam configuration not found.' }, { status: 404 });
-            }
-            settings = examSettingsResult[0];
-            
-            // Cache backfill (5 minutes TTL for settings used here)
-            if (isRedisReady()) {
-                await redis.set(cacheKey, JSON.stringify(settings), 'EX', 300).catch(() => {});
-            }
+            return NextResponse.json({ message: 'Exam configuration not found.' }, { status: 404 });
         }
 
         // Check exam availability window
@@ -145,7 +109,7 @@ export async function POST(request) {
                 const examEndTime_ts = activeAttempt.start_time_ts + (settings.duration_minutes * 60) + ((activeAttempt.time_extension || 0) * 60);
                 if (now_ts > examEndTime_ts) {
                     await txQuery({ query: `UPDATE rhs_exam_attempts SET status = 'completed' WHERE id = ?`, values: [activeAttempt.id] });
-                    if (isRedisReady()) await redis.del(activeAttemptCacheKey).catch(() => {});
+                    if (isRedisReady()) await redis.del(activeAttemptCacheKey).catch(() => { });
                     activeAttempt = null;
                 }
             }
@@ -165,7 +129,7 @@ export async function POST(request) {
                         redis.set(`exam:attempt-meta:${userId}:${examId}`, JSON.stringify(attemptMeta), 'EX', 7200),
                         redis.sadd(`user:active_exams:${userId}`, examId),
                         redis.expire(`user:active_exams:${userId}`, 14400) // 4 hours safety
-                    ]).catch(() => {});
+                    ]).catch(() => { });
                 }
                 return { status: 'resumed', attempt: activeAttempt, initial_seconds_left };
             }
@@ -209,7 +173,7 @@ export async function POST(request) {
                     redis.set(`exam:attempt-meta:${userId}:${examId}`, JSON.stringify(attemptMeta), 'EX', 7200),
                     redis.sadd(`user:active_exams:${userId}`, examId),
                     redis.expire(`user:active_exams:${userId}`, 14400)
-                ]).catch(() => {});
+                ]).catch(() => { });
             }
 
             return { status: 'created', attempt: newAttempt, initial_seconds_left };

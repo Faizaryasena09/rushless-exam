@@ -5,7 +5,7 @@ import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { seededShuffle } from '@/app/lib/utils';
 import { validateUserSession } from '@/app/lib/auth';
-import { recalculateExamScores, distributeExamPoints } from '@/app/lib/exams';
+import { recalculateExamScores, distributeExamPoints, invalidateExamCache, getExamQuestions } from '@/app/lib/exams';
 import redis, { isRedisReady } from '@/app/lib/redis';
 
 async function getSession(request) {
@@ -29,48 +29,10 @@ export async function GET(request) {
   }
 
   try {
-    const cacheKey = `exam:data:${examId}`;
-    let examData;
+    const examData = await getExamQuestions(examId);
 
-    // Try to get from Redis cache (ONLY if ready)
-    let cachedData = null;
-    if (isRedisReady()) {
-      cachedData = await redis.get(cacheKey).catch(() => null);
-    }
-    
-    if (cachedData) {
-      examData = JSON.parse(cachedData);
-    } else {
-      // 1. Fetch exam settings
-      const examSettings = await query({
-        query: 'SELECT shuffle_questions, shuffle_answers FROM rhs_exams WHERE id = ?',
-        values: [examId],
-      });
-
-      if (examSettings.length === 0) {
-        return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
-      }
-
-      // 2. Fetch all questions for the exam
-      const questions = await query({
-        query: `
-          SELECT id, exam_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata
-          FROM rhs_exam_questions 
-          WHERE exam_id = ?
-          ORDER BY sort_order ASC, id ASC
-        `,
-        values: [examId],
-      });
-
-      examData = {
-        settings: examSettings[0],
-        questions
-      };
-
-      // Store in Redis for 1 hour (3600s) - ONLY if ready
-      if (isRedisReady()) {
-        await redis.set(cacheKey, JSON.stringify(examData), 'EX', 3600).catch(() => {});
-      }
+    if (!examData) {
+      return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
     }
 
     const { shuffle_questions, shuffle_answers } = examData.settings;
@@ -88,8 +50,8 @@ export async function GET(request) {
     const processedQuestions = questions.map(question => {
       let parsedOptions;
       try {
-        parsedOptions = typeof question.options === 'string' 
-          ? JSON.parse(question.options || '{}') 
+        parsedOptions = typeof question.options === 'string'
+          ? JSON.parse(question.options || '{}')
           : (question.options || {});
       } catch (e) {
         console.error('Failed to parse options for question ' + question.id + ': ', e);
@@ -154,25 +116,19 @@ export async function POST(request) {
     const result = await query({
       query: 'INSERT INTO rhs_exam_questions (exam_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       values: [
-          examId, 
-          questionText, 
-          JSON.stringify(options || {}), 
-          correctOption || '', 
-          questionType || 'multiple_choice',
-          (points !== undefined && points !== null) ? points : 1.0,
-          scoringStrategy || 'standard',
-          scoringMetadata ? JSON.stringify(scoringMetadata) : null
+        examId,
+        questionText,
+        JSON.stringify(options || {}),
+        correctOption || '',
+        questionType || 'multiple_choice',
+        (points !== undefined && points !== null) ? points : 1.0,
+        scoringStrategy || 'standard',
+        scoringMetadata ? JSON.stringify(scoringMetadata) : null
       ],
     });
 
     // Invalidate Redis Cache IMMEDIATELY after update
-    if (isRedisReady()) {
-      await Promise.all([
-        redis.del(`exam:data:${examId}`),
-        redis.del(`exam:settings-full:${examId}`),
-        redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
-      ]).catch(() => {});
-    }
+    await invalidateExamCache(examId);
 
     const examSettings = await query({
       query: 'SELECT auto_distribute FROM rhs_exams WHERE id = ?',
@@ -186,13 +142,7 @@ export async function POST(request) {
     await recalculateExamScores(examId);
 
     // Invalidate Redis Cache
-    if (isRedisReady()) {
-      await Promise.all([
-        redis.del(`exam:data:${examId}`),
-        redis.del(`exam:settings-full:${examId}`),
-        redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
-      ]).catch(() => {});
-    }
+    await invalidateExamCache(examId);
 
     return NextResponse.json({ message: 'Question added successfully', id: result.insertId }, { status: 201 });
   } catch (error) {
@@ -232,13 +182,7 @@ export async function DELETE(request) {
       const examId = qData[0].exam_id;
 
       // Invalidate Redis Cache IMMEDIATELY after update
-      if (isRedisReady()) {
-        await Promise.all([
-          redis.del(`exam:data:${examId}`),
-          redis.del(`exam:settings-full:${examId}`),
-          redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
-        ]).catch(() => {});
-      }
+      await invalidateExamCache(examId);
 
       const examSettings = await query({
         query: 'SELECT auto_distribute FROM rhs_exams WHERE id = ?',
@@ -279,14 +223,14 @@ export async function PUT(request) {
     const result = await query({
       query: 'UPDATE rhs_exam_questions SET question_text = ?, options = ?, correct_option = ?, question_type = ?, points = ?, scoring_strategy = ?, scoring_metadata = ? WHERE id = ?',
       values: [
-          questionText, 
-          JSON.stringify(options || {}), 
-          correctOption || '', 
-          questionType || 'multiple_choice', 
-          (points !== undefined && points !== null) ? points : 1.0,
-          scoringStrategy || 'standard',
-          scoringMetadata ? JSON.stringify(scoringMetadata) : null,
-          id
+        questionText,
+        JSON.stringify(options || {}),
+        correctOption || '',
+        questionType || 'multiple_choice',
+        (points !== undefined && points !== null) ? points : 1.0,
+        scoringStrategy || 'standard',
+        scoringMetadata ? JSON.stringify(scoringMetadata) : null,
+        id
       ],
     });
 
@@ -298,13 +242,7 @@ export async function PUT(request) {
       const examId = qData[0].exam_id;
 
       // Invalidate Redis Cache IMMEDIATELY after update
-      if (isRedisReady()) {
-        await Promise.all([
-          redis.del(`exam:data:${examId}`),
-          redis.del(`exam:settings-full:${examId}`),
-          redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
-        ]).catch(() => {});
-      }
+      await invalidateExamCache(examId);
 
       const examSettings = await query({
         query: 'SELECT auto_distribute FROM rhs_exams WHERE id = ?',

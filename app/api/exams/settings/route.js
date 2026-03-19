@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query, transaction } from '@/app/lib/db';
 import redis, { isRedisReady } from '@/app/lib/redis';
-import { recalculateExamScores, distributeExamPoints } from '@/app/lib/exams';
+import { recalculateExamScores, distributeExamPoints, getExamSettings, invalidateExamCache } from '@/app/lib/exams';
 
 async function getSession(request) {
   const cookieStore = await cookies();
@@ -27,95 +27,10 @@ export async function GET(request) {
   }
 
   try {
-    const cacheKey = `exam:settings-full:${examId}`;
-    if (isRedisReady()) {
-      const cached = await redis.get(cacheKey).catch(() => null);
-      if (cached) {
-        return NextResponse.json(JSON.parse(cached), {
-          headers: {
-            'Cache-Control': 'no-store, max-age=0, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-          }
-        });
-      }
-    }
+    const examData = await getExamSettings(examId);
 
-    const results = await query({
-      query: `
-          SELECT 
-            e.id as exam_id, 
-            e.exam_name, 
-            e.description,
-            e.subject_id,
-            e.shuffle_questions,
-            e.shuffle_answers,
-            e.timer_mode,
-            e.duration_minutes,
-            e.min_time_minutes,
-            e.max_attempts,
-            e.scoring_mode,
-            e.total_target_score,
-            e.auto_distribute,
-            s.start_time, 
-            s.end_time,
-            s.require_safe_browser,
-            s.require_seb,
-            s.seb_config_key,
-            s.show_instructions,
-            s.instruction_type,
-            s.custom_instructions,
-            s.show_result,
-            s.show_analysis,
-            s.require_all_answered,
-            s.require_token,
-            s.token_type,
-            s.current_token,
-            s.violation_action
-          FROM rhs_exams e
-          LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
-          WHERE e.id = ?
-        `,
-      values: [examId],
-    });
-
-    if (results.length === 0) {
+    if (!examData) {
       return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
-    }
-
-    // Fetch allowed classes
-    const classResults = await query({
-      query: `SELECT class_id FROM rhs_exam_classes WHERE exam_id = ?`,
-      values: [examId]
-    });
-    const allowedClasses = classResults.map(r => r.class_id);
-
-    // Convert TINYINT(1) from DB to boolean
-    const examData = {
-      ...results[0],
-      subject_id: results[0].subject_id || '',
-      shuffle_questions: Boolean(results[0].shuffle_questions),
-      shuffle_answers: Boolean(results[0].shuffle_answers),
-      scoring_mode: results[0].scoring_mode || 'percentage',
-      total_target_score: results[0].total_target_score || 100,
-      auto_distribute: Boolean(results[0].auto_distribute),
-      require_safe_browser: Boolean(results[0].require_safe_browser),
-      require_seb: Boolean(results[0].require_seb),
-      show_instructions: Boolean(results[0].show_instructions),
-      instruction_type: results[0].instruction_type || 'template',
-      custom_instructions: results[0].custom_instructions || '',
-      show_result: Boolean(results[0].show_result),
-      show_analysis: Boolean(results[0].show_analysis),
-      require_all_answered: Boolean(results[0].require_all_answered),
-      require_token: Boolean(results[0].require_token),
-      token_type: results[0].token_type || 'static',
-      current_token: results[0].current_token || '',
-      violation_action: results[0].violation_action || 'abaikan',
-      allowed_classes: allowedClasses
-    };
-
-    if (isRedisReady()) {
-      await redis.set(cacheKey, JSON.stringify(examData), 'EX', 3600).catch(() => { });
     }
 
     return NextResponse.json(examData, {
@@ -257,13 +172,7 @@ export async function POST(request) {
       }
 
       // Invalidate Redis Cache IMMEDIATELY after update
-      if (isRedisReady()) {
-        await Promise.all([
-          redis.del(`exam:settings-full:${examId}`),
-          redis.del(`exam:data:${examId}`),
-          redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
-        ]).catch(() => { });
-      }
+      await invalidateExamCache(examId);
 
       if (autoDistribute) {
         await distributeExamPoints(examId);

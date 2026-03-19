@@ -7,6 +7,7 @@ import { validateUserSession } from '@/app/lib/auth';
 import { unlink } from 'fs/promises';
 import path from 'path';
 import redis, { isRedisReady } from '@/app/lib/redis';
+import { invalidateExamCache } from '@/app/lib/exams';
 
 async function GET() {
   // Check for active session to protect the route
@@ -27,15 +28,16 @@ async function GET() {
 
     // 1. Attempt to fetch base list from Redis
     if (isRedisReady()) {
-        const cached = await redis.get(listCacheKey).catch(() => null);
-        if (cached) {
-            exams = JSON.parse(cached);
-        }
+      const cached = await redis.get(listCacheKey).catch(() => null);
+      if (cached) {
+        exams = JSON.parse(cached);
+      }
     }
 
     if (!exams) {
-        let examsQuery = `
+      let examsQuery = `
             SELECT e.*,
+                e.is_hidden as exam_is_hidden,
                 s.require_safe_browser,
                 s.require_seb,
                 s.seb_config_key,
@@ -52,17 +54,17 @@ async function GET() {
             LEFT JOIN rhs_subjects s_subj ON e.subject_id = s_subj.id
         `;
 
-        let queryValues = [];
+      let queryValues = [];
 
-        if (role === 'student') {
-            examsQuery += `
+      if (role === 'student') {
+        examsQuery += `
                 INNER JOIN rhs_exam_classes ec ON e.id = ec.exam_id
                 WHERE ec.class_id = ? AND e.is_hidden = FALSE 
                 AND (c.id IS NULL OR (c.is_hidden = FALSE AND c.is_admin_hidden = FALSE))
             `;
-            queryValues.push(classId || -1);
-        } else if (role === 'teacher') {
-            examsQuery += `
+        queryValues.push(classId || -1);
+      } else if (role === 'teacher') {
+        examsQuery += `
                 WHERE EXISTS (
                     SELECT 1 FROM rhs_exam_classes ec
                     INNER JOIN rhs_teacher_classes tc ON ec.class_id = tc.class_id
@@ -77,17 +79,17 @@ async function GET() {
                 )
                 AND (c.id IS NULL OR c.is_admin_hidden = FALSE)
             `;
-            queryValues.push(userId, userId);
-        }
+        queryValues.push(userId, userId);
+      }
 
-        examsQuery += ` ORDER BY e.created_at DESC`;
+      examsQuery += ` ORDER BY e.created_at DESC`;
 
-        exams = await query({ query: examsQuery, values: queryValues });
+      exams = await query({ query: examsQuery, values: queryValues });
 
-        // Cache the base list (5 minutes TTL for lists)
-        if (isRedisReady() && exams.length > 0) {
-            await redis.set(listCacheKey, JSON.stringify(exams), 'EX', 300).catch(() => {});
-        }
+      // Cache the base list (5 minutes TTL for lists)
+      if (isRedisReady() && exams.length > 0) {
+        await redis.set(listCacheKey, JSON.stringify(exams), 'EX', 300).catch(() => { });
+      }
     }
 
     // 2. Add user-specific attempt info (always fresh)
@@ -116,8 +118,8 @@ async function GET() {
               const endTime = attempt.start_time_ts + durationSeconds;
               if (now_ts > endTime) isExpired = true;
             } else if (exam.end_time) {
-                const globalEndTime = Math.floor(new Date(exam.end_time).getTime() / 1000);
-                if (now_ts > globalEndTime) isExpired = true;
+              const globalEndTime = Math.floor(new Date(exam.end_time).getTime() / 1000);
+              if (now_ts > globalEndTime) isExpired = true;
             }
           }
 
@@ -135,7 +137,7 @@ async function GET() {
       });
     }
 
-    return NextResponse.json({ exams }, { 
+    return NextResponse.json({ exams }, {
       status: 200,
       headers: {
         'Cache-Control': 'no-store, max-age=0, must-revalidate',
@@ -178,11 +180,8 @@ async function POST(request) {
         values: [newExamId, require_safe_browser || false, require_seb || false]
       });
 
-      // Wildcard delete for exam lists (needs a way to identify patterns, or just clear all)
-      if (isRedisReady()) {
-          const keys = await redis.keys('exams:list:*');
-          if (keys.length > 0) await redis.del(keys).catch(() => {});
-      }
+      // Wildcard delete for exam lists
+      await invalidateExamCache(null);
 
       return NextResponse.json({ message: 'Exam created successfully', examId: newExamId }, { status: 201 });
     } else {
@@ -229,14 +228,7 @@ async function PUT(request) {
     }
 
     // Invalidate caches
-    if (isRedisReady()) {
-        await Promise.all([
-            redis.del(`exam:settings-full:${id}`),
-            redis.del(`exam:data:${id}`),
-            // Pattern delete for lists
-            redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
-        ]).catch(() => {});
-    }
+    await invalidateExamCache(id);
 
     return NextResponse.json({ message: 'Exam updated successfully' });
   } catch (error) {
@@ -275,20 +267,14 @@ async function DELETE(request) {
 
     const publicDir = path.join(process.cwd(), 'public', 'uploads', 'questions');
     await Promise.all(Array.from(filesToDelete).map(async (filename) => {
-      try { await unlink(path.join(publicDir, filename)); } catch (err) {}
+      try { await unlink(path.join(publicDir, filename)); } catch (err) { }
     }));
 
     // 2. Delete exam from DB
     await query({ query: 'DELETE FROM rhs_exams WHERE id = ?', values: [id] });
 
     // 3. Invalidate caches
-    if (isRedisReady()) {
-        await Promise.all([
-            redis.del(`exam:settings-full:${id}`),
-            redis.del(`exam:data:${id}`),
-            redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
-        ]).catch(() => {});
-    }
+    await invalidateExamCache(id);
 
     return NextResponse.json({ message: 'Exam deleted successfully' });
   } catch (error) {

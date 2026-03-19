@@ -7,9 +7,10 @@ import {
     Document, Packer, Paragraph, TextRun, AlignmentType,
     HeadingLevel, BorderStyle, ImageRun
 } from 'docx';
-import fs from 'fs/promises';
 import path from 'path';
 import iconv from 'iconv-lite';
+import { getExamSettings, getExamQuestions } from '@/app/lib/exams';
+import { isRedisReady } from '@/app/lib/redis';
 
 async function getSession() {
     const cookieStore = await cookies();
@@ -19,7 +20,7 @@ async function getSession() {
 // Helper to separate text and images from HTML
 function parseContent(html) {
     if (!html) return [];
-    
+
     // This regex captures <img> tags and their src
     const imgRegex = /<img[^>]+src="([^">]+)"[^>]*>/gi;
     const parts = [];
@@ -70,7 +71,7 @@ function sanitizeText(text) {
 // Strip HTML tags and decode common entities
 function stripHtml(html) {
     if (!html) return '';
-    
+
     // First pass sanitization
     let cleanHtml = sanitizeText(html);
 
@@ -96,7 +97,7 @@ function stripHtml(html) {
         .replace(/&larr;/g, '←').replace(/&uarr;/g, '↑').replace(/&rarr;/g, '→').replace(/&darr;/g, '↓')
         .replace(/&hellip;/g, '…').replace(/&bull;/g, '•').replace(/&copy;/g, '©').replace(/&reg;/g, '®')
         .replace(/&trade;/g, '™').replace(/&euro;/g, '€').replace(/&pound;/g, '£').replace(/&yen;/g, '¥');
-        
+
     return text.replace(/\n{3,}/g, '\n\n').trim();
 }
 
@@ -132,22 +133,17 @@ export async function GET(request) {
     }
 
     try {
-        // 1. Get Exam Details
-        const examDetails = await query({
-            query: 'SELECT exam_name FROM rhs_exams WHERE id = ?',
-            values: [examId]
-        });
+        // 1. Get Exam Details (Standardized)
+        const examData = await getExamSettings(examId);
 
-        if (examDetails.length === 0) {
+        if (!examData) {
             return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
         }
-        const examName = examDetails[0].exam_name;
+        const examName = examData.exam_name;
 
-        // 2. Get All Questions (ordered by sort_order, then by id)
-        const questions = await query({
-            query: 'SELECT id, question_text, options, correct_option FROM rhs_exam_questions WHERE exam_id = ? ORDER BY sort_order ASC, id ASC',
-            values: [examId]
-        });
+        // 2. Get All Questions (Standardized)
+        const questionData = await getExamQuestions(examId);
+        const questions = questionData.questions;
 
         // 3. Build DOCX content
         const docChildren = [];
@@ -273,7 +269,7 @@ export async function GET(request) {
                                     }));
                                     children = [];
                                 }
-                                
+
                                 paragraphsToPush.push(new Paragraph({
                                     children: [
                                         new ImageRun({
@@ -306,9 +302,9 @@ export async function GET(request) {
 
                         paragraphsToPush.push(new Paragraph({
                             children,
-                            spacing: { 
-                                before: isFirstParaOfQuestion ? 400 : (indent ? 40 : 80), 
-                                after: indent ? 40 : 120 
+                            spacing: {
+                                before: isFirstParaOfQuestion ? 400 : (indent ? 40 : 80),
+                                after: indent ? 40 : 120
                             },
                             indent: indent ? { left: 720 } : { left: 720, hanging: 720 }
                         }));

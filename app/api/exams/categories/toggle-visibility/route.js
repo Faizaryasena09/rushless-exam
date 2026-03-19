@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { validateUserSession } from '@/app/lib/auth';
 import redis, { isRedisReady } from '@/app/lib/redis';
+import { invalidateExamCache } from '@/app/lib/exams';
 
 export async function PUT(request) {
   const cookieStore = await cookies();
@@ -57,9 +58,7 @@ export async function PUT(request) {
     }
 
     // Invalidate Redis Cache for exam lists
-    if (isRedisReady()) {
-      redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null).catch(() => { });
-    }
+    await invalidateExamCache(null);
 
     return NextResponse.json({ message: 'Category visibility updated successfully' }, { status: 200 });
   } catch (error) {

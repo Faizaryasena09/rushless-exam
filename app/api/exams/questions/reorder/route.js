@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import redis, { isRedisReady } from '@/app/lib/redis';
-import { recalculateExamScores } from '@/app/lib/exams';
+import { recalculateExamScores, invalidateExamCache } from '@/app/lib/exams';
 
 // PATCH handler to reorder questions
 export async function PATCH(request) {
@@ -36,18 +36,12 @@ export async function PATCH(request) {
                 query: 'SELECT exam_id FROM rhs_exam_questions WHERE id = ?',
                 values: [orderedIds[0]],
             });
-            
+
             if (qInfo.length > 0) {
                 const examId = qInfo[0].exam_id;
 
                 // Invalidate Redis Cache IMMEDIATELY after update
-                if (isRedisReady()) {
-                    await Promise.all([
-                        redis.del(`exam:data:${examId}`),
-                        redis.del(`exam:settings-full:${examId}`),
-                        redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
-                    ]).catch(() => {});
-                }
+                await invalidateExamCache(examId);
 
                 await recalculateExamScores(examId);
             }

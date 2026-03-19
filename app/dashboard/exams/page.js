@@ -165,8 +165,8 @@ const StudentExamActions = ({ exam }) => {
             disabled={isLaunching}
             className={`w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
           >
-             <Icons.Shield className="w-4 h-4" />
-             <span>{isLaunching ? 'Menyiapkan...' : 'Buka di Rushless Safer (App)'}</span>
+            <Icons.Shield className="w-4 h-4" />
+            <span>{isLaunching ? 'Menyiapkan...' : 'Buka di Rushless Safer (App)'}</span>
           </button>
         )}
       </div>
@@ -221,8 +221,8 @@ const StudentExamActions = ({ exam }) => {
             disabled={isLaunching}
             className={`w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
           >
-             <Icons.Shield className="w-4 h-4" />
-             <span>{isLaunching ? 'Menyiapkan...' : 'Buka di Rushless Safer (App)'}</span>
+            <Icons.Shield className="w-4 h-4" />
+            <span>{isLaunching ? 'Menyiapkan...' : 'Buka di Rushless Safer (App)'}</span>
           </button>
         )}
       </div>
@@ -308,53 +308,53 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
                 <Icons.Duplicate />
                 <span>Duplicate</span>
               </button>
-              
+
               {/* Exam Actions Dropdown Trigger (Moves & Delete) */}
               <div className="flex-1 relative" ref={menuRef}>
-                  <button 
-                      onClick={() => setIsMenuOpen(!isMenuOpen)}
-                      className="w-full flex items-center justify-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 py-1.5 px-2 rounded-lg transition-colors"
-                  >
-                      <Icons.DotsVertical />
-                      <span>Lainnya</span>
-                  </button>
-                  
-                  {/* Dropdown Menu */}
-                  <div className={`absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 transition-all origin-bottom-right z-10 ${isMenuOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95'}`}>
-                      <div className="p-1">
-                          <button 
-                              onClick={() => {
-                                  if (onToggleVisibility) onToggleVisibility();
-                                  setIsMenuOpen(false);
-                              }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
-                          >
-                              {exam.exam_is_hidden ? <><Icons.Eye /><span>Tampilkan Ujian</span></> : <><Icons.EyeOff /><span>Sembunyikan Ujian</span></>}
-                          </button>
-                          <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2"></div>
-                          <button 
-                              onClick={() => {
-                                  openModal('moveExam', exam.id, exam.category_id || '');
-                                  setIsMenuOpen(false);
-                              }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
-                          >
-                              <Icons.Folder />
-                              <span>Pindahkan Kategori</span>
-                          </button>
-                          <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2"></div>
-                          <button 
-                              onClick={() => {
-                                  openModal('delete', exam.id);
-                                  setIsMenuOpen(false);
-                              }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
-                          >
-                              <Icons.Trash />
-                              <span>Hapus Ujian</span>
-                          </button>
-                      </div>
+                <button
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  className="w-full flex items-center justify-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 py-1.5 px-2 rounded-lg transition-colors"
+                >
+                  <Icons.DotsVertical />
+                  <span>Lainnya</span>
+                </button>
+
+                {/* Dropdown Menu */}
+                <div className={`absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 transition-all origin-bottom-right z-10 ${isMenuOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95'}`}>
+                  <div className="p-1">
+                    <button
+                      onClick={() => {
+                        if (onToggleVisibility) onToggleVisibility();
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
+                    >
+                      {exam.exam_is_hidden ? <><Icons.Eye /><span>Tampilkan Ujian</span></> : <><Icons.EyeOff /><span>Sembunyikan Ujian</span></>}
+                    </button>
+                    <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2"></div>
+                    <button
+                      onClick={() => {
+                        openModal('moveExam', exam.id, exam.category_id || '');
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
+                    >
+                      <Icons.Folder />
+                      <span>Pindahkan Kategori</span>
+                    </button>
+                    <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2"></div>
+                    <button
+                      onClick={() => {
+                        openModal('delete', exam.id);
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
+                    >
+                      <Icons.Trash />
+                      <span>Hapus Ujian</span>
+                    </button>
                   </div>
+                </div>
               </div>
             </div>
           </div>
@@ -366,131 +366,131 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
 
 // --- Category Accordion Component ---
 const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, formatDate, openModal, categories, onEdit, onDelete, onToggleVisibility, isHidden, isAdminHidden, onToggleExamVisibility, userRole, userId, categoryCreatedBy, onMove, onDragStart, onDragOver, onDrop, onDragEnd, isDragging }) => {
-    // Hide 'Tanpa Nama' (uncategorized) if there are no uncategorized exams AND user has categories
-    if (id === 'uncategorized' && exams.length === 0 && categories.length > 0) return null;
+  // Hide 'Tanpa Nama' (uncategorized) if there are no uncategorized exams AND user has categories
+  if (id === 'uncategorized' && exams.length === 0 && categories.length > 0) return null;
 
-    const canReorder = !isStudent && (userRole === 'admin' || userId === categoryCreatedBy);
+  const canReorder = !isStudent && (userRole === 'admin' || userId === categoryCreatedBy);
 
-    return (
-        <div 
-            className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300 ${isDragging ? 'opacity-40 scale-[0.98] border-indigo-400 border-dashed' : ''}`}
-            draggable={canReorder}
-            onDragStart={(e) => canReorder && onDragStart(e, id)}
-            onDragOver={(e) => canReorder && onDragOver(e, id)}
-            onDrop={(e) => canReorder && onDrop(e, id)}
-            onDragEnd={onDragEnd}
-        >
-            {/* Accordion Header */}
-            <div 
-                className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors select-none"
-                onClick={toggleOpen}
-            >
-                <div className="flex items-center gap-3">
-                    {/* Move Handle - Only for authorized users */}
-                    {canReorder && id !== 'uncategorized' && (
-                        <div className="p-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing transition-colors" title="Tahan dan Tarik untuk Mengubah Urutan">
-                            <Icons.Grip />
-                        </div>
-                    )}
-                    <div className={`p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
-                        <Icons.ChevronDown />
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                            {name}
-                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-                                {exams.length}
-                            </span>
-                            {id !== 'uncategorized' && !isStudent && !!isHidden && (
-                                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full">
-                                    Siswa Hidden
-                                </span>
-                            )}
-                            {id !== 'uncategorized' && !isStudent && !!isAdminHidden && (
-                                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full">
-                                    Admin Hidden
-                                </span>
-                            )}
-                        </h2>
-                    </div>
-                </div>
-                
-                {/* Category Actions (Only show for custom categories, not 'Tanpa Nama', and enforce permissions) */}
-                {id !== 'uncategorized' && !isStudent && (userRole === 'admin' || userId === categoryCreatedBy) && (
-                    <div className="flex items-center gap-1 sm:gap-2" onClick={(e) => e.stopPropagation() /* Prevent accordion toggle */}>
-                        {/* Admin Only: Global Hide */}
-                        {userRole === 'admin' && (
-                            <button 
-                                onClick={() => onToggleVisibility('admin_hidden')}
-                                className={`p-2 rounded-lg transition-colors ${isAdminHidden ? 'text-red-600 bg-red-50 dark:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'}`}
-                                title={isAdminHidden ? "Tampilkan untuk Guru & Siswa" : "Sembunyikan dari Guru & Siswa"}
-                            >
-                                <Icons.Shield />
-                            </button>
-                        )}
-                        
-                        <button 
-                            onClick={() => onToggleVisibility('hidden')}
-                            className={`p-2 rounded-lg transition-colors ${isHidden ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'}`}
-                            title={isHidden ? "Tampilkan untuk Siswa" : "Sembunyikan dari Siswa"}
-                        >
-                            {isHidden ? <Icons.EyeOff /> : <Icons.Eye />}
-                        </button>
-                        <button 
-                            onClick={onEdit}
-                            className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
-                            title="Ubah Nama"
-                        >
-                            <Icons.Cog />
-                        </button>
-                        <button 
-                            onClick={onDelete}
-                            className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                            title="Hapus Kategori"
-                        >
-                            <Icons.Trash />
-                        </button>
-                    </div>
-                )}
+  return (
+    <div
+      className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300 ${isDragging ? 'opacity-40 scale-[0.98] border-indigo-400 border-dashed' : ''}`}
+      draggable={canReorder}
+      onDragStart={(e) => canReorder && onDragStart && onDragStart(e, id)}
+      onDragOver={(e) => canReorder && onDragOver && onDragOver(e, id)}
+      onDrop={(e) => canReorder && onDrop && onDrop(e, id)}
+      onDragEnd={onDragEnd}
+    >
+      {/* Accordion Header */}
+      <div
+        className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors select-none"
+        onClick={toggleOpen}
+      >
+        <div className="flex items-center gap-3">
+          {/* Move Handle - Only for authorized users */}
+          {canReorder && id !== 'uncategorized' && (
+            <div className="p-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing transition-colors" title="Tahan dan Tarik untuk Mengubah Urutan">
+              <Icons.Grip />
             </div>
-
-            {/* Accordion Body */}
-            <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-                <div className="overflow-hidden">
-                    <div className="p-6 pt-2 border-t border-slate-100 dark:border-slate-700/50 bg-slate-50/30 dark:bg-slate-900/20">
-                        {exams.length === 0 ? (
-                            <div className="text-center py-8">
-                                <p className="text-sm text-slate-500 dark:text-slate-400">Tidak ada ujian di kategori ini.</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {exams.map((exam) => (
-                                     <ExamCard 
-                                         key={exam.id} 
-                                         exam={exam} 
-                                         isStudent={isStudent} 
-                                         formatDate={formatDate} 
-                                         openModal={openModal} 
-                                         categories={categories} 
-                                         onToggleVisibility={() => onToggleExamVisibility(exam.id, exam.exam_is_hidden)}
-                                     />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
+          )}
+          <div className={`p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+            <Icons.ChevronDown />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              {name}
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+                {exams.length}
+              </span>
+              {id !== 'uncategorized' && !isStudent && !!isHidden && (
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full">
+                  Siswa Hidden
+                </span>
+              )}
+              {id !== 'uncategorized' && !isStudent && !!isAdminHidden && (
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full">
+                  Admin Hidden
+                </span>
+              )}
+            </h2>
+          </div>
         </div>
-    );
+
+        {/* Category Actions (Only show for custom categories, not 'Tanpa Nama', and enforce permissions) */}
+        {id !== 'uncategorized' && !isStudent && (userRole === 'admin' || userId === categoryCreatedBy) && (
+          <div className="flex items-center gap-1 sm:gap-2" onClick={(e) => e.stopPropagation() /* Prevent accordion toggle */}>
+            {/* Admin Only: Global Hide */}
+            {userRole === 'admin' && (
+              <button
+                onClick={() => onToggleVisibility('admin_hidden')}
+                className={`p-2 rounded-lg transition-colors ${isAdminHidden ? 'text-red-600 bg-red-50 dark:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'}`}
+                title={isAdminHidden ? "Tampilkan untuk Guru & Siswa" : "Sembunyikan dari Guru & Siswa"}
+              >
+                <Icons.Shield />
+              </button>
+            )}
+
+            <button
+              onClick={() => onToggleVisibility('hidden')}
+              className={`p-2 rounded-lg transition-colors ${isHidden ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'}`}
+              title={isHidden ? "Tampilkan untuk Siswa" : "Sembunyikan dari Siswa"}
+            >
+              {isHidden ? <Icons.EyeOff /> : <Icons.Eye />}
+            </button>
+            <button
+              onClick={onEdit}
+              className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+              title="Ubah Nama"
+            >
+              <Icons.Cog />
+            </button>
+            <button
+              onClick={onDelete}
+              className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              title="Hapus Kategori"
+            >
+              <Icons.Trash />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Accordion Body */}
+      <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+        <div className="overflow-hidden">
+          <div className="p-6 pt-2 border-t border-slate-100 dark:border-slate-700/50 bg-slate-50/30 dark:bg-slate-900/20">
+            {exams.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-sm text-slate-500 dark:text-slate-400">Tidak ada ujian di kategori ini.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {exams.map((exam) => (
+                  <ExamCard
+                    key={exam.id}
+                    exam={exam}
+                    isStudent={isStudent}
+                    formatDate={formatDate}
+                    openModal={openModal}
+                    categories={categories}
+                    onToggleVisibility={() => onToggleExamVisibility(exam.id, exam.exam_is_hidden)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default function ExamsPage() {
   const router = useRouter();
   const { user, loading: loadingSession } = useUser();
-  
+
   const userRole = user?.roleName;
   const userId = user?.id;
-  
+
   const [exams, setExams] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loadingExams, setLoadingExams] = useState(true);
@@ -513,20 +513,20 @@ export default function ExamsPage() {
 
   const filteredExams = useMemo(() => {
     if (!exams) return [];
-    return exams.filter(e => 
-        e.exam_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (e.subject_name && e.subject_name.toLowerCase().includes(searchTerm.toLowerCase()))
+    return exams.filter(e =>
+      e.exam_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.subject_name && e.subject_name.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [exams, searchTerm]);
 
   // Session check and role fetching logic
-// ...
-// [Lines 154-169 unchanged logic, we just need to place new methods above useEffect]
-// ...
+  // ...
+  // [Lines 154-169 unchanged logic, we just need to place new methods above useEffect]
+  // ...
   const toggleCategory = (categoryId) => {
     setOpenCategories(prev => ({
-        ...prev,
-        [categoryId]: !prev[categoryId]
+      ...prev,
+      [categoryId]: !prev[categoryId]
     }));
   };
 
@@ -540,27 +540,27 @@ export default function ExamsPage() {
 
   const handleToggleVisibility = async (type, id, currentStatus, mode = 'hidden') => {
     try {
-        let endpoint = '';
-        let body = {};
+      let endpoint = '';
+      let body = {};
 
-        if (type === 'exam') {
-            endpoint = '/api/exams/toggle-visibility';
-            body = { examId: id, isHidden: !currentStatus };
+      if (type === 'exam') {
+        endpoint = '/api/exams/toggle-visibility';
+        body = { examId: id, isHidden: !currentStatus };
+      } else {
+        endpoint = '/api/exams/categories/toggle-visibility';
+        if (mode === 'admin_hidden') {
+          body = { categoryId: id, isAdminHidden: !currentStatus };
         } else {
-            endpoint = '/api/exams/categories/toggle-visibility';
-            if (mode === 'admin_hidden') {
-                body = { categoryId: id, isAdminHidden: !currentStatus };
-            } else {
-                body = { categoryId: id, isHidden: !currentStatus };
-            }
+          body = { categoryId: id, isHidden: !currentStatus };
         }
-        
+      }
+
       const res = await fetch(endpoint, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      
+
       if (!res.ok) throw new Error((await res.json()).message);
       refreshData();
     } catch (e) {
@@ -595,33 +595,33 @@ export default function ExamsPage() {
     const newCategories = [...categories];
     const sourceIndex = newCategories.findIndex(c => c.id === sourceId);
     const targetIndex = newCategories.findIndex(c => c.id === targetId);
-    
+
     if (sourceIndex === -1 || targetIndex === -1) return;
 
     // Splice and insert
     const [movedItem] = newCategories.splice(sourceIndex, 1);
     newCategories.splice(targetIndex, 0, movedItem);
-    
+
     setCategories(newCategories);
 
     // Call API
     try {
-        const orderedIds = newCategories.map(c => c.id);
-        const res = await fetch('/api/exams/categories', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderedIds })
-        });
-        if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.message);
-        }
-        // No need to refreshData() if optimistic update is correct, 
-        // but let's do it to be safe and ensure sort_order is in sync.
-        refreshData();
+      const orderedIds = newCategories.map(c => c.id);
+      const res = await fetch('/api/exams/categories', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderedIds })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message);
+      }
+      // No need to refreshData() if optimistic update is correct, 
+      // but let's do it to be safe and ensure sort_order is in sync.
+      refreshData();
     } catch (e) {
-        alert(e.message);
-        refreshData(); // Revert on error
+      alert(e.message);
+      refreshData(); // Revert on error
     }
   };
 
@@ -639,8 +639,8 @@ export default function ExamsPage() {
     async function fetchData() {
       try {
         const [examsRes, categoriesRes] = await Promise.all([
-            fetch('/api/exams'),
-            (userRole !== 'student') ? fetch('/api/exams/categories') : Promise.resolve(null)
+          fetch('/api/exams'),
+          (userRole !== 'student') ? fetch('/api/exams/categories') : Promise.resolve(null)
         ]);
 
         if (!examsRes.ok) {
@@ -648,52 +648,52 @@ export default function ExamsPage() {
           throw new Error(data.message || 'Failed to fetch exams');
         }
         const examsData = await examsRes.json();
-        
+
         let categoriesData = { categories: [] };
         if (categoriesRes && categoriesRes.ok) {
-            categoriesData = await categoriesRes.json();
+          categoriesData = await categoriesRes.json();
         }
 
         if (isMounted) {
           setExams(examsData.exams);
-          
+
           let fetchedCategories = categoriesData.categories;
 
           if (userRole === 'student') {
-              // Extract unique categories from exams
-              const studentCategoriesMap = new Map();
-              examsData.exams.forEach(e => {
-                  if (e.category_id !== null) {
-                      studentCategoriesMap.set(e.category_id, e.category_name);
-                  }
-              });
-              fetchedCategories = Array.from(studentCategoriesMap.entries()).map(([id, name]) => ({ id, name }));
+            // Extract unique categories from exams
+            const studentCategoriesMap = new Map();
+            examsData.exams.forEach(e => {
+              if (e.category_id !== null) {
+                studentCategoriesMap.set(e.category_id, e.category_name);
+              }
+            });
+            fetchedCategories = Array.from(studentCategoriesMap.entries()).map(([id, name]) => ({ id, name }));
           } else {
-              // Create a lookup for category is_hidden for teachers
-              const catHiddenMap = fetchedCategories.reduce((acc, cat) => {
-                  acc[cat.id] = cat.is_hidden ? 1 : 0;
-                  return acc;
-              }, {});
-              
-              // Map it back to the state so we can pass it to the accordions
-              fetchedCategories = fetchedCategories.map(cat => ({
-                  ...cat,
-                  isHidden: !!catHiddenMap[cat.id]
-              }));
+            // Create a lookup for category is_hidden for teachers
+            const catHiddenMap = fetchedCategories.reduce((acc, cat) => {
+              acc[cat.id] = cat.is_hidden ? 1 : 0;
+              return acc;
+            }, {});
+
+            // Map it back to the state so we can pass it to the accordions
+            fetchedCategories = fetchedCategories.map(cat => ({
+              ...cat,
+              isHidden: !!catHiddenMap[cat.id]
+            }));
           }
 
           setCategories(fetchedCategories);
-          
+
           // Initialize accordion state: default open first category and 'Tanpa Nama'
           setOpenCategories(prev => {
-              if (Object.keys(prev).length === 0) {
-                  const initialOpen = { 'uncategorized': true };
-                  if (fetchedCategories.length > 0) {
-                      initialOpen[fetchedCategories[0].id] = true;
-                  }
-                  return initialOpen;
+            if (Object.keys(prev).length === 0) {
+              const initialOpen = { 'uncategorized': true };
+              if (fetchedCategories.length > 0) {
+                initialOpen[fetchedCategories[0].id] = true;
               }
-              return prev;
+              return initialOpen;
+            }
+            return prev;
           });
 
           setLoadingExams(false);
@@ -740,31 +740,31 @@ export default function ExamsPage() {
           method: 'DELETE'
         });
       } else if (type === 'categoryManage') {
-         if (categoryId) {
-             // Rename Category
-             res = await fetch(`/api/exams/categories`, {
-                 method: 'PUT',
-                 headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify({ id: categoryId, name: categoryName })
-             });
-         } else {
-             // Create Category
-             res = await fetch(`/api/exams/categories`, {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify({ name: categoryName })
-             });
-         }
+        if (categoryId) {
+          // Rename Category
+          res = await fetch(`/api/exams/categories`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: categoryId, name: categoryName })
+          });
+        } else {
+          // Create Category
+          res = await fetch(`/api/exams/categories`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: categoryName })
+          });
+        }
       } else if (type === 'categoryDelete') {
-          res = await fetch(`/api/exams/categories?id=${categoryId}`, {
-              method: 'DELETE'
-          });
+        res = await fetch(`/api/exams/categories?id=${categoryId}`, {
+          method: 'DELETE'
+        });
       } else if (type === 'moveExam') {
-          res = await fetch(`/api/exams/move-category`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ examId, categoryId })
-          });
+        res = await fetch(`/api/exams/move-category`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ examId, categoryId })
+        });
       }
 
       if (!res.ok) throw new Error((await res.json()).message);
@@ -800,7 +800,7 @@ export default function ExamsPage() {
             <div className="h-12 bg-slate-200 dark:bg-slate-700 rounded-xl w-32"></div>
           </div>
         </div>
-        
+
         {/* Content Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
@@ -882,53 +882,60 @@ export default function ExamsPage() {
           </p>
         </div>
       ) : (
-          <div className="space-y-6">
-            {/* Tanpa Nama Category (Uncategorized) */}
+        <div className="space-y-6">
+          {/* Tanpa Nama Category (Uncategorized) */}
+          <CategoryAccordion
+            id="uncategorized"
+            name="Tanpa Nama"
+            exams={filteredExams.filter(e => e.category_id == null)}
+            isOpen={openCategories['uncategorized']}
+            toggleOpen={() => toggleCategory('uncategorized')}
+            isStudent={isStudent}
+            formatDate={formatDate}
+            openModal={openModal}
+            categories={categories}
+            isHidden={false}
+            isAdminHidden={false}
+            onToggleExamVisibility={(id, current) => handleToggleVisibility('exam', id, current)}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onDragEnd={handleDragEnd}
+            isDragging={draggedCategoryId === 'uncategorized'}
+            userRole={userRole}
+            userId={userId}
+          />
+
+          {/* User Created Categories */}
+          {categories.map(cat => (
             <CategoryAccordion
-              id="uncategorized"
-              name="Tanpa Nama"
-              exams={filteredExams.filter(e => e.category_id == null)}
-              isOpen={openCategories['uncategorized']}
-              toggleOpen={() => toggleCategory('uncategorized')}
+              key={cat.id}
+              id={cat.id}
+              name={cat.name}
+              exams={filteredExams.filter(e => e.category_id === cat.id)}
+              isOpen={openCategories[cat.id]}
+              toggleOpen={() => toggleCategory(cat.id)}
               isStudent={isStudent}
               formatDate={formatDate}
               openModal={openModal}
               categories={categories}
-              isHidden={false}
-              isAdminHidden={false}
+              isHidden={cat.is_hidden}
+              isAdminHidden={cat.is_admin_hidden}
+              onToggleVisibility={(mode) => handleToggleVisibility('category', cat.id, mode === 'admin_hidden' ? cat.is_admin_hidden : cat.is_hidden, mode)}
               onToggleExamVisibility={(id, current) => handleToggleVisibility('exam', id, current)}
+              onEdit={(e) => { e.stopPropagation(); openModal('categoryManage', null, cat.id, cat.name); }}
+              onDelete={(e) => { e.stopPropagation(); openModal('categoryDelete', null, cat.id); }}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+              isDragging={draggedCategoryId === cat.id}
+              userRole={userRole}
+              userId={userId}
+              categoryCreatedBy={cat.created_by}
             />
-
-            {/* User Created Categories */}
-            {categories.map(cat => (
-              <CategoryAccordion
-                key={cat.id}
-                id={cat.id}
-                name={cat.name}
-                exams={filteredExams.filter(e => e.category_id === cat.id)}
-                isOpen={openCategories[cat.id]}
-                toggleOpen={() => toggleCategory(cat.id)}
-                isStudent={isStudent}
-                formatDate={formatDate}
-                openModal={openModal}
-                categories={categories}
-                isHidden={cat.is_hidden}
-                isAdminHidden={cat.is_admin_hidden}
-                onToggleVisibility={(mode) => handleToggleVisibility('category', cat.id, mode === 'admin_hidden' ? cat.is_admin_hidden : cat.is_hidden, mode)}
-                onToggleExamVisibility={(id, current) => handleToggleVisibility('exam', id, current)}
-                onEdit={(e) => { e.stopPropagation(); openModal('categoryManage', null, cat.id, cat.name); }}
-                onDelete={(e) => { e.stopPropagation(); openModal('categoryDelete', null, cat.id); }}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                onDragEnd={handleDragEnd}
-                isDragging={draggedCategoryId === cat.id}
-                userRole={userRole}
-                userId={userId}
-                categoryCreatedBy={cat.created_by}
-              />
-            ))}
-          </div>
+          ))}
+        </div>
       )}
 
       {/* Modals */}
@@ -942,20 +949,20 @@ export default function ExamsPage() {
                   <Icons.Folder />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                    {modalState.categoryId ? 'Ubah Nama Kategori' : 'Kategori Ujian'}
+                  {modalState.categoryId ? 'Ubah Nama Kategori' : 'Kategori Ujian'}
                 </h3>
               </div>
-              
+
               <div className="mb-6">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Nama Kategori</label>
-                  <input 
-                      type="text" 
-                      value={modalState.categoryName}
-                      onChange={(e) => setModalState(prev => ({ ...prev, categoryName: e.target.value }))}
-                      placeholder="Masukkan nama kategori baru"
-                      className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow"
-                      autoFocus
-                  />
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Nama Kategori</label>
+                <input
+                  type="text"
+                  value={modalState.categoryName}
+                  onChange={(e) => setModalState(prev => ({ ...prev, categoryName: e.target.value }))}
+                  placeholder="Masukkan nama kategori baru"
+                  className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow"
+                  autoFocus
+                />
               </div>
 
               <div className="flex justify-end gap-3">
@@ -983,19 +990,19 @@ export default function ExamsPage() {
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white">Pindahkan Ujian</h3>
               </div>
-              
+
               <div className="mb-6">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Pilih Kategori Tujuan</label>
-                  <select 
-                      value={modalState.categoryId || ''}
-                      onChange={(e) => setModalState(prev => ({ ...prev, categoryId: e.target.value }))}
-                      className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  >
-                      <option value="">Tanpa Nama</option>
-                      {categories.map(cat => (
-                          <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                  </select>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Pilih Kategori Tujuan</label>
+                <select
+                  value={modalState.categoryId || ''}
+                  onChange={(e) => setModalState(prev => ({ ...prev, categoryId: e.target.value }))}
+                  className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                >
+                  <option value="">Tanpa Nama</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex justify-end gap-3">

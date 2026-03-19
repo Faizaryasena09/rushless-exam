@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import redis, { isRedisReady } from '@/app/lib/redis';
+import { recalculateExamScores, invalidateExamCache } from '@/app/lib/exams';
 
 // DELETE handler to remove ALL questions for an exam
 export async function DELETE(request) {
@@ -24,13 +25,7 @@ export async function DELETE(request) {
         });
 
         // Invalidate Redis Cache IMMEDIATELY after update
-        if (isRedisReady()) {
-            await Promise.all([
-                redis.del(`exam:data:${examId}`),
-                redis.del(`exam:settings-full:${examId}`),
-                redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
-            ]).catch(() => {});
-        }
+        await invalidateExamCache(examId);
 
         await recalculateExamScores(examId);
 

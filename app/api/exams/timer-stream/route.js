@@ -8,6 +8,7 @@ import { autoSubmitAttemptIfExpired } from '@/app/lib/auto-submit';
 import { eventBus } from '@/app/lib/event-bus';
 import { logExamActivity } from '@/app/lib/logger';
 import redis, { isRedisReady } from '@/app/lib/redis';
+import { getExamSettings } from '@/app/lib/exams';
 
 // Helper to calculate remaining time
 function calculateRemainingSeconds(settings, attempt, now_ts) {
@@ -94,34 +95,12 @@ export async function GET(request) {
                     let settings = null;
                     let attempt = null;
 
-                    // ─── Phase 1: Try Redis ───
+                    // ─── Phase 1: Try Redis/DB via Helper ───
+                    settings = await getExamSettings(examId);
+
                     if (redisReady) {
-                        const [cachedSettings, cachedMeta] = await Promise.all([
-                            redis.get(`exam:settings-full:${examId}`).catch(() => null),
-                            redis.get(`exam:attempt-meta:${userId}:${examId}`).catch(() => null)
-                        ]);
-
-                        if (cachedSettings) settings = JSON.parse(cachedSettings);
+                        const cachedMeta = await redis.get(`exam:attempt-meta:${userId}:${examId}`).catch(() => null);
                         if (cachedMeta) attempt = JSON.parse(cachedMeta);
-                    }
-
-                    // ─── Phase 2: Fallback to DB if Redis is missing data ───
-                    if (!settings) {
-                        const examSettingsResult = await query({
-                            query: `
-                                SELECT e.id, e.timer_mode, e.duration_minutes,
-                                    UNIX_TIMESTAMP(s.start_time) as start_time_ts, 
-                                    UNIX_TIMESTAMP(s.end_time) as end_time_ts
-                                FROM rhs_exams e
-                                LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
-                                WHERE e.id = ?
-                            `,
-                            values: [examId]
-                        });
-                        if (examSettingsResult.length > 0) {
-                            settings = examSettingsResult[0];
-                            if (redisReady) await redis.set(`exam:settings-full:${examId}`, JSON.stringify(settings), 'EX', 300).catch(() => { });
-                        }
                     }
 
                     if (settings && !attempt) {
