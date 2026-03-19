@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { validateUserSession } from '@/app/lib/auth';
 import redis, { isRedisReady } from '@/app/lib/redis';
-import { invalidateExamCache } from '@/app/lib/exams';
+import { invalidateExamCache, getCategoriesList } from '@/app/lib/exams';
 
 export async function GET(request) {
   const cookieStore = await cookies();
@@ -16,19 +16,7 @@ export async function GET(request) {
   }
 
   try {
-    let categoriesQuery = `SELECT id, name, created_by, created_at, is_hidden, is_hidden as isHidden, sort_order, is_admin_hidden, is_admin_hidden as isAdminHidden FROM rhs_exam_categories`;
-    let queryValues = [];
-
-    // Role-based filtering: Non-admins cannot see categories hidden by admin
-    if (session.user.roleName !== 'admin') {
-      categoriesQuery += ` WHERE is_admin_hidden = FALSE`;
-    }
-
-    // Order by sort_order
-    categoriesQuery += ` ORDER BY sort_order ASC, created_at ASC`;
-
-    const categories = await query({ query: categoriesQuery, values: queryValues });
-
+    const categories = await getCategoriesList(session.user);
     return NextResponse.json({ categories }, { status: 200 });
   } catch (error) {
     console.error('Error fetching categories:', error);

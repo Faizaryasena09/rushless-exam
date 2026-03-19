@@ -7,7 +7,7 @@ import { validateUserSession } from '@/app/lib/auth';
 import { unlink } from 'fs/promises';
 import path from 'path';
 import redis, { isRedisReady } from '@/app/lib/redis';
-import { invalidateExamCache } from '@/app/lib/exams';
+import { invalidateExamCache, getExamsList } from '@/app/lib/exams';
 
 async function GET() {
   // Check for active session to protect the route
@@ -19,123 +19,7 @@ async function GET() {
   }
 
   try {
-    const userId = session.user.id;
-    const role = session.user.roleName;
-    const classId = session.user.class_id;
-
-    let exams;
-    const listCacheKey = role === 'student' ? `exams:list:class:${classId}` : `exams:list:${role}:${userId}`;
-
-    // 1. Attempt to fetch base list from Redis
-    if (isRedisReady()) {
-      const cached = await redis.get(listCacheKey).catch(() => null);
-      if (cached) {
-        exams = JSON.parse(cached);
-      }
-    }
-
-    if (!exams) {
-      let examsQuery = `
-            SELECT e.*,
-                e.is_hidden as exam_is_hidden,
-                s.require_safe_browser,
-                s.require_seb,
-                s.seb_config_key,
-                s.start_time,
-                s.end_time,
-                s.show_result,
-                s.show_analysis,
-                c.name as category_name,
-                c.is_hidden as category_is_hidden,
-                s_subj.name as subject_name
-            FROM rhs_exams e
-            LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
-            LEFT JOIN rhs_exam_categories c ON e.category_id = c.id
-            LEFT JOIN rhs_subjects s_subj ON e.subject_id = s_subj.id
-        `;
-
-      let queryValues = [];
-
-      if (role === 'student') {
-        examsQuery += `
-                INNER JOIN rhs_exam_classes ec ON e.id = ec.exam_id
-                WHERE ec.class_id = ? AND e.is_hidden = FALSE 
-                AND (c.id IS NULL OR (c.is_hidden = FALSE AND c.is_admin_hidden = FALSE))
-            `;
-        queryValues.push(classId || -1);
-      } else if (role === 'teacher') {
-        examsQuery += `
-                WHERE EXISTS (
-                    SELECT 1 FROM rhs_exam_classes ec
-                    INNER JOIN rhs_teacher_classes tc ON ec.class_id = tc.class_id
-                    WHERE ec.exam_id = e.id AND tc.teacher_id = ?
-                )
-                AND (
-                    e.subject_id IS NULL 
-                    OR EXISTS (
-                        SELECT 1 FROM rhs_teacher_subjects ts
-                        WHERE ts.subject_id = e.subject_id AND ts.teacher_id = ?
-                    )
-                )
-                AND (c.id IS NULL OR c.is_admin_hidden = FALSE)
-            `;
-        queryValues.push(userId, userId);
-      }
-
-      examsQuery += ` ORDER BY e.created_at DESC`;
-
-      exams = await query({ query: examsQuery, values: queryValues });
-
-      // Cache the base list (5 minutes TTL for lists)
-      if (isRedisReady() && exams.length > 0) {
-        await redis.set(listCacheKey, JSON.stringify(exams), 'EX', 300).catch(() => { });
-      }
-    }
-
-    // 2. Add user-specific attempt info (always fresh)
-    if (role === 'student') {
-      const allUserAttempts = await query({
-        query: `SELECT id as attempt_id, exam_id, status, score, UNIX_TIMESTAMP(start_time) as start_time_ts FROM rhs_exam_attempts WHERE user_id = ? ORDER BY start_time DESC`,
-        values: [userId]
-      });
-
-      const now_ts = Math.floor(Date.now() / 1000);
-
-      const attemptsInfo = allUserAttempts.reduce((acc, attempt) => {
-        if (!acc[attempt.exam_id]) {
-          acc[attempt.exam_id] = { count: 0, hasInProgress: false, latestAttemptId: attempt.attempt_id, latestScore: attempt.score };
-        }
-        acc[attempt.exam_id].count++;
-
-        if (attempt.status === 'in_progress') {
-          const examsDataMap = exams.reduce((m, ex) => { m[ex.id] = ex; return m; }, {});
-          const exam = examsDataMap[attempt.exam_id];
-          let isExpired = false;
-
-          if (exam) {
-            if (exam.timer_mode === 'async') {
-              const durationSeconds = (exam.duration_minutes || 0) * 60;
-              const endTime = attempt.start_time_ts + durationSeconds;
-              if (now_ts > endTime) isExpired = true;
-            } else if (exam.end_time) {
-              const globalEndTime = Math.floor(new Date(exam.end_time).getTime() / 1000);
-              if (now_ts > globalEndTime) isExpired = true;
-            }
-          }
-
-          if (!isExpired) acc[attempt.exam_id].hasInProgress = true;
-        }
-        return acc;
-      }, {});
-
-      exams.forEach(exam => {
-        const info = attemptsInfo[exam.id];
-        exam.user_attempts = info ? info.count : 0;
-        exam.has_in_progress = info ? info.hasInProgress : false;
-        exam.latest_attempt_id = info ? info.latestAttemptId : null;
-        exam.latest_score = info ? info.latestScore : null;
-      });
-    }
+    const exams = await getExamsList(session.user);
 
     return NextResponse.json({ exams }, {
       status: 200,

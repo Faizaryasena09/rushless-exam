@@ -630,93 +630,89 @@ export default function ExamsPage() {
   };
 
 
-  // Fetch exams logic with polling
+  // Fetch exams logic with SSE
   useEffect(() => {
     if (loadingSession) return;
 
     let isMounted = true;
+    let eventSource = null;
 
-    async function fetchData() {
-      try {
-        const [examsRes, categoriesRes] = await Promise.all([
-          fetch('/api/exams'),
-          (userRole !== 'student') ? fetch('/api/exams/categories') : Promise.resolve(null)
-        ]);
+    const processExamsData = (data) => {
+      if (!isMounted) return;
 
-        if (!examsRes.ok) {
-          const data = await examsRes.json();
-          throw new Error(data.message || 'Failed to fetch exams');
-        }
-        const examsData = await examsRes.json();
+      const { exams: examsData, categories: categoriesDataList } = data;
+      setExams(examsData);
 
-        let categoriesData = { categories: [] };
-        if (categoriesRes && categoriesRes.ok) {
-          categoriesData = await categoriesRes.json();
-        }
+      let fetchedCategories = categoriesDataList || [];
 
-        if (isMounted) {
-          setExams(examsData.exams);
-
-          let fetchedCategories = categoriesData.categories;
-
-          if (userRole === 'student') {
-            // Extract unique categories from exams
-            const studentCategoriesMap = new Map();
-            examsData.exams.forEach(e => {
-              if (e.category_id !== null) {
-                studentCategoriesMap.set(e.category_id, e.category_name);
-              }
-            });
-            fetchedCategories = Array.from(studentCategoriesMap.entries()).map(([id, name]) => ({ id, name }));
-          } else {
-            // Create a lookup for category is_hidden for teachers
-            const catHiddenMap = fetchedCategories.reduce((acc, cat) => {
-              acc[cat.id] = cat.is_hidden ? 1 : 0;
-              return acc;
-            }, {});
-
-            // Map it back to the state so we can pass it to the accordions
-            fetchedCategories = fetchedCategories.map(cat => ({
-              ...cat,
-              isHidden: !!catHiddenMap[cat.id]
-            }));
+      if (userRole === 'student') {
+        const studentCategoriesMap = new Map();
+        examsData.forEach(e => {
+          if (e.category_id !== null) {
+            studentCategoriesMap.set(e.category_id, e.category_name);
           }
-
-          setCategories(fetchedCategories);
-
-          // Initialize accordion state: default open first category and 'Tanpa Nama'
-          setOpenCategories(prev => {
-            if (Object.keys(prev).length === 0) {
-              const initialOpen = { 'uncategorized': true };
-              if (fetchedCategories.length > 0) {
-                initialOpen[fetchedCategories[0].id] = true;
-              }
-              return initialOpen;
-            }
-            return prev;
-          });
-
-          setLoadingExams(false);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error("Failed to fetch data:", err);
-          if (loadingExams) {
-            setErrorExams(err.message);
-            setLoadingExams(false);
-          }
-        }
+        });
+        fetchedCategories = Array.from(studentCategoriesMap.entries()).map(([id, name]) => ({ id, name }));
+      } else {
+        const catHiddenMap = fetchedCategories.reduce((acc, cat) => {
+          acc[cat.id] = cat.is_hidden ? 1 : 0;
+          return acc;
+        }, {});
+        fetchedCategories = fetchedCategories.map(cat => ({
+          ...cat,
+          isHidden: !!catHiddenMap[cat.id]
+        }));
       }
-    }
 
-    fetchData(); // Initial fetch
-    const intervalId = setInterval(fetchData, 5000); // Poll every 5 seconds
+      setCategories(fetchedCategories);
+
+      setOpenCategories(prev => {
+        if (Object.keys(prev).length === 0) {
+          const initialOpen = { 'uncategorized': true };
+          if (fetchedCategories.length > 0) {
+            initialOpen[fetchedCategories[0].id] = true;
+          }
+          return initialOpen;
+        }
+        return prev;
+      });
+
+      setLoadingExams(false);
+    };
+
+    const setupSSE = () => {
+      if (eventSource) eventSource.close();
+
+      eventSource = new EventSource('/api/exams/stream');
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          processExamsData(data);
+        } catch (err) {
+          console.error("SSE Parse Error:", err);
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error("SSE Connection Error:", err);
+        eventSource.close();
+        // Fallback to manual refresh if SSE fails consistently, 
+        // or just let it try to reconnect automatically (browser handles this)
+        if (isMounted) {
+          // If connection is lost, try to reconnect after 5 seconds
+          setTimeout(setupSSE, 5000);
+        }
+      };
+    };
+
+    setupSSE();
 
     return () => {
       isMounted = false;
-      clearInterval(intervalId);
+      if (eventSource) eventSource.close();
     };
-  }, [loadingSession, loadingExams, isRefreshing]);
+  }, [loadingSession, loadingExams, isRefreshing, userRole]);
 
   const refreshData = () => {
     setIsRefreshing(prev => !prev);

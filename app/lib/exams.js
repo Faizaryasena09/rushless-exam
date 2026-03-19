@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { getIronSession } from 'iron-session';
 import { sessionOptions } from './session';
 import { validateUserSession } from './auth';
+import { eventBus } from './event-bus';
 
 /**
  * Recalculates all scores for a given exam.
@@ -277,7 +278,140 @@ export async function invalidateExamCache(examId) {
         }
 
         await pipeline.exec();
+
+        // Emit change event to trigger SSE streams
+        eventBus.emit('exam_change', { examId });
     } catch (e) {
         console.error(`Redis Invalidation Error [Exam ${examId}]:`, e);
     }
+}
+
+/**
+ * Fetches the list of exams based on user role and class
+ */
+export async function getExamsList(user) {
+    if (!user) return [];
+
+    const { id: userId, roleName: role, class_id: classId } = user;
+    let exams;
+    const listCacheKey = role === 'student' ? `exams:list:class:${classId}` : `exams:list:${role}:${userId}`;
+
+    if (isRedisReady()) {
+        const cached = await redis.get(listCacheKey).catch(() => null);
+        if (cached) exams = JSON.parse(cached);
+    }
+
+    if (!exams) {
+        let examsQuery = `
+            SELECT e.*,
+                e.is_hidden as exam_is_hidden,
+                s.require_safe_browser,
+                s.require_seb,
+                s.seb_config_key,
+                s.start_time,
+                s.end_time,
+                s.show_result,
+                s.show_analysis,
+                c.name as category_name,
+                c.is_hidden as category_is_hidden,
+                s_subj.name as subject_name
+            FROM rhs_exams e
+            LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
+            LEFT JOIN rhs_exam_categories c ON e.category_id = c.id
+            LEFT JOIN rhs_subjects s_subj ON e.subject_id = s_subj.id
+        `;
+        let queryValues = [];
+
+        if (role === 'student') {
+            examsQuery += `
+                INNER JOIN rhs_exam_classes ec ON e.id = ec.exam_id
+                WHERE ec.class_id = ? AND e.is_hidden = FALSE 
+                AND (c.id IS NULL OR (c.is_hidden = FALSE AND c.is_admin_hidden = FALSE))
+            `;
+            queryValues.push(classId || -1);
+        } else if (role === 'teacher') {
+            examsQuery += `
+                WHERE EXISTS (
+                    SELECT 1 FROM rhs_exam_classes ec
+                    INNER JOIN rhs_teacher_classes tc ON ec.class_id = tc.class_id
+                    WHERE ec.exam_id = e.id AND tc.teacher_id = ?
+                )
+                AND (
+                    e.subject_id IS NULL 
+                    OR EXISTS (
+                        SELECT 1 FROM rhs_teacher_subjects ts
+                        WHERE ts.subject_id = e.subject_id AND ts.teacher_id = ?
+                    )
+                )
+                AND (c.id IS NULL OR c.is_admin_hidden = FALSE)
+            `;
+            queryValues.push(userId, userId);
+        }
+
+        examsQuery += ` ORDER BY e.created_at DESC`;
+        exams = await query({ query: examsQuery, values: queryValues });
+
+        if (isRedisReady() && exams.length > 0) {
+            await redis.set(listCacheKey, JSON.stringify(exams), 'EX', 300).catch(() => { });
+        }
+    }
+
+    if (role === 'student') {
+        const allUserAttempts = await query({
+            query: `SELECT id as attempt_id, exam_id, status, score, UNIX_TIMESTAMP(start_time) as start_time_ts FROM rhs_exam_attempts WHERE user_id = ? ORDER BY start_time DESC`,
+            values: [userId]
+        });
+
+        const now_ts = Math.floor(Date.now() / 1000);
+        const attemptsInfo = allUserAttempts.reduce((acc, attempt) => {
+            if (!acc[attempt.exam_id]) {
+                acc[attempt.exam_id] = { count: 0, hasInProgress: false, latestAttemptId: attempt.attempt_id, latestScore: attempt.score };
+            }
+            acc[attempt.exam_id].count++;
+
+            if (attempt.status === 'in_progress') {
+                const exam = exams.find(ex => ex.id === attempt.exam_id);
+                let isExpired = false;
+                if (exam) {
+                    if (exam.timer_mode === 'async') {
+                        const durationSeconds = (exam.duration_minutes || 0) * 60;
+                        if (now_ts > (attempt.start_time_ts + durationSeconds)) isExpired = true;
+                    } else if (exam.end_time) {
+                        const globalEndTime = Math.floor(new Date(exam.end_time).getTime() / 1000);
+                        if (now_ts > globalEndTime) isExpired = true;
+                    }
+                }
+                if (!isExpired) acc[attempt.exam_id].hasInProgress = true;
+            }
+            return acc;
+        }, {});
+
+        exams.forEach(exam => {
+            const info = attemptsInfo[exam.id];
+            exam.user_attempts = info ? info.count : 0;
+            exam.has_in_progress = info ? info.hasInProgress : false;
+            exam.latest_attempt_id = info ? info.latestAttemptId : null;
+            exam.latest_score = info ? info.latestScore : null;
+        });
+    }
+
+    return exams;
+}
+
+/**
+ * Fetches the list of categories based on user role
+ */
+export async function getCategoriesList(user) {
+    if (!user) return [];
+
+    const { roleName: role } = user;
+    let categoriesQuery = `SELECT id, name, created_by, created_at, is_hidden, is_hidden as isHidden, sort_order, is_admin_hidden, is_admin_hidden as isAdminHidden FROM rhs_exam_categories`;
+    let queryValues = [];
+
+    if (role !== 'admin') {
+        categoriesQuery += ` WHERE is_admin_hidden = FALSE`;
+    }
+    categoriesQuery += ` ORDER BY sort_order ASC, created_at ASC`;
+
+    return await query({ query: categoriesQuery, values: queryValues });
 }
