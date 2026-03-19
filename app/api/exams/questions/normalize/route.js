@@ -26,9 +26,8 @@ export async function POST(request) {
         }
 
         await distributeExamPoints(examId);
-        await recalculateExamScores(examId);
 
-        // Invalidate Redis cache for questions and list
+        // Invalidate Redis Cache IMMEDIATELY after update
         if (isRedisReady()) {
             await Promise.all([
                 redis.del(`exam:data:${examId}`),
@@ -36,6 +35,8 @@ export async function POST(request) {
                 redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
             ]).catch(() => {});
         }
+
+        await recalculateExamScores(examId);
 
         return NextResponse.json({ message: 'Points distributed and scores recalculated successfully.' });
     } catch (error) {

@@ -135,7 +135,14 @@ async function GET() {
       });
     }
 
-    return NextResponse.json({ exams }, { status: 200 });
+    return NextResponse.json({ exams }, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, max-age=0, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
   } catch (error) {
     return NextResponse.json({ message: 'Database error', error: error.message }, { status: 500 });
   }

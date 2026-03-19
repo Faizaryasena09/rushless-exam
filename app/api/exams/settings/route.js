@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query, transaction } from '@/app/lib/db';
 import redis, { isRedisReady } from '@/app/lib/redis';
+import { recalculateExamScores, distributeExamPoints } from '@/app/lib/exams';
 
 async function getSession(request) {
   const cookieStore = await cookies();
@@ -13,7 +14,6 @@ async function getSession(request) {
 // GET handler to fetch exam settings
 export async function GET(request) {
   const session = await getSession(request);
-  // No admin check here to allow students to get exam details
 
   if (!session.user) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -31,7 +31,13 @@ export async function GET(request) {
     if (isRedisReady()) {
       const cached = await redis.get(cacheKey).catch(() => null);
       if (cached) {
-        return NextResponse.json(JSON.parse(cached));
+        return NextResponse.json(JSON.parse(cached), {
+          headers: {
+            'Cache-Control': 'no-store, max-age=0, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          }
+        });
       }
     }
 
@@ -61,7 +67,6 @@ export async function GET(request) {
             s.custom_instructions,
             s.show_result,
             s.show_analysis,
-            s.require_all_answered,
             s.require_all_answered,
             s.require_token,
             s.token_type,
@@ -110,15 +115,23 @@ export async function GET(request) {
     };
 
     if (isRedisReady()) {
-      await redis.set(cacheKey, JSON.stringify(examData), 'EX', 3600).catch(() => {});
+      await redis.set(cacheKey, JSON.stringify(examData), 'EX', 3600).catch(() => { });
     }
-    return NextResponse.json(examData);
+
+    return NextResponse.json(examData, {
+      headers: {
+        'Cache-Control': 'no-store, max-age=0, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
   } catch (error) {
+    console.error('Settings GET Error:', error);
     return NextResponse.json({ message: 'Failed to retrieve exam settings', error: error.message }, { status: 500 });
   }
 }
 
-// POST handler to create or update exam settings (Admin Only)
+// POST handler to update exam settings (Admin/Teacher Only)
 export async function POST(request) {
   const session = await getSession(request);
 
@@ -138,6 +151,7 @@ export async function POST(request) {
       requireAllAnswered,
       requireToken, tokenType, currentToken,
       violationAction,
+      subjectId,
       allowedClasses
     } = await request.json();
 
@@ -145,22 +159,19 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Exam ID is required' }, { status: 400 });
     }
 
-    // Teacher Validation: Ensure they only assign classes they manage
+    // Teacher Validation
     if (session.user.roleName === 'teacher' && allowedClasses && allowedClasses.length > 0) {
       const teacherClasses = await query({
         query: `SELECT class_id FROM rhs_teacher_classes WHERE teacher_id = ?`,
         values: [session.user.id]
       });
       const validClassIds = new Set(teacherClasses.map(r => r.class_id));
-
       const hasInvalidClass = allowedClasses.some(id => !validClassIds.has(id));
       if (hasInvalidClass) {
         return NextResponse.json({ message: 'You are attempting to assign a class you do not manage.' }, { status: 403 });
       }
     }
 
-    // If no start or end time is provided, force the mode to async
-    // But ONLY if we are actually updating timing/mode
     let finalTimerMode = timerMode;
     if (startTime !== undefined || endTime !== undefined) {
       if (!startTime || !endTime) {
@@ -169,7 +180,7 @@ export async function POST(request) {
     }
 
     await transaction(async (txQuery) => {
-      // 1. Update main exam details (rhs_exams)
+      // 1. Update rhs_exams
       const examFields = {
         shuffle_questions: shuffleQuestions,
         shuffle_answers: shuffleAnswers,
@@ -179,7 +190,8 @@ export async function POST(request) {
         max_attempts: maxAttempts,
         scoring_mode: scoringMode,
         total_target_score: totalTargetScore,
-        auto_distribute: autoDistribute
+        auto_distribute: autoDistribute,
+        subject_id: subjectId
       };
 
       const examUpdates = [];
@@ -199,9 +211,7 @@ export async function POST(request) {
         });
       }
 
-      // 2. Update exam time settings (rhs_exam_settings)
-      // We use INSERT ... ON DUPLICATE KEY UPDATE
-      // But we only update fields that are provided
+      // 2. Update rhs_exam_settings
       const settingsFields = {
         start_time: startTime,
         end_time: endTime,
@@ -224,70 +234,46 @@ export async function POST(request) {
         .map(([key, _]) => key);
 
       if (providedSettingsKeys.length > 0) {
-        // Since we want to support partial update even on first insert, 
-        // we might need to handle the case where it doesn't exist yet.
-        // However, usually rhs_exams and rhs_exam_settings are created together or settings added later.
-        
-        // Build the query
         const keys = ['exam_id', ...providedSettingsKeys];
         const placeholders = keys.map(() => '?').join(', ');
         const updateClause = providedSettingsKeys.map(key => `${key} = VALUES(${key})`).join(', ');
-        
-        const settingsValues = [examId];
-        providedSettingsKeys.forEach(key => {
-          let val = settingsFields[key];
-          // convert undefined to null for safety if somehow slipped, 
-          // but we filtered them out
-          settingsValues.push(val === undefined ? null : val);
-        });
+        const settingsValues = [examId, ...providedSettingsKeys.map(k => settingsFields[k])];
 
         await txQuery({
-          query: `
-                INSERT INTO rhs_exam_settings (${keys.join(', ')})
-                VALUES (${placeholders})
-                ON DUPLICATE KEY UPDATE ${updateClause}
-              `,
+          query: `INSERT INTO rhs_exam_settings (${keys.join(', ')}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updateClause}`,
           values: settingsValues,
         });
       }
 
       // 3. Update Allowed Classes
-      // First, clear existing
-      await txQuery({
-        query: `DELETE FROM rhs_exam_classes WHERE exam_id = ?`,
-        values: [examId]
-      });
-
-      // Then, insert new ones if any
-      if (allowedClasses && Array.isArray(allowedClasses) && allowedClasses.length > 0) {
-        const values = allowedClasses.map(classId => [examId, classId]);
-
-        const placeholders = allowedClasses.map(() => '(?, ?)').join(', ');
-        const flatValues = [];
-        allowedClasses.forEach(cId => {
-          flatValues.push(examId, cId);
-        });
-
-        await txQuery({
-          query: `INSERT INTO rhs_exam_classes (exam_id, class_id) VALUES ${placeholders}`,
-          values: flatValues
-        });
+      if (allowedClasses !== undefined) {
+        await txQuery({ query: `DELETE FROM rhs_exam_classes WHERE exam_id = ?`, values: [examId] });
+        if (Array.isArray(allowedClasses) && allowedClasses.length > 0) {
+          const placeholders = allowedClasses.map(() => '(?, ?)').join(', ');
+          const flatValues = [];
+          allowedClasses.forEach(cId => flatValues.push(examId, cId));
+          await txQuery({ query: `INSERT INTO rhs_exam_classes (exam_id, class_id) VALUES ${placeholders}`, values: flatValues });
+        }
       }
+
+      // Invalidate Redis Cache IMMEDIATELY after update
+      if (isRedisReady()) {
+        await Promise.all([
+          redis.del(`exam:settings-full:${examId}`),
+          redis.del(`exam:data:${examId}`),
+          redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
+        ]).catch(() => { });
+      }
+
+      if (autoDistribute) {
+        await distributeExamPoints(examId);
+      }
+      await recalculateExamScores(examId);
     });
-    
-    // Invalidate Redis Caches
-    if (isRedisReady()) {
-      await Promise.all([
-        redis.del(`exam:settings-full:${examId}`),
-        redis.del(`exam:data:${examId}`),
-        // Invalidate lists because settings contain start/end times shown in lists
-        redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
-      ]).catch(() => {});
-    }
 
     return NextResponse.json({ message: 'Settings saved successfully' });
   } catch (error) {
-    console.error(error);
+    console.error('Settings POST Error:', error);
     return NextResponse.json({ message: 'Failed to save settings', error: error.message }, { status: 500 });
   }
 }

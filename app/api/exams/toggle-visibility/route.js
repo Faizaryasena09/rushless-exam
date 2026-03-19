@@ -4,6 +4,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { validateUserSession } from '@/app/lib/auth';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 export async function PUT(request) {
   // 1. Check for active session and admin/teacher role
@@ -29,6 +30,15 @@ export async function PUT(request) {
       query: 'UPDATE rhs_exams SET is_hidden = ? WHERE id = ?',
       values: [isHidden, examId]
     });
+
+    // Invalidate Redis Cache
+    if (isRedisReady()) {
+      await Promise.all([
+        redis.del(`exam:settings-full:${examId}`),
+        redis.del(`exam:data:${examId}`),
+        redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
+      ]).catch(() => { });
+    }
 
     return NextResponse.json({ message: 'Exam visibility updated successfully' }, { status: 200 });
   } catch (error) {

@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
-import { writeFile } from 'fs/promises';
+import fs from 'fs/promises';
 import path from 'path';
 
 // Helper to get file extension from mime type
 const getExtension = (mimeType) => {
-    switch (mimeType) {
-        case 'image/png': return 'png';
-        case 'image/jpeg': return 'jpg';
-        case 'image/gif': return 'gif';
-        case 'image/webp': return 'webp';
-        default: return 'png'; // Default to png
-    }
+  switch (mimeType) {
+    case 'image/png': return 'png';
+    case 'image/jpeg': return 'jpg';
+    case 'image/gif': return 'gif';
+    case 'image/webp': return 'webp';
+    default: return 'png'; // Default to png
+  }
 }
 
 export async function POST(request) {
@@ -23,9 +23,9 @@ export async function POST(request) {
     // The data is a Base64 string, e.g., "data:image/png;base64,iVBORw0KGgo..."
     const matches = data.match(/^data:(image\/[a-z]+);base64,(.+)$/);
     if (!matches || matches.length !== 3) {
-        return NextResponse.json({ success: false, message: 'Invalid Base64 image format.' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Invalid Base64 image format.' }, { status: 400 });
     }
-    
+
     const mimeType = matches[1];
     const base64Data = matches[2];
     const buffer = Buffer.from(base64Data, 'base64');
@@ -33,14 +33,14 @@ export async function POST(request) {
     const extension = getExtension(mimeType);
     const filename = `${Date.now()}-image.${extension}`;
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'questions');
-    
+
     // Ensure directory exists
     await fs.mkdir(uploadDir, { recursive: true });
-    
+
     const filePath = path.join(uploadDir, filename);
 
     // Write the file to the public directory
-    await writeFile(filePath, buffer);
+    await fs.writeFile(filePath, buffer);
 
     const publicUrl = `/api/media/questions/${filename}`;
 

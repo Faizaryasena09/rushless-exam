@@ -125,7 +125,13 @@ export async function GET(request) {
       };
     });
 
-    return NextResponse.json(processedQuestions);
+    return NextResponse.json(processedQuestions, {
+      headers: {
+        'Cache-Control': 'no-store, max-age=0, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
   } catch (error) {
     console.error('Error fetching questions:', error);
     return NextResponse.json({ message: 'Failed to retrieve questions', error: error.message }, { status: 500 });
@@ -153,11 +159,20 @@ export async function POST(request) {
           JSON.stringify(options || {}), 
           correctOption || '', 
           questionType || 'multiple_choice',
-          points || 1.0,
+          (points !== undefined && points !== null) ? points : 1.0,
           scoringStrategy || 'standard',
           scoringMetadata ? JSON.stringify(scoringMetadata) : null
       ],
     });
+
+    // Invalidate Redis Cache IMMEDIATELY after update
+    if (isRedisReady()) {
+      await Promise.all([
+        redis.del(`exam:data:${examId}`),
+        redis.del(`exam:settings-full:${examId}`),
+        redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
+      ]).catch(() => {});
+    }
 
     const examSettings = await query({
       query: 'SELECT auto_distribute FROM rhs_exams WHERE id = ?',
@@ -172,7 +187,11 @@ export async function POST(request) {
 
     // Invalidate Redis Cache
     if (isRedisReady()) {
-      await redis.del(`exam:data:${examId}`).catch(() => {});
+      await Promise.all([
+        redis.del(`exam:data:${examId}`),
+        redis.del(`exam:settings-full:${examId}`),
+        redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
+      ]).catch(() => {});
     }
 
     return NextResponse.json({ message: 'Question added successfully', id: result.insertId }, { status: 201 });
@@ -211,6 +230,16 @@ export async function DELETE(request) {
 
     if (qData.length > 0) {
       const examId = qData[0].exam_id;
+
+      // Invalidate Redis Cache IMMEDIATELY after update
+      if (isRedisReady()) {
+        await Promise.all([
+          redis.del(`exam:data:${examId}`),
+          redis.del(`exam:settings-full:${examId}`),
+          redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
+        ]).catch(() => {});
+      }
+
       const examSettings = await query({
         query: 'SELECT auto_distribute FROM rhs_exams WHERE id = ?',
         values: [examId],
@@ -220,11 +249,6 @@ export async function DELETE(request) {
         await distributeExamPoints(examId);
       }
       await recalculateExamScores(examId);
-      
-      // Invalidate Redis Cache
-      if (isRedisReady()) {
-        await redis.del(`exam:data:${examId}`).catch(() => {});
-      }
     }
 
     return NextResponse.json({ message: 'Question deleted successfully' });
@@ -259,7 +283,7 @@ export async function PUT(request) {
           JSON.stringify(options || {}), 
           correctOption || '', 
           questionType || 'multiple_choice', 
-          points || 1.0,
+          (points !== undefined && points !== null) ? points : 1.0,
           scoringStrategy || 'standard',
           scoringMetadata ? JSON.stringify(scoringMetadata) : null,
           id
@@ -272,6 +296,16 @@ export async function PUT(request) {
 
     if (qData.length > 0) {
       const examId = qData[0].exam_id;
+
+      // Invalidate Redis Cache IMMEDIATELY after update
+      if (isRedisReady()) {
+        await Promise.all([
+          redis.del(`exam:data:${examId}`),
+          redis.del(`exam:settings-full:${examId}`),
+          redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
+        ]).catch(() => {});
+      }
+
       const examSettings = await query({
         query: 'SELECT auto_distribute FROM rhs_exams WHERE id = ?',
         values: [examId],
@@ -281,11 +315,6 @@ export async function PUT(request) {
         await distributeExamPoints(examId);
       }
       await recalculateExamScores(examId);
-
-      // Invalidate Redis Cache
-      if (isRedisReady()) {
-        await redis.del(`exam:data:${examId}`).catch(() => {});
-      }
     }
 
     return NextResponse.json({ message: 'Question updated successfully' });

@@ -8,6 +8,7 @@ import path from 'path';
 import { query } from '@/app/lib/db';
 import { sessionOptions } from '@/app/lib/session';
 import { recalculateExamScores, distributeExamPoints } from '@/app/lib/exams';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 // Helper for ASYNC string replace
 async function replaceAsync(str, regex, asyncFn) {
@@ -137,6 +138,15 @@ export async function POST(request) {
         }
 
         await recalculateExamScores(examId);
+        
+        // Invalidate Redis Cache IMMEDIATELY after update
+        if (isRedisReady()) {
+          await Promise.all([
+            redis.del(`exam:data:${examId}`),
+            redis.del(`exam:settings-full:${examId}`),
+            redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
+          ]).catch(() => {});
+        }
 
         return NextResponse.json({ message: `Successfully imported ${parsedQuestions.length} questions.` });
 

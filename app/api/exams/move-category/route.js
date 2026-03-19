@@ -4,6 +4,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { validateUserSession } from '@/app/lib/auth';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 export async function PUT(request) {
   const cookieStore = await cookies();
@@ -15,7 +16,7 @@ export async function PUT(request) {
 
   try {
     const { examId, categoryId } = await request.json();
-    
+
     if (!examId) {
       return NextResponse.json({ message: 'Exam ID is required' }, { status: 400 });
     }
@@ -27,7 +28,7 @@ export async function PUT(request) {
     const examCheck = await query({ query: `SELECT id FROM rhs_exams WHERE id = ?`, values: [examId] });
 
     if (examCheck.length === 0) {
-         return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
+      return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
     }
 
     // Move logic
@@ -35,6 +36,15 @@ export async function PUT(request) {
       query: `UPDATE rhs_exams SET category_id = ? WHERE id = ?`,
       values: [newCategoryId, examId]
     });
+
+    // Invalidate Redis Cache
+    if (isRedisReady()) {
+      await Promise.all([
+        redis.del(`exam:settings-full:${examId}`),
+        redis.del(`exam:data:${examId}`),
+        redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
+      ]).catch(() => { });
+    }
 
     return NextResponse.json({ message: 'Exam classification updated successfully' }, { status: 200 });
   } catch (error) {

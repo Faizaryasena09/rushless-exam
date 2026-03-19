@@ -51,13 +51,45 @@ export async function GET(request) {
             // Get initial server time to ignore previous refresh requests
             const initialNowResult = await query({ query: `SELECT UNIX_TIMESTAMP(NOW()) as start_ts` });
             let lastKnownRefresh_ts = initialNowResult[0].start_ts;
-            let currentAttempt = null; 
+            let currentAttempt = null;
+
+            // Function to mark offline (Connection lost/Tab closed)
+            const markOffline = async () => {
+                if (session.user.roleName === 'student') {
+                    if (isRedisReady()) {
+                        await redis.del(`online:${userId}`).catch(() => { });
+                    }
+
+                    // Always try to update DB as online indicator for fallback
+                    await query({
+                        query: "UPDATE rhs_users SET is_online_realtime = 0 WHERE id = ?",
+                        values: [userId]
+                    }).catch(() => { });
+
+                    console.log(`User ${userId} marked offline from timer-stream (connection lost)`);
+                }
+            };
 
             // Function to fetch and send data
             const sendUpdate = async () => {
                 try {
                     const now_ts = Math.floor(Date.now() / 1000);
                     const redisReady = isRedisReady();
+
+                    // --- Heartbeat: Update Online Status ---
+                    if (session.user.roleName === 'student') {
+                        if (redisReady) {
+                            const pipeline = redis.pipeline();
+                            pipeline.set(`online:${userId}`, 1, 'EX', 30);
+                            pipeline.set(`last_activity:${userId}`, now_ts, 'EX', 3600);
+                            await pipeline.exec().catch(() => { });
+                        } else {
+                            await query({
+                                query: 'UPDATE rhs_users SET last_activity = NOW(), is_online_realtime = 1 WHERE id = ?',
+                                values: [userId]
+                            }).catch(() => { });
+                        }
+                    }
 
                     let settings = null;
                     let attempt = null;
@@ -88,7 +120,7 @@ export async function GET(request) {
                         });
                         if (examSettingsResult.length > 0) {
                             settings = examSettingsResult[0];
-                            if (redisReady) await redis.set(`exam:settings-full:${examId}`, JSON.stringify(settings), 'EX', 300).catch(() => {});
+                            if (redisReady) await redis.set(`exam:settings-full:${examId}`, JSON.stringify(settings), 'EX', 300).catch(() => { });
                         }
                     }
 
@@ -110,7 +142,7 @@ export async function GET(request) {
                                 start_time_ts: attempt.start_time_ts,
                                 time_extension: attempt.time_extension || 0
                             };
-                            if (redisReady) await redis.set(`exam:attempt-meta:${userId}:${examId}`, JSON.stringify(attemptMeta), 'EX', 7200).catch(() => {});
+                            if (redisReady) await redis.set(`exam:attempt-meta:${userId}:${examId}`, JSON.stringify(attemptMeta), 'EX', 7200).catch(() => { });
                         }
                     }
 
@@ -213,7 +245,7 @@ export async function GET(request) {
                 }
             };
             eventBus.on('force_submit', onForceSubmit);
-            
+
             // Listen for violation lock events
             const onViolationLock = async (data) => {
                 if (data.userId == userId) {
@@ -225,10 +257,15 @@ export async function GET(request) {
             // Store the cleanup function
             this.cleanup = () => {
                 clearInterval(intervalId);
+                markOffline();
                 eventBus.off('refresh', onRefresh);
                 eventBus.off('force_submit', onForceSubmit);
                 eventBus.off('violation_lock', onViolationLock);
             };
+
+            request.signal.addEventListener('abort', () => {
+                if (this.cleanup) this.cleanup();
+            });
         },
         cancel() {
             if (this.cleanup) this.cleanup();

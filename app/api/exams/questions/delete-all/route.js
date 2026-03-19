@@ -23,10 +23,16 @@ export async function DELETE(request) {
             values: [examId],
         });
 
-        // Invalidate Redis cache
+        // Invalidate Redis Cache IMMEDIATELY after update
         if (isRedisReady()) {
-            await redis.del(`exam:data:${examId}`).catch(() => {});
+            await Promise.all([
+                redis.del(`exam:data:${examId}`),
+                redis.del(`exam:settings-full:${examId}`),
+                redis.keys('exams:list:*').then(keys => keys.length > 0 ? redis.del(keys) : null)
+            ]).catch(() => {});
         }
+
+        await recalculateExamScores(examId);
 
         return NextResponse.json({ message: `Successfully deleted ${result.affectedRows} questions.` });
     } catch (error) {

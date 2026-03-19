@@ -28,14 +28,17 @@ export async function recalculateExamScores(examId) {
         acc[q.id] = {
             correct: q.correct_option,
             type: q.question_type,
-            points: q.points || 1,
+            points: (q.points !== undefined && q.points !== null) ? q.points : 1.0,
             strategy: q.scoring_strategy || 'standard',
             metadata: typeof q.scoring_metadata === 'string' ? JSON.parse(q.scoring_metadata) : (q.scoring_metadata || {})
         };
         return acc;
     }, {});
 
-    const totalMaxPoints = questions.reduce((sum, q) => sum + (q.points || 1), 0);
+    const totalMaxPoints = questions.reduce((sum, q) => {
+        const p = (q.points !== undefined && q.points !== null) ? q.points : 1.0;
+        return sum + p;
+    }, 0);
 
     // 2. Get all completed attempts
     const attempts = await query({
