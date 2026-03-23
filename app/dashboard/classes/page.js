@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/app/context/LanguageContext';
+import { toast } from 'react-toastify';
 
 // --- Icons Component (Inline SVG) ---
 const Icons = {
@@ -37,14 +39,24 @@ const Icons = {
   )
 };
 
-const ManageClassesPage = () => {
+const ClassesPage = () => {
   const router = useRouter();
+  const { t } = useLanguage();
+  
+  // Data State
   const [classes, setClasses] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Check session and restrict to admin only
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [inputValue, setInputValue] = useState('');
+
+  const curItemName = t('master_item_class');
+
+  // Role Protection
   useEffect(() => {
     async function checkSession() {
       try {
@@ -67,52 +79,41 @@ const ManageClassesPage = () => {
     try {
       setLoading(true);
       const res = await fetch('/api/classes');
-      if (!res.ok) {
-        throw new Error('Failed to fetch classes');
-      }
+      if (!res.ok) throw new Error(t('master_error_fetch'));
       const data = await res.json();
       setClasses(data);
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredClasses = useMemo(() => {
-    return classes.filter(c => 
-      c.class_name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  const filteredData = useMemo(() => {
+    return classes.filter(c => c.class_name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [classes, searchTerm]);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [className, setClassName] = useState('');
-
-  const handleAddClass = () => {
-    setSelectedClass(null);
-    setClassName('');
+  const handleAddItem = () => {
+    setSelectedItem(null);
+    setInputValue('');
     setIsModalOpen(true);
   };
 
-  const handleEditClass = (c) => {
-    setSelectedClass(c);
-    setClassName(c.class_name);
+  const handleEditItem = (item) => {
+    setSelectedItem(item);
+    setInputValue(item.class_name);
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
-
-  const handleSaveClass = async (e) => {
-    e.preventDefault(); // Prevent form submission refresh
-    const method = selectedClass ? 'PUT' : 'POST';
-    const url = '/api/classes';
-    const body = selectedClass ? { id: selectedClass.id, className } : { className };
+  const handleSaveItem = async (e) => {
+    e.preventDefault();
+    const method = selectedItem ? 'PUT' : 'POST';
+    const endpoint = '/api/classes';
+    const body = selectedItem ? { id: selectedItem.id, className: inputValue } : { className: inputValue };
 
     try {
-      const res = await fetch(url, {
+      const res = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -120,33 +121,33 @@ const ManageClassesPage = () => {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.message || 'Failed to save class');
+        throw new Error(data.message || t('master_error_save'));
       }
 
+      toast.success(selectedItem ? t('master_success_update') : t('master_success_create'));
       setIsModalOpen(false);
       fetchClasses();
     } catch (err) {
-      alert(err.message); // Simple alert for modal error
+      toast.error(err.message);
     }
   };
 
-  const handleDeleteClass = async (classId) => {
-    if (window.confirm('Are you sure you want to delete this class?')) {
+  const handleDeleteItem = async (id) => {
+    if (window.confirm(t('master_delete_confirm').replace('{item}', curItemName))) {
       try {
         const res = await fetch('/api/classes', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: classId }),
+          body: JSON.stringify({ id }),
         });
-
         if (!res.ok) {
           const data = await res.json();
-          throw new Error(data.message || 'Failed to delete class');
+          throw new Error(data.message || t('master_error_delete'));
         }
-
+        toast.success(t('master_success_delete'));
         fetchClasses();
       } catch (err) {
-        setError(err.message);
+        toast.error(err.message);
       }
     }
   };
@@ -154,41 +155,41 @@ const ManageClassesPage = () => {
   if (error) {
     return (
       <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 font-medium text-center">
-        Error: {error}
+        {t('master_error_generic')}: {error}
       </div>
     );
   }
 
   return (
     <div className="space-y-6 pb-20">
-      
       {/* --- Page Header --- */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Manage Classes</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Create and manage class groups for exams.
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('nav_manage_classes')}</h1>
+          <p className="text-sm text-slate-500 mt-1 dark:text-slate-400">
+            {t('master_subtitle')}
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-4 flex-1 max-w-2xl">
+
+        <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
           <div className="relative w-full">
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
               <Icons.Search />
             </div>
             <input
               type="text"
-              placeholder="Search classes..."
+              placeholder={t('master_search_placeholder').replace('{item}', curItemName)}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium"
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium"
             />
           </div>
           <button 
-            onClick={handleAddClass} 
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-200 whitespace-nowrap"
+            onClick={handleAddItem} 
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-none whitespace-nowrap"
           >
             <Icons.Add />
-            <span>New Class</span>
+            <span>{t('master_btn_add').replace('{item}', curItemName)}</span>
           </button>
         </div>
       </div>
@@ -197,164 +198,107 @@ const ManageClassesPage = () => {
       {loading ? (
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
-          <p className="mt-2 text-slate-400 text-sm">Loading classes...</p>
+          <p className="mt-2 text-slate-400 text-sm">{t('layout_loading')}</p>
         </div>
-      ) : filteredClasses.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-300">
-          <div className="mx-auto h-12 w-12 text-slate-300 mb-3">
+      ) : filteredData.length === 0 ? (
+        <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+          <div className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-3">
             <Icons.Class />
           </div>
-          <h3 className="text-lg font-medium text-slate-900">
-            {searchTerm ? 'No classes match your search' : 'No classes found'}
+          <h3 className="text-lg font-medium text-slate-900 dark:text-white">
+            {t('master_no_data').replace('{item}', curItemName)}
           </h3>
-          <p className="text-slate-500 text-sm mt-1">
-            {searchTerm ? 'Try adjusting your search term.' : 'Get started by creating a new class.'}
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+            {searchTerm ? t('exams_search_placeholder') : t('master_no_data_desc').replace('{item}', curItemName)}
           </p>
         </div>
       ) : (
-        <div className="w-full">
-          
-          {/* --- DESKTOP VIEW (Table) --- */}
-          <div className="hidden md:block bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50/80">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Class Name</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider w-48">Actions</th>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <thead className="bg-slate-50/80 dark:bg-slate-700/50">
+              <tr>
+                <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  {t('master_table_item_name').replace('{item}', curItemName)}
+                </th>
+                <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-48">{t('master_table_actions')}</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+              {filteredData.map((item) => (
+                <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-100 transition-colors">
+                        <Icons.Class />
+                      </div>
+                      <span className="font-semibold text-slate-900 dark:text-white">
+                        {item.class_name}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right text-sm">
+                    <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => handleEditItem(item)} 
+                        className="flex items-center gap-1 px-3 py-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors text-xs font-medium"
+                      >
+                        <Icons.Edit /> {t('questions_btn_edit')}
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteItem(item.id)} 
+                        className="flex items-center gap-1 px-3 py-1.5 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-lg transition-colors text-xs font-medium"
+                      >
+                        <Icons.Trash /> {t('questions_btn_delete')}
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {filteredClasses.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition-colors">
-                          <Icons.Class />
-                        </div>
-                        <span className="font-semibold text-slate-900">{c.class_name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => handleEditClass(c)} 
-                          className="flex items-center gap-1 px-3 py-1.5 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors text-xs font-medium"
-                        >
-                          <Icons.Edit /> Edit
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteClass(c.id)} 
-                          className="flex items-center gap-1 px-3 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors text-xs font-medium"
-                        >
-                          <Icons.Trash /> Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* --- MOBILE VIEW (Cards) --- */}
-          <div className="grid grid-cols-1 gap-4 md:hidden">
-            {filteredClasses.map((c) => (
-              <div key={c.id} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                      <Icons.Class />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-lg">{c.class_name}</h3>
-                      <p className="text-xs text-slate-500">Class Group</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                   <button 
-                     onClick={() => handleEditClass(c)}
-                     className="flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
-                   >
-                     <Icons.Edit /> Edit
-                   </button>
-                   <button 
-                     onClick={() => handleDeleteClass(c.id)}
-                     className="flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"
-                   >
-                     <Icons.Trash /> Delete
-                   </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
+              ))}
+            </tbody>
+          </table>
         </div>
+      </div>
       )}
 
-      {/* --- Enhanced Modal --- */}
+      {/* --- Modal --- */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-6">
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
-            onClick={handleCloseModal}
-          ></div>
-
-          {/* Modal Content */}
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h2 className="text-lg font-bold text-slate-900">
-                {selectedClass ? 'Edit Class' : 'New Class'}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
+          <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-700/50">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                {selectedItem 
+                  ? t('master_modal_title_edit').replace('{item}', curItemName)
+                  : t('master_modal_title_new').replace('{item}', curItemName)}
               </h2>
-              <button 
-                onClick={handleCloseModal}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
-              >
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 <Icons.Close />
               </button>
             </div>
-
-            {/* Modal Body */}
-            <form onSubmit={handleSaveClass}>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Class Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
-                    placeholder="e.g. XII Science 1"
-                    value={className}
-                    onChange={(e) => setClassName(e.target.value)}
-                    required
-                    autoFocus
-                  />
-                </div>
+            <form onSubmit={handleSaveItem}>
+              <div className="p-6">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  {t('master_label_name')} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  required
+                  autoFocus
+                />
               </div>
-
-              {/* Modal Footer */}
-              <div className="px-6 py-4 bg-slate-50 flex justify-end gap-3">
-                <button
-                  type="button"
-                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors"
-                  onClick={handleCloseModal}
-                >
-                  Cancel
+              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-700/50 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-700">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg">
+                  {t('master_btn_cancel')}
                 </button>
-                <button 
-                  type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm shadow-indigo-200 transition-colors"
-                >
-                  {selectedClass ? 'Save Changes' : 'Create Class'}
+                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50" disabled={!inputValue.trim()}>
+                  {selectedItem ? t('master_btn_save') : t('master_btn_create')}
                 </button>
               </div>
             </form>
-
           </div>
         </div>
       )}
@@ -362,4 +306,4 @@ const ManageClassesPage = () => {
   );
 };
 
-export default ManageClassesPage;
+export default ClassesPage;

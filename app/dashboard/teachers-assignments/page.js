@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 const Icons = {
     User: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
@@ -71,7 +72,7 @@ const TeacherRow = ({ teacher, allClasses, allSubjects }) => {
 
     return (
         <tr className="flex flex-col md:table-row border-b md:border-b-0 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-            <td className="px-6 py-4 md:whitespace-nowrap align-top border-b md:border-b-0 border-slate-100 dark:border-slate-800">
+            <td className="px-4 sm:px-6 py-4 md:whitespace-nowrap align-top border-b md:border-b-0 border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between md:justify-start">
                     <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 dark:bg-indigo-900/40 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400">
@@ -103,7 +104,7 @@ const TeacherRow = ({ teacher, allClasses, allSubjects }) => {
             </td>
             
             {/* Assigned Classes Interface */}
-            <td className="px-6 py-4 align-top border-b md:border-b-0 border-slate-100 dark:border-slate-800 md:border-l border-slate-200 dark:border-slate-700">
+            <td className="px-4 sm:px-6 py-4 align-top border-b md:border-b-0 border-slate-100 dark:border-slate-800 md:border-l border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between mb-3 md:hidden">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Akses Kelas</span>
                     {assignedClasses.length > 0 && <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">{assignedClasses.length} Terpilih</span>}
@@ -128,7 +129,7 @@ const TeacherRow = ({ teacher, allClasses, allSubjects }) => {
             </td>
             
             {/* Assigned Subjects Interface */}
-            <td className="px-6 py-4 align-top md:border-l border-slate-200 dark:border-slate-700">
+            <td className="px-4 sm:px-6 py-4 align-top md:border-l border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between mb-3 md:hidden">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Akses Mata Pelajaran</span>
                     {assignedSubjects.length > 0 && <span className="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 px-2 py-0.5 rounded-full font-bold">{assignedSubjects.length} Terpilih</span>}
@@ -157,6 +158,7 @@ const TeacherRow = ({ teacher, allClasses, allSubjects }) => {
 
 export default function TeachersAssignmentsPage() {
     const router = useRouter();
+    const { t } = useLanguage();
     const [teachers, setTeachers] = useState([]);
     const [allClasses, setAllClasses] = useState([]);
     const [allSubjects, setAllSubjects] = useState([]);
@@ -261,7 +263,7 @@ export default function TeachersAssignmentsPage() {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Teacher Assignments</h1>
+                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t('nav_teacher_assignments')}</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">Kelola akses Kelas dan Mata Pelajaran untuk guru secara langsung.</p>
                 </div>
                 

@@ -16,7 +16,7 @@ export default function WebSettingsPage() {
     const [message, setMessage] = useState(null);
     const [lockedUsers, setLockedUsers] = useState([]);
     const [unlocking, setUnlocking] = useState({});
-    const { lang, setLang } = useLanguage();
+    const { t, lang, setLang } = useLanguage();
     const [selectedLang, setSelectedLang] = useState(lang);
     const [langSaving, setLangSaving] = useState(false);
     const [resetUnlocking, setResetUnlocking] = useState(false);
@@ -28,14 +28,14 @@ export default function WebSettingsPage() {
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
     const roles = [
-        { key: 'admin', label: 'Admin', color: 'rose', icon: '🛡️' },
-        { key: 'teacher', label: 'Teacher', color: 'amber', icon: '📚' },
-        { key: 'student', label: 'Student', color: 'sky', icon: '🎓' },
+        { key: 'admin', label: t('users_role_admin'), color: 'rose', icon: '🛡️' },
+        { key: 'teacher', label: t('users_role_teacher'), color: 'amber', icon: '📚' },
+        { key: 'student', label: t('users_role_student'), color: 'sky', icon: '🎓' },
     ];
 
     const permissions = [
-        { key: 'can_change_password', label: 'Ganti Password', description: 'Izinkan role ini untuk mengubah password mereka di halaman profil' },
-        { key: 'can_change_username', label: 'Ganti Username', description: 'Izinkan role ini untuk mengubah username mereka di halaman profil' },
+        { key: 'can_change_password', label: t('admin_permissions_pass_title'), description: t('admin_permissions_pass_desc') },
+        { key: 'can_change_username', label: t('admin_permissions_user_title'), description: t('admin_permissions_user_desc') },
     ];
 
     useEffect(() => {
@@ -64,13 +64,13 @@ export default function WebSettingsPage() {
                 body: JSON.stringify({ key: 'unlock_session_reset' }),
             });
             if (res.ok) {
-                setMessage({ type: 'success', text: 'Endpoint session reset berhasil di-unlock.' });
+                setMessage({ type: 'success', text: t('admin_session_reset_unlock_success') });
                 setTimeout(() => setMessage(null), 3000);
             } else {
-                setMessage({ type: 'error', text: 'Gagal unlock endpoint.' });
+                setMessage({ type: 'error', text: t('admin_session_reset_unlock_error') });
             }
         } catch {
-            setMessage({ type: 'error', text: 'Terjadi kesalahan.' });
+            setMessage({ type: 'error', text: t('admin_generic_error') });
         } finally {
             setResetUnlocking(false);
         }
@@ -85,14 +85,14 @@ export default function WebSettingsPage() {
                 body: JSON.stringify({ userId }),
             });
             if (res.ok) {
-                setMessage({ type: 'success', text: `User ${username} berhasil di-unlock.` });
+                setMessage({ type: 'success', text: t('admin_success_unlock_user').replace('{username}', username) });
                 setTimeout(() => setMessage(null), 3000);
                 fetchLockedUsers();
             } else {
-                setMessage({ type: 'error', text: 'Gagal unlock user.' });
+                setMessage({ type: 'error', text: t('admin_error_unlock_user') });
             }
         } catch {
-            setMessage({ type: 'error', text: 'Terjadi kesalahan.' });
+            setMessage({ type: 'error', text: t('admin_generic_error') });
         } finally {
             setUnlocking(prev => ({ ...prev, [userId]: false }));
         }
@@ -123,14 +123,14 @@ export default function WebSettingsPage() {
             });
             if (res.ok) {
                 setLang(selectedLang); // update context immediately
-                setMessage({ type: 'success', text: selectedLang === 'id' ? 'Bahasa berhasil disimpan.' : 'Language saved successfully.' });
+                setMessage({ type: 'success', text: t('admin_success_lang_save') });
                 setTimeout(() => setMessage(null), 3000);
             } else {
                 const d = await res.json();
-                setMessage({ type: 'error', text: d.message || 'Gagal menyimpan bahasa.' });
+                setMessage({ type: 'error', text: d.message || t('admin_error_lang_save') });
             }
         } catch {
-            setMessage({ type: 'error', text: 'Terjadi kesalahan.' });
+            setMessage({ type: 'error', text: t('admin_generic_error') });
         } finally {
             setLangSaving(false);
         }
@@ -150,14 +150,14 @@ export default function WebSettingsPage() {
 
             if (res.ok) {
                 setSettings(prev => ({ ...prev, [settingKey]: newValue }));
-                setMessage({ type: 'success', text: 'Pengaturan berhasil disimpan.' });
+                setMessage({ type: 'success', text: t('admin_success_settings_save') });
                 setTimeout(() => setMessage(null), 3000);
             } else {
                 const data = await res.json();
-                setMessage({ type: 'error', text: data.message || 'Gagal menyimpan pengaturan.' });
+                setMessage({ type: 'error', text: data.message || t('admin_error_settings_save') });
             }
         } catch {
-            setMessage({ type: 'error', text: 'Terjadi kesalahan.' });
+            setMessage({ type: 'error', text: t('admin_generic_error') });
         } finally {
             setSaving(prev => ({ ...prev, [settingKey]: false }));
         }
@@ -205,15 +205,15 @@ export default function WebSettingsPage() {
             if (res.ok) {
                 setSettings(prev => ({ ...prev, site_logo: base64Image }));
                 setCropImage(null); // Close modal
-                setMessage({ type: 'success', text: 'Logo situs berhasil diperbarui.' });
+                setMessage({ type: 'success', text: t('admin_success_logo_save') });
                 setTimeout(() => setMessage(null), 3000);
             } else {
                 const d = await res.json();
-                setMessage({ type: 'error', text: d.message || 'Gagal menyimpan logo.' });
+                setMessage({ type: 'error', text: d.message || t('admin_error_logo_save') });
             }
         } catch (err) {
             console.error(err);
-            setMessage({ type: 'error', text: 'Terjadi kesalahan saat memproses gambar.' });
+            setMessage({ type: 'error', text: t('admin_error_image_process') });
         } finally {
             setSaving(prev => ({ ...prev, site_logo: false }));
         }
@@ -252,8 +252,8 @@ export default function WebSettingsPage() {
                     </svg>
                 </div>
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Admin Tools</h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Pengaturan, monitoring, dan manajemen sistem</p>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('admin_title')}</h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{t('admin_subtitle')}</p>
                 </div>
             </div>
 
@@ -268,8 +268,8 @@ export default function WebSettingsPage() {
                             </svg>
                         </div>
                         <div className="flex-1">
-                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">System Overview</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Monitoring CPU, memory, bandwidth, dan informasi server secara real-time</p>
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{t('admin_nav_overview')}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('admin_nav_overview_desc')}</p>
                         </div>
                         <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -286,8 +286,8 @@ export default function WebSettingsPage() {
                             </svg>
                         </div>
                         <div className="flex-1">
-                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Database</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola tabel, backup data, dan lihat statistik database</p>
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{t('admin_nav_db')}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('admin_nav_db_desc')}</p>
                         </div>
                         <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -304,8 +304,8 @@ export default function WebSettingsPage() {
                             </svg>
                         </div>
                         <div className="flex-1">
-                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Activity Logs</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Monitor aktivitas user, login, dan system events secara detail</p>
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">{t('admin_nav_logs')}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('admin_nav_logs_desc')}</p>
                         </div>
                         <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-amber-500 dark:group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -338,16 +338,16 @@ export default function WebSettingsPage() {
                         </svg>
                     </div>
                     <div>
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Site Branding</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Atur logo dan nama unik situs web Anda</p>
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('admin_branding_title')}</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('admin_branding_desc')}</p>
                     </div>
                 </div>
                 <div className="p-5 space-y-6">
                     {/* Site Name Input */}
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                         <div className="md:max-w-xs">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Nama Situs (Site Name)</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">Akan ditampilkan di header, sidebar, judul dokumen, dsb.</p>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_branding_site_name_label')}</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_branding_site_name_desc')}</p>
                         </div>
                         <div className="flex flex-col gap-3 w-full md:w-[65%]">
                             <div className="border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden prose-sm bg-white dark:bg-slate-700 min-h-[100px]">
@@ -358,7 +358,7 @@ export default function WebSettingsPage() {
                                         readonly: saving.site_name,
                                         toolbarInline: true,
                                         theme: 'default',
-                                        placeholder: 'Mendukung format HTML...',
+                                        placeholder: t('admin_branding_name_placeholder'),
                                     }}
                                 />
                             </div>
@@ -373,19 +373,19 @@ export default function WebSettingsPage() {
                                                 body: JSON.stringify({ key: 'site_name', value: settings.site_name || 'Rushless Exam' }),
                                             });
                                             if (res.ok) {
-                                                setMessage({ type: 'success', text: 'Nama situs berhasil disimpan.' });
+                                                setMessage({ type: 'success', text: t('admin_success_settings_save') });
                                                 setTimeout(() => setMessage(null), 3000);
                                             } else {
                                                 const d = await res.json();
-                                                setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
+                                                setMessage({ type: 'error', text: d.message || t('admin_error_settings_save') });
                                             }
-                                        } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
+                                        } catch { setMessage({ type: 'error', text: t('admin_generic_error') }); }
                                         finally { setSaving(prev => ({ ...prev, site_name: false })); }
                                     }}
                                     disabled={saving.site_name}
                                     className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
                                 >
-                                    {saving.site_name ? 'Menyimpan...' : 'Simpan Nama Situs'}
+                                    {saving.site_name ? '...' : t('admin_branding_name_btn')}
                                 </button>
                             </div>
                         </div>
@@ -396,9 +396,9 @@ export default function WebSettingsPage() {
                     {/* Site Logo Uploader Placeholder */}
                     <div className="flex flex-col sm:flex-row justify-between gap-5">
                         <div className="flex-1">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Upload Logo Situs</p>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">{t('admin_branding_logo_title')}</p>
                             <p className="text-xs text-slate-400 dark:text-slate-500 mb-4 cursor-pointer hover:underline" onClick={() => document.getElementById('logoInput').click()}>
-                                Upload logo baru berformat PNG/JPG dan potong secara presisi dengan Cropper. Disarankan aspek rasio 1:1.
+                                {t('admin_branding_logo_desc')}
                             </p>
                             <input 
                                 type="file" 
@@ -414,17 +414,17 @@ export default function WebSettingsPage() {
                                     }
                                 }} 
                             />
-                            <button
+                             <button
                                 onClick={() => document.getElementById('logoInput').click()}
                                 className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded-lg text-sm font-semibold border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors"
                             >
-                                Pilih Gambar
+                                {t('admin_branding_logo_btn')}
                             </button>
-                            {saving.site_logo && <span className="ml-3 text-xs text-slate-500 animate-pulse">Menyimpan...</span>}
+                            {saving.site_logo && <span className="ml-3 text-xs text-slate-500 animate-pulse">{t('admin_branding_logo_saving')}</span>}
                         </div>
                         {settings.site_logo && (
                             <div className="flex-shrink-0 flex flex-col items-center">
-                                <p className="text-xs text-slate-400 dark:text-slate-500 mb-2">Logo Saat Ini</p>
+                                <p className="text-xs text-slate-400 dark:text-slate-500 mb-2">{t('admin_branding_logo_current')}</p>
                                 <div className="w-20 h-20 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden p-2 shadow-inner">
                                     <img src={settings.site_logo} alt="Current Site Logo" className="max-w-full max-h-full object-contain" />
                                 </div>
@@ -443,15 +443,15 @@ export default function WebSettingsPage() {
                         </svg>
                     </div>
                     <div>
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Bahasa / Language</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Pilih bahasa antarmuka aplikasi</p>
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('admin_lang_title')}</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('admin_lang_desc')}</p>
                     </div>
                 </div>
                 <div className="p-5">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
                         <div>
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Bahasa Antarmuka</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">Berlaku untuk semua halaman kecuali konten soal ujian.</p>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_lang_label')}</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_lang_info')}</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="flex w-full sm:w-auto rounded-xl overflow-hidden border border-slate-200 dark:border-slate-600 shadow-sm">
@@ -481,7 +481,7 @@ export default function WebSettingsPage() {
                                 disabled={langSaving}
                                 className="w-full sm:w-auto px-6 py-2.5 text-sm font-bold text-white bg-violet-600 hover:bg-violet-700 rounded-xl shadow-lg shadow-violet-100 dark:shadow-none transition-all disabled:opacity-50"
                             >
-                                {langSaving ? '...' : 'Simpan'}
+                                {langSaving ? '...' : t('users_btn_save')}
                             </button>
                         </div>
                     </div>
@@ -497,21 +497,21 @@ export default function WebSettingsPage() {
                         </svg>
                     </div>
                     <div>
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Konfigurasi Aplikasi Android</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Atur parameter keamanan aplikasi mobile</p>
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('admin_android_title')}</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('admin_android_desc')}</p>
                     </div>
                 </div>
                 <div className="p-5">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
                         <div className="md:max-w-xs">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Sandi Emergency Exit</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">Sandi yang digunakan siswa untuk keluar paksa dari mode ujian di aplikasi.</p>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_android_emergency_label')}</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_android_emergency_desc')}</p>
                         </div>
                         <div className="flex items-center gap-3 w-full md:w-auto">
                             <div className="relative flex-1 sm:flex-none">
                                 <input
                                     type="text"
-                                    placeholder="Masukkan sandi..."
+                                    placeholder={t('admin_android_emergency_placeholder')}
                                     value={settings.app_emergency_password || ''}
                                     onChange={(e) => setSettings(prev => ({ ...prev, app_emergency_password: e.target.value }))}
                                     className="w-full sm:w-48 px-4 py-2.5 text-sm font-bold bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
@@ -528,19 +528,19 @@ export default function WebSettingsPage() {
                                             body: JSON.stringify({ key, value: settings[key] }),
                                         });
                                         if (res.ok) {
-                                            setMessage({ type: 'success', text: 'Sandi emergency exit berhasil disimpan.' });
+                                            setMessage({ type: 'success', text: t('admin_android_success_save') });
                                             setTimeout(() => setMessage(null), 3000);
                                         } else {
                                             const d = await res.json();
-                                            setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
+                                            setMessage({ type: 'error', text: d.message || t('admin_error_settings_save') });
                                         }
-                                    } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
+                                    } catch { setMessage({ type: 'error', text: t('admin_generic_error') }); }
                                     finally { setSaving(prev => ({ ...prev, [key]: false })); }
                                 }}
                                 disabled={saving.app_emergency_password}
                                 className="px-6 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg shadow-emerald-100 dark:shadow-none transition-all disabled:opacity-50"
                             >
-                                {saving.app_emergency_password ? '...' : 'Simpan'}
+                                {saving.app_emergency_password ? '...' : t('users_btn_save')}
                             </button>
                         </div>
                     </div>
@@ -556,8 +556,8 @@ export default function WebSettingsPage() {
                         </svg>
                     </div>
                     <div>
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Izin Halaman Profil</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Kontrol fitur profil per role</p>
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('admin_permissions_title')}</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('admin_permissions_desc')}</p>
                     </div>
                 </div>
 
@@ -657,8 +657,8 @@ export default function WebSettingsPage() {
                         </svg>
                     </div>
                     <div>
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Brute Force Protection</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Kunci akun otomatis setelah login gagal berulang</p>
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('admin_bruteforce_title')}</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('admin_bruteforce_desc')}</p>
                     </div>
                 </div>
 
@@ -667,8 +667,8 @@ export default function WebSettingsPage() {
                     {/* Max Attempts */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="md:max-w-xs">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Maksimal Percobaan Gagal</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">Akun terkunci setelah jumlah ini terlampaui</p>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_bruteforce_max_label')}</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_bruteforce_max_desc')}</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="flex-1 flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -692,19 +692,19 @@ export default function WebSettingsPage() {
                                             body: JSON.stringify({ key: 'bruteforce_max_attempts', value: settings.bruteforce_max_attempts ?? 5 }),
                                         });
                                         if (res.ok) {
-                                            setMessage({ type: 'success', text: 'Batas percobaan login berhasil disimpan.' });
+                                            setMessage({ type: 'success', text: t('admin_bruteforce_success_save') });
                                             setTimeout(() => setMessage(null), 3000);
                                         } else {
                                             const d = await res.json();
-                                            setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
+                                            setMessage({ type: 'error', text: d.message || t('admin_error_settings_save') });
                                         }
-                                    } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
+                                    } catch { setMessage({ type: 'error', text: t('admin_generic_error') }); }
                                     finally { setSaving(prev => ({ ...prev, bruteforce_max_attempts: false })); }
                                 }}
                                 disabled={saving.bruteforce_max_attempts}
                                 className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
                             >
-                                {saving.bruteforce_max_attempts ? '...' : 'Simpan'}
+                                {saving.bruteforce_max_attempts ? '...' : t('users_btn_save')}
                             </button>
                         </div>
                     </div>
@@ -715,8 +715,8 @@ export default function WebSettingsPage() {
                     {/* Lockout Duration */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="md:max-w-xs">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Durasi Penguncian</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">Berapa lama akun terkunci otomatis</p>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_bruteforce_lockout_label')}</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_bruteforce_lockout_desc')}</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="flex-1 flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -740,19 +740,19 @@ export default function WebSettingsPage() {
                                             body: JSON.stringify({ key: 'bruteforce_lockout_minutes', value: settings.bruteforce_lockout_minutes ?? 15 }),
                                         });
                                         if (res.ok) {
-                                            setMessage({ type: 'success', text: 'Durasi penguncian berhasil disimpan.' });
+                                            setMessage({ type: 'success', text: t('admin_bruteforce_lockout_success_save') });
                                             setTimeout(() => setMessage(null), 3000);
                                         } else {
                                             const d = await res.json();
-                                            setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
+                                            setMessage({ type: 'error', text: d.message || t('admin_error_settings_save') });
                                         }
-                                    } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
+                                    } catch { setMessage({ type: 'error', text: t('admin_generic_error') }); }
                                     finally { setSaving(prev => ({ ...prev, bruteforce_lockout_minutes: false })); }
                                 }}
                                 disabled={saving.bruteforce_lockout_minutes}
                                 className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
                             >
-                                {saving.bruteforce_lockout_minutes ? '...' : 'Simpan'}
+                                {saving.bruteforce_lockout_minutes ? '...' : t('users_btn_save')}
                             </button>
                         </div>
                     </div>
@@ -767,10 +767,10 @@ export default function WebSettingsPage() {
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
                                 </span>
-                                <span className="text-xs font-semibold text-red-600 dark:text-red-400">{lockedUsers.length} user terkunci / punya percobaan gagal</span>
+                                <span className="text-xs font-semibold text-red-600 dark:text-red-400">{t('admin_bruteforce_locked_count').replace('{count}', lockedUsers.length)}</span>
                             </div>
                             <button onClick={fetchLockedUsers} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-                                ↻ Refresh
+                                ↻ {t('admin_bruteforce_refresh')}
                             </button>
                         </div>
                         <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
@@ -789,14 +789,14 @@ export default function WebSettingsPage() {
                                                 <span className="ml-1.5 text-xs font-normal text-slate-400">@{u.username}</span>
                                             </p>
                                             <p className="text-xs text-slate-400 dark:text-slate-500">
-                                                {u.failedAttempts} gagal
+                                                {u.failedAttempts} {t('admin_bruteforce_failed_suffix')}
                                                 {u.isCurrentlyLocked && u.lockedUntil && (
                                                     <span className="ml-1 text-red-500 dark:text-red-400 font-medium">
-                                                        · Terkunci sampai {new Date(u.lockedUntil).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                                                        · {t('admin_bruteforce_locked_until')} {new Date(u.lockedUntil).toLocaleString(t('dash_date_locale'), { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
                                                     </span>
                                                 )}
                                                 {!u.isCurrentlyLocked && u.failedAttempts > 0 && (
-                                                    <span className="ml-1 text-amber-500"> · Belum terkunci</span>
+                                                    <span className="ml-1 text-amber-500"> · {t('admin_bruteforce_not_locked')}</span>
                                                 )}
                                             </p>
                                         </div>
@@ -806,7 +806,7 @@ export default function WebSettingsPage() {
                                         disabled={unlocking[u.id]}
                                         className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg transition-colors disabled:opacity-50"
                                     >
-                                        {unlocking[u.id] ? '...' : '🔓 Unlock'}
+                                        {unlocking[u.id] ? '...' : `🔓 ${t('admin_btn_unlock')}`}
                                     </button>
                                 </div>
                             ))}
@@ -824,8 +824,8 @@ export default function WebSettingsPage() {
                         </svg>
                     </div>
                     <div>
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Session Reset Security</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Atur keamanan untuk endpoint reset sesi global</p>
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('admin_session_reset_title')}</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('admin_session_reset_desc')}</p>
                     </div>
                 </div>
 
@@ -833,8 +833,8 @@ export default function WebSettingsPage() {
                     {/* Max Reset Attempts */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="md:max-w-xs">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Maksimal Percobaan Gagal (Reset)</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">Endpoint reset akan terkunci setelah jumlah ini terlampaui</p>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_session_reset_max_title')}</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_session_reset_max_desc')}</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="flex-1 flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -846,7 +846,7 @@ export default function WebSettingsPage() {
                                     onChange={(e) => setSettings(prev => ({ ...prev, reset_max_attempts: parseInt(e.target.value) || 1 }))}
                                     className="w-16 bg-transparent text-center font-bold text-slate-900 dark:text-white outline-none"
                                 />
-                                <span className="text-xs font-bold text-slate-400 uppercase">Kali</span>
+                                <span className="text-xs font-bold text-slate-400 uppercase">{t('admin_bruteforce_unit_times')}</span>
                             </div>
                             <button
                                 onClick={async () => {
@@ -858,19 +858,19 @@ export default function WebSettingsPage() {
                                             body: JSON.stringify({ key: 'reset_max_attempts', value: settings.reset_max_attempts ?? 3 }),
                                         });
                                         if (res.ok) {
-                                            setMessage({ type: 'success', text: 'Batas percobaan reset berhasil disimpan.' });
+                                            setMessage({ type: 'success', text: t('admin_session_reset_max_success') });
                                             setTimeout(() => setMessage(null), 3000);
                                         } else {
                                             const d = await res.json();
-                                            setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
+                                            setMessage({ type: 'error', text: d.message || t('admin_error_settings_save') });
                                         }
-                                    } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
+                                    } catch { setMessage({ type: 'error', text: t('admin_generic_error') }); }
                                     finally { setSaving(prev => ({ ...prev, reset_max_attempts: false })); }
                                 }}
                                 disabled={saving.reset_max_attempts}
                                 className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
                             >
-                                {saving.reset_max_attempts ? '...' : 'Simpan'}
+                                {saving.reset_max_attempts ? '...' : t('users_btn_save')}
                             </button>
                         </div>
                     </div>
@@ -880,8 +880,8 @@ export default function WebSettingsPage() {
                     {/* Reset Lockout Duration */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="md:max-w-xs">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Durasi Penguncian (Reset)</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">Berapa lama endpoint reset terkunci otomatis</p>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_session_reset_lock_title')}</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_session_reset_lock_desc')}</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="flex-1 flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -893,7 +893,7 @@ export default function WebSettingsPage() {
                                     onChange={(e) => setSettings(prev => ({ ...prev, reset_lockout_minutes: parseInt(e.target.value) || 1 }))}
                                     className="w-16 bg-transparent text-center font-bold text-slate-900 dark:text-white outline-none"
                                 />
-                                <span className="text-xs font-bold text-slate-400 uppercase">Menit</span>
+                                <span className="text-xs font-bold text-slate-400 uppercase">{t('admin_bruteforce_unit_minutes')}</span>
                             </div>
                             <button
                                 onClick={async () => {
@@ -905,19 +905,19 @@ export default function WebSettingsPage() {
                                             body: JSON.stringify({ key: 'reset_lockout_minutes', value: settings.reset_lockout_minutes ?? 15 }),
                                         });
                                         if (res.ok) {
-                                            setMessage({ type: 'success', text: 'Durasi penguncian reset berhasil disimpan.' });
+                                            setMessage({ type: 'success', text: t('admin_session_reset_lock_success') });
                                             setTimeout(() => setMessage(null), 3000);
                                         } else {
                                             const d = await res.json();
-                                            setMessage({ type: 'error', text: d.message || 'Gagal menyimpan.' });
+                                            setMessage({ type: 'error', text: d.message || t('admin_error_settings_save') });
                                         }
-                                    } catch { setMessage({ type: 'error', text: 'Terjadi kesalahan.' }); }
+                                    } catch { setMessage({ type: 'error', text: t('admin_generic_error') }); }
                                     finally { setSaving(prev => ({ ...prev, reset_lockout_minutes: false })); }
                                 }}
                                 disabled={saving.reset_lockout_minutes}
                                 className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
                             >
-                                {saving.reset_lockout_minutes ? '...' : 'Simpan'}
+                                {saving.reset_lockout_minutes ? '...' : t('users_btn_save')}
                             </button>
                         </div>
                     </div>
@@ -933,8 +933,8 @@ export default function WebSettingsPage() {
                                 </svg>
                             </div>
                             <div>
-                                <p className="text-sm font-bold text-amber-900 dark:text-amber-100">Unlock Endpoint Reset</p>
-                                <p className="text-xs text-amber-700/70 dark:text-amber-400/70">Klik tombol ini untuk membuka kunci endpoint reset sesi jika sedang dalam masa lockout.</p>
+                                <p className="text-sm font-bold text-amber-900 dark:text-amber-100">{t('admin_session_reset_unlock_title')}</p>
+                                <p className="text-xs text-amber-700/70 dark:text-amber-400/70">{t('admin_session_reset_unlock_desc')}</p>
                             </div>
                         </div>
                         <button
@@ -942,7 +942,7 @@ export default function WebSettingsPage() {
                             disabled={resetUnlocking}
                             className="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-amber-200 dark:shadow-none transition-all disabled:opacity-50"
                         >
-                            {resetUnlocking ? 'Unlocking...' : 'Unlock Now'}
+                            {resetUnlocking ? '...' : t('admin_btn_unlock')}
                         </button>
                     </div>
                 </div>
@@ -953,7 +953,7 @@ export default function WebSettingsPage() {
                 <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Fitur yang dinonaktifkan akan terkunci di halaman profil user.
+                {t('admin_footer_info')}
             </p>
 
             {/* Cropper Modal */}
@@ -961,7 +961,7 @@ export default function WebSettingsPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
                     <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col h-[80vh] sm:h-auto">
                         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                            <h3 className="font-bold text-slate-800 dark:text-white">Potong Logo Situs</h3>
+                            <h3 className="font-bold text-slate-800 dark:text-white">{t('admin_modal_crop_title')}</h3>
                             <button onClick={() => setCropImage(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
@@ -996,14 +996,14 @@ export default function WebSettingsPage() {
                                     onClick={() => setCropImage(null)}
                                     className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
                                 >
-                                    Batal
+                                    {t('admin_modal_crop_cancel')}
                                 </button>
                                 <button
                                     onClick={handleCropSave}
                                     disabled={saving.site_logo}
                                     className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all disabled:opacity-50"
                                 >
-                                    {saving.site_logo ? 'Menyimpan...' : 'Terapkan Logo'}
+                                    {saving.site_logo ? '...' : t('admin_modal_crop_save')}
                                 </button>
                             </div>
                         </div>

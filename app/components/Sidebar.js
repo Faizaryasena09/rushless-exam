@@ -65,9 +65,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const { t } = useLanguage();
   const { user } = useUser();
   const [branding, setBranding] = useState({ site_name: 'Rushless Exam', site_logo: '/favicon.ico' });
+  const [academicOpen, setAcademicOpen] = useState(false);
+  const [examsOpen, setExamsOpen] = useState(false);
   
   const userRole = user?.roleName;
-
 
   useEffect(() => {
     // Fetch site branding
@@ -77,18 +78,37 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
          .catch(err => console.error(err));
   }, []);
 
-  const allNavLinks = [
+  // Auto-open dropdown if child is active
+  useEffect(() => {
+    if (pathname.includes('/dashboard/teachers-assignments') || 
+        pathname.includes('/dashboard/subjects') || 
+        pathname.includes('/dashboard/classes')) {
+      setAcademicOpen(true);
+    }
+    if (pathname.includes('/dashboard/exams')) {
+      setExamsOpen(true);
+    }
+  }, [pathname]);
+
+  const mainLinks = [
     { href: '/dashboard', label: t('nav_dashboard'), icon: Icons.Dashboard, roles: ['admin', 'teacher', 'student'] },
     { href: '/dashboard/users', label: t('nav_manage_users'), icon: Icons.Users, roles: ['admin'] },
-    { href: '/dashboard/teachers-assignments', label: t('nav_teacher_assignments'), icon: Icons.TeacherClasses, roles: ['admin'] },
-    { href: '/dashboard/control', label: t('nav_exam_control'), icon: Icons.Control, roles: ['admin', 'teacher'] },
-    { href: '/dashboard/classes', label: t('nav_manage_classes'), icon: Icons.Classes, roles: ['admin'] },
-    { href: '/dashboard/subjects', label: t('nav_manage_subjects'), icon: Icons.Subjects, roles: ['admin'] },
-    { href: '/dashboard/exams', label: t('nav_manage_exams'), icon: Icons.Exams, roles: ['admin', 'teacher', 'student'] },
-    { href: '/dashboard/web-settings', label: t('nav_admin_tools'), icon: Icons.Settings, roles: ['admin'] },
+  ].filter(link => link.roles.includes(userRole));
+
+  const academicLinks = [
+    { href: '/dashboard/teachers-assignments', label: t('nav_teacher_assignments'), icon: Icons.TeacherClasses },
+    { href: '/dashboard/subjects', label: t('nav_manage_subjects'), icon: Icons.Subjects },
+    { href: '/dashboard/classes', label: t('nav_manage_classes'), icon: Icons.Classes },
   ];
 
-  const navLinks = allNavLinks.filter(link => link.roles.includes(userRole));
+  const examSubLinks = [
+    { href: '/dashboard/exams', label: t('nav_exam_list'), icon: Icons.Exams },
+    { href: '/dashboard/exams/control', label: t('nav_exam_control'), icon: Icons.Control, roles: ['admin', 'teacher'] },
+  ].filter(link => !link.roles || link.roles.includes(userRole));
+
+  const adminLinks = [
+    { href: '/dashboard/web-settings', label: t('nav_admin_tools'), icon: Icons.Settings, roles: ['admin'] },
+  ].filter(link => link.roles.includes(userRole));
 
   return (
     <>
@@ -101,11 +121,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
       )}
 
       <aside
-        className={`fixed top-0 left-0 z-40 w-64 h-screen bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transform transition-transform duration-300 ease-out shadow-xl lg:shadow-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-0 left-0 z-40 w-64 h-screen bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transform transition-transform duration-300 ease-out shadow-xl lg:shadow-none flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
       >
         {/* Header Sidebar */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-slate-100 dark:border-slate-700">
+        <div className="flex-shrink-0 flex items-center justify-between h-16 px-6 border-b border-slate-100 dark:border-slate-700">
           <Link href="/" className="flex items-center gap-2 max-w-[80%] overflow-hidden">
             <span 
               className="text-lg font-bold tracking-tight text-slate-800 dark:text-white truncate prose prose-sm prose-slate dark:prose-invert"
@@ -126,12 +146,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-grow p-4 mt-2 overflow-y-auto">
+        <nav className="flex-grow p-4 mt-2 overflow-y-auto no-scrollbar">
           <ul className="space-y-1">
-            {navLinks.map((link) => {
+            {/* Main Section */}
+            {mainLinks.map((link) => {
               const isActive = pathname === link.href;
               const Icon = link.icon;
-
               return (
                 <li key={link.href}>
                   <Link
@@ -146,23 +166,164 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
                       <Icon />
                     </span>
                     {link.label}
-
-                    {/* Active Indicator Dot */}
-                    {isActive && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
-                    )}
+                    {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>}
                   </Link>
                 </li>
               );
             })}
+
+            {/* Academic Data Dropdown (Admin Only) */}
+            {userRole === 'admin' && (
+              <li>
+                <button
+                  onClick={() => setAcademicOpen(!academicOpen)}
+                  className={`w-full group flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${academicOpen || academicLinks.some(l => pathname === l.href)
+                    ? 'text-slate-900 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-700/30'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                >
+                  <span className="text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300">
+                    <Icons.Database />
+                  </span>
+                  {t('nav_academic_data')}
+                  <svg className={`ml-auto w-4 h-4 transition-transform duration-200 ${academicOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {academicOpen && (
+                  <ul className="mt-1 ml-4 pl-4 border-l border-slate-100 dark:border-slate-700 space-y-1">
+                    {academicLinks.map((link) => {
+                      const isActive = pathname === link.href;
+                      const Icon = link.icon;
+                      return (
+                        <li key={link.href}>
+                          <Link
+                            href={link.href}
+                            className={`group flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${isActive
+                              ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
+                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/40'
+                              }`}
+                          >
+                            <span className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 group-hover:text-slate-600'}>
+                              <Icon />
+                            </span>
+                            {link.label}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+            )}
+
+            {/* Exams Section Dropdown */}
+            {(userRole === 'admin' || userRole === 'teacher') ? (
+              <li>
+                <button
+                  onClick={() => setExamsOpen(!examsOpen)}
+                  className={`w-full group flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${examsOpen || examSubLinks.some(l => pathname === l.href)
+                    ? 'text-slate-900 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-700/30'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                >
+                  <span className="text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300">
+                    <Icons.Exams />
+                  </span>
+                  {t('nav_manage_exams')}
+                  <svg className={`ml-auto w-4 h-4 transition-transform duration-200 ${examsOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {examsOpen && (
+                  <ul className="mt-1 ml-4 pl-4 border-l border-slate-100 dark:border-slate-700 space-y-1">
+                    {examSubLinks.map((link) => {
+                      const isActive = pathname === link.href;
+                      const Icon = link.icon;
+                      return (
+                        <li key={link.href}>
+                          <Link
+                            href={link.href}
+                            className={`group flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${isActive
+                              ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
+                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/40'
+                              }`}
+                          >
+                            <span className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 group-hover:text-slate-600'}>
+                              <Icon />
+                            </span>
+                            {link.label}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+            ) : (
+              // Student View (Single Link)
+              examSubLinks.map((link) => {
+                const isActive = pathname === link.href;
+                const Icon = link.icon;
+                return (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className={`group flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
+                        ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-indigo-200 dark:ring-indigo-700'
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-200'
+                        }`}
+                    >
+                      <span className={`transition-colors duration-200 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                        }`}>
+                        <Icon />
+                      </span>
+                      {link.label}
+                      {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>}
+                    </Link>
+                  </li>
+                );
+              })
+            )}
           </ul>
         </nav>
 
         {/* Footer Sidebar */}
-        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700">
-          <p className="text-[10px] text-center text-slate-400 dark:text-slate-600 font-medium">
-            &copy; {new Date().getFullYear()} {branding?.site_name?.replace(/<[^>]*>?/gm, '') || 'Rushless Exam'}
-          </p>
+        <div className="mt-auto border-t border-slate-100 dark:border-slate-700">
+          {adminLinks.length > 0 && (
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/50">
+              <ul className="space-y-1">
+                {adminLinks.map((link) => {
+                  const isActive = pathname === link.href;
+                  const Icon = link.icon;
+                  return (
+                    <li key={link.href}>
+                      <Link
+                        href={link.href}
+                        className={`group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
+                          ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 shadow-sm ring-1 ring-rose-200 dark:ring-rose-800'
+                          : 'text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-200 border border-transparent hover:border-slate-200 dark:hover:border-slate-600'
+                          }`}
+                      >
+                        <span className={`transition-colors duration-200 ${isActive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-rose-500 dark:group-hover:text-rose-400'
+                          }`}>
+                          <Icon />
+                        </span>
+                        {link.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+          <div className="px-6 py-4">
+            <p className="text-[10px] text-center text-slate-400 dark:text-slate-600 font-medium">
+              &copy; {new Date().getFullYear()} {branding?.site_name?.replace(/<[^>]*>?/gm, '') || 'Rushless Exam'}
+            </p>
+          </div>
         </div>
       </aside>
     </>

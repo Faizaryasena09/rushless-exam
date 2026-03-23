@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import UserModal from '../../components/UserModal';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
+import { useLanguage } from '@/app/context/LanguageContext';
 import { 
   UserPlus, 
   UserMinus, 
@@ -26,6 +27,7 @@ import {
 
 // Modal Konfirmasi Hapus yang lebih ramah
 function ConfirmDeleteModal({ isOpen, onClose, onConfirm, title, message, itemName, loading }) {
+  const { t } = useLanguage();
   if (!isOpen) return null;
 
   return (
@@ -48,7 +50,7 @@ function ConfirmDeleteModal({ isOpen, onClose, onConfirm, title, message, itemNa
               disabled={loading}
               className="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
             >
-              Batal
+              {t('users_btn_cancel')}
             </button>
             <button
               onClick={onConfirm}
@@ -56,7 +58,7 @@ function ConfirmDeleteModal({ isOpen, onClose, onConfirm, title, message, itemNa
               className="flex-1 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-all disabled:opacity-50 shadow-lg shadow-red-200 dark:shadow-red-900/20 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <Trash2 size={18} />}
-              {loading ? 'Menghapus...' : 'Ya, Hapus'}
+              {loading ? t('layout_loading') : t('users_confirm_yes')}
             </button>
           </div>
         </div>
@@ -66,6 +68,7 @@ function ConfirmDeleteModal({ isOpen, onClose, onConfirm, title, message, itemNa
 }
 
 const ManageUsersPage = () => {
+  const { t } = useLanguage();
   const [users, setUsers] = useState([]);
   const [allClasses, setAllClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState('');
@@ -90,7 +93,7 @@ const ManageUsersPage = () => {
       if (selectedRole) params.append('role', selectedRole);
       
       const res = await fetch(`/api/users?${params.toString()}`);
-      if (!res.ok) throw new Error('Gagal mengambil data pengguna');
+      if (!res.ok) throw new Error(t('users_error_fetch'));
       const data = await res.json();
       setUsers(data);
     } catch (err) {
@@ -103,7 +106,7 @@ const ManageUsersPage = () => {
   const fetchClasses = async () => {
     try {
       const res = await fetch('/api/classes');
-      if (!res.ok) throw new Error('Gagal mengambil data kelas');
+      if (!res.ok) throw new Error(t('users_error_fetch_classes'));
       const data = await res.json();
       setAllClasses(data);
     } catch (err) {
@@ -189,12 +192,12 @@ const ManageUsersPage = () => {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.message || 'Gagal menyimpan user');
+        throw new Error(data.message || t('users_error_save'));
       }
 
       setIsModalOpen(false);
       fetchUsers();
-      toast.success('User berhasil disimpan');
+      toast.success(t('users_success_save'));
     } catch (err) {
       toast.error(err.message);
     }
@@ -216,10 +219,10 @@ const ManageUsersPage = () => {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.message || 'Gagal menghapus user');
+        throw new Error(data.message || t('users_error_delete'));
       }
       fetchUsers();
-      toast.success('User berhasil dihapus');
+      toast.success(t('users_success_delete'));
       setDeleteModal({ open: false, user: null, loading: false });
     } catch (err) {
       toast.error(err.message);
@@ -237,7 +240,7 @@ const ManageUsersPage = () => {
         body: JSON.stringify({ classId: selectedClass }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Gagal menghapus');
+      if (!res.ok) throw new Error(data.message || t('users_btn_delete'));
       toast.success(data.message);
       setDeleteClassModal({ open: false, loading: false });
       fetchUsers();
@@ -259,7 +262,7 @@ const ManageUsersPage = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Pengguna");
     XLSX.writeFile(wb, "data_pengguna.xlsx");
-    toast.success('Export berhasil!');
+    toast.success(t('users_success_export'));
   };
 
   const handleFileChange = (e) => {
@@ -275,7 +278,7 @@ const ManageUsersPage = () => {
         const ws = wb.Sheets[wsname];
         const data = XLSX.utils.sheet_to_json(ws);
 
-        const toastId = toast.loading("Sedang mengimport data...");
+        const toastId = toast.loading(t('users_import_loading'));
         const res = await fetch('/api/users/import', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -287,10 +290,10 @@ const ManageUsersPage = () => {
           toast.update(toastId, { render: result.message, type: "success", isLoading: false, autoClose: 3000 });
           fetchUsers();
         } else {
-          toast.update(toastId, { render: result.message || 'Import gagal', type: "error", isLoading: false, autoClose: 3000 });
+          toast.update(toastId, { render: result.message || t('users_error_import'), type: "error", isLoading: false, autoClose: 3000 });
         }
       } catch (err) {
-        toast.error('Gagal membaca file: ' + err.message);
+        toast.error(t('users_error_read_file') + err.message);
       } finally {
         e.target.value = null;
       }
@@ -310,9 +313,9 @@ const ManageUsersPage = () => {
                 <User size={28} />
               </div>
               <div>
-                <h1 className="text-2xl font-black text-slate-900 dark:text-white">Kelola Pengguna</h1>
+                <h1 className="text-2xl font-black text-slate-900 dark:text-white">{t('users_title')}</h1>
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-                  {users.length} pengguna terdaftar
+                  {t('users_subtitle_count').replace('{count}', users.length)}
                 </p>
               </div>
             </div>
@@ -323,14 +326,14 @@ const ManageUsersPage = () => {
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-sm font-bold rounded-xl transition-all shadow-sm"
               >
                 <Download size={18} />
-                <span>Export</span>
+                <span>{t('users_btn_export')}</span>
               </button>
               <button
                 onClick={() => fileInputRef.current.click()}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-sm font-bold rounded-xl transition-all shadow-sm"
               >
                 <Upload size={18} />
-                <span>Import</span>
+                <span>{t('users_btn_import')}</span>
               </button>
               <input
                 type="file"
@@ -346,7 +349,7 @@ const ManageUsersPage = () => {
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-900/50 text-sm font-bold rounded-xl transition-all shadow-sm"
                 >
                   <UserMinus size={18} />
-                  <span>Hapus Kelas</span>
+                  <span>{t('users_btn_delete_class')}</span>
                 </button>
               )}
 
@@ -355,7 +358,7 @@ const ManageUsersPage = () => {
                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30"
               >
                 <UserPlus size={18} />
-                <span>Tambah Pengguna</span>
+                <span>{t('users_btn_add')}</span>
               </button>
             </div>
           </div>
@@ -365,7 +368,7 @@ const ManageUsersPage = () => {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input
                 type="text"
-                placeholder="Cari user berdasarkan nama..."
+                placeholder={t('users_search_placeholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
@@ -379,10 +382,10 @@ const ManageUsersPage = () => {
                   onChange={(e) => setSelectedRole(e.target.value)}
                   className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer font-medium"
                 >
-                  <option value="">Semua Peran</option>
-                  <option value="student">Siswa (student)</option>
-                  <option value="teacher">Guru (teacher)</option>
-                  <option value="admin">Admin (admin)</option>
+                  <option value="">{t('users_filter_all_roles')}</option>
+                  <option value="student">{t('users_role_student')}</option>
+                  <option value="teacher">{t('users_role_teacher')}</option>
+                  <option value="admin">{t('users_role_admin')}</option>
                 </select>
               </div>
               <div className="relative">
@@ -392,7 +395,7 @@ const ManageUsersPage = () => {
                   onChange={(e) => setSelectedClass(e.target.value)}
                   className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer font-medium"
                 >
-                  <option value="">Semua Kelas</option>
+                  <option value="">{t('users_filter_all_classes')}</option>
                   {allClasses.map(c => (
                     <option key={c.id} value={c.id}>{c.class_name}</option>
                   ))}
@@ -405,7 +408,7 @@ const ManageUsersPage = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
              <Loader2 className="animate-spin text-indigo-600" size={40} />
-             <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Memuat Data...</p>
+             <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">{t('layout_loading')}</p>
           </div>
         ) : (
           <div className="animate-in fade-in duration-500">
@@ -419,17 +422,17 @@ const ManageUsersPage = () => {
                       onClick={() => toggleSort('name')}
                     >
                       <div className="flex items-center gap-3">
-                        Nama & Akun
+                        {t('users_table_header_name')}
                         <SortIcon columnKey="name" />
                       </div>
                     </th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Peran
+                      {t('users_table_header_role')}
                     </th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Kelas
+                      {t('users_table_header_class')}
                     </th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Aksi</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">{t('users_table_header_action')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -452,7 +455,7 @@ const ManageUsersPage = () => {
                             ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800' 
                             : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
                         }`}>
-                          {user.role}
+                          {user.role === 'admin' ? t('users_role_admin') : user.role === 'teacher' ? t('users_role_teacher') : t('users_role_student')}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -475,7 +478,7 @@ const ManageUsersPage = () => {
                   ))}
                   {users.length === 0 && (
                     <tr>
-                      <td colSpan="4" className="px-6 py-10 text-center text-slate-400 text-sm italic">Tidak ada pengguna ditemukan.</td>
+                      <td colSpan="4" className="px-6 py-10 text-center text-slate-400 text-sm italic">{t('users_no_users')}</td>
                     </tr>
                   )}
                 </tbody>
@@ -497,18 +500,18 @@ const ManageUsersPage = () => {
                       </div>
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                      {user.role}
+                      {user.role === 'admin' ? t('users_role_admin') : user.role === 'teacher' ? t('users_role_teacher') : t('users_role_student')}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-4 text-sm font-medium">
-                    <span className="text-slate-400">Kelas</span>
+                    <span className="text-slate-400">{t('users_table_header_class')}</span>
                     <span className="text-slate-800 dark:text-slate-200">{user.class_name || '-'}</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <button onClick={() => handleEditUser(user)} className="flex items-center justify-center gap-2 py-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-sm transition-all active:scale-95"><Edit3 size={16} /> Edit</button>
-                    <button onClick={() => triggerDeleteUser(user)} className="flex items-center justify-center gap-2 py-2.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl font-bold text-sm transition-all active:scale-95"><Trash2 size={16} /> Hapus</button>
+                    <button onClick={() => handleEditUser(user)} className="flex items-center justify-center gap-2 py-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-sm transition-all active:scale-95"><Edit3 size={16} /> {t('users_btn_edit')}</button>
+                    <button onClick={() => triggerDeleteUser(user)} className="flex items-center justify-center gap-2 py-2.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl font-bold text-sm transition-all active:scale-95"><Trash2 size={16} /> {t('users_btn_delete')}</button>
                   </div>
                 </div>
               ))}
@@ -526,8 +529,8 @@ const ManageUsersPage = () => {
         onClose={() => setDeleteModal({ open: false, user: null, loading: false })}
         onConfirm={confirmDeleteUser}
         loading={deleteModal.loading}
-        title="Konfirmasi Hapus"
-        message="Apakah Anda yakin ingin menghapus pengguna ini? Semua data terkait akan ikut terhapus secara permanen."
+        title={t('users_delete_confirm_title')}
+        message={t('users_delete_confirm_msg')}
         itemName={deleteModal.user?.name || deleteModal.user?.username}
       />
 
@@ -536,9 +539,9 @@ const ManageUsersPage = () => {
         onClose={() => setDeleteClassModal({ open: false, loading: false })}
         onConfirm={confirmDeleteByClass}
         loading={deleteClassModal.loading}
-        title="Hapus Satu Kelas"
-        message={`Peringatan! Anda akan menghapus SELURUH pengguna di kelas "${selectedClassObj?.class_name}".`}
-        itemName={`Total: ${users.length} pengguna`}
+        title={t('users_btn_delete_class')}
+        message={t('users_delete_class_warning').replace('{className}', selectedClassObj?.class_name || '')}
+        itemName={t('users_subtitle_count').replace('{count}', users.length)}
       />
     </div>
   );

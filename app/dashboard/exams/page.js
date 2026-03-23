@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@/app/context/UserContext';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 // --- Icons ---
 const Icons = {
@@ -31,6 +32,7 @@ const Icons = {
 
 // --- Student Action Button Component ---
 const StudentExamActions = ({ exam }) => {
+  const { t } = useLanguage();
   const now = Date.now();
 
   const startTime = exam.start_time ? new Date(exam.start_time).getTime() : null;
@@ -55,10 +57,10 @@ const StudentExamActions = ({ exam }) => {
     const hours = Math.floor((totalSec % 86400) / 3600);
     const mins = Math.floor((totalSec % 3600) / 60);
     const secs = totalSec % 60;
-    if (days > 0) return `${days}h ${hours}j lagi`;
-    if (hours > 0) return `${hours}j ${mins}m lagi`;
-    if (mins > 0) return `${mins}m ${secs}d lagi`;
-    return `${secs}d lagi`;
+    if (days > 0) return `${days}d ${hours}h ${t('exams_countdown_prefix')}`;
+    if (hours > 0) return `${hours}h ${mins}m ${t('exams_countdown_prefix')}`;
+    if (mins > 0) return `${mins}m ${secs}s ${t('exams_countdown_prefix')}`;
+    return `${secs}s ${t('exams_countdown_prefix')}`;
   };
 
   // Badge status
@@ -66,25 +68,25 @@ const StudentExamActions = ({ exam }) => {
   if (examNotStarted) {
     badge = (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-        🔒 Belum Dimulai
+        🔒 {t('exams_badge_not_started')}
       </span>
     );
   } else if (hasInProgress && !examEnded) {
     badge = (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400">
-        ⚡ Sedang Dikerjakan
+        ⚡ {t('exams_badge_in_progress')}
       </span>
     );
   } else if (examEnded || maxAttemptsReached) {
     badge = (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
-        ✅ {examEnded ? 'Ujian Telah Berakhir' : 'Sudah Selesai'}
+        ✅ {examEnded ? t('exams_badge_ended') : t('exams_badge_finished')}
       </span>
     );
   } else if (canTakeExam) {
     badge = (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400">
-        🟢 Tersedia
+        🟢 {t('exams_badge_available')}
       </span>
     );
   }
@@ -92,11 +94,11 @@ const StudentExamActions = ({ exam }) => {
   // Attempt counter label
   const attemptInfo = maxAttempts !== null ? (
     <span className="text-[11px] text-slate-400 dark:text-slate-500">
-      Percobaan: {userAttempts}/{maxAttempts}
+      {t('exams_attempt_count').replace('{current}', userAttempts).replace('{max}', maxAttempts)}
     </span>
   ) : userAttempts > 0 ? (
     <span className="text-[11px] text-slate-400 dark:text-slate-500">
-      {userAttempts}× dicoba
+      {t('exams_attempt_count_no_max').replace('{count}', userAttempts)}
     </span>
   ) : null;
 
@@ -143,7 +145,7 @@ const StudentExamActions = ({ exam }) => {
     actionButton = (
       <div className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-not-allowed select-none">
         <Icons.Clock />
-        <span>Mulai {formatCountdown(startTime)}</span>
+        <span>{t('exams_status_not_started')} {formatCountdown(startTime)}</span>
       </div>
     );
   } else if (hasInProgress && !examEnded) {
@@ -154,7 +156,7 @@ const StudentExamActions = ({ exam }) => {
           <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors">
             <div className="flex items-center gap-2">
               <Icons.Play />
-              <span>Lanjutkan Ujian</span>
+              <span>{t('exams_action_continue')}</span>
             </div>
             <Icons.ChevronRight />
           </Link>
@@ -166,7 +168,7 @@ const StudentExamActions = ({ exam }) => {
             className={`w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
           >
             <Icons.Shield className="w-4 h-4" />
-            <span>{isLaunching ? 'Menyiapkan...' : 'Buka di Rushless Safer (App)'}</span>
+            <span>{isLaunching ? t('layout_loading') : t('exams_action_open_safer')}</span>
           </button>
         )}
       </div>
@@ -179,7 +181,7 @@ const StudentExamActions = ({ exam }) => {
         <Link href={`/dashboard/exams/hasil/${latestAttemptId}`} className="group w-full flex items-center justify-between text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors">
           <div className="flex items-center gap-2">
             <Icons.ChartBar />
-            <span>Lihat Hasil {latestScore !== null && latestScore !== undefined ? `(${latestScore})` : ''}</span>
+            <span>{t('exams_btn_results')} {latestScore !== null && latestScore !== undefined ? `(${latestScore})` : ''}</span>
           </div>
           <Icons.ChevronRight />
         </Link>
@@ -188,7 +190,7 @@ const StudentExamActions = ({ exam }) => {
       actionButton = (
         <div className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-default select-none">
           <Icons.Shield className="w-4 h-4" />
-          <span>Hasil disembunyikan</span>
+          <span>{t('exams_status_hidden')}</span>
         </div>
       );
     }
@@ -196,7 +198,7 @@ const StudentExamActions = ({ exam }) => {
     actionButton = (
       <div className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-not-allowed select-none">
         <Icons.Clock />
-        <span>Ujian sudah berakhir</span>
+        <span>{t('exams_badge_ended')}</span>
       </div>
     );
   } else if (canTakeExam) {
@@ -209,7 +211,7 @@ const StudentExamActions = ({ exam }) => {
           <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
             <div className="flex items-center gap-2">
               <Icons.Play />
-              <span>{label}</span>
+              <span>{userAttempts > 0 ? t('exams_action_repeat') : t('exams_action_start')}</span>
             </div>
             <Icons.ChevronRight />
           </Link>
@@ -222,7 +224,7 @@ const StudentExamActions = ({ exam }) => {
             className={`w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
           >
             <Icons.Shield className="w-4 h-4" />
-            <span>{isLaunching ? 'Menyiapkan...' : 'Buka di Rushless Safer (App)'}</span>
+            <span>{isLaunching ? t('layout_loading') : t('exams_action_open_safer')}</span>
           </button>
         )}
       </div>
@@ -244,6 +246,7 @@ const StudentExamActions = ({ exam }) => {
 
 // --- Exam Card Component ---
 const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggleVisibility }) => {
+  const { t } = useLanguage();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -262,11 +265,11 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
   }, [isMenuOpen]);
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 flex flex-col">
-      <div className="p-6">
-        <h2 className="text-xl font-bold text-slate-800 dark:text-white truncate flex items-center gap-2" title={exam.exam_name}>
-          <span>{exam.exam_name}</span>
-          {exam.exam_is_hidden && <span className="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider text-slate-500 bg-slate-100 dark:text-slate-400 dark:bg-slate-700 rounded-full">Hidden</span>}
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 flex flex-col overflow-hidden">
+      <div className="p-4 sm:p-6">
+        <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white flex items-start gap-2" title={exam.exam_name}>
+          <span className="break-words">{exam.exam_name}</span>
+          {exam.exam_is_hidden && <span className="flex-shrink-0 px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider text-slate-500 bg-slate-100 dark:text-slate-400 dark:bg-slate-700 rounded-full">{t('exams_status_hidden')}</span>}
         </h2>
         {exam.subject_name && (
           <div className="mt-1">
@@ -275,14 +278,14 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
             </span>
           </div>
         )}
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 h-10 overflow-hidden">{exam.description || 'No description provided.'}</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 min-h-[2.5rem] overflow-hidden line-clamp-2">{exam.description || t('exams_desc_none')}</p>
         <div className="mt-4 flex flex-col gap-2">
           {(exam.start_time || exam.end_time) && (
             <div className="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
               <Icons.Clock />
               <div className="flex flex-col">
-                {exam.start_time && <span>Mulai: {formatDate(exam.start_time)} {new Date(exam.start_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>}
-                {exam.end_time && <span>Selesai: {formatDate(exam.end_time)} {new Date(exam.end_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>}
+                {exam.start_time && <span>{t('exams_label_start')}: {formatDate(exam.start_time)} {new Date(exam.start_time).toLocaleTimeString(t('dash_date_locale'), { hour: '2-digit', minute: '2-digit' })}</span>}
+                {exam.end_time && <span>{t('exams_label_end')}: {formatDate(exam.end_time)} {new Date(exam.end_time).toLocaleTimeString(t('dash_date_locale'), { hour: '2-digit', minute: '2-digit' })}</span>}
               </div>
             </div>
           )}
@@ -296,17 +299,17 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
             <div className="flex items-center justify-between gap-2">
               <Link href={`/dashboard/exams/manage/${exam.id}`} className="group flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 py-2 px-3 rounded-lg transition-colors">
                 <Icons.Cog />
-                <span>Manage</span>
+                <span>{t('exams_btn_manage')}</span>
               </Link>
               <Link href={`/dashboard/exams/results/${exam.id}`} className="group flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 py-2 px-3 rounded-lg transition-colors">
                 <Icons.ChartBar />
-                <span>Results</span>
+                <span>{t('exams_btn_results')}</span>
               </Link>
             </div>
             <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/50 dark:border-slate-600/50 relative group/menu">
               <button onClick={() => openModal('duplicate', exam.id)} className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 py-1.5 px-2 rounded-lg transition-colors">
                 <Icons.Duplicate />
-                <span>Duplicate</span>
+                <span>{t('exams_btn_duplicate')}</span>
               </button>
 
               {/* Exam Actions Dropdown Trigger (Moves & Delete) */}
@@ -316,7 +319,7 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
                   className="w-full flex items-center justify-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 py-1.5 px-2 rounded-lg transition-colors"
                 >
                   <Icons.DotsVertical />
-                  <span>Lainnya</span>
+                  <span>{t('exams_btn_others')}</span>
                 </button>
 
                 {/* Dropdown Menu */}
@@ -329,7 +332,7 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
                       }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
                     >
-                      {exam.exam_is_hidden ? <><Icons.Eye /><span>Tampilkan Ujian</span></> : <><Icons.EyeOff /><span>Sembunyikan Ujian</span></>}
+                      {exam.exam_is_hidden ? <><Icons.Eye /><span>{t('exams_btn_show')}</span></> : <><Icons.EyeOff /><span>{t('exams_btn_hide')}</span></>}
                     </button>
                     <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2"></div>
                     <button
@@ -340,7 +343,7 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
                     >
                       <Icons.Folder />
-                      <span>Pindahkan Kategori</span>
+                      <span>{t('exams_btn_move_category')}</span>
                     </button>
                     <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2"></div>
                     <button
@@ -351,7 +354,7 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
                     >
                       <Icons.Trash />
-                      <span>Hapus Ujian</span>
+                      <span>{t('exams_btn_delete_exam')}</span>
                     </button>
                   </div>
                 </div>
@@ -366,6 +369,7 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
 
 // --- Category Accordion Component ---
 const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, formatDate, openModal, categories, onEdit, onDelete, onToggleVisibility, isHidden, isAdminHidden, onToggleExamVisibility, userRole, userId, categoryCreatedBy, onMove, onDragStart, onDragOver, onDrop, onDragEnd, isDragging }) => {
+  const { t } = useLanguage();
   // Hide 'Tanpa Nama' (uncategorized) if there are no uncategorized exams AND user has categories
   if (id === 'uncategorized' && exams.length === 0 && categories.length > 0) return null;
 
@@ -382,7 +386,7 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
     >
       {/* Accordion Header */}
       <div
-        className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors select-none"
+        className="w-full flex items-start sm:items-center justify-between p-3 sm:p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors select-none"
         onClick={toggleOpen}
       >
         <div className="flex items-center gap-3">
@@ -395,20 +399,20 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
           <div className={`p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
             <Icons.ChevronDown />
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-              {name}
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white flex flex-wrap items-center gap-2">
+              <span className="break-words">{name}</span>
+              <span className="flex-shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
                 {exams.length}
               </span>
               {id !== 'uncategorized' && !isStudent && !!isHidden && (
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full">
-                  Siswa Hidden
+                <span className="flex-shrink-0 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full">
+                  {t('exams_badge_student_hidden')}
                 </span>
               )}
               {id !== 'uncategorized' && !isStudent && !!isAdminHidden && (
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full">
-                  Admin Hidden
+                <span className="flex-shrink-0 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full">
+                  {t('exams_badge_admin_hidden')}
                 </span>
               )}
             </h2>
@@ -417,7 +421,7 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
 
         {/* Category Actions (Only show for custom categories, not 'Tanpa Nama', and enforce permissions) */}
         {id !== 'uncategorized' && !isStudent && (userRole === 'admin' || userId === categoryCreatedBy) && (
-          <div className="flex items-center gap-1 sm:gap-2" onClick={(e) => e.stopPropagation() /* Prevent accordion toggle */}>
+          <div className="flex flex-shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation() /* Prevent accordion toggle */}>
             {/* Admin Only: Global Hide */}
             {userRole === 'admin' && (
               <button
@@ -457,13 +461,13 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
       {/* Accordion Body */}
       <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
         <div className="overflow-hidden">
-          <div className="p-6 pt-2 border-t border-slate-100 dark:border-slate-700/50 bg-slate-50/30 dark:bg-slate-900/20">
+          <div className="p-4 sm:p-6 pt-2 border-t border-slate-100 dark:border-slate-700/50 bg-slate-50/30 dark:bg-slate-900/20">
             {exams.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-sm text-slate-500 dark:text-slate-400">Tidak ada ujian di kategori ini.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{t('exams_no_exams')}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {exams.map((exam) => (
                   <ExamCard
                     key={exam.id}
@@ -486,6 +490,7 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
 
 export default function ExamsPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { user, loading: loadingSession } = useUser();
 
   const userRole = user?.roleName;
@@ -777,7 +782,7 @@ export default function ExamsPage() {
 
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString('en-US', options);
+    return new Date(dateString).toLocaleDateString(t('dash_date_locale'), options);
   };
 
   const isStudent = userRole === 'student';
@@ -825,22 +830,24 @@ export default function ExamsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{isStudent ? 'Available Exams' : 'Manage Exams'}</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            You have {filteredExams.length} exams available.
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8 pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
+        <div className="space-y-1 text-left">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase leading-tight">
+            {isStudent ? t('exams_title_student') : t('exams_title_admin')}
+          </h1>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            {t('exams_subtitle_count').replace('{count}', filteredExams.length)}
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-4 flex-1 max-w-2xl">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 flex-1 max-w-2xl">
           <div className="relative w-full">
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
               <Icons.Search />
             </div>
             <input
               type="text"
-              placeholder="Cari ujian atau mata pelajaran..."
+              placeholder={t('exams_search_placeholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium shadow-sm"
@@ -853,14 +860,14 @@ export default function ExamsPage() {
                 className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-xl transition-all border border-slate-200 dark:border-slate-700"
               >
                 <Icons.Folder />
-                <span className="hidden sm:inline">Kategori</span>
+                <span className="hidden sm:inline">{t('exams_btn_categories')}</span>
               </button>
               <Link
                 href="/dashboard/exams/baru"
                 className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30 whitespace-nowrap"
               >
                 <Icons.Plus />
-                <span className="hidden sm:inline">Buat Ujian</span>
+                <span className="hidden sm:inline">{t('exams_btn_create')}</span>
               </Link>
             </div>
           )}
@@ -871,10 +878,10 @@ export default function ExamsPage() {
         <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600">
           <Icons.FileText className="block mx-auto w-12 h-12 text-slate-400" />
           <h3 className="mt-4 text-lg font-semibold text-slate-800 dark:text-white">
-            {searchTerm ? 'No Exams Match Search' : 'No Exams Found'}
+            {searchTerm ? t('exams_empty_match') : t('exams_empty_found')}
           </h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {searchTerm ? 'Try adjusting your search criteria.' : (isStudent ? 'There are no exams available for you at the moment.' : 'Click "Buat Ujian" to get started.')}
+            {searchTerm ? t('exams_empty_adjust') : (isStudent ? t('exams_empty_student') : t('exams_empty_admin'))}
           </p>
         </div>
       ) : (
@@ -882,7 +889,7 @@ export default function ExamsPage() {
           {/* Tanpa Nama Category (Uncategorized) */}
           <CategoryAccordion
             id="uncategorized"
-            name="Tanpa Nama"
+            name={t('exams_category_none')}
             exams={filteredExams.filter(e => e.category_id == null)}
             isOpen={openCategories['uncategorized']}
             toggleOpen={() => toggleCategory('uncategorized')}
@@ -963,11 +970,11 @@ export default function ExamsPage() {
 
               <div className="flex justify-end gap-3">
                 <button onClick={closeModal} disabled={isExecuting} className="px-4 py-2 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50">
-                  Batal
+                  {t('users_btn_cancel')}
                 </button>
                 <button onClick={executeAction} disabled={!modalState.categoryName.trim() || isExecuting} className="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 font-semibold rounded-lg shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                   {isExecuting && <Icons.Cog className="w-4 h-4 animate-spin" />}
-                  <span>{isExecuting ? 'Menyimpan...' : 'Simpan'}</span>
+                  <span>{isExecuting ? t('layout_loading') : t('users_btn_save')}</span>
                 </button>
               </div>
             </div>
@@ -994,7 +1001,7 @@ export default function ExamsPage() {
                   onChange={(e) => setModalState(prev => ({ ...prev, categoryId: e.target.value }))}
                   className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                 >
-                  <option value="">Tanpa Nama</option>
+                  <option value="">{t('exams_category_none')}</option>
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
@@ -1003,11 +1010,11 @@ export default function ExamsPage() {
 
               <div className="flex justify-end gap-3">
                 <button onClick={closeModal} disabled={isExecuting} className="px-4 py-2 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50">
-                  Batal
+                  {t('users_btn_cancel')}
                 </button>
                 <button onClick={executeAction} disabled={isExecuting} className="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 font-semibold rounded-lg shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                   {isExecuting && <Icons.Cog className="w-4 h-4 animate-spin" />}
-                  <span>{isExecuting ? 'Memindahkan...' : 'Pindahkan'}</span>
+                  <span>{isExecuting ? t('layout_loading') : t('exams_modal_move_title')}</span>
                 </button>
               </div>
             </div>
@@ -1019,9 +1026,9 @@ export default function ExamsPage() {
         isOpen={modalState.isOpen && modalState.type === 'categoryDelete'}
         onClose={closeModal}
         onConfirm={executeAction}
-        title="Hapus Kategori"
-        message="Apakah Anda yakin ingin menghapus kategori ini? Ujian di dalamnya tidak akan terhapus dan akan berpindah ke 'Tanpa Nama'."
-        confirmText="Hapus"
+        title={t('exams_modal_category_rename_title')}
+        message={t('exams_modal_delete_msg')}
+        confirmText={t('users_btn_delete')}
         confirmColor="bg-red-600 hover:bg-red-700"
         icon={() => <Icons.Trash className="w-6 h-6" />}
         isExecuting={isExecuting}
@@ -1030,9 +1037,9 @@ export default function ExamsPage() {
         isOpen={modalState.isOpen && modalState.type === 'duplicate'}
         onClose={closeModal}
         onConfirm={executeAction}
-        title="Duplicate Exam"
-        message="Are you sure you want to duplicate this exam? All settings and questions will be copied to a new exam."
-        confirmText="Duplicate"
+        title={t('exams_modal_duplicate_title')}
+        message={t('exams_modal_duplicate_msg')}
+        confirmText={t('exams_btn_duplicate')}
         confirmColor="bg-amber-500 hover:bg-amber-600"
         icon={() => <Icons.Duplicate className="w-6 h-6" />}
         isExecuting={isExecuting}
@@ -1042,9 +1049,9 @@ export default function ExamsPage() {
         isOpen={modalState.isOpen && modalState.type === 'delete'}
         onClose={closeModal}
         onConfirm={executeAction}
-        title="Delete Exam"
-        message="Are you sure you want to delete this exam? This action CANNOT be undone and will delete all questions, results, and uploaded images associated with this exam."
-        confirmText="Delete"
+        title={t('exams_modal_delete_title')}
+        message={t('exams_modal_delete_msg')}
+        confirmText={t('users_btn_delete')}
         confirmColor="bg-red-600 hover:bg-red-700"
         icon={() => <Icons.Trash className="w-6 h-6" />}
         isExecuting={isExecuting}
@@ -1054,6 +1061,7 @@ export default function ExamsPage() {
 }
 
 function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', confirmColor = 'bg-indigo-600 hover:bg-indigo-700', icon: Icon, isExecuting = false }) {
+  const { t } = useLanguage();
   if (!isOpen) return null;
 
   return (
@@ -1075,7 +1083,7 @@ function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirm
               disabled={isExecuting}
               className="px-4 py-2 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
             >
-              Cancel
+              {t('users_btn_cancel')}
             </button>
             <button
               onClick={onConfirm}
@@ -1083,7 +1091,7 @@ function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirm
               className={`px-4 py-2 text-white font-semibold rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 ${confirmColor}`}
             >
               {isExecuting && <Icons.Cog className="w-4 h-4 animate-spin" />}
-              <span>{isExecuting ? 'Processing...' : confirmText}</span>
+              <span>{isExecuting ? t('layout_loading') : confirmText}</span>
             </button>
           </div>
         </div>

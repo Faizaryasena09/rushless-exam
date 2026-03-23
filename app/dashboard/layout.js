@@ -128,7 +128,7 @@ export default function DashboardLayout({ children }) {
             />
           )}
           <main className="flex-1 overflow-x-hidden overflow-y-auto">
-            <div className={`container mx-auto ${(isPreview || isExamTaking) ? 'px-0 py-0' : 'px-6 py-8'}`}>
+            <div className={`w-full ${(isPreview || isExamTaking) ? 'px-0 py-0' : 'px-4 sm:px-6 py-4 sm:py-8'}`}>
               {children}
             </div>
           </main>

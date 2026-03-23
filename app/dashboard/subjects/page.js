@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/app/context/LanguageContext';
+import { toast } from 'react-toastify';
 
 // --- Icons Component (Inline SVG) ---
 const Icons = {
@@ -21,7 +24,7 @@ const Icons = {
   ),
   Subject: () => (
     <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 4v12l-4-2-4 2V4M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
     </svg>
   ),
   Close: () => (
@@ -36,67 +39,81 @@ const Icons = {
   )
 };
 
-const ManageSubjectsPage = () => {
+const SubjectsPage = () => {
+  const router = useRouter();
+  const { t } = useLanguage();
+  
+  // Data State
   const [subjects, setSubjects] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedSubject, setSelectedSubject] = useState(null);
-  const [subjectName, setSubjectName] = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [inputValue, setInputValue] = useState('');
+
+  const curItemName = t('master_item_subject');
+
+  // Role Protection
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/user-session');
+        if (!res.ok) { router.push('/'); return; }
+        const data = await res.json();
+        if (!data.user || data.user.roleName !== 'admin') {
+          router.push('/dashboard');
+          return;
+        }
+        fetchSubjects();
+      } catch {
+        router.push('/');
+      }
+    }
+    checkSession();
+  }, [router]);
 
   const fetchSubjects = async () => {
     try {
       setLoading(true);
       const res = await fetch('/api/subjects');
-      if (!res.ok) {
-        throw new Error('Failed to fetch subjects');
-      }
+      if (!res.ok) throw new Error(t('master_error_fetch'));
       const data = await res.json();
       setSubjects(data);
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredSubjects = useMemo(() => {
-    return subjects.filter(s => 
-      s.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  const filteredData = useMemo(() => {
+    return subjects.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [subjects, searchTerm]);
 
-  useEffect(() => {
-    fetchSubjects();
-  }, []);
-
-  const handleAddSubject = () => {
-    setSelectedSubject(null);
-    setSubjectName('');
+  const handleAddItem = () => {
+    setSelectedItem(null);
+    setInputValue('');
     setIsModalOpen(true);
   };
 
-  const handleEditSubject = (s) => {
-    setSelectedSubject(s);
-    setSubjectName(s.name);
+  const handleEditItem = (item) => {
+    setSelectedItem(item);
+    setInputValue(item.name);
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
-
-  const handleSaveSubject = async (e) => {
-    e.preventDefault(); // Prevent form submission refresh
-    const method = selectedSubject ? 'PUT' : 'POST';
-    const url = '/api/subjects';
-    const body = selectedSubject ? { id: selectedSubject.id, name: subjectName } : { name: subjectName };
+  const handleSaveItem = async (e) => {
+    e.preventDefault();
+    const method = selectedItem ? 'PUT' : 'POST';
+    const endpoint = '/api/subjects';
+    const body = selectedItem ? { id: selectedItem.id, name: inputValue } : { name: inputValue };
 
     try {
-      const res = await fetch(url, {
+      const res = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -104,31 +121,29 @@ const ManageSubjectsPage = () => {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.message || 'Failed to save subject');
+        throw new Error(data.message || t('master_error_save'));
       }
 
+      toast.success(selectedItem ? t('master_success_update') : t('master_success_create'));
       setIsModalOpen(false);
       fetchSubjects();
     } catch (err) {
-      alert(err.message); // Simple alert for modal error
+      toast.error(err.message);
     }
   };
 
-  const handleDeleteSubject = async (subjectId) => {
-    if (window.confirm('Are you sure you want to delete this subject?')) {
+  const handleDeleteItem = async (id) => {
+    if (window.confirm(t('master_delete_confirm').replace('{item}', curItemName))) {
       try {
-        const res = await fetch(`/api/subjects?id=${subjectId}`, {
-          method: 'DELETE',
-        });
-
+        const res = await fetch(`/api/subjects?id=${id}`, { method: 'DELETE' });
         if (!res.ok) {
           const data = await res.json();
-          throw new Error(data.message || 'Failed to delete subject');
+          throw new Error(data.message || t('master_error_delete'));
         }
-
+        toast.success(t('master_success_delete'));
         fetchSubjects();
       } catch (err) {
-        setError(err.message);
+        toast.error(err.message);
       }
     }
   };
@@ -136,41 +151,41 @@ const ManageSubjectsPage = () => {
   if (error) {
     return (
       <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 font-medium text-center">
-        Error: {error}
+        {t('master_error_generic')}: {error}
       </div>
     );
   }
 
   return (
     <div className="space-y-6 pb-20">
-      
       {/* --- Page Header --- */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Manage Subjects (Mapel)</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('nav_manage_subjects')}</h1>
           <p className="text-sm text-slate-500 mt-1 dark:text-slate-400">
-            Create and manage subjects that can be assigned to teachers and exams.
+            {t('master_subtitle')}
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-4 flex-1 max-w-2xl">
+
+        <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
           <div className="relative w-full">
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
               <Icons.Search />
             </div>
             <input
               type="text"
-              placeholder="Search subjects..."
+              placeholder={t('master_search_placeholder').replace('{item}', curItemName)}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 font-medium"
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium"
             />
           </div>
           <button 
-            onClick={handleAddSubject} 
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30 whitespace-nowrap"
+            onClick={handleAddItem} 
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-none whitespace-nowrap"
           >
             <Icons.Add />
-            <span>New Subject</span>
+            <span>{t('master_btn_add').replace('{item}', curItemName)}</span>
           </button>
         </div>
       </div>
@@ -179,165 +194,107 @@ const ManageSubjectsPage = () => {
       {loading ? (
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
-          <p className="mt-2 text-slate-400 text-sm">Loading subjects...</p>
+          <p className="mt-2 text-slate-400 text-sm">{t('layout_loading')}</p>
         </div>
-      ) : filteredSubjects.length === 0 ? (
+      ) : filteredData.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
           <div className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-3">
             <Icons.Subject />
           </div>
           <h3 className="text-lg font-medium text-slate-900 dark:text-white">
-            {searchTerm ? 'No subjects match your search' : 'No subjects found'}
+            {t('master_no_data').replace('{item}', curItemName)}
           </h3>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-            {searchTerm ? 'Try adjusting your search term.' : 'Get started by creating a new subject.'}
+            {searchTerm ? t('exams_search_placeholder') : t('master_no_data_desc').replace('{item}', curItemName)}
           </p>
         </div>
       ) : (
-        <div className="w-full">
-          
-          {/* --- DESKTOP VIEW (Table) --- */}
-          <div className="hidden md:block bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-              <thead className="bg-slate-50/80 dark:bg-slate-700/50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Subject Name</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-48">Actions</th>
+            <thead className="bg-slate-50/80 dark:bg-slate-700/50">
+              <tr>
+                <th className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  {t('master_table_item_name').replace('{item}', curItemName)}
+                </th>
+                <th className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-48">{t('master_table_actions')}</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+              {filteredData.map((item) => (
+                <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-100 transition-colors">
+                        <Icons.Subject />
+                      </div>
+                      <span className="font-semibold text-slate-900 dark:text-white">
+                        {item.name}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right text-sm">
+                    <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => handleEditItem(item)} 
+                        className="flex items-center gap-1 px-3 py-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors text-xs font-medium"
+                      >
+                        <Icons.Edit /> {t('questions_btn_edit')}
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteItem(item.id)} 
+                        className="flex items-center gap-1 px-3 py-1.5 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-lg transition-colors text-xs font-medium"
+                      >
+                        <Icons.Trash /> {t('questions_btn_delete')}
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-                {filteredSubjects.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-100 transition-colors">
-                          <Icons.Subject />
-                        </div>
-                        <span className="font-semibold text-slate-900 dark:text-white">{s.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => handleEditSubject(s)} 
-                          className="flex items-center gap-1 px-3 py-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg transition-colors text-xs font-medium"
-                        >
-                          <Icons.Edit /> Edit
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteSubject(s.id)} 
-                          className="flex items-center gap-1 px-3 py-1.5 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-lg transition-colors text-xs font-medium"
-                        >
-                          <Icons.Trash /> Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* --- MOBILE VIEW (Cards) --- */}
-          <div className="grid grid-cols-1 gap-4 md:hidden">
-            {filteredSubjects.map((s) => (
-              <div key={s.id} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                      <Icons.Subject />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 dark:text-white text-lg">{s.name}</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Subject (Mapel)</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100 dark:border-slate-700">
-                   <button 
-                     onClick={() => handleEditSubject(s)}
-                     className="flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-xl transition-colors"
-                   >
-                     <Icons.Edit /> Edit
-                   </button>
-                   <button 
-                     onClick={() => handleDeleteSubject(s.id)}
-                     className="flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-xl transition-colors"
-                   >
-                     <Icons.Trash /> Delete
-                   </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
+              ))}
+            </tbody>
+          </table>
         </div>
+      </div>
       )}
 
-      {/* --- Enhanced Modal --- */}
+      {/* --- Modal --- */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-6">
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
-            onClick={handleCloseModal}
-          ></div>
-
-          {/* Modal Content */}
-          <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
+          <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-700/50">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                {selectedSubject ? 'Edit Subject' : 'New Subject'}
+                {selectedItem 
+                  ? t('master_modal_title_edit').replace('{item}', curItemName)
+                  : t('master_modal_title_new').replace('{item}', curItemName)}
               </h2>
-              <button 
-                onClick={handleCloseModal}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-              >
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                 <Icons.Close />
               </button>
             </div>
-
-            {/* Modal Body */}
-            <form onSubmit={handleSaveSubject}>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Subject Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                    placeholder="e.g. Matematika"
-                    value={subjectName}
-                    onChange={(e) => setSubjectName(e.target.value)}
-                    required
-                    autoFocus
-                  />
-                </div>
+            <form onSubmit={handleSaveItem}>
+              <div className="p-6">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  {t('master_label_name')} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  required
+                  autoFocus
+                />
               </div>
-
-              {/* Modal Footer */}
               <div className="px-6 py-4 bg-slate-50 dark:bg-slate-700/50 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-700">
-                <button
-                  type="button"
-                  className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                  onClick={handleCloseModal}
-                >
-                  Cancel
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg">
+                  {t('master_btn_cancel')}
                 </button>
-                <button 
-                  type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm shadow-indigo-200 dark:shadow-none transition-colors disabled:opacity-50"
-                  disabled={!subjectName.trim()}
-                >
-                  {selectedSubject ? 'Save Changes' : 'Create Subject'}
+                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50" disabled={!inputValue.trim()}>
+                  {selectedItem ? t('master_btn_save') : t('master_btn_create')}
                 </button>
               </div>
             </form>
-
           </div>
         </div>
       )}
@@ -345,4 +302,4 @@ const ManageSubjectsPage = () => {
   );
 };
 
-export default ManageSubjectsPage;
+export default SubjectsPage;
