@@ -38,7 +38,7 @@ export async function POST(request) {
             const rowNum = index + 2; // Assuming header is row 1
 
             if (!username || !password || !role) {
-                errors.push(`Row ${rowNum}: Missing username, password, or role.`);
+                errors.push({ type: 'MISSING_DATA', row: rowNum });
                 failedCount++;
                 continue;
             }
@@ -49,7 +49,7 @@ export async function POST(request) {
                 if (classMap.has(normalizedClassName)) {
                     class_id = classMap.get(normalizedClassName);
                 } else {
-                    errors.push(`Row ${rowNum}: Class "${class_name}" not found.`);
+                    errors.push({ type: 'CLASS_NOT_FOUND', row: rowNum, value: class_name });
                     failedCount++;
                     continue;
                 }
@@ -65,9 +65,9 @@ export async function POST(request) {
             } catch (err) {
                 failedCount++;
                 if (err.code === 'ER_DUP_ENTRY') {
-                    errors.push(`Row ${rowNum}: Username "${username}" already exists.`);
+                    errors.push({ type: 'DUPLICATE_USERNAME', row: rowNum, value: username });
                 } else {
-                    errors.push(`Row ${rowNum}: Database error for "${username}" - ${err.message}`);
+                    errors.push({ type: 'DB_ERROR', row: rowNum, value: username, msg: err.message });
                 }
             }
         }

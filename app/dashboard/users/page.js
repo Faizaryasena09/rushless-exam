@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import UserModal from '../../components/UserModal';
 import * as XLSX from 'xlsx';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { useLanguage } from '@/app/context/LanguageContext';
 import { 
   UserPlus, 
@@ -20,7 +20,10 @@ import {
   Loader2,
   ChevronUp,
   ChevronDown,
-  ArrowUpDown
+  ArrowUpDown,
+  X,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 // --- COMPONENTS ---
@@ -67,6 +70,86 @@ function ConfirmDeleteModal({ isOpen, onClose, onConfirm, title, message, itemNa
   );
 }
 
+function ImportResultsModal({ isOpen, onClose, results }) {
+  const { t } = useLanguage();
+  if (!isOpen || !results) return null;
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg border border-slate-200 dark:border-slate-700 overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+            {t('users_import_modal_title')}
+          </h3>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-all">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-8 space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/50 rounded-2xl text-center">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-1">
+                {t('users_import_modal_success')}
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <CheckCircle2 size={20} className="text-emerald-500" />
+                <span className="text-2xl font-black text-emerald-700 dark:text-emerald-300">
+                  {results.successCount}
+                </span>
+              </div>
+            </div>
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/50 rounded-2xl text-center">
+              <p className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 mb-1">
+                {t('users_import_modal_failed')}
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <AlertCircle size={20} className="text-red-500" />
+                <span className="text-2xl font-black text-red-700 dark:text-red-300">
+                  {results.failedCount}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Detailed Errors List */}
+          {results.errors && results.errors.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest pl-1">
+                {t('users_import_modal_errors_title')}
+              </h4>
+              <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                {results.errors.map((err, i) => {
+                  let msg = t('users_import_err_row_prefix').replace('{row}', err.row);
+                  if (err.type === 'MISSING_DATA') msg += t('users_import_err_missing');
+                  else if (err.type === 'CLASS_NOT_FOUND') msg += t('users_import_err_class_not_found').replace('{name}', err.value);
+                  else if (err.type === 'DUPLICATE_USERNAME') msg += t('users_import_err_duplicate_username').replace('{name}', err.value);
+                  else if (err.type === 'DB_ERROR') msg += t('users_import_err_db_generic').replace('{msg}', err.msg);
+
+                  return (
+                    <div key={i} className="p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl text-xs text-slate-600 dark:text-slate-400 flex items-start gap-3">
+                      <div className="mt-0.5 h-1.5 w-1.5 rounded-full bg-red-400 flex-shrink-0" />
+                      {msg}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={onClose}
+            className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold text-sm hover:scale-[1.02] active:scale-95 transition-all shadow-xl"
+          >
+            {t('users_import_modal_close')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const ManageUsersPage = () => {
   const { t } = useLanguage();
   const [users, setUsers] = useState([]);
@@ -83,6 +166,7 @@ const ManageUsersPage = () => {
   // Modal states
   const [deleteModal, setDeleteModal] = useState({ open: false, user: null, loading: false });
   const [deleteClassModal, setDeleteClassModal] = useState({ open: false, loading: false });
+  const [importResults, setImportResults] = useState(null);
 
   const fetchUsers = async () => {
     try {
@@ -287,10 +371,18 @@ const ManageUsersPage = () => {
 
         const result = await res.json();
         if (res.ok) {
-          toast.update(toastId, { render: result.message, type: "success", isLoading: false, autoClose: 3000 });
           fetchUsers();
+          if (result.failedCount > 0) {
+            toast.dismiss(toastId);
+            setImportResults(result);
+          } else {
+            toast.success(
+              t('users_import_success_count').replace('{count}', result.successCount), 
+              { id: toastId }
+            );
+          }
         } else {
-          toast.update(toastId, { render: result.message || t('users_error_import'), type: "error", isLoading: false, autoClose: 3000 });
+          toast.error(result.message || t('users_error_import'), { id: toastId });
         }
       } catch (err) {
         toast.error(t('users_error_read_file') + err.message);
@@ -542,6 +634,12 @@ const ManageUsersPage = () => {
         title={t('users_btn_delete_class')}
         message={t('users_delete_class_warning').replace('{className}', selectedClassObj?.class_name || '')}
         itemName={t('users_subtitle_count').replace('{count}', users.length)}
+      />
+
+      <ImportResultsModal 
+        isOpen={!!importResults}
+        onClose={() => setImportResults(null)}
+        results={importResults}
       />
     </div>
   );

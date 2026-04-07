@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/app/context/LanguageContext';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 
 // --- Icons Component (Inline SVG) ---
 const Icons = {
@@ -128,7 +128,7 @@ const ClassesPage = () => {
       setIsModalOpen(false);
       fetchClasses();
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message || t('master_error_save'));
     }
   };
 
@@ -147,7 +147,7 @@ const ClassesPage = () => {
         toast.success(t('master_success_delete'));
         fetchClasses();
       } catch (err) {
-        toast.error(err.message);
+        toast.error(err.message || t('master_error_delete'));
       }
     }
   };

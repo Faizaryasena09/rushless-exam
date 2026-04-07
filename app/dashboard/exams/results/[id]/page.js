@@ -14,7 +14,6 @@ const Icons = {
     XCircle: () => <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     MinusCircle: () => <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     AlertCircle: () => <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-    Refresh: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>,
 };
 
 export default function ExamResultsPage() {
@@ -30,7 +29,6 @@ export default function ExamResultsPage() {
     const [classFilter, setClassFilter] = useState('all');
     const [showExportModal, setShowExportModal] = useState(false);
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
-    const [recalculating, setRecalculating] = useState(false);
 
     const fetchResults = async () => {
         try {
@@ -66,29 +64,6 @@ export default function ExamResultsPage() {
         if (!examId) return;
         fetchResults();
     }, [examId]);
-
-    const handleRecalculate = async () => {
-        if (!confirm('Recalculate all student scores for this exam? This will update all existing attempt scores based on current questions and points.')) return;
-        
-        try {
-            setRecalculating(true);
-            const res = await fetch('/api/exams/recalculate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ examId })
-            });
-            
-            if (!res.ok) throw new Error('Failed to recalculate');
-            
-            // Refetch results to show updated scores
-            await fetchResults();
-            alert('Recalculation complete!');
-        } catch (err) {
-            alert('Error: ' + err.message);
-        } finally {
-            setRecalculating(false);
-        }
-    };
 
     const classOptions = useMemo(() => {
         if (!resultsData) return [];
@@ -186,14 +161,7 @@ export default function ExamResultsPage() {
                 </div>
                 
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
-                    <button
-                        onClick={handleRecalculate}
-                        disabled={recalculating}
-                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-2xl shadow-xl shadow-amber-200 dark:shadow-none font-black text-xs uppercase tracking-widest transition-all active:scale-95 group"
-                    >
-                        <Icons.Refresh />
-                        {recalculating ? 'Processing...' : 'Recalculate'}
-                    </button>
+
 
                     <button
                         onClick={() => setShowExportModal(true)}
@@ -344,7 +312,7 @@ export default function ExamResultsPage() {
                                                 <td className="px-6 py-4 text-right">
                                                     {isCompleted ? (
                                                         <span className={`inline-block px-4 py-2 rounded-2xl font-black text-lg ${student.bestScore >= 80 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' : student.bestScore >= 60 ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20' : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20'}`}>
-                                                            {student.bestScore}
+                                                            {Number(student.bestScore) % 1 === 0 ? student.bestScore : Number(student.bestScore).toFixed(2)}
                                                         </span>
                                                     ) : <span className="text-slate-300 dark:text-slate-600 font-black">—</span>}
                                                 </td>
@@ -402,7 +370,7 @@ export default function ExamResultsPage() {
 
                                                 <div className="flex items-center justify-between pt-2">
                                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Performance Score</span>
-                                                        {student.bestScore}
+                                                        {Number(student.bestScore) % 1 === 0 ? student.bestScore : Number(student.bestScore).toFixed(2)}
                                                 </div>
                                             </div>
                                         )}
@@ -502,7 +470,7 @@ function StudentAnalysisDetail({ student, scoringMode, onClose }) {
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <span className={`inline-block px-3 py-1.5 rounded-xl font-black text-base ${attempt.score >= 80 ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' : attempt.score >= 60 ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' : 'text-red-600 bg-red-50 dark:bg-red-900/20'}`}>
-                                                {scoringMode === 'raw' ? attempt.score : Math.round(attempt.score)}
+                                                {scoringMode === 'raw' ? (Number(attempt.score) % 1 === 0 ? attempt.score : Number(attempt.score).toFixed(2)) : Math.round(attempt.score)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
@@ -533,7 +501,7 @@ function StudentAnalysisDetail({ student, scoringMode, onClose }) {
                                 
                                 <div className="mb-4">
                                     <span className={`inline-block px-4 py-1.5 rounded-2xl font-black text-xl mb-1 ${attempt.score >= 80 ? 'text-emerald-600' : attempt.score >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
-                                        {scoringMode === 'raw' ? attempt.score : Math.round(attempt.score)}
+                                        {scoringMode === 'raw' ? (Number(attempt.score) % 1 === 0 ? attempt.score : Number(attempt.score).toFixed(2)) : Math.round(attempt.score)}
                                     </span>
                                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Overall Score</div>
                                 </div>
@@ -689,7 +657,7 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
                             Analysis: {studentName}
                             {analysis?.score !== undefined && (
                                 <span className={`ml-3 px-3 py-1 rounded-xl text-sm font-black ${analysis.score >= 80 ? 'bg-emerald-100 text-emerald-600' : analysis.score >= 60 ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
-                                    Score: {analysis.scoringMode === 'raw' ? analysis.score : Math.round(analysis.score)}
+                                    Score: {analysis.scoringMode === 'raw' ? (Number(analysis.score) % 1 === 0 ? analysis.score : Number(analysis.score).toFixed(2)) : Math.round(analysis.score)}
                                 </span>
                             )}
                         </h2>
@@ -731,7 +699,7 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
                                             {ans.scoreEarned >= ans.points ? <Icons.CheckCircle /> : (ans.scoreEarned > 0 ? <Icons.AlertCircle /> : ((ans.studentAnswer && ans.scoringStrategy !== 'essay_manual') ? <Icons.XCircle /> : <Icons.MinusCircle />))}
                                         </div>
                                         <div className={`text-[10px] font-black px-2 py-1 rounded-lg border ${ans.scoreEarned >= ans.points ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : (ans.scoreEarned > 0 ? 'bg-amber-50 text-amber-600 border-amber-100' : (ans.scoringStrategy === 'essay_manual' ? 'bg-slate-50 text-slate-500 border-slate-100' : 'bg-red-50 text-red-600 border-red-100'))}`}>
-                                            {ans.scoreEarned} / {ans.points} Poin
+                                            {Number(ans.scoreEarned) % 1 === 0 ? ans.scoreEarned : Number(ans.scoreEarned).toFixed(2)} / {ans.points} Poin
                                         </div>
                                     </div>
                                 </div>

@@ -7,6 +7,8 @@ import { validateUserSession } from '@/app/lib/auth';
 import { logFromRequest } from '@/app/lib/logger';
 import { calculateQuestionScore } from '@/app/lib/scoring';
 import redis, { isRedisReady } from '@/app/lib/redis';
+import { eventBus } from '@/app/lib/event-bus';
+import { invalidateExamCache } from '@/app/lib/exams';
 
 async function getSession() {
   const cookieStore = await cookies();
@@ -170,6 +172,10 @@ export async function POST(request) {
     });
 
     logFromRequest(request, session, 'EXAM_SUBMIT', 'info', { examId, score: score.toFixed(1), earned: earnedPointsTotal.toFixed(1), max: maxPointsTotal });
+    
+    // Invalidate cache and notify listeners (SSE)
+    await invalidateExamCache(examId).catch(() => {});
+    eventBus.emit('exam_change', { type: 'submit', userId: session.user.id, examId });
 
     return NextResponse.json({ message: 'Exam submitted successfully', score: score });
 

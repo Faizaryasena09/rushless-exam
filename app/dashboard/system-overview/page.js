@@ -21,6 +21,7 @@ const Icons = {
     Activity: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
     Pulse: () => <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6"><animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite" /></circle></svg>,
     Network: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0" /></svg>,
+    Redis: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>,
 };
 
 // --- Utilities ---
@@ -399,7 +400,7 @@ export default function WebSettingsPage() {
         );
     }
 
-    const { system, database, app } = fullData || {};
+    const { system, database, app, redis } = fullData || {};
     const cpuUsage = realtime?.cpu?.overall ?? system?.cpu?.usage?.overall ?? 0;
     const memUsage = realtime?.memory?.usagePercent ?? system?.memory?.usagePercent ?? 0;
     const perCore = realtime?.cpu?.perCore ?? system?.cpu?.usage?.perCore ?? [];
@@ -631,6 +632,44 @@ export default function WebSettingsPage() {
                             <InfoRow label="Total Queries" value={parseInt(database.totalQueries).toLocaleString()} />
                             <InfoRow label="Slow Queries" value={database.slowQueries} />
                             <InfoRow label="Storage" value={`${database.totalSizeKB} KB`} mono />
+                        </div>
+                    </InfoCard>
+                )}
+
+                {/* Redis Info */}
+                {(redis || realtime?.redis) && (
+                    <InfoCard icon={Icons.Redis} title="Redis Status" live={isLive}>
+                        <div className="space-y-0.5">
+                            <InfoRow 
+                                label="Status" 
+                                value={
+                                    <span className={`inline-flex items-center gap-1.5 font-bold ${
+                                        (realtime?.redis?.isReady ?? redis?.isReady) 
+                                            ? 'text-emerald-600 dark:text-emerald-400' 
+                                            : 'text-rose-600 dark:text-rose-400'
+                                    }`}>
+                                        <span className={`w-2 h-2 rounded-full ${
+                                            (realtime?.redis?.isReady ?? redis?.isReady) 
+                                                ? 'bg-emerald-500 animate-pulse' 
+                                                : 'bg-rose-500'
+                                        }`}></span>
+                                        {(realtime?.redis?.status ?? redis?.status ?? 'unknown').toUpperCase()}
+                                    </span>
+                                } 
+                            />
+                            {redis?.options && (
+                                <>
+                                    <InfoRow label="Host" value={redis.options.host} mono />
+                                    <InfoRow label="Port" value={redis.options.port} mono />
+                                </>
+                            )}
+                            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                                <p className="text-[10px] text-slate-400 leading-relaxed">
+                                    {(realtime?.redis?.isReady ?? redis?.isReady) 
+                                        ? 'Sistem menggunakan Redis untuk caching dan real-time session streaming.' 
+                                        : 'Redis offline. Sistem berjalan dalam mode fallback MySQL (performa mungkin menurun).'}
+                                </p>
+                            </div>
                         </div>
                     </InfoCard>
                 )}

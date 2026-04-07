@@ -268,13 +268,20 @@ export async function invalidateExamCache(examId) {
 
     try {
         const pipeline = redis.pipeline();
-        pipeline.del(`exam:settings-full:${examId}`);
-        pipeline.del(`exam:data:${examId}`);
+        // Clear specific exam data
+        if (examId) {
+            pipeline.del(`exam:settings-full:${examId}`);
+            pipeline.del(`exam:data:${examId}`);
+        }
 
-        // Find and delete all exam lists
-        const keys = await redis.keys('exams:list:*');
-        if (keys.length > 0) {
-            pipeline.del(keys);
+        // 1. Get all tracked list keys from the Set
+        const listKeys = await redis.smembers('exams:active_list_keys').catch(() => []);
+        
+        if (listKeys.length > 0) {
+            // 2. Delete all tracked lists
+            pipeline.del(listKeys);
+            // 3. Clear the tracking set
+            pipeline.del('exams:active_list_keys');
         }
 
         await pipeline.exec();
@@ -289,14 +296,14 @@ export async function invalidateExamCache(examId) {
 /**
  * Fetches the list of exams based on user role and class
  */
-export async function getExamsList(user) {
+export async function getExamsList(user, forceFresh = false) {
     if (!user) return [];
 
     const { id: userId, roleName: role, class_id: classId } = user;
     let exams;
     const listCacheKey = role === 'student' ? `exams:list:class:${classId}` : `exams:list:${role}:${userId}`;
 
-    if (isRedisReady()) {
+    if (!forceFresh && isRedisReady()) {
         const cached = await redis.get(listCacheKey).catch(() => null);
         if (cached) exams = JSON.parse(cached);
     }
@@ -352,7 +359,10 @@ export async function getExamsList(user) {
         exams = await query({ query: examsQuery, values: queryValues });
 
         if (isRedisReady() && exams.length > 0) {
-            await redis.set(listCacheKey, JSON.stringify(exams), 'EX', 300).catch(() => { });
+            await Promise.all([
+                redis.set(listCacheKey, JSON.stringify(exams), 'EX', 300),
+                redis.sadd('exams:active_list_keys', listCacheKey)
+            ]).catch(() => { });
         }
     }
 

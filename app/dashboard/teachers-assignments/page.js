@@ -14,6 +14,7 @@ const Icons = {
 
 // Inline row component to manage individual teacher's state
 const TeacherRow = ({ teacher, allClasses, allSubjects }) => {
+    const { t } = useLanguage();
     // Clone initial arrays to state
     const [assignedClasses, setAssignedClasses] = useState(teacher.assigned_classes || []);
     const [assignedSubjects, setAssignedSubjects] = useState(teacher.assigned_subjects || []);
@@ -34,7 +35,7 @@ const TeacherRow = ({ teacher, allClasses, allSubjects }) => {
 
     const handleSave = async () => {
         setSaving(true);
-        const toastId = toast.loading(`Menyimpan data ${teacher.name || teacher.username}...`);
+        const toastId = toast.loading(t('teachers_toast_saving').replace('{name}', teacher.name || teacher.username));
         try {
             // Save classes
             const resClasses = await fetch('/api/teachers/classes', {
@@ -45,7 +46,7 @@ const TeacherRow = ({ teacher, allClasses, allSubjects }) => {
                     classIds: assignedClasses
                 })
             });
-            if (!resClasses.ok) throw new Error('Failed to save classes');
+            if (!resClasses.ok) throw new Error(t('teachers_error_classes'));
 
             // Save subjects
             const resSubjects = await fetch('/api/teachers/subjects', {
@@ -56,13 +57,13 @@ const TeacherRow = ({ teacher, allClasses, allSubjects }) => {
                     subjectIds: assignedSubjects
                 })
             });
-            if (!resSubjects.ok) throw new Error('Failed to save subjects');
+            if (!resSubjects.ok) throw new Error(t('teachers_error_subjects'));
 
             // Update local object to reflect saved state
             teacher.assigned_classes = [...assignedClasses];
             teacher.assigned_subjects = [...assignedSubjects];
             
-            toast.success(`Data ${teacher.name || teacher.username} berhasil disimpan!`, { id: toastId });
+            toast.success(t('teachers_toast_success').replace('{name}', teacher.name || teacher.username), { id: toastId });
         } catch (e) {
             toast.error(e.message, { id: toastId });
         } finally {
@@ -97,16 +98,16 @@ const TeacherRow = ({ teacher, allClasses, allSubjects }) => {
                         }`}
                     >
                         <Icons.Save />
-                        <span>{saving ? 'Menyimpan...' : 'Simpan'}</span>
+                        <span>{saving ? t('teachers_btn_saving') : t('teachers_btn_save')}</span>
                     </button>
-                    {hasChanges && <span className="text-[10px] font-bold text-amber-500 uppercase md:hidden animate-pulse">Perlu Simpan!</span>}
+                    {hasChanges && <span className="text-[10px] font-bold text-amber-500 uppercase md:hidden animate-pulse">{t('teachers_badge_unsaved')}</span>}
                 </div>
             </td>
             
             {/* Assigned Classes Interface */}
             <td className="px-4 sm:px-6 py-4 align-top border-b md:border-b-0 border-slate-100 dark:border-slate-800 md:border-l border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between mb-3 md:hidden">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Akses Kelas</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('teachers_table_classes')}</span>
                     {assignedClasses.length > 0 && <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">{assignedClasses.length} Terpilih</span>}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -124,14 +125,14 @@ const TeacherRow = ({ teacher, allClasses, allSubjects }) => {
                             <span className="font-semibold">{cls.class_name}</span>
                         </label>
                     ))}
-                    {allClasses.length === 0 && <span className="text-sm text-slate-400 italic">Belum ada kelas di sistem.</span>}
+                    {allClasses.length === 0 && <span className="text-sm text-slate-400 italic">{t('teachers_empty_classes')}</span>}
                 </div>
             </td>
             
             {/* Assigned Subjects Interface */}
             <td className="px-4 sm:px-6 py-4 align-top md:border-l border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between mb-3 md:hidden">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Akses Mata Pelajaran</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('teachers_table_subjects')}</span>
                     {assignedSubjects.length > 0 && <span className="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 px-2 py-0.5 rounded-full font-bold">{assignedSubjects.length} Terpilih</span>}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -149,7 +150,7 @@ const TeacherRow = ({ teacher, allClasses, allSubjects }) => {
                             <span className="font-semibold">{sbj.name}</span>
                         </label>
                     ))}
-                    {allSubjects.length === 0 && <span className="text-sm text-slate-400 italic">Belum ada mapel di sistem.</span>}
+                    {allSubjects.length === 0 && <span className="text-sm text-slate-400 italic">{t('teachers_empty_subjects')}</span>}
                 </div>
             </td>
         </tr>
@@ -200,7 +201,7 @@ export default function TeachersAssignmentsPage() {
                 setAllSubjects(Array.isArray(subjectsData) ? subjectsData : (subjectsData.subjects || []));
             } catch (error) {
                 console.error("Failed to fetch data", error);
-                toast.error("Gagal memuat data dari database.");
+                toast.error(t('teachers_error_fetch'));
             } finally {
                 setLoading(false);
             }
@@ -254,8 +255,7 @@ export default function TeachersAssignmentsPage() {
 
     if (loading) return (
         <div className="flex items-center justify-center p-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-            <span className="ml-3 text-slate-500 dark:text-slate-400">Memuat data guru...</span>
+            <span className="ml-3 text-slate-500 dark:text-slate-400">{t('teachers_loading')}</span>
         </div>
     );
 
@@ -264,7 +264,7 @@ export default function TeachersAssignmentsPage() {
             <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t('nav_teacher_assignments')}</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">Kelola akses Kelas dan Mata Pelajaran untuk guru secara langsung.</p>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">{t('teachers_subtitle')}</p>
                 </div>
                 
                 {/* Search Bar */}
@@ -274,7 +274,7 @@ export default function TeachersAssignmentsPage() {
                     </div>
                     <input
                         type="text"
-                        placeholder="Cari nama guru..."
+                        placeholder={t('teachers_search_placeholder')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-10 w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow shadow-sm"
@@ -292,12 +292,12 @@ export default function TeachersAssignmentsPage() {
                                     onClick={() => toggleSort('name')}
                                 >
                                     <div className="flex items-center gap-3">
-                                        Informasi Guru
+                                        {t('teachers_table_info')}
                                         <SortIcon columnKey="name" />
                                     </div>
                                 </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider w-1/3 border-l border-slate-200 dark:border-slate-700">Akses Kelas</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider w-1/3 border-l border-slate-200 dark:border-slate-700">Akses Mata Pelajaran</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider w-1/3 border-l border-slate-200 dark:border-slate-700">{t('teachers_table_classes')}</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider w-1/3 border-l border-slate-200 dark:border-slate-700">{t('teachers_table_subjects')}</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700 md:table-row-group flex flex-col">
@@ -314,8 +314,7 @@ export default function TeachersAssignmentsPage() {
                                 <tr>
                                     <td colSpan="3" className="px-6 py-12 text-center text-slate-500 dark:text-slate-400">
                                         <div className="flex flex-col items-center">
-                                            <Icons.User />
-                                            <span className="mt-2 font-medium">Tidak ada guru yang ditemukan.</span>
+                                            <span className="mt-2 font-medium">{t('teachers_no_data')}</span>
                                         </div>
                                     </td>
                                 </tr>

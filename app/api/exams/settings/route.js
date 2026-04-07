@@ -170,15 +170,15 @@ export async function POST(request) {
           await txQuery({ query: `INSERT INTO rhs_exam_classes (exam_id, class_id) VALUES ${placeholders}`, values: flatValues });
         }
       }
-
-      // Invalidate Redis Cache IMMEDIATELY after update
-      await invalidateExamCache(examId);
-
-      if (autoDistribute) {
-        await distributeExamPoints(examId);
-      }
-      await recalculateExamScores(examId);
     });
+    
+    // Invalidate Redis Cache IMMEDIATELY after update and COMMIT
+    await invalidateExamCache(examId);
+
+    if (autoDistribute) {
+      await distributeExamPoints(examId);
+    }
+    await recalculateExamScores(examId);
 
     return NextResponse.json({ message: 'Settings saved successfully' });
   } catch (error) {

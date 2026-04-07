@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@/app/context/UserContext';
 import { useLanguage } from '@/app/context/LanguageContext';
+import { toast } from 'sonner';
 
 // --- Icons ---
 const Icons = {
@@ -181,7 +182,7 @@ const StudentExamActions = ({ exam }) => {
         <Link href={`/dashboard/exams/hasil/${latestAttemptId}`} className="group w-full flex items-center justify-between text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors">
           <div className="flex items-center gap-2">
             <Icons.ChartBar />
-            <span>{t('exams_btn_results')} {latestScore !== null && latestScore !== undefined ? `(${latestScore})` : ''}</span>
+            <span>{t('exams_btn_results')} {latestScore !== null && latestScore !== undefined ? `(${Number(latestScore) % 1 === 0 ? latestScore : Number(latestScore).toFixed(2)})` : ''}</span>
           </div>
           <Icons.ChevronRight />
         </Link>
@@ -567,9 +568,11 @@ export default function ExamsPage() {
       });
 
       if (!res.ok) throw new Error((await res.json()).message);
+      
+      toast.success(t('exams_toast_visibility_success'));
       refreshData();
     } catch (e) {
-      alert(e.message);
+      toast.error(e.message);
     }
   };
 
@@ -621,11 +624,13 @@ export default function ExamsPage() {
         const data = await res.json();
         throw new Error(data.message);
       }
+      
+      toast.success(t('exams_toast_reorder_success'));
       // No need to refreshData() if optimistic update is correct, 
       // but let's do it to be safe and ensure sort_order is in sync.
       refreshData();
     } catch (e) {
-      alert(e.message);
+      toast.error(e.message);
       refreshData(); // Revert on error
     }
   };
@@ -712,12 +717,33 @@ export default function ExamsPage() {
     };
 
     setupSSE();
+    
+    // 2. Initial Fetch for immediate data
+    const fetchInitialData = async () => {
+      try {
+        const res = await fetch('/api/exams/stream');
+        // The stream endpoint also sends initial data on the first line normally, 
+        // but a direct fetch is safer for immediate UI.
+        // However, /api/exams/stream is a GET stream. 
+        // Let's use a standard fetch to a non-stream endpoint if possible, 
+        // or just rely on the first message from SSE.
+      } catch (err) { }
+    };
+
+    // 3. Handle window focus (Refresh when student comes back from exam tab)
+    const handleFocus = () => {
+      console.log("[ExamsPage] Window focused, refreshing data...");
+      refreshData();
+    };
+
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       isMounted = false;
+      window.removeEventListener('focus', handleFocus);
       if (eventSource) eventSource.close();
     };
-  }, [loadingSession, loadingExams, isRefreshing, userRole]);
+  }, [loadingSession, isRefreshing, userRole]); // Removed loadingExams to break loop
 
   const refreshData = () => {
     setIsRefreshing(prev => !prev);
@@ -770,10 +796,19 @@ export default function ExamsPage() {
 
       if (!res.ok) throw new Error((await res.json()).message);
 
+      // Success Notifications
+      if (type === 'duplicate') toast.success(t('exams_toast_duplicate_success'));
+      else if (type === 'delete') toast.success(t('exams_toast_delete_success'));
+      else if (type === 'categoryManage') {
+        if (categoryId) toast.success(t('exams_toast_category_rename_success'));
+        else toast.success(t('exams_toast_category_create_success'));
+      } else if (type === 'categoryDelete') toast.success(t('exams_toast_category_delete_success'));
+      else if (type === 'moveExam') toast.success(t('exams_toast_move_success'));
+
       refreshData();
       closeModal();
     } catch (e) {
-      alert(e.message);
+      toast.error(e.message);
       closeModal();
     } finally {
       setIsExecuting(false);
@@ -1026,7 +1061,7 @@ export default function ExamsPage() {
         isOpen={modalState.isOpen && modalState.type === 'categoryDelete'}
         onClose={closeModal}
         onConfirm={executeAction}
-        title={t('exams_modal_category_rename_title')}
+        title={t('exams_modal_category_delete_title')}
         message={t('exams_modal_delete_msg')}
         confirmText={t('users_btn_delete')}
         confirmColor="bg-red-600 hover:bg-red-700"

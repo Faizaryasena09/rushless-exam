@@ -6,6 +6,8 @@ import { query } from '@/app/lib/db';
 import os from 'os';
 import { exec } from 'child_process';
 import { readFileSync } from 'fs';
+import redis, { isRedisReady } from '@/app/lib/redis';
+
 
 async function getSession() {
     const cookieStore = await cookies();
@@ -167,6 +169,10 @@ export async function GET(request) {
                     external: processMemory.external,
                 },
                 bandwidth,
+                redis: {
+                    status: redis.status,
+                    isReady: isRedisReady(),
+                },
                 uptime: os.uptime(),
                 serverTime: new Date().toISOString(),
             });
@@ -269,9 +275,19 @@ export async function GET(request) {
             totalQuestions: questionCount?.count || 0,
         };
 
+        const redisInfo = {
+            status: redis.status,
+            isReady: isRedisReady(),
+            options: {
+                host: redis.options.host,
+                port: redis.options.port,
+            }
+        };
+
         return NextResponse.json({
             system: systemInfo,
             database: databaseInfo,
+            redis: redisInfo,
             app: appStats,
             serverTime: new Date().toISOString(),
         });

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/app/context/LanguageContext';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 
 // --- Icons Component (Inline SVG) ---
 const Icons = {
@@ -128,7 +128,7 @@ const SubjectsPage = () => {
       setIsModalOpen(false);
       fetchSubjects();
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message || t('master_error_save'));
     }
   };
 
@@ -143,7 +143,7 @@ const SubjectsPage = () => {
         toast.success(t('master_success_delete'));
         fetchSubjects();
       } catch (err) {
-        toast.error(err.message);
+        toast.error(err.message || t('master_error_delete'));
       }
     }
   };

@@ -245,7 +245,9 @@ export default function ControlPanel() {
             <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 animate-in zoom-in-95 duration-200">
                 {sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 <span className="text-[10px] font-black tracking-tighter uppercase whitespace-nowrap">
-                    {sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'}
+                    {columnKey === 'is_online' 
+                        ? (sortConfig.direction === 'asc' ? 'ON' : 'OFF')
+                        : (sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A')}
                 </span>
             </div>
         );
@@ -253,9 +255,15 @@ export default function ControlPanel() {
 
     const sortedStudents = useMemo(() => {
         const data = [...filteredStudents];
-        const { direction } = sortConfig;
+        const { key, direction } = sortConfig;
         
         data.sort((a, b) => {
+            if (key === 'is_online') {
+                if (a.is_online !== b.is_online) {
+                    return direction === 'asc' ? (b.is_online ? -1 : 1) : (a.is_online ? -1 : 1);
+                }
+            }
+
             const valA = (a.name || a.username).toLowerCase();
             const valB = (b.name || b.username).toLowerCase();
 
@@ -349,6 +357,18 @@ export default function ControlPanel() {
                         >
                             {classes.map(c => <option key={c} value={c}>{c === 'All' ? 'Semua Kelas' : c}</option>)}
                         </select>
+                        <button 
+                            onClick={() => toggleSort('is_online')} 
+                            className={`p-2 border rounded-xl transition-all flex items-center gap-2 ${
+                                sortConfig.key === 'is_online' 
+                                ? 'bg-indigo-600 text-white border-indigo-600' 
+                                : 'bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'
+                            }`}
+                            title="Urutkan berdasarkan status online"
+                        >
+                            <Users size={18} />
+                            <span className="text-xs font-bold hidden sm:inline">Online First</span>
+                        </button>
                         <button onClick={fetchStatus} className="p-2 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded-xl transition-all">
                             <RefreshCcw size={18} />
                         </button>
@@ -380,7 +400,9 @@ export default function ControlPanel() {
                             <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase cursor-pointer" onClick={() => toggleSort('name')}>
                                 Student <SortIcon columnKey="name" />
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Status</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase cursor-pointer" onClick={() => toggleSort('is_online')}>
+                                Status <SortIcon columnKey="is_online" />
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Aktivitas & Timer</th>
                             <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Actions</th>
                         </tr>

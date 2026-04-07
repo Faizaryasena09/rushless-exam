@@ -44,7 +44,7 @@ export async function GET(request) {
                     // When any exam changes, we refresh the whole list for this user
                     // (Simplest approach to ensure permissions/categories are correct)
                     const [exams, categories] = await Promise.all([
-                        getExamsList(user),
+                        getExamsList(user, true),
                         user.roleName !== 'student' ? getCategoriesList(user) : Promise.resolve([])
                     ]);
                     sendData({ type: 'update', exams, categories });
