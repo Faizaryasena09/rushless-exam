@@ -813,6 +813,28 @@ export async function GET(request) {
       });
     }
     messages.push(`Default security settings populated in '${securitySettingsTableName}'.`);
+ 
+     // --- Check and create 'rhs_license' table ---
+     const licenseTableName = 'rhs_license';
+     await query({
+       query: `
+             CREATE TABLE IF NOT EXISTS ${licenseTableName} (
+                 id INT PRIMARY KEY DEFAULT 1,
+                 status VARCHAR(50) DEFAULT 'inactive',
+                 pj VARCHAR(255),
+                 pj_email VARCHAR(255),
+                 instansi VARCHAR(255),
+                 kuota INT DEFAULT 0,
+                 paket VARCHAR(50),
+                 expiry VARCHAR(50),
+                 signature TEXT,
+                 last_check TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                 server_status VARCHAR(50) DEFAULT 'offline'
+             )
+         `,
+       values: [],
+     });
+     messages.push(`Table '${licenseTableName}' created or already exists.`);
 
     // --- Check and add 'violation_action' column to exam_settings table ---
     const hasViolationAction = await columnExists(settingsTableName, 'violation_action');

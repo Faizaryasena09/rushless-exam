@@ -331,6 +331,24 @@ export async function setupDatabase() {
             )
         `);
     console.log('Table "rhs_activity_logs" created or already exists.');
+ 
+     // Create the 'rhs_license' table for license storage
+     await connection.query(`
+             CREATE TABLE IF NOT EXISTS rhs_license (
+                 id INT PRIMARY KEY DEFAULT 1,
+                 status VARCHAR(50) DEFAULT 'inactive',
+                 pj VARCHAR(255),
+                 pj_email VARCHAR(255),
+                 instansi VARCHAR(255),
+                 kuota INT DEFAULT 0,
+                 paket VARCHAR(50),
+                 expiry VARCHAR(50),
+                 signature TEXT,
+                 last_check TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                 server_status VARCHAR(50) DEFAULT 'offline'
+             )
+         `);
+     console.log('Table "rhs_license" created or already exists.');
 
     // Migration: Add brute force columns to rhs_users
     try {

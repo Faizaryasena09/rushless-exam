@@ -86,14 +86,28 @@ export default function DashboardLayout({ children }) {
       }
     });
 
+    // License Heartbeat
+    const licenseHeartbeat = setInterval(async () => {
+        try {
+            await fetch('/api/license', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'check' })
+            });
+        } catch (e) {
+            console.error("License heartbeat failed", e);
+        }
+    }, 60000);
+
     return () => {
+      clearInterval(licenseHeartbeat);
       if (sse) sse.close();
       if (handleUnload) {
         window.removeEventListener('beforeunload', handleUnload);
         window.removeEventListener('unload', handleUnload);
       }
     };
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []);
 
   const isPreview = pathname.includes('/preview/');
   const isExamTaking = pathname.includes('/exams/kerjakan/');

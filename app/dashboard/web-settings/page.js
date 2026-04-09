@@ -43,6 +43,7 @@ export default function WebSettingsPage() {
         fetchLockedUsers();
     }, []);
 
+
     const fetchLockedUsers = async () => {
         try {
             const res = await fetch('/api/locked-users');
@@ -947,6 +948,7 @@ export default function WebSettingsPage() {
                     </div>
                 </div>
             </div>
+
 
             {/* Info Note */}
             <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
