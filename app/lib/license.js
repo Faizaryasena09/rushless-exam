@@ -210,7 +210,7 @@ export async function syncLicenseStore() {
 
     // 2. Online Heartbeat (Hybrid)
     try {
-        const response = await fetch('https://license.sensrvr.my.id:3001/api/check', {
+        const response = await fetch('https://license.sensrvr.my.id/api/check', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
