@@ -6,6 +6,7 @@ import { useLanguage } from '@/app/context/LanguageContext';
 import Link from 'next/link';
 import Cropper from 'react-easy-crop';
 import dynamic from 'next/dynamic';
+import { toast } from 'sonner';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
@@ -13,7 +14,6 @@ export default function WebSettingsPage() {
     const [settings, setSettings] = useState({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState({});
-    const [message, setMessage] = useState(null);
     const [lockedUsers, setLockedUsers] = useState([]);
     const [unlocking, setUnlocking] = useState({});
     const { t, lang, setLang } = useLanguage();
@@ -65,13 +65,12 @@ export default function WebSettingsPage() {
                 body: JSON.stringify({ key: 'unlock_session_reset' }),
             });
             if (res.ok) {
-                setMessage({ type: 'success', text: t('admin_session_reset_unlock_success') });
-                setTimeout(() => setMessage(null), 3000);
+                toast.success(t('admin_session_reset_unlock_success'));
             } else {
-                setMessage({ type: 'error', text: t('admin_session_reset_unlock_error') });
+                toast.error(t('admin_session_reset_unlock_error'));
             }
         } catch {
-            setMessage({ type: 'error', text: t('admin_generic_error') });
+            toast.error(t('admin_generic_error'));
         } finally {
             setResetUnlocking(false);
         }
@@ -86,14 +85,13 @@ export default function WebSettingsPage() {
                 body: JSON.stringify({ userId }),
             });
             if (res.ok) {
-                setMessage({ type: 'success', text: t('admin_success_unlock_user').replace('{username}', username) });
-                setTimeout(() => setMessage(null), 3000);
+                toast.success(t('admin_success_unlock_user').replace('{username}', username));
                 fetchLockedUsers();
             } else {
-                setMessage({ type: 'error', text: t('admin_error_unlock_user') });
+                toast.error(t('admin_error_unlock_user'));
             }
         } catch {
-            setMessage({ type: 'error', text: t('admin_generic_error') });
+            toast.error(t('admin_generic_error'));
         } finally {
             setUnlocking(prev => ({ ...prev, [userId]: false }));
         }
@@ -124,14 +122,13 @@ export default function WebSettingsPage() {
             });
             if (res.ok) {
                 setLang(selectedLang); // update context immediately
-                setMessage({ type: 'success', text: t('admin_success_lang_save') });
-                setTimeout(() => setMessage(null), 3000);
+                toast.success(t('admin_success_lang_save'));
             } else {
                 const d = await res.json();
-                setMessage({ type: 'error', text: d.message || t('admin_error_lang_save') });
+                toast.error(d.message || t('admin_error_lang_save'));
             }
         } catch {
-            setMessage({ type: 'error', text: t('admin_generic_error') });
+            toast.error(t('admin_generic_error'));
         } finally {
             setLangSaving(false);
         }
@@ -140,8 +137,6 @@ export default function WebSettingsPage() {
     const handleToggle = async (settingKey) => {
         const newValue = !settings[settingKey];
         setSaving(prev => ({ ...prev, [settingKey]: true }));
-        setMessage(null);
-
         try {
             const res = await fetch('/api/web-settings', {
                 method: 'PUT',
@@ -151,14 +146,13 @@ export default function WebSettingsPage() {
 
             if (res.ok) {
                 setSettings(prev => ({ ...prev, [settingKey]: newValue }));
-                setMessage({ type: 'success', text: t('admin_success_settings_save') });
-                setTimeout(() => setMessage(null), 3000);
+                toast.success(t('admin_success_settings_save'));
             } else {
                 const data = await res.json();
-                setMessage({ type: 'error', text: data.message || t('admin_error_settings_save') });
+                toast.error(data.message || t('admin_error_settings_save'));
             }
         } catch {
-            setMessage({ type: 'error', text: t('admin_generic_error') });
+            toast.error(t('admin_generic_error'));
         } finally {
             setSaving(prev => ({ ...prev, [settingKey]: false }));
         }
@@ -206,15 +200,14 @@ export default function WebSettingsPage() {
             if (res.ok) {
                 setSettings(prev => ({ ...prev, site_logo: base64Image }));
                 setCropImage(null); // Close modal
-                setMessage({ type: 'success', text: t('admin_success_logo_save') });
-                setTimeout(() => setMessage(null), 3000);
+                toast.success(t('admin_success_logo_save'));
             } else {
                 const d = await res.json();
-                setMessage({ type: 'error', text: d.message || t('admin_error_logo_save') });
+                toast.error(d.message || t('admin_error_logo_save'));
             }
         } catch (err) {
             console.error(err);
-            setMessage({ type: 'error', text: t('admin_error_image_process') });
+            toast.error(t('admin_error_image_process'));
         } finally {
             setSaving(prev => ({ ...prev, site_logo: false }));
         }
@@ -315,21 +308,6 @@ export default function WebSettingsPage() {
                 </Link>
             </div>
 
-            {/* Success/Error Message */}
-            {message && (
-                <div className={`px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2 transition-all ${message.type === 'success'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
-                    }`}>
-                    {message.type === 'success' ? (
-                        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                    ) : (
-                        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    )}
-                    {message.text}
-                </div>
-            )}
-
             {/* Site Branding Section */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
                 <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-blue-50/30 dark:from-slate-700/50 dark:to-blue-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
@@ -374,13 +352,12 @@ export default function WebSettingsPage() {
                                                 body: JSON.stringify({ key: 'site_name', value: settings.site_name || 'Rushless Exam' }),
                                             });
                                             if (res.ok) {
-                                                setMessage({ type: 'success', text: t('admin_success_settings_save') });
-                                                setTimeout(() => setMessage(null), 3000);
+                                                toast.success(t('admin_success_settings_save'));
                                             } else {
                                                 const d = await res.json();
-                                                setMessage({ type: 'error', text: d.message || t('admin_error_settings_save') });
+                                                toast.error(d.message || t('admin_error_settings_save'));
                                             }
-                                        } catch { setMessage({ type: 'error', text: t('admin_generic_error') }); }
+                                        } catch { toast.error(t('admin_generic_error')); }
                                         finally { setSaving(prev => ({ ...prev, site_name: false })); }
                                     }}
                                     disabled={saving.site_name}
@@ -529,13 +506,12 @@ export default function WebSettingsPage() {
                                             body: JSON.stringify({ key, value: settings[key] }),
                                         });
                                         if (res.ok) {
-                                            setMessage({ type: 'success', text: t('admin_android_success_save') });
-                                            setTimeout(() => setMessage(null), 3000);
+                                            toast.success(t('admin_android_success_save'));
                                         } else {
                                             const d = await res.json();
-                                            setMessage({ type: 'error', text: d.message || t('admin_error_settings_save') });
+                                            toast.error(d.message || t('admin_error_settings_save'));
                                         }
-                                    } catch { setMessage({ type: 'error', text: t('admin_generic_error') }); }
+                                    } catch { toast.error(t('admin_generic_error')); }
                                     finally { setSaving(prev => ({ ...prev, [key]: false })); }
                                 }}
                                 disabled={saving.app_emergency_password}
@@ -693,13 +669,12 @@ export default function WebSettingsPage() {
                                             body: JSON.stringify({ key: 'bruteforce_max_attempts', value: settings.bruteforce_max_attempts ?? 5 }),
                                         });
                                         if (res.ok) {
-                                            setMessage({ type: 'success', text: t('admin_bruteforce_success_save') });
-                                            setTimeout(() => setMessage(null), 3000);
+                                            toast.success(t('admin_bruteforce_success_save'));
                                         } else {
                                             const d = await res.json();
-                                            setMessage({ type: 'error', text: d.message || t('admin_error_settings_save') });
+                                            toast.error(d.message || t('admin_error_settings_save'));
                                         }
-                                    } catch { setMessage({ type: 'error', text: t('admin_generic_error') }); }
+                                    } catch { toast.error(t('admin_generic_error')); }
                                     finally { setSaving(prev => ({ ...prev, bruteforce_max_attempts: false })); }
                                 }}
                                 disabled={saving.bruteforce_max_attempts}
@@ -741,13 +716,12 @@ export default function WebSettingsPage() {
                                             body: JSON.stringify({ key: 'bruteforce_lockout_minutes', value: settings.bruteforce_lockout_minutes ?? 15 }),
                                         });
                                         if (res.ok) {
-                                            setMessage({ type: 'success', text: t('admin_bruteforce_lockout_success_save') });
-                                            setTimeout(() => setMessage(null), 3000);
+                                            toast.success(t('admin_bruteforce_lockout_success_save'));
                                         } else {
                                             const d = await res.json();
-                                            setMessage({ type: 'error', text: d.message || t('admin_error_settings_save') });
+                                            toast.error(d.message || t('admin_error_settings_save'));
                                         }
-                                    } catch { setMessage({ type: 'error', text: t('admin_generic_error') }); }
+                                    } catch { toast.error(t('admin_generic_error')); }
                                     finally { setSaving(prev => ({ ...prev, bruteforce_lockout_minutes: false })); }
                                 }}
                                 disabled={saving.bruteforce_lockout_minutes}
@@ -859,13 +833,12 @@ export default function WebSettingsPage() {
                                             body: JSON.stringify({ key: 'reset_max_attempts', value: settings.reset_max_attempts ?? 3 }),
                                         });
                                         if (res.ok) {
-                                            setMessage({ type: 'success', text: t('admin_session_reset_max_success') });
-                                            setTimeout(() => setMessage(null), 3000);
+                                            toast.success(t('admin_session_reset_max_success'));
                                         } else {
                                             const d = await res.json();
-                                            setMessage({ type: 'error', text: d.message || t('admin_error_settings_save') });
+                                            toast.error(d.message || t('admin_error_settings_save'));
                                         }
-                                    } catch { setMessage({ type: 'error', text: t('admin_generic_error') }); }
+                                    } catch { toast.error(t('admin_generic_error')); }
                                     finally { setSaving(prev => ({ ...prev, reset_max_attempts: false })); }
                                 }}
                                 disabled={saving.reset_max_attempts}
@@ -906,13 +879,12 @@ export default function WebSettingsPage() {
                                             body: JSON.stringify({ key: 'reset_lockout_minutes', value: settings.reset_lockout_minutes ?? 15 }),
                                         });
                                         if (res.ok) {
-                                            setMessage({ type: 'success', text: t('admin_session_reset_lock_success') });
-                                            setTimeout(() => setMessage(null), 3000);
+                                            toast.success(t('admin_session_reset_lock_success'));
                                         } else {
                                             const d = await res.json();
-                                            setMessage({ type: 'error', text: d.message || t('admin_error_settings_save') });
+                                            toast.error(d.message || t('admin_error_settings_save'));
                                         }
-                                    } catch { setMessage({ type: 'error', text: t('admin_generic_error') }); }
+                                    } catch { toast.error(t('admin_generic_error')); }
                                     finally { setSaving(prev => ({ ...prev, reset_lockout_minutes: false })); }
                                 }}
                                 disabled={saving.reset_lockout_minutes}

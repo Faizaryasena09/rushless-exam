@@ -58,8 +58,10 @@ export async function GET(request) {
         };
         await session.save();
 
-        // 5. Invalidate Token (One-time use)
-        await query({ query: 'DELETE FROM rhs_launch_tokens WHERE token = ?', values: [token] });
+        // 5. Do not invalidate the token immediately.
+        // It will expire naturally based on 'expires_at'. 
+        // This is safe and prevents issues with browser redirect loops.
+        // await query({ query: 'DELETE FROM rhs_launch_tokens WHERE token = ?', values: [token] });
 
         // 6. Redirect to Exam/Dashboard
         // return NextResponse.redirect(new URL(redirectUrl, request.url));
@@ -69,11 +71,16 @@ export async function GET(request) {
         // Actually, session.save() should set the cookie on the store, but let's make sure we return a response that Next.js respects.
 
         const response = NextResponse.redirect(new URL(redirectUrl, request.url));
-        // iron-session automatically handles the cookie on the response if we use middleware or getIronSession correctly? 
-        // Wait, getIronSession(cookieStore) modifies the cookieStore object. 
-        // In Next.js 13+ App Router, `cookies()` is read-only? No, it's mutable in Server Actions or Route Handlers 
-        // BUT strict mode might prevent it. 
-        // Let's rely on standard session.save() which SHOULD work if cookies() is working.
+        
+        // Explicitly sync the session cookie to the redirect response
+        // This ensures compatibility with SEB's internal browser session management
+        const sessionCookie = cookieStore.get(sessionOptions.cookieName);
+        if (sessionCookie) {
+            response.cookies.set(sessionOptions.cookieName, sessionCookie.value, {
+                ...sessionOptions.cookieOptions,
+                path: '/', // Ensure global availability
+            });
+        }
 
         return response;
 

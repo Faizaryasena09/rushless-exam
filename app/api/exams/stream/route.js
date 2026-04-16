@@ -31,7 +31,7 @@ export async function GET(request) {
             try {
                 const [exams, categories] = await Promise.all([
                     getExamsList(user),
-                    user.roleName !== 'student' ? getCategoriesList(user) : Promise.resolve([])
+                    getCategoriesList(user)
                 ]);
                 sendData({ type: 'initial', exams, categories });
             } catch (err) {
@@ -45,7 +45,7 @@ export async function GET(request) {
                     // (Simplest approach to ensure permissions/categories are correct)
                     const [exams, categories] = await Promise.all([
                         getExamsList(user, true),
-                        user.roleName !== 'student' ? getCategoriesList(user) : Promise.resolve([])
+                        getCategoriesList(user)
                     ]);
                     sendData({ type: 'update', exams, categories });
                 } catch (err) {

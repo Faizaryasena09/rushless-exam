@@ -449,8 +449,17 @@ export default function ExamTakingPage() {
       if (window.chrome && window.chrome.webview) {
         window.chrome.webview.postMessage('submit_success');
       }
+      
+      // Separate Quit Logic for different browsers
       if (window.RushlessSafer && typeof window.RushlessSafer.finishExam === 'function') {
+        // Rushless Safer bridge (Unpins Android app so students can go back)
         window.RushlessSafer.finishExam();
+      } else if (window.SafeExamBrowser && typeof window.SafeExamBrowser.quit === 'function') {
+        // SEB JS Bridge (3.0+)
+        window.SafeExamBrowser.quit();
+      } else if (navigator.userAgent.toLowerCase().includes('seb')) {
+        // SEB Protocol Fallback using standard quitURL interception
+        window.location.href = "/seb-quit-signal";
       }
 
       if (examDetails?.show_result) {
@@ -523,20 +532,115 @@ export default function ExamTakingPage() {
         }
       }
 
+      // 2. Safe Exam Browser (SEB) Enforcement
       if (examDetails?.require_seb) {
         const userAgent = navigator.userAgent.toLowerCase();
         const isSEB = userAgent.includes('seb');
 
         if (!isSEB) {
           document.body.innerHTML = `
-                  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f8fafc;font-family:sans-serif;text-align:center;padding:20px;">
-                      <div style="font-size:4rem;margin-bottom:20px;">🔒</div>
-                      <h1 style="color:#1e293b;font-size:2rem;margin-bottom:10px;">Safe Exam Browser Required</h1>
-                      <p style="color:#64748b;font-size:1.1rem;max-width:600px;">Ujian ini hanya bisa dikerjakan menggunakan <strong>Safe Exam Browser (SEB)</strong>.</p>
-                      <p style="color:#64748b;margin-top:10px;">Harap buka ujian ini melalui aplikasi SEB.</p>
-                      <a href="/dashboard/exams" style="margin-top:30px;padding:12px 24px;background:#4f46e5;color:white;text-decoration:none;border-radius:8px;font-weight:bold;">Kembali ke Dashboard</a>
+                  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f8fafc;font-family:sans-serif;text-align:center;padding:24px;">
+                      <div style="font-size:5rem;margin-bottom:24px; animation: pulse 2s infinite;">🔒</div>
+                      <h1 style="color:#1e293b;font-size:2.5rem;font-weight:900;margin-bottom:12px;letter-spacing:-0.05em;">SEB Login Required</h1>
+                      <div style="background:white;padding:40px;border-radius:32px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.05), 0 10px 10px -5px rgba(0,0,0,0.02);max-width:500px;width:100%;border:1px solid #e2e8f0;">
+                          <p style="color:#64748b;font-size:1.1rem;line-height:1.6;margin-bottom:32px;">Ujian ini hanya dapat dikerjakan melalui <strong>Safe Exam Browser</strong> dengan session yang valid.</p>
+                          
+                          <button id="launchBtn" style="display:block;width:100%;padding:18px;background:#4f46e5;color:white;text-decoration:none;border-radius:16px;font-weight:800;font-size:1.1rem;margin-bottom:12px;transition:all 0.2s;box-shadow:0 10px 15px -3px rgba(79,70,229,0.3);border:none;cursor:pointer;">Buka & Login SEB Otomatis</button>
+                          
+                          <a href="/dashboard/exams" style="display:block;width:100%;padding:16px;background:transparent;color:#64748b;text-decoration:none;border-radius:16px;font-weight:600;font-size:0.95rem;border:1px solid #e2e8f0;">Kembali ke Dashboard</a>
+                      </div>
+                      
+                      <div id="countdownContainer" style="margin-top:32px; opacity:0; transition: opacity 0.5s;">
+                          <div style="width:240px; height:8px; background:#e2e8f0; border-radius:99px; overflow:hidden; margin:0 auto 16px; border:1px solid #cbd5e1;">
+                              <div id="progressBar" style="width:100%; height:100%; background:linear-gradient(90deg, #4f46e5, #818cf8); transition: width 1s linear;"></div>
+                          </div>
+                          <p style="color:#475569; font-size:0.95rem; font-weight:700;">Membuka Safe Exam Browser dalam <span id="countdownSec" style="color:#4f46e5; font-size:1.25rem;">3</span> detik...</p>
+                      </div>
+
+                      <p style="color:#94a3b8;font-size:0.875rem;margin-top:32px;font-weight:500;">Jika SEB tidak terbuka, pastikan aplikasi sudah terinstal.</p>
+                      
+                      <style>
+                          @keyframes pulse {
+                              0% { transform: scale(1); opacity: 1; }
+                              50% { transform: scale(1.05); opacity: 0.9; }
+                              100% { transform: scale(1); opacity: 1; }
+                          }
+                      </style>
                   </div>
               `;
+          
+          let isLaunching = false;
+          const launchBtn = document.getElementById('launchBtn');
+          const countdownContainer = document.getElementById('countdownContainer');
+          const countdownSec = document.getElementById('countdownSec');
+          const progressBar = document.getElementById('progressBar');
+          
+          const launchSeb = async (e) => {
+              if (e) e.preventDefault();
+              if (isLaunching) return;
+              isLaunching = true;
+              
+              const oldText = launchBtn.innerText;
+              launchBtn.innerText = 'Mempersiapkan Ujian...';
+              
+              try {
+                  const res = await fetch('/api/auth/generate-token', { method: 'POST' });
+                  if (res.ok) {
+                      const data = await res.json();
+                      const protocol = window.location.protocol === 'https:' ? 'sebs://' : 'seb://';
+                      const host = window.location.host;
+                      const launchUrl = `${protocol}${host}/api/exams/${examId}/seb-config?token=${data.token}`;
+                      window.location.href = launchUrl;
+                  } else {
+                      alert('Gagal membuat token autentikasi SEB. Coba muat ulang halaman.');
+                  }
+              } catch (err) {
+                  console.error(err);
+                  alert('Gagal menghubungi server.');
+              } finally {
+                  launchBtn.innerText = oldText;
+                  isLaunching = false;
+              }
+          };
+
+          launchBtn.addEventListener('click', (e) => {
+              clearInterval(countdownTimer);
+              countdownContainer.style.opacity = '0';
+              launchSeb(e);
+          });
+          
+          // Auto launch logic with countdown
+          let secondsLeft = 3;
+          countdownContainer.style.opacity = '1';
+          
+          const countdownTimer = setInterval(() => {
+              secondsLeft--;
+              if (secondsLeft >= 0) {
+                  countdownSec.innerText = secondsLeft;
+                  progressBar.style.width = (secondsLeft / 3 * 100) + '%';
+              }
+              
+              if (secondsLeft <= 0) {
+                  clearInterval(countdownTimer);
+                  launchSeb();
+              }
+          }, 1000);
+          
+          // Auto auto-redirect when SEB finishes the exam
+          let attemptWasRunning = false;
+          const pollInterval = setInterval(async () => {
+              try {
+                  const res = await fetch('/api/exams/attempt-details?exam_id=' + examId);
+                  if (res.ok) {
+                      attemptWasRunning = true; // Ujian mulai dikerjakan di dalam SEB
+                  } else if (res.status === 404 && attemptWasRunning) {
+                      // Jika awalnya berjalan, lalu tiba-tiba 404 (tidak aktif), berarti ujian sudah disubmit!
+                      clearInterval(pollInterval);
+                      window.location.href = '/dashboard/exams';
+                  }
+              } catch (e) {}
+          }, 3000);
+          
           return;
         }
       }

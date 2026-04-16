@@ -57,8 +57,17 @@ export async function POST(request) {
         // Verify SEB User-Agent if required
         if (settings.require_seb) {
             const userAgent = request.headers.get('user-agent')?.toLowerCase() || '';
+            const configKeyHeader = request.headers.get('x-safeexambrowser-configkeyhash') || request.headers.get('x-safeexambrowser-request-hash'); // Fallback to request hash if needed
+
             if (!userAgent.includes('seb')) {
                 return NextResponse.json({ message: 'Ujian ini hanya dapat dikerjakan menggunakan Safe Exam Browser (SEB).' }, { status: 403 });
+            }
+
+            // If a specific SEB config key is set, verify it
+            if (settings.seb_config_key && configKeyHeader) {
+                if (configKeyHeader.toLowerCase() !== settings.seb_config_key.toLowerCase()) {
+                    return NextResponse.json({ message: 'Konfigurasi SEB tidak valid (Hash Mismatch). Silakan hubungi proktor/panitia.' }, { status: 403 });
+                }
             }
         }
 

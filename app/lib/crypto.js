@@ -176,6 +176,7 @@ export function getHWID() {
                 if (match) return match[1];
             } catch (e) {}
         } else {
+            // --- LINUX ---
             const files = ['/etc/machine-id', '/var/lib/dbus/machine-id', '/sys/class/dmi/id/product_uuid'];
             for (const file of files) {
                 if (fs.existsSync(file) && fs.statSync(file).isFile()) {
@@ -183,11 +184,18 @@ export function getHWID() {
                     if (id) return id;
                 }
             }
+            
+            // Fallback for Linux: dbus utility
+            try {
+                const dbusOutput = execSync('dbus-uuidgen --get', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+                if (dbusOutput) return dbusOutput;
+            } catch (e) {}
         }
     } catch (error) {
         console.error('HWID Retrieval Error:', error);
     }
     
+    // Final Fallback: Combination of platform, arch, and hostname (least unique)
     const fallback = `FALLBACK_${process.platform}_${os.arch()}_${os.hostname()}`;
     return crypto.createHash('sha256').update(fallback).digest('hex').toUpperCase();
 }

@@ -3,74 +3,11 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
-import { generateSignature } from './crypto';
+import { generateSignature, getHWID } from './crypto';
 import { query } from './db';
 
 const LICENSE_FILE = path.join(process.cwd(), 'license_status.json');
 
-/**
- * Retrieves a unique Hardware ID (HWID) for the current machine.
- * Supports Windows, Linux, and macOS with multiple fallback methods.
- */
-export function getHWID() {
-    try {
-        if (process.platform === 'win32') {
-            // --- WINDOWS ---
-            // Method 1: PowerShell (Modern - Get-CimInstance)
-            try {
-                const psOutput = execSync('powershell -command "(Get-CimInstance -Class Win32_ComputerSystemProduct).UUID"', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
-                if (psOutput && psOutput.length > 5) return psOutput;
-            } catch (e) {}
-
-            // Method 2: WMIC (Legacy but reliable on older systems)
-            try {
-                const output = execSync('wmic csproduct get uuid', { stdio: ['ignore', 'pipe', 'ignore'] }).toString();
-                const lines = output.split('\n');
-                const uuid = lines[1]?.trim();
-                if (uuid && uuid !== 'UUID' && uuid !== '') return uuid;
-            } catch (e) {}
-
-            // Method 3: Registry MachineGuid (Harder to spoof)
-            try {
-                const regOutput = execSync('reg query HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography /v MachineGuid', { stdio: ['ignore', 'pipe', 'ignore'] }).toString();
-                const match = regOutput.match(/[0-9a-fA-F-]{36}/);
-                if (match) return match[0];
-            } catch (e) {}
-        } else if (process.platform === 'darwin') {
-            // --- MACOS ---
-            try {
-                const macOutput = execSync("ioreg -rd1 -c IOPlatformExpertDevice | grep -E '(IOPlatformUUID|uuid)'", { stdio: ['ignore', 'pipe', 'ignore'] }).toString();
-                const match = macOutput.match(/\"([0-9a-fA-F-]{36})\"/);
-                if (match) return match[1];
-            } catch (e) {}
-        } else {
-            // --- LINUX ---
-            const files = [
-                '/etc/machine-id', 
-                '/var/lib/dbus/machine-id', 
-                '/sys/class/dmi/id/product_uuid'
-            ];
-            for (const file of files) {
-                if (fs.existsSync(file) && fs.statSync(file).isFile()) {
-                    const id = fs.readFileSync(file, 'utf8').trim();
-                    if (id) return id;
-                }
-            }
-            
-            // Fallback for Linux: hostnamectl or dbus
-            try {
-                const dbusOutput = execSync('dbus-uuidgen --get', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
-                if (dbusOutput) return dbusOutput;
-            } catch (e) {}
-        }
-    } catch (error) {
-        console.error('Failed to get HWID:', error);
-    }
-    
-    // Final Fallback: Combination of platform, arch, and hostname (least unique)
-    const fallback = `FALLBACK_${process.platform}_${os.arch()}_${os.hostname()}`;
-    return crypto.createHash('sha256').update(fallback).digest('hex').toUpperCase();
-}
 
 /**
  * Reads the local license status from the database.

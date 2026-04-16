@@ -418,7 +418,9 @@ export async function getCategoriesList(user) {
     let categoriesQuery = `SELECT id, name, created_by, created_at, is_hidden, is_hidden as isHidden, sort_order, is_admin_hidden, is_admin_hidden as isAdminHidden FROM rhs_exam_categories`;
     let queryValues = [];
 
-    if (role !== 'admin') {
+    if (role === 'student') {
+        categoriesQuery += ` WHERE is_admin_hidden = FALSE AND is_hidden = FALSE`;
+    } else if (role !== 'admin') {
         categoriesQuery += ` WHERE is_admin_hidden = FALSE`;
     }
     categoriesQuery += ` ORDER BY sort_order ASC, created_at ASC`;

@@ -68,16 +68,21 @@ export async function POST(request) {
             await fs.mkdir(uploadDir, { recursive: true });
 
             // Replace image sources: write file asynchronously and generate URL
-            htmlContent = await replaceAsync(htmlContent, /<img[^>]*src=["']([^"']+)["'][^>]*>/gi, async (match, src) => {
+            // Support both standard <img> and Word-specific <v:imagedata> tags, with optional quotes for src
+            const imgRegex = /<(?:img|v:imagedata)[^>]*src=["']?([^"'\s>]+)["']?[^>]*>/gi;
+
+            htmlContent = await replaceAsync(htmlContent, imgRegex, async (match, src) => {
                 let searchSrc = decodeURIComponent(src);
 
+                // Find entry in ZIP - check for exact path or just the filename
                 let imgEntry = zipEntries.find(e => e.entryName === searchSrc) ||
-                    zipEntries.find(e => e.entryName.endsWith(searchSrc.split('/').pop() || searchSrc.split('\\').pop()));
+                    zipEntries.find(e => e.entryName.replace(/\\/g, '/') === searchSrc.replace(/\\/g, '/')) ||
+                    zipEntries.find(e => e.entryName.toLowerCase().endsWith(searchSrc.split('/').pop().toLowerCase() || searchSrc.split('\\').pop().toLowerCase()));
 
                 if (imgEntry) {
                     const imgBuffer = imgEntry.getData();
 
-                    // Generate unique filename to avoid overwrites (e.g., from multiple imports)
+                    // Generate unique filename to avoid overwrites
                     const originalExt = path.extname(searchSrc) || '.png';
                     const uniqueFilename = `img_${Date.now()}_${Math.random().toString(36).substring(2, 8)}${originalExt}`;
                     const filePath = path.join(uploadDir, uniqueFilename);
@@ -85,8 +90,14 @@ export async function POST(request) {
                     // Write the buffer to the filesystem
                     await fs.writeFile(filePath, imgBuffer);
 
-                    // Reconstruct a dynamic media URL path (bypasses Next.js static build cache)
+                    // Reconstruct a dynamic media URL path
                     const nextPublicUrl = `/api/media/exam-${examId}/${uniqueFilename}`;
+
+                    // If it was a v:imagedata tag, convert it to a standard <img> tag for browser compatibility
+                    if (match.toLowerCase().startsWith('<v:imagedata')) {
+                        return `<img src="${nextPublicUrl}">`;
+                    }
+
                     return match.replace(src, nextPublicUrl);
                 }
 
@@ -151,10 +162,13 @@ export async function POST(request) {
 }
 
 function parseHtmlContent(html) {
+    // Normalize literal newlines in HTML source to prevent unwanted line breaks from hard wraps
+    const normalizedHtml = html.replace(/[\r\n]+/g, ' ');
+
     // Step 1: Replace <img> tags with unique placeholders BEFORE stripping HTML
     const imgMap = {};
     let imgCounter = 0;
-    let processedHtml = html.replace(/<img[^>]*>/gi, (match) => {
+    let processedHtml = normalizedHtml.replace(/<img[^>]*>/gi, (match) => {
         const placeholder = `__IMG_${imgCounter}__`;
         imgMap[placeholder] = match;
         imgCounter++;
@@ -298,8 +312,25 @@ function parseHtmlContent(html) {
         questions.push({ ...currentQuestion });
     }
 
+    // Smart cleaning helper
+    const cleanContent = (text) => {
+        if (!text) return '';
+        return text
+            .replace(/&nbsp;/gi, ' ') // Replace non-breaking space
+            .replace(/[ \t]+/g, ' ')    // Collapse multiple horizontal spaces
+            .replace(/(?:\s*<br\s*\/?>\s*){2,}/gi, ' <br> ') // Collapse multiple enters to exactly one
+            .replace(/^\s*<br\s*\/?>|<br\s*\/?>\s*$/gi, '') // Trim leading/trailing <br>
+            .trim();
+    };
+
     // Default processing for missing correct options and types
     questions.forEach(q => {
+        // Apply smart cleanup
+        q.question_text = cleanContent(q.question_text);
+        Object.keys(q.options).forEach(key => {
+            q.options[key] = cleanContent(q.options[key]);
+        });
+
         // Detect Markers in question text
         // Point Marker: [BOBOT: 5] or [POINT: 5]
         const pointMatch = q.question_text.match(/\[(?:BOBOT|POINT):\s*([\d.]+)\]/i);

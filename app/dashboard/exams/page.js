@@ -371,7 +371,8 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
 // --- Category Accordion Component ---
 const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, formatDate, openModal, categories, onEdit, onDelete, onToggleVisibility, isHidden, isAdminHidden, onToggleExamVisibility, userRole, userId, categoryCreatedBy, onMove, onDragStart, onDragOver, onDrop, onDragEnd, isDragging }) => {
   const { t } = useLanguage();
-  // Hide 'Tanpa Nama' (uncategorized) if there are no uncategorized exams AND user has categories
+  // Hide empty categories for students, and hide empty 'Tanpa Nama' if categories exist
+  if (isStudent && exams.length === 0) return null;
   if (id === 'uncategorized' && exams.length === 0 && categories.length > 0) return null;
 
   const canReorder = !isStudent && (userRole === 'admin' || userId === categoryCreatedBy);
@@ -653,26 +654,11 @@ export default function ExamsPage() {
       const { exams: examsData, categories: categoriesDataList } = data;
       setExams(examsData);
 
-      let fetchedCategories = categoriesDataList || [];
-
-      if (userRole === 'student') {
-        const studentCategoriesMap = new Map();
-        examsData.forEach(e => {
-          if (e.category_id !== null) {
-            studentCategoriesMap.set(e.category_id, e.category_name);
-          }
-        });
-        fetchedCategories = Array.from(studentCategoriesMap.entries()).map(([id, name]) => ({ id, name }));
-      } else {
-        const catHiddenMap = fetchedCategories.reduce((acc, cat) => {
-          acc[cat.id] = cat.is_hidden ? 1 : 0;
-          return acc;
-        }, {});
-        fetchedCategories = fetchedCategories.map(cat => ({
-          ...cat,
-          isHidden: !!catHiddenMap[cat.id]
-        }));
-      }
+      const fetchedCategories = (categoriesDataList || []).map(cat => ({
+        ...cat,
+        isHidden: !!cat.is_hidden,
+        isAdminHidden: !!cat.is_admin_hidden
+      }));
 
       setCategories(fetchedCategories);
 
