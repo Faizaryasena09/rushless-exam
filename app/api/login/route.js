@@ -49,10 +49,11 @@ export async function POST(request) {
 
     const { username, password } = await request.json();
 
-    // 1. Check Redis for Brute Force Lockout (Fast path)
+    // 1. Get Brute Force Settings
     const redisReady = isRedisReady();
     const bfSettings = await getBruteforceSettings();
-    const redisBfKey = `bf:lock:${username}`;
+    const normalizedUsername = username.toLowerCase();
+    const redisBfKey = `bf:lock:${normalizedUsername}`;
     
     if (redisReady) {
       const isLocked = await redis.get(redisBfKey);
@@ -97,7 +98,7 @@ export async function POST(request) {
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      const redisAttemptKey = `bf:att:${username}`;
+      const redisAttemptKey = `bf:att:${normalizedUsername}`;
       let attempts = 0;
 
       if (redisReady) {
@@ -113,8 +114,8 @@ export async function POST(request) {
           await redis.set(redisBfKey, '1', 'EX', bfSettings.lockoutMinutes * 60);
         }
         
-        // Lock in MySQL (Async, don't block response)
-        query({
+        // Lock in MySQL
+        await query({
           query: 'UPDATE rhs_users SET failed_login_attempts = ?, locked_until = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?',
           values: [attempts, bfSettings.lockoutMinutes, user.id]
         }).catch(() => {});
@@ -124,13 +125,11 @@ export async function POST(request) {
           message: `Akun terkunci selama ${bfSettings.lockoutMinutes} menit karena terlalu banyak percobaan gagal.`
         }, { status: 429 });
       } else {
-        // Update MySQL failure counter (Async)
-        if (!redisReady) {
-          query({
-            query: 'UPDATE rhs_users SET failed_login_attempts = ? WHERE id = ?',
-            values: [attempts, user.id]
-          }).catch(() => {});
-        }
+        // Update MySQL failure counter
+        await query({
+          query: 'UPDATE rhs_users SET failed_login_attempts = ? WHERE id = ?',
+          values: [attempts, user.id]
+        }).catch(() => {});
         
         logActivity({ userId: user.id, username, ip, action: 'LOGIN_FAILED', level: 'warn', details: `Wrong password (${attempts}/${bfSettings.maxAttempts})` });
         return NextResponse.json({
@@ -178,7 +177,7 @@ export async function POST(request) {
     if (redisReady) {
       Promise.all([
         redis.set(redisSessionKey, sessionId, 'EX', 3600),
-        redis.del(`bf:att:${username}`),
+        redis.del(`bf:att:${normalizedUsername}`),
         redis.del(redisBfKey),
         redis.del(`user:locked:${user.id}`),
         redis.del(`user:lastlockcheck:${user.id}`)

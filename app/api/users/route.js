@@ -113,6 +113,11 @@ export async function PUT(request) {
     if (typeof is_locked === 'boolean') {
       q += ', is_locked = ?';
       values.push(is_locked);
+
+      // If unlocking, also reset brute force attempts and lockout timer
+      if (is_locked === false) {
+        q += ', failed_login_attempts = 0, locked_until = NULL';
+      }
     }
 
     q += ' WHERE id = ?';
@@ -120,13 +125,18 @@ export async function PUT(request) {
 
     await query({ query: q, values });
 
-    // Update Redis Lock Status (Instant enforcement)
-    if (typeof is_locked === 'boolean' && isRedisReady()) {
-      const lockedKey = `user:locked:${id}`;
-      if (is_locked) {
-        await redis.set(lockedKey, '1', 'EX', 3600);
-      } else {
-        await redis.del(lockedKey);
+    if (isRedisReady()) {
+      const normalizedUsername = username.toLowerCase();
+      if (is_locked === true) {
+        await redis.set(`user:locked:${id}`, '1', 'EX', 3600);
+      } else if (is_locked === false) {
+        // Clear all possible lock keys if we are explicitly unlocking
+        await Promise.all([
+          redis.del(`user:locked:${id}`),
+          redis.del(`user:lastlockcheck:${id}`),
+          redis.del(`bf:lock:${normalizedUsername}`),
+          redis.del(`bf:att:${normalizedUsername}`)
+        ]).catch(() => {});
       }
     }
 

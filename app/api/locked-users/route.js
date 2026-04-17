@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { logFromRequest } from '@/app/lib/logger';
+import redis, { isRedisReady } from '@/app/lib/redis';
 
 async function getAdminSession() {
     const cookieStore = await cookies();
@@ -61,10 +62,51 @@ export async function PUT(request) {
             values: [userId],
         });
 
+        // Clear Redis cache for this user
+        if (isRedisReady()) {
+            const normalizedUsername = targetUsername.toLowerCase();
+            await Promise.all([
+                redis.del(`bf:lock:${normalizedUsername}`),
+                redis.del(`bf:att:${normalizedUsername}`),
+                redis.del(`user:locked:${userId}`),
+                redis.del(`user:lastlockcheck:${userId}`)
+            ]).catch(() => {});
+        }
+
         logFromRequest(request, session, 'USER_BRUTEFORCE_UNLOCK', 'info', { targetUser: targetUsername });
 
         return NextResponse.json({ message: `User ${targetUsername} unlocked` });
     } catch (error) {
         return NextResponse.json({ message: 'Failed to unlock user', error: error.message }, { status: 500 });
+    }
+}
+
+// DELETE — Unlock ALL users (Emergency Reset)
+export async function DELETE(request) {
+    try {
+        const session = await getAdminSession();
+        if (!session) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+
+        // 1. Reset all in Database
+        await query({
+            query: 'UPDATE rhs_users SET failed_login_attempts = 0, locked_until = NULL',
+        });
+
+        // 2. Clear all Brute-Force keys in Redis
+        if (isRedisReady()) {
+            const lockKeys = await redis.keys('bf:lock:*');
+            const attKeys = await redis.keys('bf:att:*');
+            const allKeys = [...lockKeys, ...attKeys];
+            
+            if (allKeys.length > 0) {
+                await redis.del(...allKeys).catch(() => {});
+            }
+        }
+
+        logFromRequest(request, session, 'USER_BRUTEFORCE_UNLOCK_ALL', 'warn', { details: 'Global brute-force lockout reset triggered' });
+
+        return NextResponse.json({ message: 'All users unlocked successfully' });
+    } catch (error) {
+        return NextResponse.json({ message: 'Failed to unlock all users', error: error.message }, { status: 500 });
     }
 }

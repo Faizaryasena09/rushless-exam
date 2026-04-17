@@ -16,6 +16,7 @@ export default function WebSettingsPage() {
     const [saving, setSaving] = useState({});
     const [lockedUsers, setLockedUsers] = useState([]);
     const [unlocking, setUnlocking] = useState({});
+    const [unlockingAll, setUnlockingAll] = useState(false);
     const { t, lang, setLang } = useLanguage();
     const [selectedLang, setSelectedLang] = useState(lang);
     const [langSaving, setLangSaving] = useState(false);
@@ -95,6 +96,22 @@ export default function WebSettingsPage() {
         } finally {
             setUnlocking(prev => ({ ...prev, [userId]: false }));
         }
+    };
+
+    const handleUnlockAll = async () => {
+        if (!window.confirm(t('admin_bruteforce_unlock_all_confirm'))) return;
+        
+        setUnlockingAll(true);
+        try {
+            const res = await fetch('/api/locked-users', { method: 'DELETE' });
+            if (res.ok) {
+                toast.success(t('admin_bruteforce_unlock_all_success'));
+                fetchLockedUsers();
+            } else {
+                toast.error(t('admin_generic_error'));
+            }
+        } catch { toast.error(t('admin_generic_error')); }
+        finally { setUnlockingAll(false); }
     };
 
     const fetchSettings = async () => {
@@ -731,6 +748,30 @@ export default function WebSettingsPage() {
                             </button>
                         </div>
                     </div>
+
+                    <div className="border-t border-slate-100 dark:border-slate-700/50" />
+
+                    {/* Emergency Unlock All Button - Always Visible */}
+                    <div className="flex items-center justify-between gap-4 p-3 bg-rose-50/30 dark:bg-rose-950/10 rounded-xl border border-rose-100 dark:border-rose-900/30">
+                        <div className="flex-1">
+                            <p className="text-sm font-bold text-rose-700 dark:text-rose-400 font-mono">PANIC BUTTON</p>
+                            <p className="text-[10px] text-rose-600/70 dark:text-rose-400/50 uppercase tracking-tighter leading-none mt-0.5">Membuka paksa semua kunci login jika terjadi error sistem</p>
+                        </div>
+                        <button
+                            onClick={handleUnlockAll}
+                            disabled={unlockingAll}
+                            className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider text-rose-100 bg-rose-600 hover:bg-rose-700 rounded-xl shadow-lg shadow-rose-200 dark:shadow-none transition-all active:scale-95 disabled:opacity-50"
+                        >
+                            {unlockingAll ? '...' : (
+                                <>
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                                    </svg>
+                                    {t('admin_bruteforce_btn_unlock_all')}
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Locked Users List */}
@@ -744,9 +785,11 @@ export default function WebSettingsPage() {
                                 </span>
                                 <span className="text-xs font-semibold text-red-600 dark:text-red-400">{t('admin_bruteforce_locked_count').replace('{count}', lockedUsers.length)}</span>
                             </div>
-                            <button onClick={fetchLockedUsers} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-                                ↻ {t('admin_bruteforce_refresh')}
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button onClick={fetchLockedUsers} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                                    ↻ {t('admin_bruteforce_refresh')}
+                                </button>
+                            </div>
                         </div>
                         <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
                             {lockedUsers.map(u => (
