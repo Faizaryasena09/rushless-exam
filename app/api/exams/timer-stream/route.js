@@ -49,6 +49,12 @@ export async function GET(request) {
 
     const stream = new ReadableStream({
         async start(controller) {
+            let isClosed = false;
+            const safeEnqueue = (dataStr) => {
+                if (isClosed) return;
+                try { controller.enqueue(dataStr); } catch(err) { isClosed = true; }
+            };
+
             // Get initial server time to ignore previous refresh requests
             const initialNowResult = await query({ query: `SELECT UNIX_TIMESTAMP(NOW()) as start_ts` });
             let lastKnownRefresh_ts = initialNowResult[0].start_ts;
@@ -73,6 +79,7 @@ export async function GET(request) {
 
             // Function to fetch and send data
             const sendUpdate = async () => {
+                if (isClosed) return;
                 try {
                     const now_ts = Math.floor(Date.now() / 1000);
                     const redisReady = isRedisReady();
@@ -127,31 +134,15 @@ export async function GET(request) {
 
                     // ─── Phase 3: Final Validation and Calculation ───
                     if (!settings) {
-                        controller.enqueue('data: {"error": "Not found"}\n\n');
+                        safeEnqueue('data: {"error": "Not found"}\n\n');
                         return;
                     }
 
                     if (!attempt) {
-                        controller.enqueue('data: {"error": "No active attempt"}\n\n');
+                        safeEnqueue('data: {"error": "No active attempt"}\n\n');
                         return;
                     }
                     currentAttempt = attempt;
-
-                    // Removed: Periodic database check for refresh_requested_at
-                    // Removed: const refreshCheck = await query({
-                    // Removed:     query: 'SELECT UNIX_TIMESTAMP(refresh_requested_at) as refresh_ts FROM rhs_users WHERE id = ?',
-                    // Removed:     values: [userId]
-                    // Removed: });
-                    // Removed: if (refreshCheck.length > 0 && refreshCheck[0].refresh_ts && Number(refreshCheck[0].refresh_ts) > Number(lastKnownRefresh_ts)) {
-                    // Removed:     try {
-                    // Removed:         await query({
-                    // Removed:             query: 'INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, "SECURITY", ?)',
-                    // Removed:             values: [attempt.id, `🔄 Refresh dipicu oleh Admin (DB Alert: ${refreshCheck[0].refresh_ts} > ${lastKnownRefresh_ts})`]
-                    // Removed:         });
-                    // Removed:     } catch (logErr) { console.error("Logging failed", logErr); }
-                    // Removed:     controller.enqueue(`data: ${JSON.stringify({ refresh: true })}\n\n`);
-                    // Removed:     lastKnownRefresh_ts = refreshCheck[0].refresh_ts;
-                    // Removed: }
 
                     const seconds_left = calculateRemainingSeconds(settings, attempt, now_ts);
 
@@ -168,7 +159,7 @@ export async function GET(request) {
                             }
                         }
                         // Notify client that the attempt is now completed
-                        controller.enqueue(`data: ${JSON.stringify({ seconds_left: 0, status: 'completed', auto_submitted: true })}\n\n`);
+                        safeEnqueue(`data: ${JSON.stringify({ seconds_left: 0, status: 'completed', auto_submitted: true })}\n\n`);
                         clearInterval(intervalId);
                         return;
                     }
@@ -179,10 +170,10 @@ export async function GET(request) {
                         status: attempt.status
                     });
 
-                    controller.enqueue(`data: ${payload}\n\n`);
+                    safeEnqueue(`data: ${payload}\n\n`);
                 } catch (error) {
                     console.error('SSE Error:', error);
-                    controller.enqueue(`data: {"error": "Internal Server Error"}\n\n`);
+                    safeEnqueue(`data: {"error": "Internal Server Error"}\n\n`);
                 }
             };
 
@@ -194,6 +185,7 @@ export async function GET(request) {
 
             // Listen for refresh events from the Control Panel (real-time signaling)
             const onRefresh = async (data) => {
+                if (isClosed) return;
                 if (data.userId === 'all' || data.userId == userId) {
                     // Diagnostic Log - Visible in Student Log Panel (Log Realtime)
                     if (currentAttempt) {
@@ -204,13 +196,14 @@ export async function GET(request) {
                         });
                     }
 
-                    controller.enqueue(`data: ${JSON.stringify({ refresh: true })}\n\n`);
+                    safeEnqueue(`data: ${JSON.stringify({ refresh: true })}\n\n`);
                 }
             };
             eventBus.on('refresh', onRefresh);
 
             // Listen for force submit events
             const onForceSubmit = async (data) => {
+                if (isClosed) return;
                 if (data.userId === 'all' || data.userId == userId) {
                     if (currentAttempt) {
                         logExamActivity({
@@ -220,26 +213,29 @@ export async function GET(request) {
                         });
                     }
 
-                    controller.enqueue(`data: ${JSON.stringify({ force_submit: true })}\n\n`);
+                    safeEnqueue(`data: ${JSON.stringify({ force_submit: true })}\n\n`);
                 }
             };
             eventBus.on('force_submit', onForceSubmit);
 
             // Listen for violation lock events
             const onViolationLock = async (data) => {
+                if (isClosed) return;
                 if (data.userId == userId) {
-                    controller.enqueue(`data: ${JSON.stringify({ violation_lock: true })}\n\n`);
+                    safeEnqueue(`data: ${JSON.stringify({ violation_lock: true })}\n\n`);
                 }
             };
             eventBus.on('violation_lock', onViolationLock);
 
             // Store the cleanup function
             this.cleanup = () => {
+                isClosed = true;
                 clearInterval(intervalId);
                 markOffline();
                 eventBus.off('refresh', onRefresh);
                 eventBus.off('force_submit', onForceSubmit);
                 eventBus.off('violation_lock', onViolationLock);
+                try { controller.close(); } catch(e){}
             };
 
             request.signal.addEventListener('abort', () => {

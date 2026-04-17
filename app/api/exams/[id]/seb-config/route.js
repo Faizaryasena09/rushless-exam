@@ -46,11 +46,27 @@ export async function GET(request, { params }) {
         // It will expire naturally in 5 minutes.
 
         // 5. Construct the PList XML
-        const domain = request.headers.get('host');
-        const protocol = request.headers.get('x-forwarded-proto') || (domain?.includes('localhost') ? 'http' : 'https');
-        // XML requires ampersands to be escaped as &amp;
-        const startURL = `${protocol}://${domain}/api/auth/handoff?token=${handoffToken}&amp;redirect=/dashboard/exams/kerjakan/${examId}`;
+        const reqUrl = new URL(request.url);
+        const searchParams = reqUrl.searchParams;
+        
+        // Use the exact protocol and host the browser is running on, bypassing proxy logic (like cloudflare tunnels routing to localhost)
+        const clientProtocol = searchParams.get('clientProtocol');
+        const clientHost = searchParams.get('clientHost');
+        
+        const domain = clientHost || request.headers.get('host') || reqUrl.host;
+        const protocol = clientProtocol || request.headers.get('x-forwarded-proto') || reqUrl.protocol.replace(':', '');
+        
+        // Pass an absolute redirect URL to prevent the handoff route from redirecting to localhost behind a proxy
+        const absoluteRedirect = `${protocol}://${domain}/dashboard/exams/kerjakan/${examId}`;
+        const startURL = `${protocol}://${domain}/api/auth/handoff?token=${handoffToken}&amp;redirect=${encodeURIComponent(absoluteRedirect)}`;
         const quitURL = `${protocol}://${domain}/seb-quit-signal`;
+        
+        console.log(`\n========== SEB CONFIG GENERATION ==========`);
+        console.log(`Requested Domain: ${reqUrl.host}`);
+        console.log(`Client Protocol (from Chrome): ${clientProtocol}`);
+        console.log(`Client Host (from Chrome): ${clientHost}`);
+        console.log(`Final StartURL embedded: ${startURL}`);
+        console.log(`===========================================\n`);
 
         const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.EN">

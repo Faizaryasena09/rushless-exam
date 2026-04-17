@@ -21,10 +21,16 @@ export async function GET(request) {
     const stream = new ReadableStream({
         async start(controller) {
             const encoder = new TextEncoder();
+            let isClosed = false;
 
             const sendData = async (data) => {
-                const message = `data: ${JSON.stringify(data)}\n\n`;
-                controller.enqueue(encoder.encode(message));
+                if (isClosed) return;
+                try {
+                    const message = `data: ${JSON.stringify(data)}\n\n`;
+                    controller.enqueue(encoder.encode(message));
+                } catch (err) {
+                    isClosed = true;
+                }
             };
 
             // 1. Initial Data
@@ -40,6 +46,7 @@ export async function GET(request) {
 
             // 2. Listen for changes
             const onExamChange = async (event) => {
+                if (isClosed) return;
                 try {
                     // When any exam changes, we refresh the whole list for this user
                     // (Simplest approach to ensure permissions/categories are correct)
@@ -57,14 +64,20 @@ export async function GET(request) {
 
             // 3. Heartbeat to keep connection alive
             const heartbeat = setInterval(() => {
-                controller.enqueue(encoder.encode(': heartbeat\n\n'));
+                if (isClosed) return;
+                try {
+                    controller.enqueue(encoder.encode(': heartbeat\n\n'));
+                } catch (err) {
+                    isClosed = true;
+                }
             }, 30000);
 
             // 4. Cleanup on close
             request.signal.addEventListener('abort', () => {
+                isClosed = true;
                 clearInterval(heartbeat);
                 eventBus.off('exam_change', onExamChange);
-                controller.close();
+                try { controller.close(); } catch(e){}
             });
         }
     });

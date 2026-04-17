@@ -589,7 +589,9 @@ export default function ExamTakingPage() {
                       const data = await res.json();
                       const protocol = window.location.protocol === 'https:' ? 'sebs://' : 'seb://';
                       const host = window.location.host;
-                      const launchUrl = `${protocol}${host}/api/exams/${examId}/seb-config?token=${data.token}`;
+                      const clientProtocol = window.location.protocol.replace(':', '');
+                      const clientHost = window.location.host;
+                      const launchUrl = `${protocol}${host}/api/exams/${examId}/seb-config?token=${data.token}&clientProtocol=${clientProtocol}&clientHost=${clientHost}`;
                       window.location.href = launchUrl;
                   } else {
                       alert('Gagal membuat token autentikasi SEB. Coba muat ulang halaman.');
