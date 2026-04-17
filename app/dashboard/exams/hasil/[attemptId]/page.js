@@ -72,6 +72,17 @@ export default function AnalysisPage() {
   const stats = data.stats || { total: 0, correct: 0, wrong: 0, unanswered: 0 };
   const { total, correct, wrong, unanswered } = stats;
 
+  const handleExit = () => {
+    if (window.RushlessSafer && typeof window.RushlessSafer.finishExam === 'function') {
+      window.RushlessSafer.finishExam();
+    } else if (window.SafeExamBrowser && typeof window.SafeExamBrowser.quit === 'function') {
+      window.SafeExamBrowser.quit();
+    } else if (navigator.userAgent.toLowerCase().includes('seb')) {
+      window.location.href = "/seb-quit-signal";
+    }
+    router.push('/dashboard/exams');
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-20">
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
@@ -79,7 +90,7 @@ export default function AnalysisPage() {
           <div className="flex items-center gap-4 min-w-0">
             <h1 className="text-lg font-bold text-slate-800 dark:text-white truncate">{t('exams_analysis_title')}</h1>
           </div>
-          <button onClick={() => router.push('/dashboard')} className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700/50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-bold transition-all border border-slate-200 dark:border-slate-700">
+          <button onClick={handleExit} className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700/50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-bold transition-all border border-slate-200 dark:border-slate-700">
             <Icons.ArrowLeft />
             <span className="hidden sm:inline">{t('exams_btn_back_dashboard')}</span>
             <span className="sm:hidden">Dashboard</span>

@@ -49,10 +49,15 @@ export async function GET(request) {
 
     const stream = new ReadableStream({
         async start(controller) {
+            const encoder = new TextEncoder();
             let isClosed = false;
             const safeEnqueue = (dataStr) => {
                 if (isClosed) return;
-                try { controller.enqueue(dataStr); } catch(err) { isClosed = true; }
+                try { 
+                    controller.enqueue(encoder.encode(dataStr)); 
+                } catch(err) { 
+                    isClosed = true; 
+                }
             };
 
             // Get initial server time to ignore previous refresh requests

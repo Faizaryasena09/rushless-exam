@@ -104,7 +104,7 @@ export async function POST(request) {
                         ]).catch(() => {});
                     }
                 });
-                return NextResponse.json({ message: 'Exam reset and user logged out.' });
+                return NextResponse.json({ message: 'Ujian direset dan siswa dikeluarkan.' });
 
             case 'add_time':
                 if (!attemptId || !minutes) return NextResponse.json({ message: 'Params required' }, { status: 400 });
@@ -124,7 +124,7 @@ export async function POST(request) {
                         await redis.del(`exam:attempt-meta:${user_id}:${exam_id}`).catch(() => {});
                     }
                 }
-                return NextResponse.json({ message: `Added ${minutes} minutes.` });
+                return NextResponse.json({ message: `Menambahkan waktu ${minutes} menit.` });
 
             case 'add_time_batch':
                 const { attemptIds } = payload;
@@ -153,7 +153,7 @@ export async function POST(request) {
                         redis.del(`exam:attempt-meta:${row.user_id}:${row.exam_id}`)
                     )).catch(() => {});
                 }
-                return NextResponse.json({ message: `Added ${batchMinutes} minutes to ${batchUpdateResult.affectedRows} students.` });
+                return NextResponse.json({ message: `Menambahkan waktu ${batchMinutes} menit ke ${batchUpdateResult.affectedRows} siswa.` });
             
             case 'refresh_exams':
                 if (!userId) return NextResponse.json({ message: 'User ID required' }, { status: 400 });
@@ -169,7 +169,7 @@ export async function POST(request) {
                     userId: session.user.id,
                     username: session.user.username,
                     action: 'REFRESH_ACTION',
-                    details: `Target Student ID: ${userId}`
+                    details: `ID Siswa Target: ${userId}`
                 });
 
                 eventBus.emit('refresh', { userId });
@@ -185,11 +185,11 @@ export async function POST(request) {
                     userId: session.user.id,
                     username: session.user.username,
                     action: 'REFRESH_ALL_ACTION',
-                    details: 'Target: All Students'
+                    details: 'Target: Semua Siswa'
                 });
 
                 eventBus.emit('refresh', { userId: 'all' });
-                return NextResponse.json({ message: 'Refresh signal sent to all active students.' });
+                return NextResponse.json({ message: 'Sinyal refresh dikirim ke semua siswa aktif.' });
 
             case 'force_submit':
                 if (!userId || !attemptId) return NextResponse.json({ message: 'Params required' }, { status: 400 });
@@ -223,7 +223,7 @@ export async function POST(request) {
                     }
                 }
 
-                return NextResponse.json({ message: 'Force submit signal sent.' });
+                return NextResponse.json({ message: 'Sinyal kumpul paksa dikirim.' });
 
             case 'force_submit_all':
                 eventBus.emit('force_submit', { userId: 'all' });
@@ -252,19 +252,25 @@ export async function POST(request) {
                     }
                 })();
 
-                return NextResponse.json({ message: 'Force submit signal sent to all active students.' });
+                return NextResponse.json({ message: 'Sinyal kumpul paksa dikirim ke semua siswa aktif.' });
 
             case 'unlock_exam':
-                if (!attemptId) return NextResponse.json({ message: 'Attempt ID required' }, { status: 400 });
+                if (!attemptId) return NextResponse.json({ message: 'ID Ujian diperlukan' }, { status: 400 });
                 await query({
                     query: 'UPDATE rhs_exam_attempts SET is_violation_locked = 0 WHERE id = ?',
                     values: [attemptId]
                 });
                 
+                // Step 4: Log
+                await query({
+                    query: `INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, 'UNLOCK', 'Kunci pelanggaran ujian dihapus oleh admin')`,
+                    values: [attemptId],
+                });
+                
                 // Signal the student to refresh and clear the lock overlay
                 eventBus.emit('refresh', { userId });
                 
-                return NextResponse.json({ message: 'Exam violation lock removed.' });
+                return NextResponse.json({ message: 'Kunci pelanggaran ujian dihapus.' });
 
             default:
                 return NextResponse.json({ message: 'Invalid action' }, { status: 400 });

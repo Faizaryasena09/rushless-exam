@@ -132,7 +132,6 @@ const StudentExamActions = ({ exam }) => {
       window.location.href = launchUrl;
     } catch (err) {
       console.error('Launch failed:', err);
-      // Fallback to direct launch if token generation fails (though it might require login)
       const targetUrl = window.location.origin + '/dashboard/exams/kerjakan/' + exam.id;
       window.location.href = `rushless-safer://lock?url=${encodeURIComponent(targetUrl)}`;
     } finally {
@@ -140,19 +139,47 @@ const StudentExamActions = ({ exam }) => {
     }
   };
 
-  let actionButton = null;
+  const handleLaunchSEB = async (e) => {
+    e.preventDefault();
+    if (isLaunching) return;
+
+    try {
+      setIsLaunching(true);
+      const res = await fetch('/api/auth/generate-token', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || 'Failed to generate SEB token');
+
+      const protocol = window.location.protocol === 'https:' ? 'sebs://' : 'seb://';
+      const host = window.location.host;
+      const clientProtocol = window.location.protocol.replace(':', '');
+      const clientHost = window.location.host;
+      const launchUrl = `${protocol}${host}/api/exams/${exam.id}/seb-config?token=${data.token}&clientProtocol=${clientProtocol}&clientHost=${clientHost}`;
+      
+      window.location.href = launchUrl;
+    } catch (err) {
+      console.error('SEB Launch failed:', err);
+      toast.error('Gagal meluncurkan Safe Exam Browser');
+    } finally {
+      setIsLaunching(false);
+    }
+  };
+
+  const actions = [];
+  const latestFinished = exam.latest_attempt_status === 'completed';
+  const showResultsSetting = !!exam.show_result;
 
   if (examNotStarted) {
-    actionButton = (
-      <div className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-not-allowed select-none">
+    actions.push(
+      <div key="status" className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-not-allowed select-none">
         <Icons.Clock />
         <span>{t('exams_status_not_started')} {formatCountdown(startTime)}</span>
       </div>
     );
   } else if (hasInProgress && !examEnded) {
-    const showDirectLink = !exam.require_safe_browser || isAndroidApp;
-    actionButton = (
-      <div className="flex flex-col gap-2">
+    const showDirectLink = (!exam.require_safe_browser && !exam.require_seb) || isAndroidApp;
+    actions.push(
+      <div key="in_progress" className="flex flex-col gap-2">
         {showDirectLink && (
           <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors">
             <div className="flex items-center gap-2">
@@ -172,64 +199,87 @@ const StudentExamActions = ({ exam }) => {
             <span>{isLaunching ? t('layout_loading') : t('exams_action_open_safer')}</span>
           </button>
         )}
-      </div>
-    );
-  } else if ((examEnded || maxAttemptsReached) && latestAttemptId) {
-    const showResultsSetting = !!exam.show_result;
-
-    if (showResultsSetting) {
-      actionButton = (
-        <Link href={`/dashboard/exams/hasil/${latestAttemptId}`} className="group w-full flex items-center justify-between text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors">
-          <div className="flex items-center gap-2">
-            <Icons.ChartBar />
-            <span>{t('exams_btn_results')} {latestScore !== null && latestScore !== undefined ? `(${Number(latestScore) % 1 === 0 ? latestScore : Number(latestScore).toFixed(2)})` : ''}</span>
-          </div>
-          <Icons.ChevronRight />
-        </Link>
-      );
-    } else {
-      actionButton = (
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-default select-none">
-          <Icons.Shield className="w-4 h-4" />
-          <span>{t('exams_status_hidden')}</span>
-        </div>
-      );
-    }
-  } else if (examEnded && !latestAttemptId) {
-    actionButton = (
-      <div className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-not-allowed select-none">
-        <Icons.Clock />
-        <span>{t('exams_badge_ended')}</span>
-      </div>
-    );
-  } else if (canTakeExam) {
-    const label = userAttempts > 0 ? 'Ulangi Ujian' : (exam.require_seb ? 'Mulai dengan SEB' : 'Mulai Kerjakan');
-    const showDirectLink = !exam.require_safe_browser || isAndroidApp;
-
-    actionButton = (
-      <div className="flex flex-col gap-2">
-        {showDirectLink && (
-          <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
-            <div className="flex items-center gap-2">
-              <Icons.Play />
-              <span>{userAttempts > 0 ? t('exams_action_repeat') : t('exams_action_start')}</span>
-            </div>
-            <Icons.ChevronRight />
-          </Link>
-        )}
-
-        {!!exam.require_safe_browser && !isAndroidApp && (
+        {exam.require_seb && !isAndroidApp && (
           <button
-            onClick={handleLaunchApp}
+            onClick={handleLaunchSEB}
             disabled={isLaunching}
-            className={`w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-slate-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
           >
             <Icons.Shield className="w-4 h-4" />
-            <span>{isLaunching ? t('layout_loading') : t('exams_action_open_safer')}</span>
+            <span>{isLaunching ? t('layout_loading') : 'Buka Safe Exam Browser'}</span>
           </button>
         )}
       </div>
     );
+  } else {
+    // 1. Show Results if configured and we have at least one attempt ID
+    if (latestAttemptId && latestFinished) {
+      if (showResultsSetting) {
+        actions.push(
+          <Link key="results" href={`/dashboard/exams/hasil/${latestAttemptId}`} className="group w-full flex items-center justify-between text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors py-1">
+            <div className="flex items-center gap-2">
+              <Icons.ChartBar />
+              <span>{t('exams_btn_results')} {latestScore !== null && latestScore !== undefined ? `(${Number(latestScore) % 1 === 0 ? latestScore : Number(latestScore).toFixed(2)})` : ''}</span>
+            </div>
+            <Icons.ChevronRight />
+          </Link>
+        );
+      } else if (examEnded || maxAttemptsReached) {
+        actions.push(
+          <div key="results_hidden" className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-default select-none py-1">
+            <Icons.Shield className="w-4 h-4" />
+            <span>{t('exams_status_hidden')}</span>
+          </div>
+        );
+      }
+    }
+
+    // 2. Show "Take/Repeat" if available
+    if (canTakeExam) {
+      const showDirectLink = (!exam.require_safe_browser && !exam.require_seb) || isAndroidApp;
+      actions.push(
+        <div key="take" className="flex flex-col gap-2 mt-1">
+          {showDirectLink && (
+            <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
+              <div className="flex items-center gap-2">
+                <Icons.Play />
+                <span>{userAttempts > 0 ? t('exams_action_repeat') : t('exams_action_start')}</span>
+              </div>
+              <Icons.ChevronRight />
+            </Link>
+          )}
+
+          {!!exam.require_safe_browser && !isAndroidApp && (
+            <button
+              onClick={handleLaunchApp}
+              disabled={isLaunching}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
+            >
+              <Icons.Shield className="w-4 h-4" />
+              <span>{isLaunching ? t('layout_loading') : t('exams_action_open_safer')}</span>
+            </button>
+          )}
+
+          {!!exam.require_seb && !isAndroidApp && (
+            <button
+              onClick={handleLaunchSEB}
+              disabled={isLaunching}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-slate-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
+            >
+              <Icons.Shield className="w-4 h-4" />
+              <span>{isLaunching ? t('layout_loading') : 'Buka Safe Exam Browser'}</span>
+            </button>
+          )}
+        </div>
+      );
+    } else if (examEnded && !latestAttemptId) {
+      actions.push(
+        <div key="ended" className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-not-allowed select-none">
+          <Icons.Clock />
+          <span>{t('exams_badge_ended')}</span>
+        </div>
+      );
+    }
   }
 
   return (
@@ -239,7 +289,7 @@ const StudentExamActions = ({ exam }) => {
         {attemptInfo}
       </div>
       <div className="pt-1">
-        {actionButton}
+        {actions}
       </div>
     </div>
   );

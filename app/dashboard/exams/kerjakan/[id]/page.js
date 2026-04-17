@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Toaster, toast } from 'sonner';
 import { useUser } from '@/app/context/UserContext';
@@ -58,9 +58,9 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
     </svg>
   ),
-  Flag: () => (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 21v-8a2 2 0 012-2h10a2 2 0 012 2v8m0-8a2 2 0 00-2-2H5a2 2 0 00-2 2zm9-13.5V9" />
+  Flag: ({ filled = false }) => (
+    <svg className={`w-4 h-4 transition-all duration-300 ${filled ? 'fill-current' : 'fill-none'}`} viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H11l-1-1H5a2 2 0 00-2 2z" />
     </svg>
   ),
   Grid: () => (
@@ -86,7 +86,7 @@ const Icons = {
 };
 
 // --- Timer Component ---
-const Timer = ({ timeLeft }) => {
+const Timer = memo(({ timeLeft }) => {
   const isCritical = timeLeft !== null && timeLeft <= 300;
   return (
     <div className={`flex items-center gap-2 font-mono px-3 py-1.5 rounded-lg ${isCritical ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
@@ -94,7 +94,104 @@ const Timer = ({ timeLeft }) => {
       <span className="text-sm font-semibold tracking-wider">{formatTime(timeLeft)}</span>
     </div>
   );
-};
+});
+
+// --- Question Navigation Component ---
+const QuestionNavigation = memo(({ questions, answers, doubtful, currentIndex, onSelect }) => {
+  const answeredCount = Object.keys(answers).length;
+  const doubtfulCount = Object.keys(doubtful).length;
+  const remainingCount = questions.length - answeredCount;
+  const progress = (answeredCount / questions.length) * 100;
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200 dark:border-slate-700 overflow-hidden sticky top-24 transition-all">
+      {/* Header with Progress */}
+      <div className="relative p-5 border-b border-slate-100 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/50">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Status Progres</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{Math.round(progress)}% Selesai</p>
+          </div>
+          <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+             <Icons.Grid />
+          </div>
+        </div>
+        <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+           <div className="h-full bg-indigo-600 transition-all duration-700 ease-out" style={{ width: `${progress}%` }}></div>
+        </div>
+      </div>
+
+      {/* Quick Stats Grid */}
+      <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-slate-700 border-b border-slate-100 dark:border-slate-700">
+         <div className="p-4 text-center">
+            <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 leading-none">{answeredCount}</div>
+            <div className="text-[8px] font-bold text-slate-400 uppercase mt-1">Dijawab</div>
+         </div>
+         <div className="p-4 text-center">
+            <div className="text-lg font-black text-amber-500 leading-none">{doubtfulCount}</div>
+            <div className="text-[8px] font-bold text-slate-400 uppercase mt-1">Ragu</div>
+         </div>
+         <div className="p-4 text-center">
+            <div className="text-lg font-black text-slate-400 leading-none">{remainingCount}</div>
+            <div className="text-[8px] font-bold text-slate-400 uppercase mt-1">Belum</div>
+         </div>
+      </div>
+
+      {/* Question Grid */}
+      <div className="p-5 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
+        <div className="grid grid-cols-5 gap-2.5">
+          {questions.map((q, index) => {
+            const isAnswered = answers[q.id] !== undefined;
+            const isDoubtful = doubtful[q.id];
+            const isActive = index === currentIndex;
+            
+            let btnStyle = "relative h-11 w-full rounded-xl text-xs font-black transition-all active:scale-90 flex items-center justify-center border-2 ";
+            
+            if (isActive) {
+              btnStyle += "bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-none ring-4 ring-indigo-500/10";
+            } else if (isDoubtful) {
+              btnStyle += "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/50 hover:bg-amber-100";
+            } else if (isAnswered) {
+              btnStyle += "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-100";
+            } else {
+              btnStyle += "bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-600";
+            }
+
+            return (
+              <button 
+                key={q.id} 
+                onClick={() => onSelect(index)} 
+                className={btnStyle}
+              >
+                {index + 1}
+                {isDoubtful && <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full border border-white dark:border-slate-800"></span>}
+                {isAnswered && !isDoubtful && <span className="absolute bottom-1 right-1"><Icons.CheckCircleSmall /></span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Legend / Key */}
+      <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
+         <div className="flex flex-wrap gap-y-2 gap-x-4 items-center justify-center">
+            <div className="flex items-center gap-1.5">
+               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Sudah</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+               <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Ragu</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+               <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Belum</span>
+            </div>
+         </div>
+      </div>
+    </div>
+  );
+});
 
 
 // --- Finish Confirmation Modal ---
@@ -356,9 +453,9 @@ export default function ExamTakingPage() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        logAction('SECURITY', 'Student left the exam page (tab switched or minimized)');
+        logAction('SECURITY', 'Siswa meninggalkan halaman ujian (pindah tab atau minimalkan)');
       } else {
-        logAction('SECURITY', 'Student returned to the exam page');
+        logAction('SECURITY', 'Siswa kembali ke halaman ujian');
         // Show warning if configured
         if (examDetails?.violation_action === 'peringatan' && !isViolationLocked) {
           toast.warning('Peringatan: Anda terdeteksi meninggalkan halaman ujian. Aktivitas ini telah dicatat.', {
@@ -369,10 +466,10 @@ export default function ExamTakingPage() {
       }
     };
 
-    const handleBlur = () => logAction('SECURITY', 'Window lost focus');
-    const handleFocus = () => logAction('SECURITY', 'Window regained focus');
-    const handleCopy = () => logAction('SECURITY', 'Student copied text');
-    const handlePaste = () => logAction('SECURITY', 'Student pasted text');
+    const handleBlur = () => logAction('SECURITY', 'Jendela kehilangan fokus');
+    const handleFocus = () => logAction('SECURITY', 'Jendela mendapatkan fokus kembali');
+    const handleCopy = () => logAction('SECURITY', 'Siswa menyalin (copy) teks');
+    const handlePaste = () => logAction('SECURITY', 'Siswa menempel (paste) teks');
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleBlur);
@@ -432,7 +529,7 @@ export default function ExamTakingPage() {
     }
 
     try {
-      logAction('SUBMIT', isAutoSubmit ? 'Auto-submitted due to timeout' : 'Manually submitted by student');
+      logAction('SUBMIT', isAutoSubmit ? 'Dikumpulkan otomatis oleh sistem (Waktu habis)' : 'Dikumpulkan secara manual oleh siswa');
       const response = await fetch('/api/exams/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -451,22 +548,25 @@ export default function ExamTakingPage() {
       }
       
       // Separate Quit Logic for different browsers
+      const shouldShowResult = !!examDetails?.show_result;
+      
+      // If we need to show results, we navigate FIRST and do NOT send quit signals yet.
+      // The quit signal will be handled by the exit button on the results page.
+      if (shouldShowResult) {
+        router.push(`/dashboard/exams/hasil/${attemptDetails.id}`);
+        return; // EXIT early, do not trigger quit signals
+      }
+
+      // If NOT showing results, we can trigger quit signals or go to dashboard
       if (window.RushlessSafer && typeof window.RushlessSafer.finishExam === 'function') {
-        // Rushless Safer bridge (Unpins Android app so students can go back)
         window.RushlessSafer.finishExam();
       } else if (window.SafeExamBrowser && typeof window.SafeExamBrowser.quit === 'function') {
-        // SEB JS Bridge (3.0+)
         window.SafeExamBrowser.quit();
       } else if (navigator.userAgent.toLowerCase().includes('seb')) {
-        // SEB Protocol Fallback using standard quitURL interception
         window.location.href = "/seb-quit-signal";
       }
 
-      if (examDetails?.show_result) {
-        router.push(`/dashboard/exams/hasil/${attemptDetails.id}`);
-      } else {
-        router.push('/dashboard/exams');
-      }
+      router.push('/dashboard/exams');
     } catch (err) {
       alert(`Error: ${err.message}`);
       finishExamHandled.current = false;
@@ -739,7 +839,7 @@ export default function ExamTakingPage() {
         body: JSON.stringify({
           attemptId: attemptData.attempt.id,
           actionType: 'START',
-          description: attemptData.status === 'resumed' ? 'Exam session resumed' : 'Exam session started'
+          description: attemptData.status === 'resumed' ? 'Sesi ujian dilanjutkan (Resume)' : 'Sesi ujian dimulai'
         })
       });
 
@@ -806,7 +906,7 @@ export default function ExamTakingPage() {
         newAnswer = option;
     }
 
-    logAction('ANSWER', `Updated answer for question #${qIndex + 1}`);
+    logAction('ANSWER', `Memperbarui jawaban untuk soal nomor ${qIndex + 1}`);
     setAnswers((prev) => {
         if (!newAnswer) {
             const next = { ...prev };
@@ -846,7 +946,7 @@ export default function ExamTakingPage() {
 
   const handleClearAnswer = async (questionId) => {
     const qIndex = questions.findIndex(q => q.id === questionId);
-    logAction('ANSWER', `Cleared answer for question #${qIndex + 1}`);
+    logAction('ANSWER', `Menghapus jawaban untuk soal nomor ${qIndex + 1}`);
     setAnswers((prev) => {
       const newAnswers = { ...prev };
       delete newAnswers[questionId];
@@ -866,7 +966,7 @@ export default function ExamTakingPage() {
   const handleToggleDoubtful = (questionId) => {
     const qIndex = questions.findIndex(q => q.id === questionId);
     const isNowDoubtful = !doubtfulAnswers[questionId];
-    logAction('FLAG', `${isNowDoubtful ? 'Marked' : 'Unmarked'} question #${qIndex + 1} as doubtful`);
+    logAction('FLAG', `${isNowDoubtful ? 'Menandai' : 'Menghapus tanda'} ragu-ragu untuk soal nomor ${qIndex + 1}`);
     const newDoubtful = { ...doubtfulAnswers, [questionId]: isNowDoubtful };
     setDoubtfulAnswers(newDoubtful);
     updateAttemptState({ doubtfulQuestions: newDoubtful });
@@ -874,7 +974,6 @@ export default function ExamTakingPage() {
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
-      logAction('NAVIGATE', `Moved to question #${currentQuestionIndex + 2}`);
       setCurrentQuestionIndex((prev) => prev + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -882,14 +981,12 @@ export default function ExamTakingPage() {
 
   const handlePrevQuestion = () => {
     if (currentQuestionIndex > 0) {
-      logAction('NAVIGATE', `Moved to question #${currentQuestionIndex}`);
       setCurrentQuestionIndex((prev) => prev - 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handleSelectQuestion = (index) => {
-    logAction('NAVIGATE', `Jumped to question #${index + 1}`);
     setCurrentQuestionIndex(index);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -922,36 +1019,6 @@ export default function ExamTakingPage() {
   if (loading) { return <div className="text-center p-20 dark:text-slate-300">Loading...</div> }
   if (error) { return <div className="text-center p-20 text-red-500">Error: {error}</div> }
 
-  const QuestionNavigation = ({ questions, answers, doubtful, currentIndex, onSelect }) => (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden sticky top-6">
-      <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-700/50 flex justify-between items-center">
-        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Navigasi Soal</h3>
-        <span className="text-xs font-medium px-2 py-1 bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 rounded text-slate-500 dark:text-slate-300">
-          Total: {questions.length}
-        </span>
-      </div>
-      <div className="p-4">
-        <div className="grid grid-cols-5 gap-2">
-          {questions.map((q, index) => {
-            const isAnswered = answers[q.id] !== undefined;
-            const isDoubtful = doubtful[q.id];
-            const isActive = index === currentIndex;
-            let buttonClass = 'h-10 w-full rounded-lg text-sm font-bold transition-all duration-200 relative ';
-            if (isActive) buttonClass += 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30 ring-2 ring-indigo-600 ring-offset-2 dark:ring-offset-slate-800';
-            else if (isDoubtful) buttonClass += 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 hover:bg-amber-200 dark:hover:bg-amber-900/50';
-            else if (isAnswered) buttonClass += 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-200 dark:hover:bg-emerald-900/50';
-            else buttonClass += 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-600';
-            return (
-              <button key={q.id} onClick={() => onSelect(index)} className={buttonClass}>
-                {index + 1}
-                {isDoubtful && (<span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white dark:border-slate-800"></span>)}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
 
   if (showInstructionsScreen) {
     const handleConfirmationChange = (e) => {
@@ -1152,9 +1219,18 @@ export default function ExamTakingPage() {
                   <div className="p-6 md:p-8 flex-1">
                     <div className="flex justify-between items-start mb-6">
                       <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">Soal No. {currentQuestionIndex + 1}</span>
-                      <button onClick={() => handleToggleDoubtful(currentQuestion.id)} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${doubtfulAnswers[currentQuestion.id] ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}`}>
-                        <Icons.Flag />
-                        {doubtfulAnswers[currentQuestion.id] ? 'Ditandai Ragu' : 'Tandai Ragu'}
+                      <button 
+                        onClick={() => handleToggleDoubtful(currentQuestion.id)} 
+                        className={`group flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black transition-all duration-300 ${
+                          doubtfulAnswers[currentQuestion.id] 
+                            ? 'bg-amber-500 text-white shadow-lg shadow-amber-200 dark:shadow-none border-transparent' 
+                            : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-amber-400'
+                        }`}
+                      >
+                        <Icons.Flag filled={!!doubtfulAnswers[currentQuestion.id]} />
+                        <span className="tracking-tight">
+                          {doubtfulAnswers[currentQuestion.id] ? 'Ditandai Ragu' : 'Tandai Ragu'}
+                        </span>
                       </button>
                     </div>
                     <div className="prose prose-slate dark:prose-invert max-w-none mb-8">

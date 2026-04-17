@@ -375,7 +375,13 @@ export async function getExamsList(user, forceFresh = false) {
         const now_ts = Math.floor(Date.now() / 1000);
         const attemptsInfo = allUserAttempts.reduce((acc, attempt) => {
             if (!acc[attempt.exam_id]) {
-                acc[attempt.exam_id] = { count: 0, hasInProgress: false, latestAttemptId: attempt.attempt_id, latestScore: attempt.score };
+                acc[attempt.exam_id] = { 
+                    count: 0, 
+                    hasInProgress: false, 
+                    latestAttemptId: attempt.attempt_id, 
+                    latestScore: attempt.score,
+                    latestStatus: attempt.status 
+                };
             }
             acc[attempt.exam_id].count++;
 
@@ -402,6 +408,7 @@ export async function getExamsList(user, forceFresh = false) {
             exam.has_in_progress = info ? info.hasInProgress : false;
             exam.latest_attempt_id = info ? info.latestAttemptId : null;
             exam.latest_score = info ? info.latestScore : null;
+            exam.latest_attempt_status = info ? info.latestStatus : null;
         });
     }
 

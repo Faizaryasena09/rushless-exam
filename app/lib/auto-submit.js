@@ -93,7 +93,7 @@ export async function autoSubmitAttempt(attempt) {
 
             // Step 4: Log
             await txQuery({
-                query: `INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, 'SUBMIT', 'Auto-submitted by server: timer expired')`,
+                query: `INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, 'SUBMIT', 'Dikumpulkan otomatis oleh server: Waktu habis')`,
                 values: [attempt.id],
             });
 

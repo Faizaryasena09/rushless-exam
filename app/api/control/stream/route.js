@@ -17,22 +17,38 @@ export async function GET(request) {
     const userId = session.user.id;
     const isTeacher = session.user.roleName === 'teacher';
 
+    const encoder = new TextEncoder();
     let intervalId;
+    let heartbeatId;
 
     const stream = new ReadableStream({
         async start(controller) {
             let isClosed = false;
 
+            const safeEnqueue = (message) => {
+                if (isClosed) return;
+                try {
+                    controller.enqueue(encoder.encode(message));
+                } catch (err) {
+                    console.error('SSE Enqueue Error:', err);
+                    isClosed = true;
+                }
+            };
+
             // Get teacher class IDs once
             let teacherClassIds = [];
             if (isTeacher) {
-                const assignments = await query({
-                    query: 'SELECT class_id FROM rhs_teacher_classes WHERE teacher_id = ?',
-                    values: [userId],
-                });
-                teacherClassIds = assignments.map(a => a.class_id);
-                if (teacherClassIds.length === 0) {
-                    controller.enqueue('data: {"students": [], "redisActive": ' + isRedisReady() + '}\n\n');
+                try {
+                    const assignments = await query({
+                        query: 'SELECT class_id FROM rhs_teacher_classes WHERE teacher_id = ?',
+                        values: [userId],
+                    });
+                    teacherClassIds = assignments.map(a => a.class_id);
+                    if (teacherClassIds.length === 0) {
+                        safeEnqueue('data: {"students": [], "redisActive": ' + isRedisReady() + '}\n\n');
+                    }
+                } catch (err) {
+                    console.error('Teacher class fetch error:', err);
                 }
             }
 
@@ -41,28 +57,21 @@ export async function GET(request) {
                 try {
                     const redisActive = isRedisReady();
 
-                    // Optimized check: only run autoSubmit if we can acquire a short Redis lock
+                    // Process auto-submit in background
                     if (redisActive) {
                         const lockKey = 'lock:auto-submit';
                         const locked = await redis.set(lockKey, '1', 'EX', 10, 'NX');
                         if (locked) {
-                            try {
-                                await autoSubmitExpiredAttempts();
-                            } catch (e) {
-                                console.error('AutoSubmit background error:', e);
-                            }
+                            autoSubmitExpiredAttempts().catch(e => console.error('AutoSubmit error:', e));
                         }
                     } else {
-                        // Fallback: Just run it without lock if Redis is down
-                        // (Risk of contention is higher, but better than not running it at all)
-                        await autoSubmitExpiredAttempts().catch(() => {});
+                        autoSubmitExpiredAttempts().catch(() => {});
                     }
 
                     const classFilter = isTeacher
-                        ? `AND u.class_id IN (${teacherClassIds.map(() => '?').join(',')})`
+                        ? `AND u.class_id IN (${teacherClassIds.length > 0 ? teacherClassIds.map(() => '?').join(',') : 'NULL'})`
                         : '';
 
-                    // In fallback mode, we need u.is_online_realtime and u.last_activity back from DB
                     const sql = `
                         SELECT 
                             u.id, u.username, u.name, u.role, u.is_locked, u.class_id, u.is_online_realtime,
@@ -93,7 +102,6 @@ export async function GET(request) {
                     });
 
                     const now = Math.floor(Date.now() / 1000);
-
                     const statusMap = {};
                     if (redisActive && students.length > 0) {
                         const studentIds = students.map(s => s.id);
@@ -103,7 +111,7 @@ export async function GET(request) {
                         const [onlineStatuses, activityTimes] = await Promise.all([
                             redis.mget(...onlineKeys),
                             redis.mget(...activityKeys)
-                        ]);
+                        ]).catch(() => [[], []]);
 
                         studentIds.forEach((id, idx) => {
                             statusMap[id] = {
@@ -125,7 +133,6 @@ export async function GET(request) {
                             seconds_left = Math.max(0, Math.floor(endTs - s.now_ts));
                         }
 
-                        // Use Redis status if active, otherwise use DB status
                         const isOnline = redisActive ? (statusMap[s.id]?.online ?? false) : !!s.is_online_realtime;
                         const lastActivity = redisActive ? (statusMap[s.id]?.lastActivity ?? 0) : s.last_activity_ts;
 
@@ -142,14 +149,9 @@ export async function GET(request) {
                             attempt_id: s.attempt_id || null,
                             seconds_left,
                         };
-                    }).sort((a, b) => {
-                        if (a.is_online !== b.is_online) return b.is_online ? 1 : -1;
-                        return a.last_activity_seconds_ago - b.last_activity_seconds_ago;
                     });
 
-                    if (!isClosed) {
-                        controller.enqueue(`data: ${JSON.stringify({ students: processedStudents, redisActive })}\n\n`);
-                    }
+                    safeEnqueue(`data: ${JSON.stringify({ students: processedStudents, redisActive })}\n\n`);
                 } catch (err) {
                     console.error('Control SSE error:', err);
                 }
@@ -161,24 +163,29 @@ export async function GET(request) {
             // Push every 3 seconds
             intervalId = setInterval(sendData, 3000);
             
-            // Listen for NEW Logs (Eliminates Polling!)
+            // Heartbeat every 30 seconds
+            heartbeatId = setInterval(() => {
+                safeEnqueue(': heartbeat\n\n');
+            }, 30000);
+
+            // Listen for NEW Logs
             const onLogAdded = (log) => {
-                if (isClosed) return;
-                // Teachers only see their assigned classes (optional optimization)
-                // For now, let's keep it simple: push log events to stream
-                const payload = JSON.stringify({ log_update: log });
-                controller.enqueue(`data: ${payload}\n\n`);
+                safeEnqueue(`data: ${JSON.stringify({ log_update: log })}\n\n`);
             };
             eventBus.on('log_added', onLogAdded);
 
-            request.signal.addEventListener('abort', () => {
+            const cleanup = () => {
                 isClosed = true;
                 if (intervalId) clearInterval(intervalId);
+                if (heartbeatId) clearInterval(heartbeatId);
                 eventBus.off('log_added', onLogAdded);
-            });
+            };
+
+            request.signal.addEventListener('abort', cleanup);
         },
         cancel() {
             if (intervalId) clearInterval(intervalId);
+            if (heartbeatId) clearInterval(heartbeatId);
         }
     });
 

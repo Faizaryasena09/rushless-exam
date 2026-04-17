@@ -62,6 +62,23 @@ export async function GET(request) {
 
             eventBus.on('exam_change', onExamChange);
 
+            // 3. Listen for Admin Signals
+            const onRefresh = (data) => {
+                if (isClosed) return;
+                if (data.userId === 'all' || data.userId == user.id) {
+                    sendData({ type: 'refresh_signal' });
+                }
+            };
+            const onForceSubmit = (data) => {
+                if (isClosed) return;
+                if (data.userId === 'all' || data.userId == user.id) {
+                    sendData({ type: 'force_submit_signal', attemptId: data.attemptId });
+                }
+            };
+
+            eventBus.on('refresh', onRefresh);
+            eventBus.on('force_submit', onForceSubmit);
+
             // 3. Heartbeat to keep connection alive
             const heartbeat = setInterval(() => {
                 if (isClosed) return;
@@ -77,6 +94,8 @@ export async function GET(request) {
                 isClosed = true;
                 clearInterval(heartbeat);
                 eventBus.off('exam_change', onExamChange);
+                eventBus.off('refresh', onRefresh);
+                eventBus.off('force_submit', onForceSubmit);
                 try { controller.close(); } catch(e){}
             });
         }
