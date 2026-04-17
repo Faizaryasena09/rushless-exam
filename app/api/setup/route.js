@@ -836,6 +836,22 @@ export async function GET(request) {
      });
      messages.push(`Table '${licenseTableName}' created or already exists.`);
 
+     // --- Check and create 'rhs_launch_tokens' table (Safety for SEB Handoff) ---
+     const launchTokensTableName = 'rhs_launch_tokens';
+     await query({
+       query: `
+             CREATE TABLE IF NOT EXISTS ${launchTokensTableName} (
+                 token VARCHAR(255) PRIMARY KEY,
+                 user_id INT NOT NULL,
+                 expires_at DATETIME NOT NULL,
+                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                 FOREIGN KEY (user_id) REFERENCES rhs_users(id) ON DELETE CASCADE
+             )
+         `,
+       values: [],
+     });
+     messages.push(`Table '${launchTokensTableName}' created or already exists.`);
+
     // --- Check and add 'violation_action' column to exam_settings table ---
     const hasViolationAction = await columnExists(settingsTableName, 'violation_action');
     if (!hasViolationAction) {
