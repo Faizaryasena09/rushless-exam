@@ -421,6 +421,18 @@ export async function setupDatabase() {
       if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
     }
 
+    // Migration: Add Geschool Secure Mode columns
+    try {
+      await connection.query(
+        `ALTER TABLE rhs_exam_settings 
+         ADD COLUMN require_geschool TINYINT(1) NOT NULL DEFAULT 0,
+         ADD COLUMN geschool_exit_password VARCHAR(255) NULL DEFAULT NULL`,
+      );
+      console.log("Columns 'require_geschool' and 'geschool_exit_password' added to rhs_exam_settings");
+    } catch (err) {
+      if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
+    }
+
     } finally {
       if (connection) connection.release();
     }

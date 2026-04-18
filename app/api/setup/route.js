@@ -897,6 +897,30 @@ export async function GET(request) {
     } else {
       messages.push(`Composite index 'idx_user_exam_status' already exists on '${attemptsTableName}'.`);
     }
+    
+    // --- Check and add 'require_geschool' column to exam_settings table ---
+    const hasRequireGeschool = await columnExists(settingsTableName, 'require_geschool');
+    if (!hasRequireGeschool) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN require_geschool TINYINT(1) NOT NULL DEFAULT 0;`,
+        values: [],
+      });
+      messages.push(`Column 'require_geschool' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'require_geschool' already exists in '${settingsTableName}'.`);
+    }
+
+    // --- Check and add 'geschool_exit_password' column to exam_settings table ---
+    const hasGeschoolPassword = await columnExists(settingsTableName, 'geschool_exit_password');
+    if (!hasGeschoolPassword) {
+      await query({
+        query: `ALTER TABLE ${settingsTableName} ADD COLUMN geschool_exit_password VARCHAR(255) NULL DEFAULT NULL;`,
+        values: [],
+      });
+      messages.push(`Column 'geschool_exit_password' created successfully in '${settingsTableName}'.`);
+    } else {
+      messages.push(`Column 'geschool_exit_password' already exists in '${settingsTableName}'.`);
+    }
 
     return NextResponse.json({
       status: 'success',

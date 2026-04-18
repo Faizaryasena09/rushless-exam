@@ -54,19 +54,27 @@ export async function POST(request) {
             }
         }
 
-        // Verify SEB User-Agent if required
-        if (settings.require_seb) {
-            const userAgent = request.headers.get('user-agent')?.toLowerCase() || '';
-            const configKeyHeader = request.headers.get('x-safeexambrowser-configkeyhash') || request.headers.get('x-safeexambrowser-request-hash'); // Fallback to request hash if needed
+        // ─── UNIFIED SECURITY VERIFICATION (Backend) ───
+        const userAgent = request.headers.get('user-agent')?.toLowerCase() || '';
+        const isSEB = userAgent.includes('seb');
+        const isRushless = userAgent.includes('rushless');
+        const isGeschool = userAgent.includes('geschool-secure') || userAgent.includes('gsms');
+        
+        const isAnySecureDetected = isSEB || isRushless || isGeschool;
+        const isAnySecureRequired = settings.require_seb || settings.require_geschool || settings.require_safe_browser;
 
-            if (!userAgent.includes('seb')) {
-                return NextResponse.json({ message: 'Ujian ini hanya dapat dikerjakan menggunakan Safe Exam Browser (SEB).' }, { status: 403 });
-            }
+        if (isAnySecureRequired && !isAnySecureDetected) {
+            return NextResponse.json({ 
+                message: 'Ujian ini memerlukan aplikasi pengaman (SEB, Rushless Safer, atau Geschool SM).' 
+            }, { status: 403 });
+        }
 
-            // If a specific SEB config key is set, verify it
+        // Specific validation for SEB if user is using it
+        if (isSEB && settings.require_seb) {
+            const configKeyHeader = request.headers.get('x-safeexambrowser-configkeyhash') || request.headers.get('x-safeexambrowser-request-hash');
             if (settings.seb_config_key && configKeyHeader) {
                 if (configKeyHeader.toLowerCase() !== settings.seb_config_key.toLowerCase()) {
-                    return NextResponse.json({ message: 'Konfigurasi SEB tidak valid (Hash Mismatch). Silakan hubungi proktor/panitia.' }, { status: 403 });
+                    return NextResponse.json({ message: 'Konfigurasi SEB tidak valid (Hash Mismatch). Silakan hubungi proktor.' }, { status: 403 });
                 }
             }
         }

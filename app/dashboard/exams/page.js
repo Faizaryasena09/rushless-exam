@@ -106,6 +106,7 @@ const StudentExamActions = ({ exam }) => {
   // Action button
   const [isLaunching, setIsLaunching] = useState(false);
   const [isAndroidApp, setIsAndroidApp] = useState(false);
+  const [showMethods, setShowMethods] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -165,6 +166,62 @@ const StudentExamActions = ({ exam }) => {
     }
   };
 
+  const handleLaunchGeschool = async (e) => {
+    e.preventDefault();
+    if (isLaunching) return;
+
+    try {
+      setIsLaunching(true);
+      const res = await fetch('/api/auth/generate-token', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || 'Failed to generate Geschool token');
+
+      const targetUrl = window.location.origin + '/dashboard/exams/kerjakan/' + exam.id;
+      const finalRedirectUrl = window.location.origin + `/api/auth/handoff?token=${data.token}&redirect=${encodeURIComponent(targetUrl)}`;
+      const launchUrl = `geschool://open?url=${encodeURIComponent(finalRedirectUrl)}`;
+
+      window.location.href = launchUrl;
+    } catch (err) {
+      console.error('Geschool Launch failed:', err);
+      toast.error('Gagal meluncurkan Geschool Secure Mode');
+    } finally {
+      setIsLaunching(false);
+    }
+  };
+
+  const enabledMethods = useMemo(() => {
+    const methods = [];
+    if (exam.require_safe_browser) {
+      methods.push({ 
+        id: 'safer', 
+        label: 'Rushless Safer', 
+        handler: handleLaunchApp, 
+        icon: <Icons.Shield className="w-4 h-4" />,
+        color: 'bg-indigo-600 hover:bg-indigo-700'
+      });
+    }
+    if (exam.require_seb) {
+      methods.push({ 
+        id: 'seb', 
+        label: 'Safe Exam Browser', 
+        handler: handleLaunchSEB, 
+        icon: <Icons.Shield className="w-4 h-4" />,
+        color: 'bg-blue-600 hover:bg-blue-700'
+      });
+    }
+    if (exam.require_geschool) {
+      methods.push({ 
+        id: 'geschool', 
+        label: 'Geschool Secure Mode', 
+        handler: handleLaunchGeschool, 
+        icon: <Icons.Shield className="w-4 h-4" />,
+        color: 'bg-emerald-600 hover:bg-emerald-700'
+      });
+    }
+    return methods;
+  }, [exam.require_safe_browser, exam.require_seb, exam.require_geschool, handleLaunchApp, handleLaunchSEB, handleLaunchGeschool]);
+
   const actions = [];
   const latestFinished = exam.latest_attempt_status === 'completed';
   const showResultsSetting = !!exam.show_result;
@@ -177,10 +234,41 @@ const StudentExamActions = ({ exam }) => {
       </div>
     );
   } else if (hasInProgress && !examEnded) {
-    const showDirectLink = (!exam.require_safe_browser && !exam.require_seb) || isAndroidApp;
+    const isSecure = (exam.require_safe_browser || exam.require_seb || exam.require_geschool) && !isAndroidApp;
+    
     actions.push(
       <div key="in_progress" className="flex flex-col gap-2">
-        {showDirectLink && (
+        {isSecure ? (
+          showMethods && enabledMethods.length > 1 ? (
+             <div className="flex flex-col gap-1.5 p-2 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 px-1">Pilih Aplikasi:</p>
+                {enabledMethods.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={m.handler}
+                    disabled={isLaunching}
+                    className={`w-full flex items-center justify-between px-3 py-2 ${m.color} text-white rounded-lg text-xs font-bold transition-all ${isLaunching ? 'opacity-70 cursor-wait' : 'active:scale-95'}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {m.icon}
+                      <span>{isLaunching ? t('layout_loading') : m.label}</span>
+                    </div>
+                    <Icons.ChevronRight className="w-3 h-3" />
+                  </button>
+                ))}
+                <button onClick={() => setShowMethods(false)} className="text-[10px] text-slate-400 hover:text-slate-600 text-center mt-1 py-1 font-bold">Batal</button>
+             </div>
+          ) : (
+            <button
+              onClick={enabledMethods.length > 1 ? () => setShowMethods(true) : enabledMethods[0]?.handler}
+              disabled={isLaunching}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-yellow-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
+            >
+               <Icons.Play className="w-4 h-4" />
+               <span>{isLaunching ? t('layout_loading') : enabledMethods.length > 1 ? 'Lanjutkan (Pilih Aplikasi)' : t('exams_action_continue')}</span>
+            </button>
+          )
+        ) : (
           <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors">
             <div className="flex items-center gap-2">
               <Icons.Play />
@@ -188,26 +276,6 @@ const StudentExamActions = ({ exam }) => {
             </div>
             <Icons.ChevronRight />
           </Link>
-        )}
-        {exam.require_safe_browser && !isAndroidApp && (
-          <button
-            onClick={handleLaunchApp}
-            disabled={isLaunching}
-            className={`w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
-          >
-            <Icons.Shield className="w-4 h-4" />
-            <span>{isLaunching ? t('layout_loading') : t('exams_action_open_safer')}</span>
-          </button>
-        )}
-        {exam.require_seb && !isAndroidApp && (
-          <button
-            onClick={handleLaunchSEB}
-            disabled={isLaunching}
-            className={`w-full flex items-center justify-center gap-2 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-slate-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
-          >
-            <Icons.Shield className="w-4 h-4" />
-            <span>{isLaunching ? t('layout_loading') : 'Buka Safe Exam Browser'}</span>
-          </button>
         )}
       </div>
     );
@@ -236,39 +304,49 @@ const StudentExamActions = ({ exam }) => {
 
     // 2. Show "Take/Repeat" if available
     if (canTakeExam) {
-      const showDirectLink = (!exam.require_safe_browser && !exam.require_seb) || isAndroidApp;
+      const isSecure = (exam.require_safe_browser || exam.require_seb || exam.require_geschool) && !isAndroidApp;
+      const btnLabel = userAttempts > 0 ? t('exams_action_repeat') : t('exams_action_start');
+
       actions.push(
         <div key="take" className="flex flex-col gap-2 mt-1">
-          {showDirectLink && (
+          {isSecure ? (
+             showMethods && enabledMethods.length > 1 ? (
+                <div className="flex flex-col gap-1.5 p-2 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 px-1">Pilih Aplikasi:</p>
+                   {enabledMethods.map(m => (
+                     <button
+                       key={m.id}
+                       onClick={m.handler}
+                       disabled={isLaunching}
+                       className={`w-full flex items-center justify-between px-3 py-2 ${m.color} text-white rounded-lg text-xs font-bold transition-all ${isLaunching ? 'opacity-70 cursor-wait' : 'active:scale-95'}`}
+                     >
+                       <div className="flex items-center gap-2">
+                         {m.icon}
+                         <span>{isLaunching ? t('layout_loading') : m.label}</span>
+                       </div>
+                       <Icons.ChevronRight className="w-3 h-3" />
+                     </button>
+                   ))}
+                   <button onClick={() => setShowMethods(false)} className="text-[10px] text-slate-400 hover:text-slate-600 text-center mt-1 py-1 font-bold">Batal</button>
+                </div>
+             ) : (
+              <button
+                onClick={enabledMethods.length > 1 ? () => setShowMethods(true) : enabledMethods[0]?.handler}
+                disabled={isLaunching}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
+              >
+                 <Icons.Play className="w-4 h-4" />
+                 <span>{isLaunching ? t('layout_loading') : enabledMethods.length > 1 ? (userAttempts > 0 ? 'Ulangi (Pilih Aplikasi)' : 'Mulai (Pilih Aplikasi)') : btnLabel}</span>
+              </button>
+             )
+          ) : (
             <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
               <div className="flex items-center gap-2">
                 <Icons.Play />
-                <span>{userAttempts > 0 ? t('exams_action_repeat') : t('exams_action_start')}</span>
+                <span>{btnLabel}</span>
               </div>
               <Icons.ChevronRight />
             </Link>
-          )}
-
-          {!!exam.require_safe_browser && !isAndroidApp && (
-            <button
-              onClick={handleLaunchApp}
-              disabled={isLaunching}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
-            >
-              <Icons.Shield className="w-4 h-4" />
-              <span>{isLaunching ? t('layout_loading') : t('exams_action_open_safer')}</span>
-            </button>
-          )}
-
-          {!!exam.require_seb && !isAndroidApp && (
-            <button
-              onClick={handleLaunchSEB}
-              disabled={isLaunching}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-slate-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
-            >
-              <Icons.Shield className="w-4 h-4" />
-              <span>{isLaunching ? t('layout_loading') : 'Buka Safe Exam Browser'}</span>
-            </button>
           )}
         </div>
       );

@@ -78,6 +78,7 @@ export default function ManageExamPage() {
   const [shuffleAnswers, setShuffleAnswers] = useState(false);
   const [requireSafeBrowser, setRequireSafeBrowser] = useState(false);
   const [requireSeb, setRequireSeb] = useState(false);
+  const [requireGeschool, setRequireGeschool] = useState(false);
   const [timerMode, setTimerMode] = useState('sync'); // 'sync' or 'async'
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [minTimeMinutes, setMinTimeMinutes] = useState(0);
@@ -156,6 +157,7 @@ export default function ManageExamPage() {
       setMaxAttempts(data.max_attempts || 1);
       setRequireSafeBrowser(!!data.require_safe_browser);
       setRequireSeb(!!data.require_seb);
+      setRequireGeschool(!!data.require_geschool);
       setShowInstructions(!!data.show_instructions);
       setInstructionType(data.instruction_type || 'template');
       setCustomInstructions(data.custom_instructions || '');
@@ -249,6 +251,7 @@ export default function ManageExamPage() {
         maxAttempts: Number(maxAttempts) || 1,
         requireSafeBrowser: requireSafeBrowser,
         requireSeb: requireSeb,
+        requireGeschool: requireGeschool,
         showInstructions: showInstructions,
         instructionType: instructionType,
         customInstructions: customInstructions,
@@ -296,7 +299,7 @@ export default function ManageExamPage() {
     return () => clearTimeout(saveTimeoutRef.current);
   }, [
     examName, description, subjectId, startTime, endTime, shuffleQuestions, shuffleAnswers,
-    timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, selectedClasses, showInstructions, instructionType, customInstructions, showResult, showAnalysis, requireAllAnswered, requireToken, tokenType, currentToken, violationAction
+    timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, requireGeschool, selectedClasses, showInstructions, instructionType, customInstructions, showResult, showAnalysis, requireAllAnswered, requireToken, tokenType, currentToken, violationAction
   ]);
 
   if (loading) {
@@ -486,6 +489,27 @@ export default function ManageExamPage() {
                 onChange={() => setRequireSeb(!requireSeb)}
                 disabled={saving && false}
               />
+              <Switch
+                id="req-geschool"
+                label="Gunakan Geschool Secure Mode"
+                description="Siswa wajib menggunakan aplikasi Geschool Secure Mode untuk mengerjakan ujian ini."
+                checked={requireGeschool}
+                onChange={() => setRequireGeschool(!requireGeschool)}
+                disabled={saving && false}
+              />
+              {requireGeschool && (
+                <div className="p-4 bg-indigo-50 dark:bg-indigo-950/20 border-l-4 border-indigo-500 rounded-r-lg">
+                  <div className="flex items-center gap-2 text-indigo-800 dark:text-indigo-300 mb-1">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm font-bold">Info Sandi Emergency</span>
+                  </div>
+                  <p className="text-xs text-indigo-700/80 dark:text-indigo-400 mt-1 leading-relaxed">
+                    Sandi Emergency Exit untuk Geschool mengikuti <strong>Konfigurasi Keamanan Aplikasi</strong> (Android & Safer) yang ada di menu Admin Tools. Perubahan sandi di sana akan otomatis berlaku untuk semua ujian yang menggunakan mode ini.
+                  </p>
+                </div>
+              )}
               <Switch
                 id="shuffle-questions"
                 label="Acak Urutan Soal"

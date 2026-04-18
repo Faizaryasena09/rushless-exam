@@ -450,28 +450,39 @@ export default function ExamTakingPage() {
         localStorage.removeItem(`exam_instructions_ack_${examId}`);
       }
 
+      // Improved check: handles true, 1, or "1" from database
+      const shouldShowResult = examDetails?.show_result === true || 
+                               examDetails?.show_result === 1 || 
+                               String(examDetails?.show_result) === '1';
+      
+      // If we need to show results, we navigate FIRST and do NOT send quit signals yet.
+      // The quit signal will be handled by the exit button on the results page.
+      if (shouldShowResult && attemptDetails?.id) {
+        router.push(`/dashboard/exams/hasil/${attemptDetails.id}`);
+        return; // EXIT early, do not trigger quit signals or dashboard navigation
+      }
+
+      // -------------------------------------------------------------------------
+      // ONLY IF NOT SHOWING RESULTS: Trigger Quit Signals
+      // -------------------------------------------------------------------------
+      
       // Notify Safe Browser or Android app if running inside it
       if (window.chrome && window.chrome.webview) {
         window.chrome.webview.postMessage('submit_success');
       }
       
-      // Separate Quit Logic for different browsers
-      const shouldShowResult = !!examDetails?.show_result;
-      
-      // If we need to show results, we navigate FIRST and do NOT send quit signals yet.
-      // The quit signal will be handled by the exit button on the results page.
-      if (shouldShowResult) {
-        router.push(`/dashboard/exams/hasil/${attemptDetails.id}`);
-        return; // EXIT early, do not trigger quit signals
-      }
-
-      // If NOT showing results, we can trigger quit signals or go to dashboard
       if (window.RushlessSafer && typeof window.RushlessSafer.finishExam === 'function') {
         window.RushlessSafer.finishExam();
+        return;
       } else if (window.SafeExamBrowser && typeof window.SafeExamBrowser.quit === 'function') {
         window.SafeExamBrowser.quit();
+        return;
       } else if (navigator.userAgent.toLowerCase().includes('seb')) {
         window.location.href = "/seb-quit-signal";
+        return;
+      } else if (navigator.userAgent.toLowerCase().includes('geschool-secure') || navigator.userAgent.toLowerCase().includes('gsms')) {
+        window.location.href = "geschool://close";
+        return;
       }
 
       router.push('/dashboard/exams');
@@ -697,14 +708,25 @@ export default function ExamTakingPage() {
   }, []);
 
   const enforceRushlessSafer = useCallback(async () => {
-    if (examDetails?.require_safe_browser) {
-      const userAgent = navigator.userAgent.toLowerCase();
-      const isWebView2 = window.chrome && window.chrome.webview;
-      const isRushless = userAgent.includes('rushless');
-      const isAndroidApp = userAgent.includes('rushlesssaferandroid') || (typeof window !== 'undefined' && !!window.RushlessSafer);
-      const isSafeBrowser = isWebView2 || isRushless || isAndroidApp;
+    // 1. Detect All Possible Secure Environments
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isRushless = userAgent.includes('rushless') || (window.chrome && window.chrome.webview) || (typeof window !== 'undefined' && !!window.RushlessSafer);
+    const isSEB = userAgent.includes('seb');
+    const isGeschool = userAgent.includes('geschool-secure') || userAgent.includes('gsms');
+    
+    // UNIFIED CHECK: If the exam requires ANY secure browser, and we are in ANY secure browser, we PASS.
+    const isAnySecureRequired = examDetails?.require_safe_browser || examDetails?.require_seb || examDetails?.require_geschool;
+    const isAnySecureDetected = isRushless || isSEB || isGeschool;
 
-      if (!isSafeBrowser) {
+    if (isAnySecureRequired && isAnySecureDetected) {
+        // Student is using a supported secure browser, access granted!
+        return;
+    }
+
+    // 2. If NO secure browser is detected but one is required, show the appropriate locker.
+    
+    // Rushless Safer Locker
+    if (examDetails?.require_safe_browser && !isRushless) {
         let handoffToken = '';
         try {
           const tokenRes = await fetch('/api/auth/generate-token', { method: 'POST' });
@@ -734,8 +756,8 @@ export default function ExamTakingPage() {
                     <p style="color:#94a3b8;font-size:0.875rem;margin-top:32px;font-weight:500;">Belum punya aplikasinya? Hubungi proktor ujian Anda.</p>
                 </div>
                 <script>
-                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                    if (isMobile) {
+                    const isMobileLookup = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                    if (isMobileLookup) {
                         const toast = document.getElementById('autoLaunchToast');
                         toast.style.display = 'block';
                         setTimeout(() => {
@@ -745,15 +767,10 @@ export default function ExamTakingPage() {
                 </script>
             `;
         return;
-      }
     }
 
-    // 2. Safe Exam Browser (SEB) Enforcement
-    if (examDetails?.require_seb) {
-      const userAgent = navigator.userAgent.toLowerCase();
-      const isSEB = userAgent.includes('seb');
-
-      if (!isSEB) {
+    // Safe Exam Browser (SEB) Locker
+    if (examDetails?.require_seb && !isSEB) {
         document.body.innerHTML = `
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f8fafc;font-family:sans-serif;text-align:center;padding:24px;">
                     <div style="font-size:5rem;margin-bottom:24px; animation: pulse 2s infinite;">🔒</div>
@@ -800,14 +817,14 @@ export default function ExamTakingPage() {
             launchBtn.innerText = 'Mempersiapkan Ujian...';
             
             try {
-                const res = await fetch('/api/auth/generate-token', { method: 'POST' });
-                if (res.ok) {
-                    const data = await res.json();
+                const resCount = await fetch('/api/auth/generate-token', { method: 'POST' });
+                if (resCount.ok) {
+                    const dataRes = await resCount.json();
                     const protocol = window.location.protocol === 'https:' ? 'sebs://' : 'seb://';
                     const host = window.location.host;
                     const clientProtocol = window.location.protocol.replace(':', '');
                     const clientHost = window.location.host;
-                    const launchUrl = `${protocol}${host}/api/exams/${examId}/seb-config?token=${data.token}&clientProtocol=${clientProtocol}&clientHost=${clientHost}`;
+                    const launchUrl = `${protocol}${host}/api/exams/${examId}/seb-config?token=${dataRes.token}&clientProtocol=${clientProtocol}&clientHost=${clientHost}`;
                     window.location.href = launchUrl;
                 } else {
                     alert('Gagal membuat token autentikasi SEB. Coba muat ulang halaman.');
@@ -827,40 +844,81 @@ export default function ExamTakingPage() {
             launchSeb(e);
         });
         
-        // Auto launch logic with countdown
-        let secondsLeft = 3;
-        countdownContainer.style.opacity = '1';
-        
-        const countdownTimer = setInterval(() => {
-            secondsLeft--;
-            if (secondsLeft >= 0) {
-                countdownSec.innerText = secondsLeft;
-                progressBar.style.width = (secondsLeft / 3 * 100) + '%';
-            }
-            
-            if (secondsLeft <= 0) {
-                clearInterval(countdownTimer);
-                launchSeb();
-            }
-        }, 1000);
-        
         // Auto auto-redirect when SEB finishes the exam
         let attemptWasRunning = false;
         const pollInterval = setInterval(async () => {
             try {
                 const res = await fetch('/api/exams/attempt-details?exam_id=' + examId);
                 if (res.ok) {
-                    attemptWasRunning = true; // Ujian mulai dikerjakan di dalam SEB
+                    attemptWasRunning = true; // Exam is being taken inside SEB
                 } else if (res.status === 404 && attemptWasRunning) {
-                    // Jika awalnya berjalan, lalu tiba-tiba 404 (tidak aktif), berarti ujian sudah disubmit!
+                    // If it was running and now it's 404, it means the attempt is completed/deleted.
                     clearInterval(pollInterval);
-                    window.location.href = '/dashboard/exams';
+                    const shouldShowResult = examDetails?.show_result === true || 
+                                             examDetails?.show_result === 1 || 
+                                             String(examDetails?.show_result) === '1';
+
+                    if (shouldShowResult && attemptDetails?.id) {
+                        window.location.href = `/dashboard/exams/hasil/${attemptDetails.id}`;
+                    } else {
+                        window.location.href = '/dashboard/exams';
+                    }
                 }
             } catch (e) {}
         }, 3000);
+
+        // Auto launch logic with countdown
+        let secondsLeftCountdown = 3;
+        countdownContainer.style.opacity = '1';
+        
+        const countdownTimer = setInterval(() => {
+            secondsLeftCountdown--;
+            if (secondsLeftCountdown >= 0) {
+                countdownSec.innerText = secondsLeftCountdown;
+                progressBar.style.width = (secondsLeftCountdown / 3 * 100) + '%';
+            }
+            
+            if (secondsLeftCountdown <= 0) {
+                clearInterval(countdownTimer);
+                launchSeb();
+            }
+        }, 1000);
         
         return;
-      }
+    }
+
+    // Geschool Secure Mode (GSMS) Locker
+    if (examDetails?.require_geschool && !isGeschool) {
+        let handoffToken = '';
+        try {
+          const tokenRes = await fetch('/api/auth/generate-token', { method: 'POST' });
+          if (tokenRes.ok) {
+            const tokenData = await tokenRes.json();
+            handoffToken = tokenData.token;
+          }
+        } catch (e) {
+          console.error("Failed to generate handoff token for Geschool enforcement screen:", e);
+        }
+
+        const baseUrl = window.location.origin + window.location.pathname;
+        const finalRedirectUrl = window.location.origin + `/api/auth/handoff?token=${handoffToken}&redirect=${encodeURIComponent(window.location.href)}`;
+        const launchUrl = `geschool://open?url=${encodeURIComponent(finalRedirectUrl)}`;
+
+        document.body.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#eff6ff;font-family:sans-serif;text-align:center;padding:24px;">
+                    <div style="font-size:5rem;margin-bottom:24px;">🛡️</div>
+                    <h1 style="color:#1d4ed8;font-size:2.5rem;font-weight:900;margin-bottom:12px;letter-spacing:-0.05em;">Geschool Secure Mode</h1>
+                    <div style="background:white;padding:40px;border-radius:32px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.05), 0 10px 10px -5px rgba(0,0,0,0.02);max-width:500px;width:100%;border:1px solid #dbeafe;">
+                        <p style="color:#1e40af;font-size:1.1rem;line-height:1.6;margin-bottom:32px;">Ujian ini wajib dikerjakan menggunakan aplikasi <strong>Geschool Secure Mode (GSMS)</strong>.</p>
+                        
+                        <a href="${launchUrl}" style="display:block;width:100%;padding:18px;background:#2563eb;color:white;text-decoration:none;border-radius:16px;font-weight:800;font-size:1.1rem;margin-bottom:12px;transition:all 0.2s;box-shadow:0 10px 15px -3px rgba(37,99,235,0.3);">Buka di Geschool</a>
+                        
+                        <a href="/dashboard/exams" style="display:block;width:100%;padding:16px;background:transparent;color:#4b5563;text-decoration:none;border-radius:16px;font-weight:600;font-size:0.95rem;border:1px solid #e5e7eb;">Kembali ke Dashboard</a>
+                    </div>
+                    <p style="color:#60a5fa;font-size:0.875rem;margin-top:32px;font-weight:500;">Sandi Emergency Exit: <strong>${examDetails.geschool_exit_password || 'rushless'}</strong></p>
+                </div>
+            `;
+        return;
     }
   }, [examDetails, examId]);
 
@@ -961,7 +1019,16 @@ export default function ExamTakingPage() {
              if (window.RushlessSafer && typeof window.RushlessSafer.remoteUnlock === 'function') {
                window.RushlessSafer.remoteUnlock();
              }
-             if (examDetails?.show_result) {
+
+             // If the student already submitted manually, let the submit function handle navigation.
+             // If we get here because of force-submit or other status change, we handle it here.
+             if (finishExamHandled.current) return;
+
+             const shouldShowResult = examDetails?.show_result === true || 
+                                      examDetails?.show_result === 1 || 
+                                      String(examDetails?.show_result) === '1';
+
+             if (shouldShowResult && attemptDetails?.id) {
                  router.push(`/dashboard/exams/hasil/${attemptDetails.id}`);
              } else {
                  router.push('/dashboard/exams');

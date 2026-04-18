@@ -170,6 +170,7 @@ export async function getExamSettings(examId, forceFresh = false) {
                 UNIX_TIMESTAMP(s.start_time) as start_time_ts,
                 UNIX_TIMESTAMP(s.end_time) as end_time_ts,
                 s.require_safe_browser, s.require_seb, s.seb_config_key,
+                s.require_geschool, s.geschool_exit_password,
                 s.show_instructions, s.instruction_type, s.custom_instructions,
                 s.show_result, s.show_analysis, s.require_all_answered,
                 s.require_token, s.token_type, s.current_token, s.violation_action
@@ -188,6 +189,14 @@ export async function getExamSettings(examId, forceFresh = false) {
     });
     const allowedClasses = classResults.map(r => r.class_id);
 
+    // 4. Fetch Global App Config (for emergency password)
+    const globalSettingsRows = await query({
+        query: `SELECT setting_key, setting_value FROM rhs_web_settings WHERE setting_key = 'app_emergency_password'`,
+        values: []
+    });
+    const globalConfig = {};
+    globalSettingsRows.forEach(row => globalConfig[row.setting_key] = row.setting_value);
+
     const examData = {
         ...results[0],
         subject_id: results[0].subject_id || '',
@@ -198,6 +207,9 @@ export async function getExamSettings(examId, forceFresh = false) {
         auto_distribute: Boolean(results[0].auto_distribute),
         require_safe_browser: Boolean(results[0].require_safe_browser),
         require_seb: Boolean(results[0].require_seb),
+        require_geschool: Boolean(results[0].require_geschool),
+        // Overwrite with global setting
+        geschool_exit_password: globalConfig.app_emergency_password || 'rushless',
         show_instructions: Boolean(results[0].show_instructions),
         instruction_type: results[0].instruction_type || 'template',
         custom_instructions: results[0].custom_instructions || '',
@@ -314,6 +326,7 @@ export async function getExamsList(user, forceFresh = false) {
                 e.is_hidden as exam_is_hidden,
                 s.require_safe_browser,
                 s.require_seb,
+                s.require_geschool,
                 s.seb_config_key,
                 s.start_time,
                 s.end_time,

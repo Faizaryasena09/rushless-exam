@@ -73,13 +73,21 @@ export default function AnalysisPage() {
   const { total, correct, wrong, unanswered } = stats;
 
   const handleExit = () => {
+    // Notify Safe Browser or Android app if running inside it
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.postMessage('submit_success');
+    }
+
     if (window.RushlessSafer && typeof window.RushlessSafer.finishExam === 'function') {
       window.RushlessSafer.finishExam();
     } else if (window.SafeExamBrowser && typeof window.SafeExamBrowser.quit === 'function') {
       window.SafeExamBrowser.quit();
     } else if (navigator.userAgent.toLowerCase().includes('seb')) {
       window.location.href = "/seb-quit-signal";
+    } else if (navigator.userAgent.toLowerCase().includes('geschool-secure') || navigator.userAgent.toLowerCase().includes('gsms')) {
+      window.location.href = "geschool://close";
     }
+    
     router.push('/dashboard/exams');
   };
 

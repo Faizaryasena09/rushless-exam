@@ -52,7 +52,8 @@ export async function GET(request) {
                 a.start_time, 
                 a.end_time,
                 a.status,
-                u.username as studentName,
+                u.username,
+                u.name,
                 c.class_name as className
             FROM rhs_exam_attempts a
             JOIN rhs_users u ON a.user_id = u.id
@@ -136,8 +137,8 @@ export async function GET(request) {
 
         const excelData = processedAttempts.map(attempt => {
             const row = {
-                'Student Name': attempt.studentName || attempt.studentUsername, // Fallback to username if name is empty
-                'Student Username': attempt.studentUsername,
+                'Student Name': attempt.name || attempt.username, // Fallback to username if name is empty
+                'Student Username': attempt.username,
                 'Class': attempt.className || 'No Class',
                 'Attempt': attempt.attemptNumber,
                 'State': attempt.status,
