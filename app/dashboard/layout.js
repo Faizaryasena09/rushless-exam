@@ -56,7 +56,12 @@ export default function DashboardLayout({ children }) {
       sse.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.status === 'invalid' || data.status === 'expired') {
+          if (data.status === 'force_logout') {
+            sse.close();
+            window.removeEventListener('beforeunload', handleUnload);
+            window.removeEventListener('unload', handleUnload);
+            window.location.href = '/';
+          } else if (data.status === 'invalid' || data.status === 'expired') {
             sse.close();
             window.removeEventListener('beforeunload', handleUnload);
             window.removeEventListener('unload', handleUnload);

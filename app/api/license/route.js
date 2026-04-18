@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { validateUserSession } from '@/app/lib/auth';
 import { getLocalLicense, saveLocalLicense, syncLicenseStore, checkLicenseStatus } from '@/app/lib/license';
+import { formatMySQLDate } from '@/app/lib/logger';
 import { getHWID, decryptHWID, generateSignature, getRequestCode } from '@/app/lib/crypto';
 import { query } from '@/app/lib/db';
 import bcrypt from 'bcryptjs';
@@ -136,7 +137,7 @@ export async function POST(req) {
                 expiry: lastExpiry || 'None',
                 signature,
                 days_left: daysLeft,
-                last_check: new Date().toISOString()
+                last_check: formatMySQLDate()
             });
 
             // --- IMMEDIATE SERVER SYNC ---

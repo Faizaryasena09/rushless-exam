@@ -3,7 +3,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, ArrowUpDown, Trash2, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 // --- Icons ---
 const Icons = {
@@ -14,6 +15,7 @@ const Icons = {
     XCircle: () => <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     MinusCircle: () => <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     AlertCircle: () => <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    Trash: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
 };
 
 export default function ExamResultsPage() {
@@ -388,6 +390,7 @@ export default function ExamResultsPage() {
                     student={selectedStudent}
                     scoringMode={resultsData?.scoringMode}
                     onClose={() => setSelectedStudent(null)}
+                    refresh={fetchResults}
                 />
             )}
             {/* Export Modal */}
@@ -401,9 +404,36 @@ export default function ExamResultsPage() {
     );
 }
 
-function StudentAnalysisDetail({ student, scoringMode, onClose }) {
+function StudentAnalysisDetail({ student, scoringMode, onClose, refresh }) {
     const [selectedAttemptId, setSelectedAttemptId] = useState(null);
     const [attemptIdForLog, setAttemptIdForLog] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDeleteAttempt = async (attemptId) => {
+        if (!confirm('Apakah Anda yakin ingin menghapus attempt ini? Data jawaban dan nilai akan dihapus secara permanen.')) return;
+
+        try {
+            setIsDeleting(true);
+            const res = await fetch('/api/control/actions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'delete_attempt',
+                    attemptId: attemptId
+                })
+            });
+
+            if (!res.ok) throw new Error('Gagal menghapus attempt');
+
+            toast.success('Attempt berhasil dihapus');
+            onClose(); // Close modal because student data might be outdated
+            if (refresh) refresh();
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     // Helper to format date
     const formatDateTime = (dateTimeString) => {
@@ -478,12 +508,22 @@ function StudentAnalysisDetail({ student, scoringMode, onClose }) {
                                             <div className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter">to {formatDateTime(attempt.endTime)}</div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); setAttemptIdForLog(attempt.attemptId); }}
-                                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all active:scale-95"
-                                            >
-                                                Logs
-                                            </button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setAttemptIdForLog(attempt.attemptId); }}
+                                                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all active:scale-95"
+                                                >
+                                                    Logs
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteAttempt(attempt.attemptId); }}
+                                                    disabled={isDeleting}
+                                                    className="p-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-xl transition-all active:scale-90 disabled:opacity-50"
+                                                    title="Hapus Attempt"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -518,16 +558,25 @@ function StudentAnalysisDetail({ student, scoringMode, onClose }) {
                                 </div>
 
                                 <div className="flex items-center justify-between gap-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                                    <div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setAttemptIdForLog(attempt.attemptId); }}
+                                            className="px-5 py-2.5 bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all active:scale-90"
+                                        >
+                                            View Logs
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteAttempt(attempt.attemptId); }}
+                                            className="p-2.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-2xl hover:bg-red-200 transition-all active:scale-90"
+                                            title="Hapus Attempt"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                    <div className="text-right">
                                         <div className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{formatDateTime(attempt.startTime)}</div>
                                         <div className="text-[9px] font-medium text-slate-400">Submission Date</div>
                                     </div>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); setAttemptIdForLog(attempt.attemptId); }}
-                                        className="px-5 py-2.5 bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all active:scale-90"
-                                    >
-                                        View Logs
-                                    </button>
                                 </div>
                             </div>
                         ))}

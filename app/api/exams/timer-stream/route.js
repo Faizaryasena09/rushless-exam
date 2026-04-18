@@ -232,6 +232,15 @@ export async function GET(request) {
             };
             eventBus.on('violation_lock', onViolationLock);
 
+            // Listen for force logout events
+            const onForceLogout = async (data) => {
+                if (isClosed) return;
+                if (data.userId == userId) {
+                    safeEnqueue(`data: ${JSON.stringify({ force_logout: true })}\n\n`);
+                }
+            };
+            eventBus.on('force_logout', onForceLogout);
+
             // Store the cleanup function
             this.cleanup = () => {
                 isClosed = true;
@@ -240,6 +249,7 @@ export async function GET(request) {
                 eventBus.off('refresh', onRefresh);
                 eventBus.off('force_submit', onForceSubmit);
                 eventBus.off('violation_lock', onViolationLock);
+                eventBus.off('force_logout', onForceLogout);
                 try { controller.close(); } catch(e){}
             };
 

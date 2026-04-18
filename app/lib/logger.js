@@ -70,8 +70,17 @@ export function getClientIP(request) {
 /**
  * Format Date to MySQL compatible YYYY-MM-DD HH:MM:SS
  */
-function formatMySQLDate(date = new Date()) {
-    return date.toISOString().slice(0, 19).replace('T', ' ');
+export function formatMySQLDate(date = new Date()) {
+    // Uses sv-SE locale as it naturally formats to YYYY-MM-DD HH:MM:SS
+    return new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'Asia/Jakarta',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    }).format(date).replace('T', ' ');
 }
 
 const ACTIVITY_LOG_QUEUE = 'logs:buffer:activity';

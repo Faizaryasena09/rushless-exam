@@ -162,6 +162,16 @@ export default function ControlPanel() {
     const [selectedClass, setSelectedClass] = useState('All');
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
     const [sseLog, setSseLog] = useState(null);
+    const [modalConfig, setModalConfig] = useState({ 
+        isOpen: false, 
+        type: 'confirm', 
+        title: '', 
+        message: '', 
+        onConfirm: null, 
+        inputValue: '', 
+        isDestructive: false,
+        targetName: ''
+    });
 
     useEffect(() => {
         let eventSource;
@@ -276,35 +286,134 @@ export default function ControlPanel() {
     }, [filteredStudents, sortConfig]);
 
     const handleAction = async (action, payload) => {
-        if (action === 'reset_exam' && !confirm('Warning: This will delete the student\'s active exam attempt and log them out. Continue?')) return;
-        if (action === 'force_logout' && !confirm('Force logout this user?')) return;
-        try {
-            const res = await fetch('/api/control/actions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, ...payload })
+        const execute = async () => {
+            try {
+                const res = await fetch('/api/control/actions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action, ...payload })
+                });
+                if (!res.ok) throw new Error((await res.json()).message);
+                fetchStatus();
+                setModalConfig(prev => ({ ...prev, isOpen: false }));
+            } catch (e) {
+                setModalConfig({
+                    isOpen: true,
+                    type: 'alert',
+                    title: 'Error',
+                    message: e.message,
+                    isDestructive: true
+                });
+            }
+        };
+
+        if (action === 'reset_exam') {
+            setModalConfig({
+                isOpen: true,
+                type: 'confirm',
+                title: 'Data Siswa Terhapus',
+                targetName: payload.studentName,
+                message: 'Peringatan: Tindakan ini akan menghapus progres pengerjaan siswa yang sedang berjalan dan mengeluarkan mereka secara paksa. Lanjutkan?',
+                isDestructive: true,
+                onConfirm: execute
             });
-            if (!res.ok) throw new Error((await res.json()).message);
-            fetchStatus();
-        } catch (e) { alert(e.message); }
+            return;
+        }
+
+        if (action === 'force_logout') {
+            setModalConfig({
+                isOpen: true,
+                type: 'confirm',
+                title: 'Konfirmasi Logout Paksa',
+                targetName: payload.studentName,
+                message: 'Siswa akan dikeluarkan secara paksa dari sistem. Apakah Anda yakin?',
+                isDestructive: true,
+                onConfirm: execute
+            });
+            return;
+        }
+
+        if (action === 'force_submit') {
+            setModalConfig({
+                isOpen: true,
+                type: 'confirm',
+                title: 'Paksa Kumpulkan Jawaban',
+                targetName: payload.studentName,
+                message: 'Tindakan ini akan segera mengakhiri sesi pengerjaan siswa dan menarik semua jawaban yang ada ke server. Proses ini tidak dapat dibatalkan.',
+                isDestructive: true,
+                onConfirm: execute
+            });
+            return;
+        }
+
+        if (action === 'unlock_exam') {
+             setModalConfig({
+                isOpen: true,
+                type: 'confirm',
+                title: 'Buka Kunci Pelanggaran',
+                targetName: payload.studentName,
+                message: 'Siswa ini terdeteksi melanggar keamanan. Anda ingin membuka kunci agar mereka bisa melanjutkan ujian?',
+                isDestructive: false,
+                onConfirm: execute
+            });
+            return;
+        }
+
+        execute();
     };
 
-    const handleAddTime = (userId, attemptId) => {
-        const minutes = prompt("Enter minutes to add:", "10");
-        if (minutes && !isNaN(minutes)) handleAction('add_time', { userId, attemptId, minutes: parseInt(minutes) });
+    const handleAddTime = (userId, attemptId, studentName) => {
+        setModalConfig({
+            isOpen: true,
+            type: 'prompt',
+            title: 'Tambah Waktu Ujian',
+            targetName: studentName,
+            message: 'Masukkan jumlah menit yang ingin ditambahkan ke sisa waktu siswa.',
+            inputValue: '10',
+            onConfirm: (val) => {
+                const mins = parseInt(val);
+                if (!isNaN(mins)) handleAction('add_time', { userId, attemptId, minutes: mins });
+            }
+        });
     };
 
-    const handleBatchAction = async (action, payload) => {
+    const handleBatchAction = async (action) => {
         const active = filteredStudents.filter(s => s.attempt_id);
-        if (active.length === 0) { alert("None of the currently filtered students are active."); return; }
+        if (active.length === 0) {
+            setModalConfig({
+                isOpen: true,
+                type: 'alert',
+                title: 'Tidak Ada Siswa Aktif',
+                message: 'Tidak ditemukan siswa aktif dalam filter saat ini untuk melakukan aksi ini.',
+                isDestructive: false
+            });
+            return;
+        }
         
         if (action === 'add_time_batch') {
-            const minutes = prompt(`Enter minutes to add for ${active.length} student(s):`, "10");
-            if (minutes && !isNaN(minutes)) handleAction(action, { attemptIds: active.map(s => s.attempt_id), minutes: parseInt(minutes) });
+            setModalConfig({
+                isOpen: true,
+                type: 'prompt',
+                title: 'Tambah Waktu Massal',
+                targetName: `${active.length} Siswa Terpilih`,
+                message: `Tambah waktu untuk siswa terpilih secara bersamaan.`,
+                inputValue: '10',
+                onConfirm: (val) => {
+                    const mins = parseInt(val);
+                    if (!isNaN(mins)) handleAction(action, { attemptIds: active.map(s => s.attempt_id), minutes: mins });
+                }
+            });
         } else if (action === 'refresh_exams_all' || action === 'force_submit_all') {
-            if (confirm(`${action.replace('_all', '').replace('_', ' ').toUpperCase()} for ${active.length} student(s)?`)) {
-                handleAction(action, {});
-            }
+            const label = action === 'refresh_exams_all' ? 'Segarkan Alert' : 'Paksa Kumpul Massal';
+            setModalConfig({
+                isOpen: true,
+                type: 'confirm',
+                title: label,
+                targetName: `${active.length} Siswa Terpilih`,
+                message: `Konfirmasi: Jalankan aksi "${label}" untuk siswa secara massal?`,
+                isDestructive: action === 'force_submit_all',
+                onConfirm: () => handleAction(action, {})
+            });
         }
     };
 
@@ -438,10 +547,10 @@ export default function ControlPanel() {
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-1.5">
-                                        <button onClick={() => handleAction('lock_login', { userId: s.id })} className={`p-2 rounded-lg ${s.is_locked ? 'bg-red-100 text-red-600' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200'}`} title="Lock/Unlock Login">
+                                        <button onClick={() => handleAction('lock_login', { userId: s.id, studentName: s.name || s.username })} className={`p-2 rounded-lg ${s.is_locked ? 'bg-red-100 text-red-600' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200'}`} title="Lock/Unlock Login">
                                             {s.is_locked ? <Icons.Lock /> : <Icons.Unlock />}
                                         </button>
-                                        <button onClick={() => handleAction('force_logout', { userId: s.id })} className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-red-50 hover:text-red-600 rounded-lg" title="Force Logout">
+                                        <button onClick={() => handleAction('force_logout', { userId: s.id, studentName: s.name || s.username })} className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-red-50 hover:text-red-600 rounded-lg" title="Force Logout">
                                             <Icons.Logout />
                                         </button>
                                         {s.current_exam && (
@@ -450,17 +559,17 @@ export default function ControlPanel() {
                                                     <Icons.Log />
                                                 </button>
                                                 {s.is_violation_locked && (
-                                                    <button onClick={() => handleAction('unlock_exam', { userId: s.id, attemptId: s.attempt_id })} className="p-2 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg animate-pulse" title="Unlock Violation">
+                                                    <button onClick={() => handleAction('unlock_exam', { userId: s.id, attemptId: s.attempt_id, studentName: s.name || s.username })} className="p-2 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg animate-pulse" title="Unlock Violation">
                                                         <Icons.Unlock />
                                                     </button>
                                                 )}
-                                                <button onClick={() => handleAddTime(s.id, s.attempt_id)} className="p-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded-lg" title="Add Time">
+                                                <button onClick={() => handleAddTime(s.id, s.attempt_id, s.name || s.username)} className="p-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded-lg" title="Add Time">
                                                     <Icons.Clock />
                                                 </button>
-                                                <button onClick={() => handleAction('force_submit', { userId: s.id, attemptId: s.attempt_id })} className="p-2 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-lg" title="Force Submit">
+                                                <button onClick={() => handleAction('force_submit', { userId: s.id, attemptId: s.attempt_id, studentName: s.name || s.username })} className="p-2 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-lg" title="Force Submit">
                                                     <FileSpreadsheet size={16} />
                                                 </button>
-                                                <button onClick={() => handleAction('reset_exam', { userId: s.id, attemptId: s.attempt_id })} className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg" title="Reset Exam">
+                                                <button onClick={() => handleAction('reset_exam', { userId: s.id, attemptId: s.attempt_id, studentName: s.name || s.username })} className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg" title="Reset Exam">
                                                     <Icons.Stop />
                                                 </button>
                                             </>
@@ -479,6 +588,123 @@ export default function ControlPanel() {
                     <p className="text-slate-400 italic">Tidak ada siswa ditemukan.</p>
                 </div>
             )}
+
+            <UnifiedModal 
+                config={modalConfig} 
+                onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))} 
+            />
+        </div>
+    );
+}
+
+// --- Unified Modal Component ---
+function UnifiedModal({ config, onClose }) {
+    const [localValue, setLocalValue] = useState(config.inputValue);
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+        if (config.isOpen && config.type === 'prompt') {
+            setLocalValue(config.inputValue);
+            setTimeout(() => inputRef.current?.focus(), 100);
+        }
+    }, [config.isOpen, config.type, config.inputValue]);
+
+    if (!config.isOpen) return null;
+
+    const handleConfirm = () => {
+        if (config.onConfirm) {
+            config.onConfirm(localValue);
+        } else {
+            onClose();
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose} />
+            <div className="relative bg-white dark:bg-slate-800 w-full max-w-sm rounded-[32px] shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+                <div className="p-8">
+                    {/* Header Icon */}
+                    <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6 ${
+                        config.isDestructive ? 'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+                    }`}>
+                        {config.isDestructive ? (
+                             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        ) : (
+                             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        )}
+                    </div>
+                    
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white text-center tracking-tight mb-2">
+                        {config.title}
+                    </h3>
+                    
+                    {config.targetName && (
+                        <div className="flex items-center justify-center mb-4">
+                            <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-bold uppercase tracking-wider border border-indigo-200 dark:border-indigo-800">
+                                {config.targetName}
+                            </span>
+                        </div>
+                    )}
+
+                    <p className="text-sm text-center text-slate-500 dark:text-slate-400 leading-relaxed px-4">
+                        {config.message}
+                    </p>
+
+                    {config.type === 'prompt' && (
+                        <div className="mt-6 space-y-4">
+                            <div className="relative">
+                                <input
+                                    ref={inputRef}
+                                    type="number"
+                                    value={localValue}
+                                    onChange={(e) => setLocalValue(e.target.value)}
+                                    className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-700/50 border-2 border-slate-100 dark:border-slate-600 rounded-2xl text-center text-lg font-black focus:border-indigo-500 focus:ring-0 outline-none transition-all dark:text-white"
+                                    placeholder="0"
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 uppercase">Menit</span>
+                            </div>
+                            
+                            <div className="grid grid-cols-3 gap-2">
+                                {[5, 10, 30].map(val => (
+                                    <button
+                                        key={val}
+                                        onClick={() => setLocalValue(val.toString())}
+                                        className={`py-2 rounded-xl text-xs font-black border-2 transition-all ${
+                                            localValue === val.toString()
+                                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none'
+                                            : 'border-slate-100 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                        }`}
+                                    >
+                                        +{val}m
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-4 bg-slate-50/50 dark:bg-slate-900/20 border-t border-slate-100 dark:border-slate-700 flex gap-3">
+                    {config.type !== 'alert' && (
+                        <button
+                            onClick={onClose}
+                            className="flex-1 px-4 py-3 rounded-2xl text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                            Batal
+                        </button>
+                    )}
+                    <button
+                        onClick={handleConfirm}
+                        className={`flex-1 px-4 py-3 rounded-2xl text-sm font-black transition-all shadow-lg active:scale-95 ${
+                            config.isDestructive
+                            ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-200 dark:shadow-none'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200 dark:shadow-none'
+                        }`}
+                    >
+                        {config.type === 'alert' ? 'Mengerti' : 'Lanjutkan'}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }

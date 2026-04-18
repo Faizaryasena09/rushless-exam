@@ -98,12 +98,33 @@ export async function GET(request) {
             // Send initial state
             await sendUpdate();
 
-            // Poll every 15 seconds
+            // Listen for Admin refresh/logout signals (Real-time signaling)
+            const onRefresh = (data) => {
+                if (isClosed) return;
+                if (data.userId === 'all' || data.userId == userId) {
+                    sendUpdate();
+                }
+            };
+            const onForceLogout = (data) => {
+                if (isClosed) return;
+                if (data.userId == userId) {
+                    isClosed = true;
+                    try { controller.enqueue('data: {"status": "force_logout"}\n\n'); } catch (e) {}
+                    try { controller.close(); } catch (e) {}
+                    if (intervalId) clearInterval(intervalId);
+                }
+            };
+            eventBus.on('refresh', onRefresh);
+            eventBus.on('force_logout', onForceLogout);
+
+            // Poll every 15 seconds as fallback
             intervalId = setInterval(sendUpdate, 15000);
 
             // Function to mark offline (Connection lost/Tab closed)
             const markOffline = async () => {
                 isClosed = true;
+                eventBus.off('refresh', onRefresh);
+                eventBus.off('force_logout', onForceLogout);
                 if (session.user.roleName === 'student') {
                     if (isRedisReady()) {
                         await redis.del(`online:${userId}`).catch(() => {});

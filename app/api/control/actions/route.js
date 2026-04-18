@@ -34,6 +34,15 @@ export async function POST(request) {
                     query: "UPDATE rhs_users SET session_id = NULL, last_activity = '1970-01-01 00:00:00' WHERE id = ?",
                     values: [userId]
                 });
+
+                // Clear Redis session cache for immediate invalidation
+                if (isRedisReady()) {
+                    await redis.del(`session:${userId}`).catch(() => {});
+                }
+
+                // Emit force_logout event to trigger real-time redirection to /
+                eventBus.emit('force_logout', { userId });
+                
                 return NextResponse.json({ message: 'User logged out.' });
 
             case 'lock_login':
@@ -105,6 +114,44 @@ export async function POST(request) {
                     }
                 });
                 return NextResponse.json({ message: 'Ujian direset dan siswa dikeluarkan.' });
+
+            case 'delete_attempt':
+                if (!attemptId) return NextResponse.json({ message: 'Attempt ID required' }, { status: 400 });
+
+                await transaction(async (txQuery) => {
+                    // 1. Get attempt info
+                    const attemptInfo = await txQuery({
+                        query: 'SELECT user_id, exam_id FROM rhs_exam_attempts WHERE id = ? FOR UPDATE',
+                        values: [attemptId]
+                    });
+
+                    if (attemptInfo.length > 0) {
+                        const { user_id, exam_id } = attemptInfo[0];
+
+                        // 2. Clear Temporary Answers
+                        await txQuery({
+                            query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
+                            values: [user_id, exam_id]
+                        });
+
+                        // 3. Delete Attempt (Cascades to answers and logs)
+                        await txQuery({
+                            query: 'DELETE FROM rhs_exam_attempts WHERE id = ?',
+                            values: [attemptId]
+                        });
+
+                        // 4. Invalidate Redis Cache
+                        if (isRedisReady()) {
+                            await Promise.all([
+                                redis.del(`exam:active-attempt:${user_id}:${exam_id}`),
+                                redis.del(`exam:attempt-meta:${user_id}:${exam_id}`),
+                                redis.del(`temp:ans:${user_id}:${exam_id}`),
+                                redis.srem(`user:active_exams:${user_id}`, exam_id)
+                            ]).catch(() => {});
+                        }
+                    }
+                });
+                return NextResponse.json({ message: 'Attempt deleted successfully' });
 
             case 'add_time':
                 if (!attemptId || !minutes) return NextResponse.json({ message: 'Params required' }, { status: 400 });

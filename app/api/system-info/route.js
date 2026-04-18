@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import os from 'os';
+import { formatMySQLDate } from '@/app/lib/logger';
 import { exec } from 'child_process';
 import { readFileSync } from 'fs';
 import redis, { isRedisReady } from '@/app/lib/redis';
@@ -174,7 +175,7 @@ export async function GET(request) {
                     isReady: isRedisReady(),
                 },
                 uptime: os.uptime(),
-                serverTime: new Date().toISOString(),
+                serverTime: formatMySQLDate(),
             });
         }
 
@@ -289,7 +290,7 @@ export async function GET(request) {
             database: databaseInfo,
             redis: redisInfo,
             app: appStats,
-            serverTime: new Date().toISOString(),
+            serverTime: formatMySQLDate(),
         });
 
     } catch (error) {
