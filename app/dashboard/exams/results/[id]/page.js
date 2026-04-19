@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronUp, ChevronDown, ArrowUpDown, Trash2, RefreshCw } from 'lucide-react';
+import { ChevronUp, ChevronDown, ArrowUpDown, Trash2, RefreshCw, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 
 // --- Icons ---
@@ -164,6 +164,14 @@ export default function ExamResultsPage() {
                 
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
 
+
+                    <Link
+                        href={`/dashboard/exams/manage/${examId}`}
+                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 rounded-2xl border border-slate-200 dark:border-slate-700 font-black text-xs uppercase tracking-widest transition-all active:scale-95 group"
+                    >
+                        <Settings className="w-4 h-4 transition-transform group-hover:rotate-45" />
+                        Manage Settings
+                    </Link>
 
                     <button
                         onClick={() => setShowExportModal(true)}

@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Settings } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
@@ -741,6 +741,15 @@ export default function ManageExamPage() {
               <p className="text-sm text-sky-700 dark:text-sky-300 mt-1 mb-4">Tambah, edit, atau import soal untuk ujian ini.</p>
               <Link href={`/dashboard/exams/questions/${examId}`} className="inline-flex items-center justify-center w-full px-5 py-2.5 bg-sky-500 hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-700 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all shadow-md shadow-sky-200 dark:shadow-sky-900/30">
                 Ke Pengaturan Soal &rarr;
+              </Link>
+            </div>
+
+            <div className="p-6 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-center">
+              <h3 className="font-bold text-emerald-800 dark:text-emerald-400 text-lg">Hasil Ujian</h3>
+              <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1 mb-4">Lihat skor, analisis jawaban, dan ekspor data siswa.</p>
+              <Link href={`/dashboard/exams/results/${examId}`} className="inline-flex items-center justify-center w-full px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all shadow-md shadow-emerald-200 dark:shadow-emerald-900/30">
+                <ClipboardList className="w-4 h-4 mr-2" />
+                Lihat Hasil Ujian
               </Link>
             </div>
           </div>

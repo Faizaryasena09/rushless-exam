@@ -991,10 +991,16 @@ export default function ExamTakingPage() {
               localStorage.removeItem(`exam_instructions_ack_${examId}`);
             }
             setTimeLeft(0);
-            alert('Waktu ujian telah habis. Jawaban Anda telah dikumpulkan secara otomatis oleh server.');
-            if (examDetails?.show_result) {
+            
+            const shouldShowResult = examDetails?.show_result === true || 
+                                     examDetails?.show_result === 1 || 
+                                     String(examDetails?.show_result) === '1';
+
+            if (shouldShowResult && attemptDetails?.id) {
+              toast.info('Waktu habis! Jawaban Anda telah dikumpulkan. Mengalihkan ke halaman hasil...', { duration: 5000 });
               router.push(`/dashboard/exams/hasil/${attemptDetails?.id}`);
             } else {
+              alert('Waktu ujian telah habis. Jawaban Anda telah dikumpulkan secara otomatis oleh server.');
               router.push('/dashboard/exams');
             }
             return;
@@ -1031,7 +1037,9 @@ export default function ExamTakingPage() {
              if (shouldShowResult && attemptDetails?.id) {
                  router.push(`/dashboard/exams/hasil/${attemptDetails.id}`);
              } else {
-                 router.push('/dashboard/exams');
+                 if (data.status === 'completed') {
+                    router.push('/dashboard/exams');
+                 }
              }
           }
         } catch (err) {

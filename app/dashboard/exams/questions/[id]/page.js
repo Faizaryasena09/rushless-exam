@@ -4,8 +4,9 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { uploadBase64Images } from '@/app/lib/utils';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Database, DownloadCloud } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import BankPickerModal from '@/app/components/bank/BankPickerModal';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
@@ -951,6 +952,7 @@ const DeleteAllModal = ({ isOpen, onClose, onConfirm, questionCount, loading }) 
 // --- Export Questions Modal ---
 const ExportModal = ({ isOpen, onClose, examId, examName }) => {
     const [exportMode, setExportMode] = useState('questions_and_answers');
+    const [exportFormat, setExportFormat] = useState('standard');
     const [loading, setLoading] = useState(false);
 
     if (!isOpen) return null;
@@ -958,7 +960,7 @@ const ExportModal = ({ isOpen, onClose, examId, examName }) => {
     const handleExport = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/exams/questions/export?exam_id=${examId}&mode=${exportMode}`);
+            const res = await fetch(`/api/exams/questions/export?exam_id=${examId}&mode=${exportMode}&format=${exportFormat}`);
             if (!res.ok) {
                 const err = await res.json();
                 throw new Error(err.message || 'Export failed');
@@ -1011,7 +1013,10 @@ const ExportModal = ({ isOpen, onClose, examId, examName }) => {
                                 name="exportMode"
                                 value={m.value}
                                 checked={exportMode === m.value}
-                                onChange={() => setExportMode(m.value)}
+                                onChange={() => {
+                                    setExportMode(m.value);
+                                    if (m.value !== 'questions_and_answers') setExportFormat('standard');
+                                }}
                                 className="mt-1 accent-indigo-600"
                             />
                             <div>
@@ -1021,6 +1026,29 @@ const ExportModal = ({ isOpen, onClose, examId, examName }) => {
                         </label>
                     ))}
                 </div>
+
+                {exportMode === 'questions_and_answers' && (
+                    <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-top-2">
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Tipe Format</label>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setExportFormat('standard')}
+                                className={`flex-1 px-3 py-2 text-xs font-bold rounded-lg border-2 transition-all ${exportFormat === 'standard' ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                            >
+                                Biasa (Standard)
+                            </button>
+                            <button 
+                                onClick={() => setExportFormat('rushless')}
+                                className={`flex-1 px-3 py-2 text-xs font-bold rounded-lg border-2 transition-all ${exportFormat === 'rushless' ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                            >
+                                Rushless (Parser)
+                            </button>
+                        </div>
+                        <p className="mt-2 text-[10px] text-slate-500 dark:text-slate-400 italic">
+                            {exportFormat === 'standard' ? '* Format rapi dengan kunci jawaban di akhir soal.' : '* Format dengan tanda bintang (*) agar bisa diimport kembali.'}
+                        </p>
+                    </div>
+                )}
                 <div className="flex gap-3 mt-6">
                     <button
                         onClick={onClose}
@@ -1047,6 +1075,8 @@ export default function ManageQuestionsPage() {
     const [activeTab, setActiveTab] = useState('manual');
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isBankPickerOpen, setIsBankPickerOpen] = useState(false);
+    const [isBankExportOpen, setIsBankExportOpen] = useState(false);
     const [error, setError] = useState('');
 
     const [editingQuestion, setEditingQuestion] = useState(null);
@@ -1419,6 +1449,12 @@ export default function ManageQuestionsPage() {
                                 <button onClick={() => setActiveTab('import')} className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'import' ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300'}`}>
                                     Import ZIP
                                 </button>
+                                <button 
+                                    onClick={() => setIsBankPickerOpen(true)}
+                                    className="px-4 py-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 flex items-center gap-1.5 ml-auto"
+                                >
+                                    <Icons.Download /> Ambil dari Bank
+                                </button>
                             </div>
 
                             {activeTab === 'manual' && <ManualInputForm examId={examId} onQuestionAdded={fetchQuestions} />}
@@ -1436,6 +1472,12 @@ export default function ManageQuestionsPage() {
                                             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-700 border border-indigo-200 dark:border-slate-600 rounded-lg transition-colors"
                                         >
                                             <Icons.Download /> Export
+                                        </button>
+                                        <button
+                                            onClick={() => setIsBankExportOpen(true)}
+                                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-emerald-200 dark:border-slate-600 rounded-lg transition-colors"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg> Ekspor ke Bank
                                         </button>
                                         <button
                                             onClick={() => setShowDeleteAllModal(true)}
@@ -1529,6 +1571,108 @@ export default function ManageQuestionsPage() {
                     </div>
                 </div>
             </div>
+            <BankPickerModal 
+                isOpen={isBankPickerOpen}
+                onClose={() => setIsBankPickerOpen(false)}
+                examId={examId}
+                onSelect={fetchQuestions}
+            />
+
+            {isBankExportOpen && (
+                <BankSelectorModal 
+                    isOpen={isBankExportOpen}
+                    onClose={() => setIsBankExportOpen(false)}
+                    onSelect={async (folderId) => {
+                        try {
+                            const res = await fetch('/api/bank/transfer', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    mode: 'exam_to_bank',
+                                    examId,
+                                    folderId,
+                                    questionIds: questions.map(q => q.id)
+                                })
+                            });
+                            if (res.ok) {
+                                alert('Berhasil mengekspor semua soal ke bank!');
+                                setIsBankExportOpen(false);
+                            } else {
+                                alert('Gagal mengekspor soal');
+                            }
+                        } catch (e) {
+                            alert('Terjadi kesalahan');
+                        }
+                    }}
+                />
+            )}
         </>
     );
 }
+
+// Helper component for exporting to bank
+function BankSelectorModal({ isOpen, onClose, onSelect }) {
+    const [folders, setFolders] = useState([]);
+    const [currentFolderId, setCurrentFolderId] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetch('/api/bank/folders')
+                .then(res => res.json())
+                .then(data => {
+                    setFolders(data);
+                    setLoading(false);
+                });
+        }
+    }, [isOpen]);
+
+    const currentFolders = folders.filter(f => f.parent_id === currentFolderId);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose}></div>
+            <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg p-8 rounded-[2.5rem] shadow-2xl flex flex-col border border-white/10">
+                <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-tight">Pilih Folder Tujuan</h2>
+                <p className="text-xs text-slate-400 font-bold mb-6">Pilih folder di bank soal untuk menyimpan soal-soal ujian ini.</p>
+                
+                <div className="flex-1 overflow-y-auto max-h-[400px] mb-8 space-y-2 pr-2 custom-scrollbar">
+                    {currentFolderId && (
+                        <button onClick={() => {
+                            const parent = folders.find(f => f.id === currentFolderId)?.parent_id;
+                            setCurrentFolderId(parent || null);
+                        }} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-sm">
+                             &larr; KEMBALI
+                        </button>
+                    )}
+                    {currentFolders.map(folder => (
+                        <div key={folder.id} className="flex gap-2">
+                             <button 
+                                onClick={() => setCurrentFolderId(folder.id)}
+                                className="flex-1 flex items-center gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-slate-600 dark:text-slate-300 font-bold text-sm transition-all text-left"
+                             >
+                                <span className="text-indigo-500">📁</span> {folder.name}
+                             </button>
+                             <button 
+                                onClick={() => onSelect(folder.id)}
+                                className="px-5 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest"
+                             >
+                                PILIH
+                             </button>
+                        </div>
+                    ))}
+                    {currentFolders.length === 0 && !loading && (
+                        <div className="py-10 text-center text-slate-400 italic text-sm">Folder ini tidak memiliki subfolder.</div>
+                    )}
+                </div>
+                
+                <div className="flex justify-end gap-3 font-bold">
+                    <button onClick={onClose} className="px-6 py-2 text-slate-400">Batal</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+

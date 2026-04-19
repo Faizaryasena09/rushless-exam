@@ -160,6 +160,50 @@ export async function GET(request) {
       values: [],
     });
     messages.push(`Table '${examClassesTableName}' created or already exists.`);
+    
+    // --- Check and create 'rhs_question_bank_folders' table ---
+    const bankFoldersTableName = 'rhs_question_bank_folders';
+    await query({
+      query: `
+            CREATE TABLE IF NOT EXISTS ${bankFoldersTableName} (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                parent_id INT DEFAULT NULL,
+                created_by INT NOT NULL,
+                sort_order INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (parent_id) REFERENCES ${bankFoldersTableName}(id) ON DELETE CASCADE,
+                FOREIGN KEY (created_by) REFERENCES rhs_users(id) ON DELETE CASCADE
+            )
+        `,
+      values: [],
+    });
+    messages.push(`Table '${bankFoldersTableName}' created or already exists.`);
+
+    // --- Check and create 'rhs_question_bank' table ---
+    const questionBankTableName = 'rhs_question_bank';
+    await query({
+      query: `
+            CREATE TABLE IF NOT EXISTS ${questionBankTableName} (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                folder_id INT NOT NULL,
+                question_text TEXT NOT NULL,
+                options JSON,
+                correct_option TEXT,
+                question_type VARCHAR(50) NOT NULL DEFAULT 'multiple_choice',
+                points DECIMAL(10,2) DEFAULT 1.0,
+                scoring_strategy VARCHAR(50) DEFAULT 'standard',
+                scoring_metadata JSON,
+                created_by INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (folder_id) REFERENCES ${bankFoldersTableName}(id) ON DELETE CASCADE,
+                FOREIGN KEY (created_by) REFERENCES rhs_users(id) ON DELETE CASCADE
+            )
+        `,
+      values: [],
+    });
+    messages.push(`Table '${questionBankTableName}' created or already exists.`);
 
     // --- Check and create 'rhs_teacher_classes' table (Junction table for Teachers) ---
     const teacherClassesTableName = 'rhs_teacher_classes';
