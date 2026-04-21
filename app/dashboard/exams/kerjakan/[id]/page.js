@@ -443,17 +443,24 @@ export default function ExamTakingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ examId, answers, attemptId: attemptDetails.id, isForce: isAutoSubmit }),
       });
-      if (!response.ok) throw new Error((await response.json()).message || 'Failed to submit exam.');
-
+      const resultData = await response.json();
+      if (!response.ok) throw new Error(resultData.message || 'Failed to submit exam.');
+      
       // Clear instruction confirmation for this exam on successful submit
       if (typeof window !== 'undefined') {
         localStorage.removeItem(`exam_instructions_ack_${examId}`);
       }
 
-      // Improved check: handles true, 1, or "1" from database
-      const shouldShowResult = examDetails?.show_result === true || 
-                               examDetails?.show_result === 1 || 
-                               String(examDetails?.show_result) === '1';
+      // Improved check: handles true, 1, or "1" from database response OR falling back to local state
+      const backendShowResult = resultData.show_result;
+      const shouldShowResult = backendShowResult === true || 
+                               backendShowResult === 1 || 
+                               String(backendShowResult) === '1' ||
+                               (backendShowResult === undefined && (
+                                 examDetails?.show_result === true || 
+                                 examDetails?.show_result === 1 || 
+                                 String(examDetails?.show_result) === '1'
+                               ));
       
       // If we need to show results, we navigate FIRST and do NOT send quit signals yet.
       // The quit signal will be handled by the exit button on the results page.
@@ -660,6 +667,11 @@ export default function ExamTakingPage() {
       delete newAnswers[questionId];
       return newAnswers;
     });
+
+    // Reset matching state if applicable (Frontend only)
+    if (currentQuestion?.id === questionId && currentQuestion?.question_type === 'matching') {
+        // Force re-render of matching select
+    }
     try {
       setSaveStatus('saving');
       const response = await fetch('/api/exams/temporary-answer', {
@@ -1583,7 +1595,7 @@ export default function ExamTakingPage() {
                           </p>
                         </div>
                       ) : (
-                        currentQuestion.options && currentQuestion.options.map((option, idx) => {
+                        currentQuestion.options && Array.isArray(currentQuestion.options) && currentQuestion.options.map((option, idx) => {
                           const optionLabel = String.fromCharCode(65 + idx);
                           const isSelected = currentQuestion.question_type === 'multiple_choice_complex'
                             ? (answers[currentQuestion.id] || '').split(',').includes(option.originalKey)
@@ -1599,12 +1611,63 @@ export default function ExamTakingPage() {
                                 <div className={`w-6 h-6 rounded flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-slate-500'}`}>
                                   {isSelected && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
                                 </div>
-                              ) : (
-                                isSelected && (<div className="absolute right-4 text-indigo-600 dark:text-indigo-400"><Icons.CheckCircle /></div>)
-                              )}
+                              ) : null}
                             </div>
                           );
                         })
+                      )}
+
+                      {currentQuestion.question_type === 'matching' && currentQuestion.options && (
+                        <div className="mt-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                           <div className="grid grid-cols-1 gap-4">
+                              {currentQuestion.options.pairs.map((pair, pIdx) => {
+                                 let currentAnswerObj = {};
+                                 try {
+                                    currentAnswerObj = typeof answers[currentQuestion.id] === 'string' 
+                                       ? JSON.parse(answers[currentQuestion.id]) 
+                                       : (answers[currentQuestion.id] || {});
+                                 } catch(e) { currentAnswerObj = {}; }
+
+                                 const selectedValue = currentAnswerObj[pair.id] || "";
+
+                                 return (
+                                    <div key={pair.id} className="flex flex-col md:flex-row gap-4 items-stretch md:items-center p-5 rounded-2xl bg-white dark:bg-slate-700/30 border-2 border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-900/30 transition-all duration-300 group shadow-sm hover:shadow-md">
+                                       <div className="flex-1 flex gap-5 items-center">
+                                          <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center font-black text-sm text-slate-400 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all">
+                                             {pIdx + 1}
+                                          </div>
+                                          <div className="flex-1 prose prose-sm dark:prose-invert max-w-none">
+                                             <div dangerouslySetInnerHTML={{ __html: pair.p }} className="text-slate-700 dark:text-slate-200 font-bold leading-relaxed" />
+                                          </div>
+                                       </div>
+                                       <div className="hidden md:flex items-center">
+                                          <svg className="w-6 h-6 text-slate-200 group-hover:text-indigo-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                                          </svg>
+                                       </div>
+                                       <div className="w-full md:w-72 relative">
+                                          <select 
+                                             value={selectedValue}
+                                             onChange={(e) => {
+                                                const newMatchingAnswer = { ...currentAnswerObj, [pair.id]: e.target.value };
+                                                handleAnswerSelect(currentQuestion.id, JSON.stringify(newMatchingAnswer));
+                                             }}
+                                             className={`w-full p-4 pr-12 rounded-2xl border-2 transition-all font-black text-sm outline-none appearance-none cursor-pointer ${selectedValue ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 text-indigo-600 dark:text-indigo-400 shadow-sm ring-4 ring-indigo-500/5' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 focus:bg-white dark:focus:bg-slate-700 focus:border-indigo-400'}`}
+                                          >
+                                             <option value="">Pilih Pasangan...</option>
+                                             {currentQuestion.options.responses.map((resp, rIdx) => (
+                                                <option key={rIdx} value={resp}>{resp.replace(/<[^>]*>?/gm, '').trim()}</option>
+                                             ))}
+                                          </select>
+                                          <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${selectedValue ? 'text-indigo-500' : 'text-slate-300'}`}>
+                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+                                          </div>
+                                       </div>
+                                    </div>
+                                 );
+                              })}
+                           </div>
+                        </div>
                       )}
                     </div>
 

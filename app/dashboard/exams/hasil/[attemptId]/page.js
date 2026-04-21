@@ -203,47 +203,92 @@ export default function AnalysisPage() {
 
                             {/* Options */}
                             <div className="space-y-3">
-                                {Array.isArray(q.options) && q.options.map((opt, optIdx) => {
-                                    const optionLetter = String.fromCharCode(65 + optIdx);
-                                    const isSelected = q.student_option === opt.originalKey;
-                                    const isActualCorrect = q.correct_option === opt.originalKey;
+                                {q.question_type === 'matching' && q.options?.pairs ? (
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {q.options.pairs.map((pair, pIdx) => {
+                                            let studentChoices = {};
+                                            try {
+                                                studentChoices = typeof q.student_option === 'string' ? JSON.parse(q.student_option) : (q.student_option || {});
+                                            } catch(e) { studentChoices = {}; }
 
-                                    let optClass = 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400';
-                                    
-                                    if (isActualCorrect) {
-                                        optClass = 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 dark:border-emerald-500 ring-1 ring-emerald-500 shadow-sm text-emerald-900 dark:text-emerald-100 font-medium';
-                                    } else if (isSelected && !isActualCorrect) {
-                                        optClass = 'bg-red-50 dark:bg-red-900/20 border-red-500 dark:border-red-500 shadow-sm text-red-900 dark:text-red-100 font-medium';
-                                    }
+                                            const studentResp = studentChoices[pair.id];
+                                            const isPairCorrect = studentResp === pair.r;
+                                            const isUnansweredPair = !studentResp;
 
-                                    return (
-                                        <div key={opt.originalKey} className={`flex items-start gap-4 p-3 rounded-xl border relative ${optClass}`}>
-                                            <div className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-sm font-bold mt-0.5 ${
-                                                isActualCorrect ? 'bg-emerald-500 text-white' : 
-                                                (isSelected && !isActualCorrect) ? 'bg-red-500 text-white' : 
-                                                'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-                                            }`}>
-                                                {optionLetter}
-                                            </div>
-                                            <div className="pt-1 flex-1 pr-12 sm:pr-24" dangerouslySetInnerHTML={{ __html: opt.text }} />
-                                            
-                                            <div className="absolute right-3 top-3 flex items-center gap-2">
-                                                {isActualCorrect && isSelected && (
-                                                    <div className="text-emerald-600 dark:text-emerald-400"><Icons.CheckCircle /></div>
-                                                )}
-                                                {isSelected && !isActualCorrect && (
-                                                    <div className="text-red-600 dark:text-red-400"><Icons.XCircle /></div>
-                                                )}
-                                                {isActualCorrect && !isSelected && (
-                                                    <div className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px] uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/40 px-2 py-1 rounded whitespace-nowrap">
-                                                        <span className="hidden sm:inline">{t('exams_analysis_key')}</span>
-                                                        <span className="sm:hidden"><Icons.CheckCircle /></span>
+                                            return (
+                                                <div key={pair.id} className="p-4 rounded-xl border-2 bg-slate-50 dark:bg-slate-900/40 border-slate-100 dark:border-slate-700">
+                                                    <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+                                                        <div className="flex-1 flex gap-3 items-center">
+                                                            <div className="flex-shrink-0 w-6 h-6 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 flex items-center justify-center font-bold text-[10px] text-slate-500">{pIdx+1}</div>
+                                                            <div className="flex-1 text-sm font-bold text-slate-700 dark:text-slate-200" dangerouslySetInnerHTML={{ __html: pair.p }} />
+                                                        </div>
+                                                        <div className="hidden md:block text-slate-300">
+                                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 5l7 7-7 7" /></svg>
+                                                        </div>
+                                                        <div className="w-full md:w-64">
+                                                            <div className={`p-3 rounded-lg border-2 text-sm font-bold flex items-center justify-between ${
+                                                                isPairCorrect ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 text-emerald-700 dark:text-emerald-400' : 
+                                                                isUnansweredPair ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400' :
+                                                                'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-400'
+                                                            }`}>
+                                                                <span className="truncate">{studentResp ? studentResp.replace(/<[^>]*>?/gm, '').trim() : '(Kosong)'}</span>
+                                                                {isPairCorrect ? <Icons.CheckCircle /> : !isUnansweredPair ? <Icons.XCircle /> : <Icons.Dash />}
+                                                            </div>
+                                                            {!isPairCorrect && (
+                                                                <div className="mt-2 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10 p-2 rounded border border-emerald-100 dark:border-emerald-800 flex items-start gap-2">
+                                                                    <span className="uppercase tracking-widest shrink-0">Kunci:</span>
+                                                                    <span>{pair.r.replace(/<[^>]*>?/gm, '').trim()}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    Array.isArray(q.options) && q.options.map((opt, optIdx) => {
+                                        const optionLetter = String.fromCharCode(65 + optIdx);
+                                        const isSelected = q.student_option === opt.originalKey;
+                                        const isActualCorrect = q.correct_option === opt.originalKey;
+
+                                        let optClass = 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400';
+                                        
+                                        if (isActualCorrect) {
+                                            optClass = 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 dark:border-emerald-500 ring-1 ring-emerald-500 shadow-sm text-emerald-900 dark:text-emerald-100 font-medium';
+                                        } else if (isSelected && !isActualCorrect) {
+                                            optClass = 'bg-red-50 dark:bg-red-900/20 border-red-500 dark:border-red-500 shadow-sm text-red-900 dark:text-red-100 font-medium';
+                                        }
+
+                                        return (
+                                            <div key={opt.originalKey} className={`flex items-start gap-4 p-3 rounded-xl border relative ${optClass}`}>
+                                                <div className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-sm font-bold mt-0.5 ${
+                                                    isActualCorrect ? 'bg-emerald-500 text-white' : 
+                                                    (isSelected && !isActualCorrect) ? 'bg-red-500 text-white' : 
+                                                    'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                                                }`}>
+                                                    {optionLetter}
+                                                </div>
+                                                <div className="pt-1 flex-1 pr-12 sm:pr-24" dangerouslySetInnerHTML={{ __html: opt.text }} />
+                                                
+                                                <div className="absolute right-3 top-3 flex items-center gap-2">
+                                                    {isActualCorrect && isSelected && (
+                                                        <div className="text-emerald-600 dark:text-emerald-400"><Icons.CheckCircle /></div>
+                                                    )}
+                                                    {isSelected && !isActualCorrect && (
+                                                        <div className="text-red-600 dark:text-red-400"><Icons.XCircle /></div>
+                                                    )}
+                                                    {isActualCorrect && !isSelected && (
+                                                        <div className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px] uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/40 px-2 py-1 rounded whitespace-nowrap">
+                                                            <span className="hidden sm:inline">{t('exams_analysis_key')}</span>
+                                                            <span className="sm:hidden"><Icons.CheckCircle /></span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })
+                                )}
                             </div>
                         </div>
                     );

@@ -91,9 +91,11 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
     const [points, setPoints] = useState(1);
     const [scoringStrategy, setScoringStrategy] = useState('standard');
     const [keywords, setKeywords] = useState('');
+    const [matchingPairs, setMatchingPairs] = useState([{ id: 1, p: '', r: '' }]);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const nextOptionId = useRef(3);
+    const nextPairId = useRef(2);
 
     const handleOptionChange = (id, value) => {
         setOptions(prevOptions =>
@@ -129,6 +131,8 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
         setPoints(1);
         setScoringStrategy('standard');
         setKeywords('');
+        setMatchingPairs([{ id: 1, p: '', r: '' }]);
+        nextPairId.current = 2;
     }
 
     const handleTypeChange = (type) => {
@@ -161,13 +165,39 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
             }
             setCorrectOptions(['A']);
             setScoringStrategy('pgk_partial');
+        } else if (type === 'matching') {
+            setOptions([]);
+            setMatchingPairs([{ id: 1, p: '', r: '' }]);
+            setCorrectOption('MATCHING');
+            setScoringStrategy('standard');
         }
+    };
+
+    const addPair = () => {
+        setMatchingPairs(prev => [...prev, { id: nextPairId.current++, p: '', r: '' }]);
+    };
+
+    const removePair = (id) => {
+        setMatchingPairs(prev => prev.filter(p => p.id !== id));
+    };
+
+    const handlePairChange = (id, field, value) => {
+        setMatchingPairs(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!questionText.trim() || options.some(o => !o.value.trim())) {
-            setError('Please fill out the question and all options.');
+        if (!questionText.trim()) {
+            setError('Please fill out the question text.');
+            return;
+        }
+        if (questionType === 'matching') {
+            if (matchingPairs.some(p => !p.p.trim() || !p.r.trim())) {
+                setError('Please fill out all premises and responses for matching.');
+                return;
+            }
+        } else if (questionType !== 'essay' && options.some(o => !o.value.trim())) {
+            setError('Please fill out all options.');
             return;
         }
         setError('');
@@ -176,21 +206,34 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
         try {
             // Process content to upload Base64 images and get URLs
             const processedQuestionText = await uploadBase64Images(questionText);
-            const processedOptions = await Promise.all(
-                options.map(async (opt) => ({
-                    ...opt,
-                    value: await uploadBase64Images(opt.value),
-                }))
-            );
+            
+            let optionsForApi = {};
 
-            const optionsForApi = processedOptions.reduce((acc, opt) => {
-                acc[opt.key] = opt.value;
-                return acc;
-            }, {});
+            if (questionType === 'matching') {
+                const processedPairs = await Promise.all(
+                    matchingPairs.map(async (pair) => ({
+                        id: pair.id,
+                        p: await uploadBase64Images(pair.p),
+                        r: await uploadBase64Images(pair.r),
+                    }))
+                );
+                optionsForApi = { pairs: processedPairs };
+            } else {
+                const processedOptions = await Promise.all(
+                    options.map(async (opt) => ({
+                        ...opt,
+                        value: await uploadBase64Images(opt.value),
+                    }))
+                );
+                optionsForApi = processedOptions.reduce((acc, opt) => {
+                    acc[opt.key] = opt.value;
+                    return acc;
+                }, {});
+            }
 
             const finalCorrectOption = questionType === 'multiple_choice_complex' 
                 ? correctOptions.sort().join(',') 
-                : correctOption;
+                : (questionType === 'matching' ? 'MATCHING' : correctOption);
 
             const res = await fetch('/api/exams/questions', {
                 method: 'POST',
@@ -323,7 +366,52 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                     onBlur={newContent => setQuestionText(newContent)}
                 />
             </div>
-            {questionType !== 'essay' && options.map((opt, index) => (
+
+            {questionType === 'matching' && (
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Pasangan Menjodohkan (Premis &rarr; Respon)</h3>
+                        <button type="button" onClick={addPair} className="flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-lg">
+                            <Icons.Plus /> Tambah Pasangan
+                        </button>
+                    </div>
+                    {matchingPairs.map((pair, index) => (
+                        <div key={pair.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4 relative">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Pasangan #{index + 1}</span>
+                                {matchingPairs.length > 1 && (
+                                    <button type="button" onClick={() => removePair(pair.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors">
+                                        <Icons.Trash />
+                                    </button>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Premis (Kiri)</label>
+                                    <JoditEditorWithUpload
+                                        value={pair.p}
+                                        onBlur={newContent => handlePairChange(pair.id, 'p', newContent)}
+                                    />
+                                </div>
+                                <div className="flex justify-center -my-3">
+                                    <div className="bg-slate-50 dark:bg-slate-700 p-2 rounded-full border border-slate-200 dark:border-slate-600 shadow-sm z-10 text-indigo-500">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Respon / Jawaban (Kanan)</label>
+                                    <JoditEditorWithUpload
+                                        value={pair.r}
+                                        onBlur={newContent => handlePairChange(pair.id, 'r', newContent)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {questionType !== 'essay' && questionType !== 'matching' && options.map((opt, index) => (
                 <div key={opt.id} className="space-y-1">
                     <div className="flex justify-between items-center">
                         <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Option {opt.key}</label>
@@ -348,14 +436,14 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                     )}
                 </div>
             ))}
-            {questionType !== 'essay' && questionType !== 'true_false' && (
+            {questionType !== 'essay' && questionType !== 'true_false' && questionType !== 'matching' && (
                 <div className="text-left pt-2">
                     <button type="button" onClick={addOption} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-700 rounded-md">
                         <Icons.Plus /> Add Option
                     </button>
                 </div>
             )}
-            {questionType !== 'essay' && (
+            {questionType !== 'essay' && questionType !== 'matching' && (
                 <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Correct Answer</label>
                     {questionType === 'multiple_choice_complex' ? (
@@ -407,6 +495,8 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
             parsedOpts = typeof question.options === 'string' ? JSON.parse(question.options) : (question.options || {});
         } catch (e) { console.error("Failed to parse options for editing:", e) }
 
+        if (question.question_type === 'matching') return [];
+
         return Object.entries(parsedOpts).map(([key, value], index) => ({
             id: index + 1, // Simple ID generation for the edit session
             key,
@@ -432,7 +522,24 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const nextOptionId = useRef(options.length + 1);
+
+    // Initialize matchingPairs from specialized JSON structure
+    const initialPairs = useMemo(() => {
+        if (question.question_type !== 'matching') return [{ id: 1, p: '', r: '' }];
+        try {
+            // Handle both string and pre-parsed object from fetchQuestions
+            const optData = question.options;
+            const parsed = typeof optData === 'string' ? JSON.parse(optData) : (optData || {});
+            return Array.isArray(parsed.pairs) ? parsed.pairs : [{ id: 1, p: '', r: '' }];
+        } catch (e) {
+            console.error("Failed to parse matching pairs:", e);
+            return [{ id: 1, p: '', r: '' }];
+        }
+    }, [question.options, question.question_type]);
+
+    const [matchingPairs, setMatchingPairs] = useState(initialPairs);
+    const nextOptionId = useRef(options.length > 0 ? Math.max(...options.map(o => o.id)) + 1 : 1);
+    const nextPairId = useRef(matchingPairs.length > 0 ? Math.max(...matchingPairs.map(p => p.id)) + 1 : 1);
 
     const handleOptionChange = (id, value) => {
         setOptions(prev => prev.map(opt => opt.id === id ? { ...opt, value } : opt));
@@ -487,13 +594,39 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                     { id: 2, key: 'B', value: '' },
                 ]);
             }
-            setCorrectOptions(['A']);
-            setScoringStrategy('pgk_partial');
+        } else if (type === 'matching') {
+            setOptions([]);
+            if (matchingPairs.length === 0) setMatchingPairs([{ id: 1, p: '', r: '' }]);
+            setCorrectOption('MATCHING');
+            setCorrectOptions(['MATCHING']);
+            setScoringStrategy('standard');
         }
     };
 
+    const addPair = () => {
+        setMatchingPairs(prev => [...prev, { id: nextPairId.current++, p: '', r: '' }]);
+    };
+
+    const removePair = (id) => {
+        setMatchingPairs(prev => prev.filter(p => p.id !== id));
+    };
+
+    const handlePairChange = (id, field, value) => {
+        setMatchingPairs(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+    };
+
     const handleSave = async () => {
-        if (!questionText.trim() || options.some(o => !o.value.trim())) {
+        if (!questionText.trim()) {
+            setError('Please fill out the question text.');
+            return;
+        }
+
+        if (questionType === 'matching') {
+            if (matchingPairs.some(p => !p.p.trim() || !p.r.trim())) {
+                setError('Please fill out all premises and responses for matching.');
+                return;
+            }
+        } else if (questionType !== 'essay' && options.some(o => !o.value.trim())) {
             setError('Please fill out the question and all options.');
             return;
         }
@@ -503,21 +636,34 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
         try {
             // Process content to upload Base64 images and get URLs
             const processedQuestionText = await uploadBase64Images(questionText);
-            const processedOptions = await Promise.all(
-                options.map(async (opt) => ({
-                    ...opt,
-                    value: await uploadBase64Images(opt.value),
-                }))
-            );
+            
+            let optionsForApi = {};
 
-            const optionsForApi = processedOptions.reduce((acc, opt) => {
-                acc[opt.key] = opt.value;
-                return acc;
-            }, {});
+            if (questionType === 'matching') {
+                const processedPairs = await Promise.all(
+                    matchingPairs.map(async (pair) => ({
+                        id: pair.id,
+                        p: await uploadBase64Images(pair.p),
+                        r: await uploadBase64Images(pair.r),
+                    }))
+                );
+                optionsForApi = { pairs: processedPairs };
+            } else {
+                const processedOptions = await Promise.all(
+                    options.map(async (opt) => ({
+                        ...opt,
+                        value: await uploadBase64Images(opt.value),
+                    }))
+                );
+                optionsForApi = processedOptions.reduce((acc, opt) => {
+                    acc[opt.key] = opt.value;
+                    return acc;
+                }, {});
+            }
 
             const finalCorrectOption = questionType === 'multiple_choice_complex' 
                 ? correctOptions.sort().join(',') 
-                : correctOption;
+                : (questionType === 'matching' ? 'MATCHING' : correctOption);
 
             await onSave({
                 id: question.id,
@@ -703,8 +849,66 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                         </div>
                     )}
 
+                    {/* section: Matching Pairs */}
+                    {questionType === 'matching' && (
+                        <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+                             <div className="flex justify-between items-center mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-1 h-5 bg-indigo-500 rounded-full"></div>
+                                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Pasangan Menjodohkan</h3>
+                                </div>
+                                <button 
+                                    type="button" 
+                                    onClick={addPair} 
+                                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-black bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all active:scale-95"
+                                >
+                                    <Icons.Plus /> TAMBAH PASANGAN
+                                </button>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 gap-6">
+                                {matchingPairs.map((pair, index) => (
+                                    <div key={pair.id} className="relative group p-6 rounded-3xl border-2 border-slate-50 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-900/20 hover:border-blue-200 dark:hover:border-blue-900/30 transition-all duration-300">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center font-black text-slate-700 dark:text-slate-300 shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                                    {index + 1}
+                                                </div>
+                                                <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Pasangan #{index + 1}</span>
+                                            </div>
+                                            {matchingPairs.length > 1 && (
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => removePair(pair.id)} 
+                                                    className="p-2 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all active:scale-90"
+                                                >
+                                                    <Icons.Trash />
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Premis (Kiri)</label>
+                                                <JoditEditorWithUpload value={pair.p} onBlur={newContent => handlePairChange(pair.id, 'p', newContent)} />
+                                            </div>
+                                            <div className="flex justify-center -my-3">
+                                                <div className="bg-white dark:bg-slate-800 p-2 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm z-10 text-indigo-500">
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Respon / Jawaban (Kanan)</label>
+                                                <JoditEditorWithUpload value={pair.r} onBlur={newContent => handlePairChange(pair.id, 'r', newContent)} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* section: Options */}
-                    {questionType !== 'essay' && (
+                    {questionType !== 'essay' && questionType !== 'matching' && (
                         <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
                             <div className="flex justify-between items-center mb-6">
                                 <div className="flex items-center gap-3">
@@ -759,7 +963,7 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                     )}
 
                     {/* section: Correct Answer Selection */}
-                    {questionType !== 'essay' && (
+                    {questionType !== 'essay' && questionType !== 'matching' && (
                         <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="w-1 h-5 bg-green-500 rounded-full"></div>
@@ -1122,6 +1326,11 @@ export default function ManageQuestionsPage() {
                 try {
                     optionsObject = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || {});
                 } catch { optionsObject = {} }
+
+                // Skip normalization for matching questions - they use a specialized structure
+                if (q.question_type === 'matching') {
+                    return { ...q, options: optionsObject };
+                }
 
                 const optionValues = Object.values(optionsObject);
                 const letterKeys = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -1542,6 +1751,23 @@ export default function ManageQuestionsPage() {
                                                         <div className="pl-4 py-1 text-slate-500 italic">
                                                             Pilihan jawaban disembunyikan untuk tipe Esai.
                                                         </div>
+                                                    ) : q.question_type === 'matching' ? (
+                                                        <div className="space-y-3 pl-4">
+                                                            {(q.options?.pairs || []).map((pair, pIdx) => (
+                                                                <div key={pair.id || pIdx} className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2 p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-700/50 group/pair hover:border-indigo-200 dark:hover:border-indigo-900/30 transition-all">
+                                                                    <div className="flex gap-3 items-center flex-1">
+                                                                        <span className="w-8 h-8 shrink-0 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-[10px] font-black text-slate-400 group-hover/pair:bg-indigo-600 group-hover/pair:text-white group-hover/pair:border-indigo-600 transition-all shadow-sm">{pIdx + 1}</span>
+                                                                        <div className="prose dark:prose-invert prose-sm max-w-none flex-1" dangerouslySetInnerHTML={{ __html: pair.p || '...' }} />
+                                                                    </div>
+                                                                    <div className="hidden lg:flex items-center text-slate-200 dark:text-slate-700 mx-2">
+                                                                        <svg className="w-5 h-5 group-hover/pair:text-indigo-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                                                                    </div>
+                                                                    <div className="flex-1 flex gap-2 items-center bg-indigo-50 dark:bg-indigo-950/40 p-3 rounded-xl border border-indigo-100 dark:border-indigo-900/50 min-h-[50px] shadow-inner">
+                                                                        <div className="prose prose-indigo dark:prose-invert prose-sm max-w-none font-bold text-indigo-700 dark:text-indigo-300 flex-1" dangerouslySetInnerHTML={{ __html: pair.r || '...' }} />
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     ) : (
                                                         Object.entries(q.options).map(([key, value]) => {
                                                             const correctOptions = q.correct_option ? String(q.correct_option).split(',') : [];
@@ -1550,7 +1776,7 @@ export default function ManageQuestionsPage() {
                                                                 <div key={key} className={`pl-4 flex items-center justify-between gap-4 w-full mt-1.5 p-2 rounded-lg transition-colors ${isCorrect ? 'bg-green-50 dark:bg-green-900/20 font-extrabold text-green-700 dark:text-green-400 border border-green-100 dark:border-green-900/30' : 'text-slate-600 dark:text-slate-400'}`}>
                                                                     <div className="flex gap-3 items-start flex-1">
                                                                         <span className={`${isCorrect ? 'text-green-600' : 'text-slate-400 font-bold'}`}>{key}.</span>
-                                                                        <div className="prose dark:prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: value }} />
+                                                                        <div className="prose dark:prose-invert prose-sm max-w-none custom-content-wrapper" dangerouslySetInnerHTML={{ __html: value }} />
                                                                     </div>
                                                                     {isCorrect && (
                                                                         <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 bg-green-500 text-white rounded-full shadow-sm">

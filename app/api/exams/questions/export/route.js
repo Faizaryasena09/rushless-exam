@@ -358,17 +358,19 @@ export async function GET(request) {
                     opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || {});
                 } catch { opts = {}; }
 
-                // Re-key options with A, B, C, ...
-                const optionValues = Object.values(opts);
-                const letterKeys = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                // Re-key options with A, B, C, ... (if not matching)
                 const reKeyedOptions = {};
-                optionValues.forEach((val, i) => {
-                    if (letterKeys[i]) {
-                        // For options, we also support HTML/Images
-                        const optValue = (val && typeof val === 'object' && val.hasOwnProperty('text')) ? val.text : val;
-                        reKeyedOptions[letterKeys[i]] = optValue;
-                    }
-                });
+                if (q.question_type !== 'matching') {
+                    const optionValues = Object.values(opts);
+                    const letterKeys = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                    optionValues.forEach((val, i) => {
+                        if (letterKeys[i]) {
+                            // For options, we also support HTML/Images
+                            const optValue = (val && typeof val === 'object' && val.hasOwnProperty('text')) ? val.text : val;
+                            reKeyedOptions[letterKeys[i]] = optValue;
+                        }
+                    });
+                }
 
                 // Question text with markers if in rushless format
                 let questionPrefix = `${index + 1}. `;
@@ -475,19 +477,58 @@ export async function GET(request) {
                 // Process Question
                 await processParts(qParts, baseQChildren);
 
-                // Process Options
-                for (const [key, value] of Object.entries(reKeyedOptions)) {
-                    const isCorrect = key === q.correct_option;
-                    const isRushlessCorrect = isCorrect && format === 'rushless';
-                    const optParts = parseContent(String(value));
-                    const baseOptChildren = [
-                        new TextRun({
-                            text: `${isRushlessCorrect ? '*' : ''}${key}. `,
-                            size: 22,
-                            font: 'Arial',
-                        })
-                    ];
-                    await processParts(optParts, baseOptChildren, true, isCorrect);
+                // Process Options / Pairs
+                if (q.question_type === 'matching') {
+                    const pairs = opts.pairs || [];
+                    for (let pIdx = 0; pIdx < pairs.length; pIdx++) {
+                        const pair = pairs[pIdx];
+                        
+                        // Premise (Left)
+                        const pParts = parseContent(pair.p);
+                        const basePChildren = [
+                            new TextRun({
+                                text: `[${pIdx + 1}] Premis : `,
+                                bold: true,
+                                size: 22,
+                                font: 'Arial',
+                            })
+                        ];
+                        await processParts(pParts, basePChildren, true);
+
+                        // Response (Right)
+                        const rParts = parseContent(pair.r);
+                        const baseRChildren = [
+                            new TextRun({
+                                text: `Pasangan : `,
+                                bold: true,
+                                color: '4B5563', // Slate-600
+                                size: 22,
+                                font: 'Arial',
+                            })
+                        ];
+                        await processParts(rParts, baseRChildren, true);
+                        
+                        // Visual Divider
+                        paragraphsToPush.push(new Paragraph({
+                            border: { bottom: { color: 'E2E8F0', space: 1, style: BorderStyle.DOTTED, size: 6 } },
+                            spacing: { after: 120 },
+                            indent: { left: 720 }
+                        }));
+                    }
+                } else {
+                    for (const [key, value] of Object.entries(reKeyedOptions)) {
+                        const isCorrect = key === q.correct_option;
+                        const isRushlessCorrect = isCorrect && format === 'rushless';
+                        const optParts = parseContent(String(value));
+                        const baseOptChildren = [
+                            new TextRun({
+                                text: `${isRushlessCorrect ? '*' : ''}${key}. `,
+                                size: 22,
+                                font: 'Arial',
+                            })
+                        ];
+                        await processParts(optParts, baseOptChildren, true, isCorrect);
+                    }
                 }
                 
                 // Add "Answer : [Key]" if mode is questions_and_answers AND NOT rushless

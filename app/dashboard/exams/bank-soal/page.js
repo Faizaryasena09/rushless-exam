@@ -716,19 +716,30 @@ export default function BankSoalPage() {
                   {/* Matching */}
                   {previewQuestion.question_type === 'matching' && (
                     <div className="space-y-4">
-                      {Object.entries(typeof previewQuestion.options === 'string' ? JSON.parse(previewQuestion.options) : (previewQuestion.options || {})).map(([left, right], i) => (
-                        <div key={i} className="flex items-center gap-4">
-                           <div className="flex-1 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl font-bold text-indigo-700 dark:text-indigo-300 text-sm">
-                              {left}
-                           </div>
-                           <div className="h-0.5 w-8 bg-slate-200 dark:bg-slate-700 relative">
-                              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-2 h-2 bg-slate-300 rounded-full"></div>
-                           </div>
-                           <div className="flex-1 p-4 bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl font-bold text-emerald-700 dark:text-emerald-300 text-sm">
-                              {right}
-                           </div>
-                        </div>
-                      ))}
+                      {(() => {
+                        let opts = {};
+                        try {
+                          opts = typeof previewQuestion.options === 'string' ? JSON.parse(previewQuestion.options) : (previewQuestion.options || {});
+                        } catch (e) {
+                          console.error("Parse Error", e);
+                        }
+                        const pairs = opts.pairs || [];
+                        if (pairs.length === 0) return <p className="text-sm italic text-slate-400">Tidak ada pasangan yang didefinisikan.</p>;
+                        
+                        return pairs.map((pair, i) => (
+                          <div key={i} className="flex items-center gap-4">
+                             <div className="flex-1 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl font-bold text-indigo-700 dark:text-indigo-300 text-sm">
+                                <div className="prose dark:prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: pair.p }} />
+                             </div>
+                             <div className="h-0.5 w-8 bg-slate-200 dark:bg-slate-700 relative">
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-2 h-2 bg-slate-300 rounded-full"></div>
+                             </div>
+                             <div className="flex-1 p-4 bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl font-bold text-emerald-700 dark:text-emerald-300 text-sm">
+                                <div className="prose dark:prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: pair.r }} />
+                             </div>
+                          </div>
+                        ));
+                      })()}
                     </div>
                   )}
                 </div>

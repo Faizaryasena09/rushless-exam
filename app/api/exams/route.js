@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/app/lib/db';
+import { query, transaction } from '@/app/lib/db';
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
@@ -35,7 +35,7 @@ async function GET() {
 }
 
 async function POST(request) {
-  // 1. Check for active session and admin role
+  // 1. Check for active session and role
   const cookieStore = await cookies();
   const session = await getIronSession(cookieStore, sessionOptions);
 
@@ -44,33 +44,46 @@ async function POST(request) {
   }
 
   // 2. Get data from the request body
-  const { exam_name, description, require_safe_browser, require_seb, subject_id } = await request.json();
+  const { exam_name, description, require_safe_browser, require_seb, subject_id, allowed_classes } = await request.json();
 
   if (!exam_name) {
     return NextResponse.json({ message: 'Exam name is required' }, { status: 400 });
   }
 
   try {
-    const result = await query({
-      query: 'INSERT INTO rhs_exams (exam_name, description, timer_mode, duration_minutes, subject_id, scoring_mode, auto_distribute) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      values: [exam_name, description, 'async', 60, subject_id || null, 'raw', 1],
-    });
-
-    if (result.affectedRows) {
-      const newExamId = result.insertId;
-
-      await query({
-        query: 'INSERT INTO rhs_exam_settings (exam_id, require_safe_browser, require_seb) VALUES (?, ?, ?)',
-        values: [newExamId, require_safe_browser || false, require_seb || false]
+    const newExamId = await transaction(async (txQuery) => {
+      // 1. Insert into rhs_exams
+      const result = await txQuery({
+        query: 'INSERT INTO rhs_exams (exam_name, description, timer_mode, duration_minutes, subject_id, scoring_mode, auto_distribute) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        values: [exam_name, description, 'async', 60, subject_id || null, 'raw', 1],
       });
 
-      // Wildcard delete for exam lists
-      await invalidateExamCache(null);
+      const examId = result.insertId;
 
-      return NextResponse.json({ message: 'Exam created successfully', examId: newExamId }, { status: 201 });
-    } else {
-      throw new Error('Failed to insert exam into database');
-    }
+      // 2. Insert into rhs_exam_settings
+      await txQuery({
+        query: 'INSERT INTO rhs_exam_settings (exam_id, require_safe_browser, require_seb) VALUES (?, ?, ?)',
+        values: [examId, require_safe_browser || false, require_seb || false]
+      });
+
+      // 3. Insert into rhs_exam_classes if provided
+      if (Array.isArray(allowed_classes) && allowed_classes.length > 0) {
+        const placeholders = allowed_classes.map(() => '(?, ?)').join(', ');
+        const flatValues = [];
+        allowed_classes.forEach(cId => flatValues.push(examId, cId));
+        await txQuery({
+          query: `INSERT INTO rhs_exam_classes (exam_id, class_id) VALUES ${placeholders}`,
+          values: flatValues,
+        });
+      }
+
+      return examId;
+    });
+
+    // Invalidate caches
+    await invalidateExamCache(null);
+
+    return NextResponse.json({ message: 'Exam created successfully', examId: newExamId }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ message: 'Database error', error: error.message }, { status: 500 });
   }

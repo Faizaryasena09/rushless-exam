@@ -118,9 +118,14 @@ export default function ExamPreviewPage() {
                     if (typeof opts === 'string') {
                         try { opts = JSON.parse(opts); } catch (e) { }
                     }
-                    // Convert object options to array structure used in student view if needed, 
-                    // OR handle both formats. 
-                    // The student view expects options as array: [{originalKey: 'A', text: '...'}, ...]
+                    
+                    // Specific normalization for matching questions
+                    if (q.question_type === 'matching') {
+                        // Ensure pairs structure is maintained as expected by the UI
+                        return { ...q, options: opts };
+                    }
+
+                    // Convert object options to array structure used in multiple choice
                     if (!Array.isArray(opts)) {
                         opts = Object.entries(opts || {}).map(([key, text]) => ({
                             originalKey: key,
@@ -311,7 +316,8 @@ export default function ExamPreviewPage() {
                                             <p className="text-lg md:text-xl font-medium text-slate-800 leading-relaxed" dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }} />
                                         </div>
                                         <div className="space-y-3">
-                                            {currentQuestion.question_type === 'essay' ? (
+                                            {/* Essay Question UI */}
+                                            {currentQuestion.question_type === 'essay' && (
                                                 <div className="mt-4">
                                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Jawaban Esai Anda:</label>
                                                     <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -325,31 +331,90 @@ export default function ExamPreviewPage() {
                                                         <Icons.CheckCircleSmall /> Preview Mode - Konten editor dapat diinteraksi
                                                     </p>
                                                 </div>
-                                            ) : (
-                                                currentQuestion.options && currentQuestion.options.map((option, idx) => {
-                                                    const optionLabel = String.fromCharCode(65 + idx);
-                                                    const isSelected = currentQuestion.question_type === 'multiple_choice_complex'
-                                                        ? (answers[currentQuestion.id] ? String(answers[currentQuestion.id]).split(',').includes(option.originalKey) : false)
-                                                        : answers[currentQuestion.id] === option.originalKey;
+                                            )}
 
-                                                    return (
-                                                        <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}>
-                                                            <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'}`}>{optionLabel}</div>
-                                                            <span className={`text-base font-medium ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
-                                                            {isSelected && (
-                                                                <div className="absolute right-4 text-indigo-600">
-                                                                    {currentQuestion.question_type === 'multiple_choice_complex' ? (
-                                                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                                        </svg>
-                                                                    ) : (
-                                                                        <Icons.CheckCircle />
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })
+                                            {/* Multiple Choice UI */}
+                                            {['multiple_choice', 'multiple_choice_complex'].includes(currentQuestion.question_type) && currentQuestion.options && Array.isArray(currentQuestion.options) && (
+                                                <div className="space-y-3">
+                                                    {currentQuestion.options.map((option, idx) => {
+                                                        const optionLabel = String.fromCharCode(65 + idx);
+                                                        const isSelected = currentQuestion.question_type === 'multiple_choice_complex'
+                                                            ? (answers[currentQuestion.id] ? String(answers[currentQuestion.id]).split(',').includes(option.originalKey) : false)
+                                                            : answers[currentQuestion.id] === option.originalKey;
+
+                                                        return (
+                                                            <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}>
+                                                                <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'}`}>{optionLabel}</div>
+                                                                <span className={`text-base font-medium ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
+                                                                {isSelected && (
+                                                                    <div className="absolute right-4 text-indigo-600">
+                                                                        {currentQuestion.question_type === 'multiple_choice_complex' ? (
+                                                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                            </svg>
+                                                                        ) : (
+                                                                            <Icons.CheckCircle />
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            {/* Matching Question UI */}
+                                            {currentQuestion.question_type === 'matching' && currentQuestion.options && (
+                                                <div className="mt-4 space-y-6">
+                                                   <div className="grid grid-cols-1 gap-4">
+                                                      {currentQuestion.options.pairs.map((pair, pIdx) => {
+                                                         let currentAnswerObj = {};
+                                                         try {
+                                                            currentAnswerObj = typeof answers[currentQuestion.id] === 'string' 
+                                                               ? JSON.parse(answers[currentQuestion.id]) 
+                                                               : (answers[currentQuestion.id] || {});
+                                                         } catch(e) { currentAnswerObj = {}; }
+
+                                                         const selectedValue = currentAnswerObj[pair.id] || "";
+
+                                                         return (
+                                                            <div key={pair.id} className="flex flex-col md:flex-row gap-4 items-stretch md:items-center p-5 rounded-2xl bg-white border-2 border-slate-100 hover:border-indigo-200 transition-all duration-300 group shadow-sm">
+                                                               <div className="flex-1 flex gap-5 items-center">
+                                                                  <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-slate-50 border-2 border-slate-100 flex items-center justify-center font-black text-sm text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                                                                     {pIdx + 1}
+                                                                  </div>
+                                                                  <div className="flex-1 prose prose-sm max-w-none">
+                                                                     <div dangerouslySetInnerHTML={{ __html: pair.p }} className="text-slate-700 font-bold leading-relaxed" />
+                                                                  </div>
+                                                               </div>
+                                                               <div className="hidden md:flex items-center">
+                                                                  <svg className="w-6 h-6 text-slate-200 group-hover:text-indigo-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                                                                  </svg>
+                                                               </div>
+                                                               <div className="w-full md:w-72 relative">
+                                                                  <select 
+                                                                     value={selectedValue}
+                                                                     onChange={(e) => {
+                                                                        const newMatchingAnswer = { ...currentAnswerObj, [pair.id]: e.target.value };
+                                                                        handleAnswerSelect(currentQuestion.id, JSON.stringify(newMatchingAnswer));
+                                                                     }}
+                                                                     className={`w-full p-4 pr-12 rounded-2xl border-2 transition-all font-black text-sm outline-none appearance-none cursor-pointer ${selectedValue ? 'bg-indigo-50 border-indigo-500 text-indigo-600' : 'bg-slate-50 border-slate-100 text-slate-400 focus:bg-white focus:border-indigo-400'}`}
+                                                                  >
+                                                                     <option value="">Pilih Pasangan...</option>
+                                                                     {currentQuestion.options.responses.map((resp, rIdx) => (
+                                                                        <option key={rIdx} value={resp}>{resp.replace(/<[^>]*>?/gm, '').trim()}</option>
+                                                                     ))}
+                                                                  </select>
+                                                                  <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${selectedValue ? 'text-indigo-500' : 'text-slate-300'}`}>
+                                                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+                                                                  </div>
+                                                               </div>
+                                                            </div>
+                                                         );
+                                                      })}
+                                                   </div>
+                                                </div>
                                             )}
                                         </div>
                                     </div>

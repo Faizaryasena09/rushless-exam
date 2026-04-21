@@ -109,6 +109,35 @@ export function calculateQuestionScore(qInfo, studentAnswer) {
             // Note: If we had a column for manual score, we'd handle it here.
             earnedForThisQuestion = 0; 
         }
+    } else if (qInfo.type === 'matching') {
+        try {
+            // Robust parsing for options (detect double stringification)
+            let parsedCorrect = typeof qInfo.options === 'string' ? JSON.parse(qInfo.options) : (qInfo.options || {});
+            if (typeof parsedCorrect === 'string') {
+                parsedCorrect = JSON.parse(parsedCorrect);
+            }
+            const correctPairs = parsedCorrect.pairs || [];
+            
+            // Robust parsing for studentAnswer (detect double stringification)
+            let studentChoices = typeof studentAnswer === 'string' ? JSON.parse(studentAnswer) : (studentAnswer || {});
+            if (typeof studentChoices === 'string') {
+                studentChoices = JSON.parse(studentChoices);
+            }
+            
+            if (correctPairs.length > 0) {
+                let matches = 0;
+                correctPairs.forEach(pair => {
+                    // Check if student's choice for this premise (pair.id) matches the correct response (pair.r)
+                    if (studentChoices[pair.id] === pair.r) {
+                        matches++;
+                    }
+                });
+                earnedForThisQuestion = (matches / correctPairs.length) * qInfo.points;
+            }
+        } catch (e) {
+            console.error("Scoring error for matching question:", e);
+            earnedForThisQuestion = 0;
+        }
     } else {
         // multiple_choice or true_false
         if (studentAnswer === qInfo.correct) {

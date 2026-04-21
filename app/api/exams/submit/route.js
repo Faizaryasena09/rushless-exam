@@ -32,13 +32,13 @@ export async function POST(request) {
 
     // 1. Get all questions for the exam to get the total number and correct options
     const allQuestions = await query({
-      query: 'SELECT id, correct_option, question_type, points, scoring_strategy, scoring_metadata FROM rhs_exam_questions WHERE exam_id = ?',
+      query: 'SELECT id, options, correct_option, question_type, points, scoring_strategy, scoring_metadata FROM rhs_exam_questions WHERE exam_id = ?',
       values: [examId],
     });
 
     // Check require_all_answered setting
     const settingsRows = await query({
-      query: 'SELECT require_all_answered FROM rhs_exam_settings WHERE exam_id = ?',
+      query: 'SELECT require_all_answered, show_result FROM rhs_exam_settings WHERE exam_id = ?',
       values: [examId],
     });
     const requireAllAnswered = settingsRows.length > 0 && Boolean(settingsRows[0].require_all_answered);
@@ -78,6 +78,7 @@ export async function POST(request) {
       acc[q.id] = { 
         correct: q.correct_option, 
         type: q.question_type,
+        options: q.options,
         points: q.points || 1,
         strategy: q.scoring_strategy || 'standard',
         metadata: typeof q.scoring_metadata === 'string' ? JSON.parse(q.scoring_metadata) : (q.scoring_metadata || {})
@@ -130,16 +131,19 @@ export async function POST(request) {
           const selectedOption = answers[qId];
           const qInfo = questionInfoMap[qId];
           let isCorrect = false;
+          const earned = itemScores[qId] || 0;
           if (qInfo) {
               if (qInfo.type === 'essay') {
-                  isCorrect = (itemScores[qId] || 0) > 0; // Better indicator
+                  isCorrect = earned > 0; // Better indicator
               } else if (qInfo.type === 'multiple_choice_complex') {
                   isCorrect = qInfo.correct === selectedOption;
+              } else if (qInfo.type === 'matching') {
+                  // Mark as correct if all items matched (full points)
+                  isCorrect = earned >= qInfo.points;
               } else {
                   isCorrect = qInfo.correct === selectedOption;
               }
           }
-          const earned = itemScores[qId] || 0;
           flattenedValues.push(session.user.id, examId, attemptId, qId, selectedOption, isCorrect, earned);
         });
 
@@ -177,7 +181,13 @@ export async function POST(request) {
     await invalidateExamCache(examId).catch(() => {});
     eventBus.emit('exam_change', { type: 'submit', userId: session.user.id, examId });
 
-    return NextResponse.json({ message: 'Exam submitted successfully', score: score });
+    const latestShowResult = (settingsRows.length > 0) ? settingsRows[0].show_result : false;
+
+    return NextResponse.json({ 
+        message: 'Exam submitted successfully', 
+        score: score,
+        show_result: latestShowResult 
+    });
 
   } catch (error) {
     console.error('Submit Error:', error);

@@ -74,7 +74,7 @@ export async function GET(request, { params }) {
 
     // Always fetch questions and answers to compute stats
     const questions = await query({
-        query: `SELECT id as question_id, question_text, options, correct_option, points FROM rhs_exam_questions WHERE exam_id = ?`,
+        query: `SELECT id as question_id, question_text, options, correct_option, points, question_type FROM rhs_exam_questions WHERE exam_id = ?`,
         values: [attempt.exam_id]
     });
 
@@ -120,7 +120,11 @@ export async function GET(request, { params }) {
                     if (typeof parsed === 'string') {
                         parsed = JSON.parse(parsed);
                     }
-                    if (Array.isArray(parsed)) {
+
+                    if (q.question_type === 'matching') {
+                        // Return the pairs object as is for specialized UI
+                        optionsParsed = parsed;
+                    } else if (Array.isArray(parsed)) {
                         optionsParsed = parsed;
                     } else if (typeof parsed === 'object' && parsed !== null) {
                         // Ensure we retain the 'A', 'B', 'C' key if it's an object mapping
@@ -147,6 +151,7 @@ export async function GET(request, { params }) {
                 question_text: q.question_text,
                 options: optionsParsed,
                 correct_option: q.correct_option,
+                question_type: q.question_type,
                 student_option: studentAnswerRecord ? studentAnswerRecord.selected_option : null,
                 is_correct: studentAnswerRecord ? !!studentAnswerRecord.is_correct : false,
                 points: q.points,

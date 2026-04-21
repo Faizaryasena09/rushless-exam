@@ -64,14 +64,53 @@ export async function GET(request) {
         };
       }
 
-      let optionsArray = Object.entries(parsedOptions).map(([key, text]) => ({
-        originalKey: key,
-        text,
-      }));
+      let resultOptions;
+      if (question.question_type === 'matching') {
+        // For matching, options is an object { pairs: [{ id, p, r }, ...] }
+        const pairs = [...(parsedOptions.pairs || [])]; // Shallow clone for safe shuffling
+        let responses = pairs.map(p => p.r);
+        
+        if (session.user.roleName === 'student') {
+          // Use very distinct deterministic seeds to avoid similar permutations
+          const premiseSeed = `PREMISE-${seed}-${question.id}`;
+          const responseSeed = `RESPONSE-${seed}-${question.id}`;
 
-      if (shuffle_answers && session.user.roleName === 'student') {
-        const answerSeed = seed + '-q' + question.id;
-        seededShuffle(optionsArray, answerSeed);
+          // 1. Shuffle Premises (Sisi Kiri) only if shuffle_answers setting is ON
+          // Using !! to handle truthy values like 1 or "1" from database
+          if (!!shuffle_answers) {
+            seededShuffle(pairs, premiseSeed);
+          }
+
+          // 2. Always shuffle Responses (Sisi Kanan) for students 
+          // to prevent the "same row" mapping even if premise shuffle is off
+          seededShuffle(responses, responseSeed);
+
+          resultOptions = {
+            pairs: pairs.map(p => ({ id: p.id, p: p.p })),
+            responses: responses
+          };
+        } else {
+          // Admin/Teacher see original order for easy key verification
+          resultOptions = {
+            pairs: pairs,
+            responses: responses
+          };
+        }
+
+        // If it's a student, we don't send the mapping in the question object normally, 
+        // but here the "options" field will contain the premises and the list of responses.
+        // The correct mapping is hidden in the database until submission.
+      } else {
+        let optionsArray = Object.entries(parsedOptions).map(([key, text]) => ({
+          originalKey: key,
+          text,
+        }));
+
+        if (shuffle_answers && session.user.roleName === 'student') {
+          const answerSeed = seed + '-q' + question.id;
+          seededShuffle(optionsArray, answerSeed);
+        }
+        resultOptions = optionsArray;
       }
 
       return {
@@ -79,7 +118,7 @@ export async function GET(request) {
         exam_id: question.exam_id,
         question_text: question.question_text,
         correct_option: question.correct_option,
-        options: optionsArray,
+        options: resultOptions,
         question_type: question.question_type,
         points: question.points,
         scoring_strategy: question.scoring_strategy,

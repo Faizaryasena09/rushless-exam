@@ -65,7 +65,7 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
     
     // Parse options
     const parsedInitialOptions = useMemo(() => {
-        if (!initialData?.options) return [
+        if (!initialData?.options || initialData?.question_type === 'matching') return [
             { id: 1, key: 'A', value: '' },
             { id: 2, key: 'B', value: '' }
         ];
@@ -73,7 +73,20 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
         return Object.entries(opts).map(([key, value], idx) => ({ id: idx + 1, key, value }));
     }, [initialData]);
 
+    const parsedInitialPairs = useMemo(() => {
+        if (initialData?.question_type !== 'matching' || !initialData?.options) return [
+            { id: 1, p: '', r: '' },
+            { id: 2, p: '', r: '' }
+        ];
+        const opts = typeof initialData.options === 'string' ? JSON.parse(initialData.options) : initialData.options;
+        return opts.pairs || [
+            { id: 1, p: '', r: '' },
+            { id: 2, p: '', r: '' }
+        ];
+    }, [initialData]);
+
     const [options, setOptions] = useState(parsedInitialOptions);
+    const [pairs, setPairs] = useState(parsedInitialPairs);
     const [correctOption, setCorrectOption] = useState(initialData?.correct_option || 'A');
     const [questionType, setQuestionType] = useState(initialData?.question_type || 'multiple_choice');
     const [points, setPoints] = useState(initialData?.points || 1);
@@ -94,9 +107,22 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const nextOptionId = useRef(options.length + 1);
+    const nextPairId = useRef(pairs.length + 1);
 
     const handleOptionChange = (id, value) => {
         setOptions(prev => prev.map(opt => opt.id === id ? { ...opt, value } : opt));
+    };
+
+    const handlePairChange = (id, field, value) => {
+        setPairs(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+    };
+
+    const addPair = () => {
+        setPairs(prev => [...prev, { id: nextPairId.current++, p: '', r: '' }]);
+    };
+
+    const removePair = (id) => {
+        setPairs(prev => prev.filter(p => p.id !== id));
     };
 
     const addOption = () => {
@@ -126,6 +152,14 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
             setCorrectOption('A');
         } else if (type === 'essay') {
             setOptions([]);
+        } else if (type === 'matching') {
+            setOptions([]);
+            if (pairs.length === 0) {
+                setPairs([
+                    { id: 1, p: '', r: '' },
+                    { id: 2, p: '', r: '' }
+                ]);
+            }
         } else if (type === 'multiple_choice_complex' && scoringStrategy === 'standard') {
             setScoringStrategy('pgk_partial');
         }
@@ -133,8 +167,13 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!questionText.trim() || (questionType !== 'essay' && options.some(o => !o.value.trim()))) {
-            setError('Mohon lengkapi pertanyaan dan semua opsi.');
+        
+        // Validation logic
+        const isMatchingEmpty = questionType === 'matching' && pairs.some(p => !p.p.trim() || !p.r.trim());
+        const isOptionsEmpty = questionType !== 'essay' && questionType !== 'matching' && options.some(o => !o.value.trim());
+
+        if (!questionText.trim() || isMatchingEmpty || isOptionsEmpty) {
+            setError('Mohon lengkapi pertanyaan dan semua opsi/pasangan.');
             return;
         }
 
@@ -150,10 +189,23 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
                 }))
             );
 
-            const optionsForApi = processedOptions.reduce((acc, opt) => {
-                acc[opt.key] = opt.value;
-                return acc;
-            }, {});
+            const processedPairs = await Promise.all(
+                pairs.map(async (pair) => ({
+                    ...pair,
+                    p: await uploadBase64Images(pair.p),
+                    r: await uploadBase64Images(pair.r),
+                }))
+            );
+
+            let optionsForApi = {};
+            if (questionType === 'matching') {
+                optionsForApi = { pairs: processedPairs };
+            } else {
+                optionsForApi = processedOptions.reduce((acc, opt) => {
+                    acc[opt.key] = opt.value;
+                    return acc;
+                }, {});
+            }
 
             const finalCorrectOption = questionType === 'multiple_choice_complex' 
                 ? correctOptions.sort().join(',') 
@@ -284,7 +336,7 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
             )}
 
             {/* Options Section */}
-            {questionType !== 'essay' && (
+            {questionType !== 'essay' && questionType !== 'matching' && (
                 <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border-2 border-slate-50 dark:border-slate-700 shadow-sm space-y-8">
                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -356,6 +408,54 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
                                 );
                             })}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Matching Section */}
+            {questionType === 'matching' && (
+                <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border-2 border-slate-50 dark:border-slate-700 shadow-sm space-y-8">
+                     <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Plus className="w-5 h-5 text-indigo-500" />
+                            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Daftar Pasangan (Matching)</h3>
+                        </div>
+                        <button type="button" onClick={addPair} className="text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all shadow-sm active:scale-90">
+                            Tambah Pasangan
+                        </button>
+                    </div>
+
+                    <div className="space-y-6">
+                        {pairs.map((pair, idx) => (
+                            <div key={pair.id} className="relative group/pair">
+                                <div className="absolute -left-4 top-4 w-10 h-10 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black z-10 shadow-lg">
+                                    {idx + 1}
+                                </div>
+                                <div className="pl-10">
+                                    <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[2.5rem] border-2 border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/50 transition-all">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Pasangan #{idx+1}</span>
+                                            {pairs.length > 1 && (
+                                                <button type="button" onClick={() => removePair(pair.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all">
+                                                    <Trash className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest ml-1">Sisi Kiri (Premis)</label>
+                                                <JoditEditorWithUpload value={pair.p} onBlur={newContent => handlePairChange(pair.id, 'p', newContent)} />
+                                            </div>
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest ml-1">Sisi Kanan (Respon)</label>
+                                                <JoditEditorWithUpload value={pair.r} onBlur={newContent => handlePairChange(pair.id, 'r', newContent)} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}

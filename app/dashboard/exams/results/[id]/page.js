@@ -16,6 +16,7 @@ const Icons = {
     MinusCircle: () => <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     AlertCircle: () => <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     Trash: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+    ArrowRight: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>,
 };
 
 export default function ExamResultsPage() {
@@ -768,6 +769,33 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
                                             <div className={`text-sm font-black ${ans.isCorrect ? 'text-emerald-700 dark:text-emerald-400' : (ans.studentAnswer ? (ans.scoringStrategy === 'essay_manual' ? 'text-slate-700' : 'text-red-700 dark:text-red-400') : 'text-slate-500 italic')}`}>
                                                 {ans.questionType === 'essay' ? (
                                                     <div className="prose dark:prose-invert prose-sm max-w-none custom-content-wrapper" dangerouslySetInnerHTML={{ __html: ans.studentAnswer || 'Skipped / Not Answered' }} />
+                                                ) : ans.questionType === 'matching' ? (
+                                                    <div className="space-y-3 mt-2">
+                                                        {(() => {
+                                                            let choices = {};
+                                                            try {
+                                                                choices = typeof ans.studentAnswer === 'string' ? JSON.parse(ans.studentAnswer) : (ans.studentAnswer || {});
+                                                            } catch (e) { console.error("Parse Error", e); }
+                                                            
+                                                            const pairs = ans.options?.pairs || [];
+                                                            if (pairs.length === 0) return <p className="text-xs italic text-slate-400">No pairs defined</p>;
+                                                            
+                                                            return pairs.map(pair => {
+                                                                const studentMatch = choices[pair.id];
+                                                                const isPairCorrect = studentMatch === pair.r;
+                                                                return (
+                                                                    <div key={pair.id} className="flex flex-col sm:flex-row items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                                                                        <div className="flex-1 w-full prose dark:prose-invert prose-sm custom-content-wrapper p-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: pair.p }} />
+                                                                        <div className="shrink-0 text-slate-300"><Icons.ArrowRight /></div>
+                                                                        <div className={`flex-1 w-full prose dark:prose-invert prose-sm custom-content-wrapper p-2 rounded-lg border ${isPairCorrect ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800 text-red-700 dark:text-red-400'}`} dangerouslySetInnerHTML={{ __html: studentMatch || '<i>No Match Selected</i>' }} />
+                                                                        <div className="shrink-0">
+                                                                            {isPairCorrect ? <Icons.CheckCircle /> : (studentMatch ? <Icons.XCircle /> : <Icons.MinusCircle />)}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            });
+                                                        })()}
+                                                    </div>
                                                 ) : (
                                                     ans.studentAnswer || 'Skipped / Not Answered'
                                                 )}
@@ -787,27 +815,40 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
                                         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
                                             <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Options Detail</div>
                                             <div className="space-y-2">
-                                                {Object.entries(ans.options).map(([key, value]) => {
-                                                    const studentChoices = ans.studentAnswer ? String(ans.studentAnswer).split(',') : [];
-                                                    const correctChoices = ans.correctAnswer ? String(ans.correctAnswer).split(',') : [];
-                                                    const isSelected = studentChoices.includes(key);
-                                                    const isCorrect = correctChoices.includes(key);
-                                                    
-                                                    let statusClass = "border-slate-100 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/30 text-slate-600 dark:text-slate-400";
-                                                    if (isCorrect) statusClass = "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 font-bold";
-                                                    else if (isSelected && !isCorrect) statusClass = "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 font-bold";
-
-                                                    return (
-                                                        <div key={key} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${statusClass}`}>
-                                                            <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-black shrink-0 ${isCorrect ? 'bg-emerald-500 text-white' : (isSelected ? 'bg-red-500 text-white' : 'bg-slate-200 dark:bg-slate-600')}`}>
-                                                                {key}
+                                                {ans.questionType === 'matching' ? (
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        {(ans.options.pairs || []).map((pair) => (
+                                                            <div key={pair.id} className="flex items-center gap-3 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 bg-emerald-50/30 dark:bg-emerald-900/10 text-emerald-800 dark:text-emerald-400">
+                                                                <div className="flex-1 prose dark:prose-invert prose-sm custom-content-wrapper" dangerouslySetInnerHTML={{ __html: pair.p }} />
+                                                                <div className="shrink-0 px-2 py-1 bg-white dark:bg-slate-900 rounded-lg shadow-sm font-black text-[10px] uppercase tracking-widest text-slate-400">Correct Match</div>
+                                                                <div className="flex-1 prose dark:prose-invert prose-sm custom-content-wrapper font-bold" dangerouslySetInnerHTML={{ __html: pair.r }} />
+                                                                <Icons.CheckCircle />
                                                             </div>
-                                                            <div className="prose dark:prose-invert prose-sm max-w-none flex-1 custom-content-wrapper" dangerouslySetInnerHTML={{ __html: value }} />
-                                                            {isCorrect && <Icons.CheckCircle />}
-                                                            {isSelected && !isCorrect && <Icons.XCircle />}
-                                                        </div>
-                                                    );
-                                                })}
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    Object.entries(ans.options).map(([key, value]) => {
+                                                        const studentChoices = ans.studentAnswer ? String(ans.studentAnswer).split(',') : [];
+                                                        const correctChoices = ans.correctAnswer ? String(ans.correctAnswer).split(',') : [];
+                                                        const isSelected = studentChoices.includes(key);
+                                                        const isCorrect = correctChoices.includes(key);
+                                                        
+                                                        let statusClass = "border-slate-100 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/30 text-slate-600 dark:text-slate-400";
+                                                        if (isCorrect) statusClass = "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 font-bold";
+                                                        else if (isSelected && !isCorrect) statusClass = "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 font-bold";
+
+                                                        return (
+                                                            <div key={key} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${statusClass}`}>
+                                                                <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-black shrink-0 ${isCorrect ? 'bg-emerald-500 text-white' : (isSelected ? 'bg-red-500 text-white' : 'bg-slate-200 dark:bg-slate-600')}`}>
+                                                                    {key}
+                                                                </div>
+                                                                <div className="prose dark:prose-invert prose-sm max-w-none flex-1 custom-content-wrapper" dangerouslySetInnerHTML={{ __html: value }} />
+                                                                {isCorrect && <Icons.CheckCircle />}
+                                                                {isSelected && !isCorrect && <Icons.XCircle />}
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
                                             </div>
                                         </div>
                                     )}

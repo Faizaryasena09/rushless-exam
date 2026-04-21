@@ -3,6 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
+import redis, { isRedisReady } from '@/app/lib/redis';
 import bcrypt from 'bcryptjs';
 import { logFromRequest, getClientIP } from '@/app/lib/logger';
 
