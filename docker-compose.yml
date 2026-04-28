@@ -5,13 +5,17 @@ services:
     build: .
     container_name: rushless-app
     restart: always
+    # Tambahkan privileged agar bisa membaca HWID (/sys/class/dmi/id/product_uuid)
+    privileged: true 
     ports:
       - "8085:3000"
     env_file:
       - .env
     volumes:
-      # Menggunakan path absolut agar data upload tetap aman 
-      # meskipun Jenkins melakukan cleanWs() di folder project.
+      # Mapping folder upload
       - /var/lib/rushless-data/uploads:/app/public/uploads
+      # Opsi tambahan: Jika privileged: true masih belum cukup di beberapa OS, 
+      # mount file HWID secara spesifik (read-only)
+      - /sys/class/dmi/id/product_uuid:/sys/class/dmi/id/product_uuid:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
