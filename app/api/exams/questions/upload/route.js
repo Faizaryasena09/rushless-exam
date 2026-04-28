@@ -24,55 +24,76 @@ async function replaceAsync(str, regex, asyncFn) {
 // Upload Question API
 export async function POST(request) {
     try {
+        console.log('\n========== [UPLOAD] START ==========');
+        console.log('[UPLOAD] 1. Checking session...');
         const session = await getIronSession(await cookies(), sessionOptions);
         if (!session.user || session.user.roleName === 'student') {
+            console.log('[UPLOAD] ❌ Unauthorized - user:', session.user?.username || 'none', 'role:', session.user?.roleName || 'none');
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
+        console.log('[UPLOAD] ✅ Authorized - user:', session.user.username, 'role:', session.user.roleName);
 
+        console.log('[UPLOAD] 2. Reading form data...');
         const formData = await request.formData();
         const file = formData.get('file');
         const examId = formData.get('examId');
 
         if (!file || !examId) {
+            console.log('[UPLOAD] ❌ Missing input - file:', !!file, 'examId:', examId);
             return NextResponse.json({ message: 'File and Exam ID are required' }, { status: 400 });
         }
+        console.log('[UPLOAD] ✅ File received:', file.name, 'size:', file.size, 'bytes | examId:', examId);
 
         const buffer = Buffer.from(await file.arrayBuffer());
+        console.log('[UPLOAD] ✅ Buffer created, length:', buffer.length);
 
         let htmlFn = '';
 
         try {
+            console.log('[UPLOAD] 3. Extracting ZIP...');
             const zip = new AdmZip(buffer);
             const zipEntries = zip.getEntries();
+            console.log('[UPLOAD] ✅ ZIP entries found:', zipEntries.length, '| Names:', zipEntries.map(e => e.entryName).join(', '));
 
             // Find the main HTML file
             const htmlEntry = zipEntries.find(entry => entry.entryName.match(/\.(htm|html)$/i));
 
             if (!htmlEntry) {
+                console.log('[UPLOAD] ❌ No HTML file found in ZIP');
                 return NextResponse.json({ message: 'No .htm or .html file found inside the zip. Please ensure the zip contains the exported HTML file.' }, { status: 400 });
             }
+            console.log('[UPLOAD] ✅ Found HTML file:', htmlEntry.entryName);
 
             // Read HTML content and decode it using iconv-lite
             // MS Word exports often use Windows-1252 encoding. We can attempt to decode using win1252.
+            console.log('[UPLOAD] 4. Decoding HTML content...');
             const rawBuffer = htmlEntry.getData();
             let htmlContent = iconv.decode(rawBuffer, 'win1252');
 
             // Fallback safety: If HTML specifies utf-8 but we decoded it as win1252, we can re-decode if we find charset=utf-8 in the string
             if (htmlContent.match(/charset=["']?utf-8/i)) {
                 htmlContent = rawBuffer.toString('utf8');
+                console.log('[UPLOAD] ✅ Re-decoded as UTF-8');
+            } else {
+                console.log('[UPLOAD] ✅ Decoded as Windows-1252');
             }
+            console.log('[UPLOAD] HTML content length:', htmlContent.length, 'chars');
 
             // Create upload directory if it doesn't exist
             // Using process.cwd() for robust path handling
             const uploadDir = path.join(process.cwd(), 'public', 'uploads', `exam-${examId}`);
             await fs.mkdir(uploadDir, { recursive: true });
+            console.log('[UPLOAD] 5. Upload dir ready:', uploadDir);
 
             // Replace image sources: write file asynchronously and generate URL
             // Support both standard <img> and Word-specific <v:imagedata> tags, with optional quotes for src
             const imgRegex = /<(?:img|v:imagedata)[^>]*src=["']?([^"'\s>]+)["']?[^>]*>/gi;
 
+            console.log('[UPLOAD] 6. Processing images in HTML...');
+            let imgCount = 0;
             htmlContent = await replaceAsync(htmlContent, imgRegex, async (match, src) => {
                 let searchSrc = decodeURIComponent(src);
+                console.log('[UPLOAD]    → Found image reference:', searchSrc);
 
                 // Find entry in ZIP - check for exact path or just the filename
                 let imgEntry = zipEntries.find(e => e.entryName === searchSrc) ||
@@ -89,6 +110,8 @@ export async function POST(request) {
 
                     // Write the buffer to the filesystem
                     await fs.writeFile(filePath, imgBuffer);
+                    imgCount++;
+                    console.log('[UPLOAD]    ✅ Saved image:', uniqueFilename, '| size:', imgBuffer.length, 'bytes');
 
                     // Reconstruct a dynamic media URL path
                     const nextPublicUrl = `/api/media/exam-${examId}/${uniqueFilename}`;
@@ -101,23 +124,37 @@ export async function POST(request) {
                     return match.replace(src, nextPublicUrl);
                 }
 
+                console.log('[UPLOAD]    ⚠️ Image not found in ZIP:', searchSrc);
                 return match;
             });
+            console.log('[UPLOAD] ✅ Total images processed:', imgCount);
 
             htmlFn = htmlContent;
 
         } catch (zipError) {
-            console.error('Zip processing error:', zipError);
+            console.error('[UPLOAD] ❌ Zip processing error:', zipError);
             return NextResponse.json({ message: 'Failed to process zip file. ' + zipError.message }, { status: 400 });
         }
 
+        console.log('[UPLOAD] 7. Parsing HTML into questions...');
+        const t0 = performance.now();
         const parsedQuestions = parseHtmlContent(htmlFn);
+        const t1 = performance.now();
+        console.log(`[UPLOAD] ✅ Parsed questions: ${parsedQuestions.length} (took ${(t1 - t0).toFixed(1)}ms)`);
 
         if (parsedQuestions.length === 0) {
+            console.log('[UPLOAD] ❌ No valid questions found after parsing');
             return NextResponse.json({ message: 'No valid questions found. Ensure format matches: "1. Question" and "A. Option".' }, { status: 400 });
         }
 
+        // Log detail setiap soal
+        parsedQuestions.forEach((q, i) => {
+            console.log(`[UPLOAD]    Soal ${i + 1}: type=${q.question_type} | options=${Object.keys(q.options).join(',')} | correct=${q.correct_option} | points=${q.points} | strategy=${q.scoring_strategy}`);
+            console.log(`[UPLOAD]      Text: ${q.question_text.substring(0, 80)}${q.question_text.length > 80 ? '...' : ''}`);
+        });
+
         // --- Database Insertion ---
+        console.log('[UPLOAD] 8. Inserting into database...');
         // 1. Prepare placeholders for bulk insert
         const placeholders = parsedQuestions.map(() => '(?,?,?,?,?,?,?,?)').join(',');
         const sql = `INSERT INTO rhs_exam_questions (exam_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata) VALUES ${placeholders}`;
@@ -137,26 +174,37 @@ export async function POST(request) {
         );
 
         await query({ query: sql, values: values });
+        console.log('[UPLOAD] ✅ Database insert complete |', parsedQuestions.length, 'rows');
 
         // Recalculate all scores for this exam after import
+        console.log('[UPLOAD] 9. Post-processing scores...');
         const examSettings = await query({
             query: 'SELECT auto_distribute FROM rhs_exams WHERE id = ?',
             values: [examId],
         });
 
         if (examSettings.length > 0 && examSettings[0].auto_distribute) {
+            console.log('[UPLOAD]    → Auto-distribute enabled, distributing points...');
             await distributeExamPoints(examId);
+            console.log('[UPLOAD]    ✅ Points distributed');
+        } else {
+            console.log('[UPLOAD]    → Auto-distribute disabled, skipping');
         }
 
+        console.log('[UPLOAD]    → Recalculating exam scores...');
         await recalculateExamScores(examId);
+        console.log('[UPLOAD]    ✅ Scores recalculated');
 
         // Invalidate Redis Cache IMMEDIATELY after update
+        console.log('[UPLOAD] 10. Invalidating cache...');
         await invalidateExamCache(examId);
+        console.log('[UPLOAD] ✅ Cache invalidated');
 
+        console.log('[UPLOAD] ========== DONE ✅ | Imported', parsedQuestions.length, 'questions ==========\n');
         return NextResponse.json({ message: `Successfully imported ${parsedQuestions.length} questions.` });
 
     } catch (error) {
-        console.error('Import error:', error);
+        console.error('[UPLOAD] ❌ FATAL ERROR:', error);
         return NextResponse.json({ message: 'Failed to import questions.', error: error.message }, { status: 500 });
     }
 }
@@ -209,28 +257,57 @@ function parseHtmlContent(html) {
     let currentQuestion = null;
     let currentOptionKey = null;
 
-    // Robust Regex: allows any HTML tags before, between, or after the Number/Letter and the dot/parenthesis
-    // We remove &nbsp; from this spacing matcher so it is not accidentally consumed if it's part of the text.
-    const htmlTagSpacing = '(?:\\s*<[^>]+>\\s*|\\s+)*';
+    // OPTIMIZED: Match patterns on CLEAN text (HTML stripped) to avoid catastrophic backtracking.
+    // The old htmlTagSpacing regex `(?:\s*<[^>]+>\s*|\s+)*` caused exponential backtracking
+    // because \s* and \s+ alternatives overlap — on non-matching lines the engine tries
+    // millions of combinations before giving up. Stripping HTML first makes this O(n).
+    const qRegexClean = /^\s*(\d+)\s*[.)]\s*(.*)/s;
+    const optRegexClean = /^\s*(\**)\s*([A-Za-z])\s*[.)]\s*(.*)/s;
 
-    // Question: ^(tags) (Number) (tags) [.)] (tags) (text)
-    const qRegexStr = '^' + htmlTagSpacing + '(\\d+)' + htmlTagSpacing + '[.)]' + htmlTagSpacing + '(.*)';
-    const qRegex = new RegExp(qRegexStr, 's');
+    // Helper: given a prefix pattern matched on clean text, extract the content after
+    // that prefix from the original HTML line (preserving images, tables, etc.)
+    const extractContentAfterPrefix = (originalLine, prefixPattern) => {
+        const stripped = originalLine.replace(/<[^>]+>/g, '');
+        const m = stripped.match(prefixPattern);
+        if (!m) return originalLine;
 
-    // Option: ^(tags) (*)? (tags) (Letter) (tags) [.)] (tags) (text)
-    const optRegexStr = '^' + htmlTagSpacing + '(\\**)' + htmlTagSpacing + '([A-Za-z])' + htmlTagSpacing + '[.)]' + htmlTagSpacing + '(.*)';
-    const optRegex = new RegExp(optRegexStr, 's');
+        // Calculate where the prefix ends in the clean string
+        const prefixEndClean = m.index + m[0].length;
+        // Map that position back to the original HTML string
+        let cleanPos = 0;
+        let origPos = 0;
+        while (cleanPos < prefixEndClean && origPos < originalLine.length) {
+            if (originalLine[origPos] === '<') {
+                // Skip entire HTML tag in original
+                const tagEnd = originalLine.indexOf('>', origPos);
+                origPos = tagEnd !== -1 ? tagEnd + 1 : origPos + 1;
+            } else {
+                cleanPos++;
+                origPos++;
+            }
+        }
+        // Also skip any HTML tags immediately following the prefix
+        while (origPos < originalLine.length && originalLine[origPos] === '<') {
+            const tagEnd = originalLine.indexOf('>', origPos);
+            origPos = tagEnd !== -1 ? tagEnd + 1 : origPos + 1;
+        }
+        return originalLine.substring(origPos);
+    };
 
     restoredLines.forEach(line => {
-        const questionMatch = line.match(qRegex);
+        // Strip HTML tags once per line for fast pattern matching
+        const cleanLine = line.replace(/<[^>]+>/g, '').trim();
+        const questionMatch = cleanLine.match(qRegexClean);
 
         if (questionMatch) {
             if (currentQuestion) {
                 // Save previous question
                 questions.push({ ...currentQuestion });
             }
+            // Extract question text from original line, preserving HTML (images, tables)
+            const contentFromOriginal = extractContentAfterPrefix(line, /^\s*\d+\s*[.)]\s*/);
             currentQuestion = {
-                question_text: questionMatch[2].trim(),
+                question_text: contentFromOriginal.trim() || questionMatch[2].trim(),
                 options: {},
                 correct_options: []
             };
@@ -238,14 +315,15 @@ function parseHtmlContent(html) {
             return;
         }
 
-        const optionMatch = line.match(optRegex);
-        const cleanLine = line.replace(/<[^>]+>/g, '').trim().toLowerCase();
-        const tfMatch = cleanLine.match(/^(\*?)\s*(benar|salah)\s*(\*?)$/i);
+        const optionMatch = cleanLine.match(optRegexClean);
+        const cleanLineLower = cleanLine.toLowerCase();
+        const tfMatch = cleanLineLower.match(/^(\*?)\s*(benar|salah)\s*(\*?)$/i);
 
         if (optionMatch && currentQuestion) {
             const isStarredPrefix = optionMatch[1].includes('*');
             const key = optionMatch[2].toUpperCase();
-            let optionText = optionMatch[3].trim();
+            // Extract option text from original line, preserving HTML
+            let optionText = extractContentAfterPrefix(line, /^\s*\**\s*[A-Za-z]\s*[.)]\s*/).trim() || optionMatch[3].trim();
             let isCorrect = isStarredPrefix;
 
             // To check suffix or prefix asterisks accurately, we strip HTML
