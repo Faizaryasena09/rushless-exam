@@ -17,30 +17,33 @@ export function calculateQuestionScore(qInfo, studentAnswer) {
         const correctSet = new Set(correctKeys);
         const studentSet = new Set(studentKeys);
         
+        const correctPicked = studentKeys.filter(k => correctSet.has(k)).length;
+        const incorrectPicked = studentKeys.filter(k => !correctSet.has(k)).length;
+        
         if (qInfo.strategy === 'pgk_strict') {
             // Strict: All correct must be selected AND no incorrect ones
             const isPerfect = correctKeys.length === studentKeys.length && 
-                             correctKeys.every(k => studentSet.has(k));
+                             correctKeys.every(k => studentSet.has(k)) &&
+                             incorrectPicked === 0;
             
             if (isPerfect) {
                 earnedForThisQuestion = qInfo.points;
             }
         } else if (qInfo.strategy === 'pgk_any') {
-            // Any Match: At least 1 correct must be selected.
-            const correctPicked = studentKeys.filter(k => correctSet.has(k)).length;
-            
-            if (correctPicked > 0) {
+            // Any Match: At least 1 correct must be selected AND no incorrect ones.
+            if (correctPicked > 0 && incorrectPicked === 0) {
                 earnedForThisQuestion = qInfo.points;
             }
         } else if (qInfo.strategy === 'pgk_additive') {
-            // Additive: Each correct choice awards the FULL points independently.
-            const correctPicked = studentKeys.filter(k => correctSet.has(k)).length;
-            earnedForThisQuestion = correctPicked * qInfo.points;
-        } else {
-            // Proportional Partial (pgk_partial): Ratio of correct selections vs total correct needed.
-            const correctPicked = studentKeys.filter(k => correctSet.has(k)).length;
+            // Additive: Proporsional murni tanpa penalti.
             if (correctKeys.length > 0) {
                 earnedForThisQuestion = (correctPicked / correctKeys.length) * qInfo.points;
+            }
+        } else {
+            // Proportional Partial (pgk_partial): Proporsional dengan penalti (jawaban salah mengurangi jawaban benar).
+            if (correctKeys.length > 0) {
+                const netCorrect = Math.max(0, correctPicked - incorrectPicked);
+                earnedForThisQuestion = (netCorrect / correctKeys.length) * qInfo.points;
             }
         }
     } else if (qInfo.type === 'essay') {

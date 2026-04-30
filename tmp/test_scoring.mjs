@@ -22,7 +22,7 @@ const testCases = [
             strategy: 'pgk_additive'
         },
         answer: 'A,B',
-        expected: 40
+        expected: 10
     },
     {
         name: "PGK Additive: 0 correct",
@@ -45,6 +45,50 @@ const testCases = [
         },
         answer: 'A',
         expected: 20
+    },
+    {
+        name: "PGK Any: 1 correct, 1 incorrect (Penalty)",
+        qInfo: {
+            type: 'multiple_choice_complex',
+            correct: 'A,B',
+            points: 20,
+            strategy: 'pgk_any'
+        },
+        answer: 'A,C',
+        expected: 0
+    },
+    {
+        name: "PGK Additive: 2 correct, 1 incorrect (Penalty)",
+        qInfo: {
+            type: 'multiple_choice_complex',
+            correct: 'A,B,C,D',
+            points: 20,
+            strategy: 'pgk_additive'
+        },
+        answer: 'A,B,E',
+        expected: 10 // 2 correct out of 4 -> (2/4) * 20 = 10 (no penalty for E)
+    },
+    {
+        name: "PGK Partial: Select All Exploit",
+        qInfo: {
+            type: 'multiple_choice_complex',
+            correct: 'A,B',
+            points: 20,
+            strategy: 'pgk_partial'
+        },
+        answer: 'A,B,C,D',
+        expected: 0 // 2 correct out of 2, minus 2 wrong = 0
+    },
+    {
+        name: "PGK Strict: Select All Exploit",
+        qInfo: {
+            type: 'multiple_choice_complex',
+            correct: 'A,B',
+            points: 20,
+            strategy: 'pgk_strict'
+        },
+        answer: 'A,B,C,D',
+        expected: 0 // Needs exactly A,B and no others
     }
 ];
 
