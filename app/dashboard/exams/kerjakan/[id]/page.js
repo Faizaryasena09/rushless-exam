@@ -99,10 +99,10 @@ const Icons = {
 // --- Timer Component ---
 const Timer = memo(({ timeLeft, isHidden, onToggle }) => {
   const isCritical = timeLeft !== null && timeLeft <= 300;
-  
+
   if (isHidden) {
     return (
-      <button 
+      <button
         onClick={onToggle}
         className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-90 ${isCritical ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}`}
         title="Klik untuk melihat sisa waktu"
@@ -113,7 +113,7 @@ const Timer = memo(({ timeLeft, isHidden, onToggle }) => {
   }
 
   return (
-    <div 
+    <div
       onClick={onToggle}
       className={`flex items-center gap-2 font-mono px-3 py-1.5 rounded-lg cursor-pointer select-none transition-all active:scale-95 hover:brightness-95 ${isCritical ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}
       title="Klik untuk menyembunyikan timer"
@@ -130,13 +130,12 @@ const SaveStatusIndicator = memo(({ status }) => {
   if (status === 'idle') return null;
 
   return (
-    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-300 animate-in fade-in slide-in-from-top-2 ${
-      status === 'saving' 
-        ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' 
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-300 animate-in fade-in slide-in-from-top-2 ${status === 'saving'
+        ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
         : status === 'saved'
-        ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
-        : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-    }`}>
+          ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+          : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+      }`}>
       {status === 'saving' && (
         <>
           <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24">
@@ -166,7 +165,7 @@ SaveStatusIndicator.displayName = 'SaveStatusIndicator';
 // --- Question Navigation Component ---
 const QuestionNavigation = memo(({ questions, answers, doubtful, currentIndex, onSelect }) => {
   const answeredCount = Object.keys(answers).length;
-  const doubtfulCount = Object.keys(doubtful).length;
+  const doubtfulCount = Object.values(doubtful).filter(v => v).length;
   const remainingCount = questions.length - answeredCount;
   const progress = (answeredCount / questions.length) * 100;
 
@@ -180,28 +179,28 @@ const QuestionNavigation = memo(({ questions, answers, doubtful, currentIndex, o
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{Math.round(progress)}% Selesai</p>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-             <Icons.Grid />
+            <Icons.Grid />
           </div>
         </div>
         <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-           <div className="h-full bg-indigo-600 transition-all duration-700 ease-out" style={{ width: `${progress}%` }}></div>
+          <div className="h-full bg-indigo-600 transition-all duration-700 ease-out" style={{ width: `${progress}%` }}></div>
         </div>
       </div>
 
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-slate-700 border-b border-slate-100 dark:border-slate-700">
-         <div className="p-4 text-center">
-            <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 leading-none">{answeredCount}</div>
-            <div className="text-[8px] font-bold text-slate-400 uppercase mt-1">Dijawab</div>
-         </div>
-         <div className="p-4 text-center">
-            <div className="text-lg font-black text-amber-500 leading-none">{doubtfulCount}</div>
-            <div className="text-[8px] font-bold text-slate-400 uppercase mt-1">Ragu</div>
-         </div>
-         <div className="p-4 text-center">
-            <div className="text-lg font-black text-slate-400 leading-none">{remainingCount}</div>
-            <div className="text-[8px] font-bold text-slate-400 uppercase mt-1">Belum</div>
-         </div>
+        <div className="p-4 text-center">
+          <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 leading-none">{answeredCount}</div>
+          <div className="text-[8px] font-bold text-slate-400 uppercase mt-1">Dijawab</div>
+        </div>
+        <div className="p-4 text-center">
+          <div className="text-lg font-black text-amber-500 leading-none">{doubtfulCount}</div>
+          <div className="text-[8px] font-bold text-slate-400 uppercase mt-1">Ragu</div>
+        </div>
+        <div className="p-4 text-center">
+          <div className="text-lg font-black text-slate-400 leading-none">{remainingCount}</div>
+          <div className="text-[8px] font-bold text-slate-400 uppercase mt-1">Belum</div>
+        </div>
       </div>
 
       {/* Question Grid */}
@@ -211,9 +210,9 @@ const QuestionNavigation = memo(({ questions, answers, doubtful, currentIndex, o
             const isAnswered = answers[q.id] !== undefined;
             const isDoubtful = doubtful[q.id];
             const isActive = index === currentIndex;
-            
+
             let btnStyle = "relative h-11 w-full rounded-xl text-xs font-black transition-all active:scale-90 flex items-center justify-center border-2 ";
-            
+
             if (isActive) {
               btnStyle += "bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-none ring-4 ring-indigo-500/10";
             } else if (isDoubtful) {
@@ -225,9 +224,9 @@ const QuestionNavigation = memo(({ questions, answers, doubtful, currentIndex, o
             }
 
             return (
-              <button 
-                key={q.id} 
-                onClick={() => onSelect(index)} 
+              <button
+                key={q.id}
+                onClick={() => onSelect(index)}
                 className={btnStyle}
               >
                 {index + 1}
@@ -241,20 +240,20 @@ const QuestionNavigation = memo(({ questions, answers, doubtful, currentIndex, o
 
       {/* Legend / Key */}
       <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
-         <div className="flex flex-wrap gap-y-2 gap-x-4 items-center justify-center">
-            <div className="flex items-center gap-1.5">
-               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
-               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Sudah</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-               <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
-               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Ragu</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-               <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>
-               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Belum</span>
-            </div>
-         </div>
+        <div className="flex flex-wrap gap-y-2 gap-x-4 items-center justify-center">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Sudah</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Ragu</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Belum</span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -321,11 +320,10 @@ const FinishConfirmationModal = ({ isOpen, onClose, onConfirm, questions, answer
             <button
               onClick={onConfirm}
               disabled={blockSubmit}
-              className={`flex-1 px-4 py-2.5 rounded-xl font-semibold transition-colors shadow-lg ${
-                blockSubmit
+              className={`flex-1 px-4 py-2.5 rounded-xl font-semibold transition-colors shadow-lg ${blockSubmit
                   ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none'
                   : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-100 dark:shadow-emerald-900/30'
-              }`}
+                }`}
             >
               Ya, Selesaikan
             </button>
@@ -360,7 +358,7 @@ export default function ExamTakingPage() {
 
   // --- Derived State (Must be before hooks that use these) ---
   const currentQuestion = questions[currentQuestionIndex];
-  
+
   // Font Size Classes Mapping
   const fontSizeClasses = {
     sm: { question: 'text-base', options: 'text-sm' },
@@ -445,7 +443,7 @@ export default function ExamTakingPage() {
       });
       const resultData = await response.json();
       if (!response.ok) throw new Error(resultData.message || 'Failed to submit exam.');
-      
+
       // Clear instruction confirmation for this exam on successful submit
       if (typeof window !== 'undefined') {
         localStorage.removeItem(`exam_instructions_ack_${examId}`);
@@ -453,15 +451,15 @@ export default function ExamTakingPage() {
 
       // Improved check: handles true, 1, or "1" from database response OR falling back to local state
       const backendShowResult = resultData.show_result;
-      const shouldShowResult = backendShowResult === true || 
-                               backendShowResult === 1 || 
-                               String(backendShowResult) === '1' ||
-                               (backendShowResult === undefined && (
-                                 examDetails?.show_result === true || 
-                                 examDetails?.show_result === 1 || 
-                                 String(examDetails?.show_result) === '1'
-                               ));
-      
+      const shouldShowResult = backendShowResult === true ||
+        backendShowResult === 1 ||
+        String(backendShowResult) === '1' ||
+        (backendShowResult === undefined && (
+          examDetails?.show_result === true ||
+          examDetails?.show_result === 1 ||
+          String(examDetails?.show_result) === '1'
+        ));
+
       // If we need to show results, we navigate FIRST and do NOT send quit signals yet.
       // The quit signal will be handled by the exit button on the results page.
       if (shouldShowResult && attemptDetails?.id) {
@@ -472,12 +470,12 @@ export default function ExamTakingPage() {
       // -------------------------------------------------------------------------
       // ONLY IF NOT SHOWING RESULTS: Trigger Quit Signals
       // -------------------------------------------------------------------------
-      
+
       // Notify Safe Browser or Android app if running inside it
       if (window.chrome && window.chrome.webview) {
         window.chrome.webview.postMessage('submit_success');
       }
-      
+
       if (window.RushlessSafer && typeof window.RushlessSafer.finishExam === 'function') {
         window.RushlessSafer.finishExam();
         return;
@@ -509,7 +507,7 @@ export default function ExamTakingPage() {
 
     const payload = { examId };
     if (settingsData?.require_token) {
-       payload.token = tokenInput;
+      payload.token = tokenInput;
     }
 
     try {
@@ -594,25 +592,25 @@ export default function ExamTakingPage() {
     let newAnswer;
 
     if (qType === 'multiple_choice_complex') {
-        const currentAnswer = answers[questionId] || '';
-        const selectedOptions = currentAnswer ? currentAnswer.split(',') : [];
-        if (selectedOptions.includes(option)) {
-            newAnswer = selectedOptions.filter(o => o !== option).sort().join(',');
-        } else {
-            newAnswer = [...selectedOptions, option].sort().join(',');
-        }
+      const currentAnswer = answers[questionId] || '';
+      const selectedOptions = currentAnswer ? currentAnswer.split(',') : [];
+      if (selectedOptions.includes(option)) {
+        newAnswer = selectedOptions.filter(o => o !== option).sort().join(',');
+      } else {
+        newAnswer = [...selectedOptions, option].sort().join(',');
+      }
     } else {
-        newAnswer = option;
+      newAnswer = option;
     }
 
     logAction('ANSWER', `Memperbarui jawaban untuk soal nomor ${qIndex + 1}`);
     setAnswers((prev) => {
-        if (!newAnswer) {
-            const next = { ...prev };
-            delete next[questionId];
-            return next;
-        }
-        return { ...prev, [questionId]: newAnswer };
+      if (!newAnswer) {
+        const next = { ...prev };
+        delete next[questionId];
+        return next;
+      }
+      return { ...prev, [questionId]: newAnswer };
     });
 
     try {
@@ -635,28 +633,28 @@ export default function ExamTakingPage() {
   }, [examId, questions, answers, logAction]);
 
   const handleEssayChange = async (questionId, text) => {
-      setAnswers((prev) => ({ ...prev, [questionId]: text }));
-      // We'll save this via a separate mechanism or on blur
+    setAnswers((prev) => ({ ...prev, [questionId]: text }));
+    // We'll save this via a separate mechanism or on blur
   };
 
   const saveEssayAnswer = async (questionId, text) => {
-      try {
-          setSaveStatus('saving');
-          const response = await fetch('/api/exams/temporary-answer', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ examId, questionId, selectedOption: text }),
-          });
-          if (response.ok) {
-              setSaveStatus('saved');
-              setTimeout(() => setSaveStatus('idle'), 3000);
-          } else {
-              setSaveStatus('error');
-          }
-      } catch (error) {
-          console.error('Failed to save essay answer:', error);
-          setSaveStatus('error');
+    try {
+      setSaveStatus('saving');
+      const response = await fetch('/api/exams/temporary-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ examId, questionId, selectedOption: text }),
+      });
+      if (response.ok) {
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } else {
+        setSaveStatus('error');
       }
+    } catch (error) {
+      console.error('Failed to save essay answer:', error);
+      setSaveStatus('error');
+    }
   };
 
   const handleClearAnswer = async (questionId) => {
@@ -670,7 +668,7 @@ export default function ExamTakingPage() {
 
     // Reset matching state if applicable (Frontend only)
     if (currentQuestion?.id === questionId && currentQuestion?.question_type === 'matching') {
-        // Force re-render of matching select
+      // Force re-render of matching select
     }
     try {
       setSaveStatus('saving');
@@ -725,35 +723,35 @@ export default function ExamTakingPage() {
     const isRushless = userAgent.includes('rushless') || (window.chrome && window.chrome.webview) || (typeof window !== 'undefined' && !!window.RushlessSafer);
     const isSEB = userAgent.includes('seb');
     const isGeschool = userAgent.includes('geschool-secure') || userAgent.includes('gsms');
-    
+
     // UNIFIED CHECK: If the exam requires ANY secure browser, and we are in ANY secure browser, we PASS.
     const isAnySecureRequired = examDetails?.require_safe_browser || examDetails?.require_seb || examDetails?.require_geschool;
     const isAnySecureDetected = isRushless || isSEB || isGeschool;
 
     if (isAnySecureRequired && isAnySecureDetected) {
-        // Student is using a supported secure browser, access granted!
-        return;
+      // Student is using a supported secure browser, access granted!
+      return;
     }
 
     // 2. If NO secure browser is detected but one is required, show the appropriate locker.
-    
+
     // Rushless Safer Locker
     if (examDetails?.require_safe_browser && !isRushless) {
-        let handoffToken = '';
-        try {
-          const tokenRes = await fetch('/api/auth/generate-token', { method: 'POST' });
-          if (tokenRes.ok) {
-            const tokenData = await tokenRes.json();
-            handoffToken = tokenData.token;
-          }
-        } catch (e) {
-          console.error("Failed to generate handoff token for enforcement screen:", e);
+      let handoffToken = '';
+      try {
+        const tokenRes = await fetch('/api/auth/generate-token', { method: 'POST' });
+        if (tokenRes.ok) {
+          const tokenData = await tokenRes.json();
+          handoffToken = tokenData.token;
         }
+      } catch (e) {
+        console.error("Failed to generate handoff token for enforcement screen:", e);
+      }
 
-        const baseUrl = window.location.href;
-        const launchUrl = `rushless-safer://lock?url=${encodeURIComponent(baseUrl)}${handoffToken ? `&handoff_token=${handoffToken}` : ''}`;
-        
-        document.body.innerHTML = `
+      const baseUrl = window.location.href;
+      const launchUrl = `rushless-safer://lock?url=${encodeURIComponent(baseUrl)}${handoffToken ? `&handoff_token=${handoffToken}` : ''}`;
+
+      document.body.innerHTML = `
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f1f5f9;font-family:sans-serif;text-align:center;padding:24px;">
                     <div style="font-size:5rem;margin-bottom:24px;">🛡️</div>
                     <h1 style="color:#0f172a;font-size:2.5rem;font-weight:900;margin-bottom:12px;letter-spacing:-0.05em;">Rushless Safer Required</h1>
@@ -778,12 +776,12 @@ export default function ExamTakingPage() {
                     }
                 </script>
             `;
-        return;
+      return;
     }
 
     // Safe Exam Browser (SEB) Locker
     if (examDetails?.require_seb && !isSEB) {
-        document.body.innerHTML = `
+      document.body.innerHTML = `
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#f8fafc;font-family:sans-serif;text-align:center;padding:24px;">
                     <div style="font-size:5rem;margin-bottom:24px; animation: pulse 2s infinite;">🔒</div>
                     <h1 style="color:#1e293b;font-size:2.5rem;font-weight:900;margin-bottom:12px;letter-spacing:-0.05em;">SEB Login Required</h1>
@@ -813,110 +811,110 @@ export default function ExamTakingPage() {
                     </style>
                 </div>
             `;
-        
-        let isLaunching = false;
-        const launchBtn = document.getElementById('launchBtn');
-        const countdownContainer = document.getElementById('countdownContainer');
-        const countdownSec = document.getElementById('countdownSec');
-        const progressBar = document.getElementById('progressBar');
-        
-        const launchSeb = async (e) => {
-            if (e) e.preventDefault();
-            if (isLaunching) return;
-            isLaunching = true;
-            
-            const oldText = launchBtn.innerText;
-            launchBtn.innerText = 'Mempersiapkan Ujian...';
-            
-            try {
-                const resCount = await fetch('/api/auth/generate-token', { method: 'POST' });
-                if (resCount.ok) {
-                    const dataRes = await resCount.json();
-                    const protocol = window.location.protocol === 'https:' ? 'sebs://' : 'seb://';
-                    const host = window.location.host;
-                    const clientProtocol = window.location.protocol.replace(':', '');
-                    const clientHost = window.location.host;
-                    const launchUrl = `${protocol}${host}/api/exams/${examId}/seb-config?token=${dataRes.token}&clientProtocol=${clientProtocol}&clientHost=${clientHost}`;
-                    window.location.href = launchUrl;
-                } else {
-                    alert('Gagal membuat token autentikasi SEB. Coba muat ulang halaman.');
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Gagal menghubungi server.');
-            } finally {
-                launchBtn.innerText = oldText;
-                isLaunching = false;
-            }
-        };
 
-        launchBtn.addEventListener('click', (e) => {
-            clearInterval(countdownTimer);
-            countdownContainer.style.opacity = '0';
-            launchSeb(e);
-        });
-        
-        // Auto auto-redirect when SEB finishes the exam
-        let attemptWasRunning = false;
-        const pollInterval = setInterval(async () => {
-            try {
-                const res = await fetch('/api/exams/attempt-details?exam_id=' + examId);
-                if (res.ok) {
-                    attemptWasRunning = true; // Exam is being taken inside SEB
-                } else if (res.status === 404 && attemptWasRunning) {
-                    // If it was running and now it's 404, it means the attempt is completed/deleted.
-                    clearInterval(pollInterval);
-                    const shouldShowResult = examDetails?.show_result === true || 
-                                             examDetails?.show_result === 1 || 
-                                             String(examDetails?.show_result) === '1';
+      let isLaunching = false;
+      const launchBtn = document.getElementById('launchBtn');
+      const countdownContainer = document.getElementById('countdownContainer');
+      const countdownSec = document.getElementById('countdownSec');
+      const progressBar = document.getElementById('progressBar');
 
-                    if (shouldShowResult && attemptDetails?.id) {
-                        window.location.href = `/dashboard/exams/hasil/${attemptDetails.id}`;
-                    } else {
-                        window.location.href = '/dashboard/exams';
-                    }
-                }
-            } catch (e) {}
-        }, 3000);
+      const launchSeb = async (e) => {
+        if (e) e.preventDefault();
+        if (isLaunching) return;
+        isLaunching = true;
 
-        // Auto launch logic with countdown
-        let secondsLeftCountdown = 3;
-        countdownContainer.style.opacity = '1';
-        
-        const countdownTimer = setInterval(() => {
-            secondsLeftCountdown--;
-            if (secondsLeftCountdown >= 0) {
-                countdownSec.innerText = secondsLeftCountdown;
-                progressBar.style.width = (secondsLeftCountdown / 3 * 100) + '%';
+        const oldText = launchBtn.innerText;
+        launchBtn.innerText = 'Mempersiapkan Ujian...';
+
+        try {
+          const resCount = await fetch('/api/auth/generate-token', { method: 'POST' });
+          if (resCount.ok) {
+            const dataRes = await resCount.json();
+            const protocol = window.location.protocol === 'https:' ? 'sebs://' : 'seb://';
+            const host = window.location.host;
+            const clientProtocol = window.location.protocol.replace(':', '');
+            const clientHost = window.location.host;
+            const launchUrl = `${protocol}${host}/api/exams/${examId}/seb-config?token=${dataRes.token}&clientProtocol=${clientProtocol}&clientHost=${clientHost}`;
+            window.location.href = launchUrl;
+          } else {
+            alert('Gagal membuat token autentikasi SEB. Coba muat ulang halaman.');
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Gagal menghubungi server.');
+        } finally {
+          launchBtn.innerText = oldText;
+          isLaunching = false;
+        }
+      };
+
+      launchBtn.addEventListener('click', (e) => {
+        clearInterval(countdownTimer);
+        countdownContainer.style.opacity = '0';
+        launchSeb(e);
+      });
+
+      // Auto auto-redirect when SEB finishes the exam
+      let attemptWasRunning = false;
+      const pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/exams/attempt-details?exam_id=' + examId);
+          if (res.ok) {
+            attemptWasRunning = true; // Exam is being taken inside SEB
+          } else if (res.status === 404 && attemptWasRunning) {
+            // If it was running and now it's 404, it means the attempt is completed/deleted.
+            clearInterval(pollInterval);
+            const shouldShowResult = examDetails?.show_result === true ||
+              examDetails?.show_result === 1 ||
+              String(examDetails?.show_result) === '1';
+
+            if (shouldShowResult && attemptDetails?.id) {
+              window.location.href = `/dashboard/exams/hasil/${attemptDetails.id}`;
+            } else {
+              window.location.href = '/dashboard/exams';
             }
-            
-            if (secondsLeftCountdown <= 0) {
-                clearInterval(countdownTimer);
-                launchSeb();
-            }
-        }, 1000);
-        
-        return;
+          }
+        } catch (e) { }
+      }, 3000);
+
+      // Auto launch logic with countdown
+      let secondsLeftCountdown = 3;
+      countdownContainer.style.opacity = '1';
+
+      const countdownTimer = setInterval(() => {
+        secondsLeftCountdown--;
+        if (secondsLeftCountdown >= 0) {
+          countdownSec.innerText = secondsLeftCountdown;
+          progressBar.style.width = (secondsLeftCountdown / 3 * 100) + '%';
+        }
+
+        if (secondsLeftCountdown <= 0) {
+          clearInterval(countdownTimer);
+          launchSeb();
+        }
+      }, 1000);
+
+      return;
     }
 
     // Geschool Secure Mode (GSMS) Locker
     if (examDetails?.require_geschool && !isGeschool) {
-        let handoffToken = '';
-        try {
-          const tokenRes = await fetch('/api/auth/generate-token', { method: 'POST' });
-          if (tokenRes.ok) {
-            const tokenData = await tokenRes.json();
-            handoffToken = tokenData.token;
-          }
-        } catch (e) {
-          console.error("Failed to generate handoff token for Geschool enforcement screen:", e);
+      let handoffToken = '';
+      try {
+        const tokenRes = await fetch('/api/auth/generate-token', { method: 'POST' });
+        if (tokenRes.ok) {
+          const tokenData = await tokenRes.json();
+          handoffToken = tokenData.token;
         }
+      } catch (e) {
+        console.error("Failed to generate handoff token for Geschool enforcement screen:", e);
+      }
 
-        const baseUrl = window.location.origin + window.location.pathname;
-        const finalRedirectUrl = window.location.origin + `/api/auth/handoff?token=${handoffToken}&redirect=${encodeURIComponent(window.location.href)}`;
-        const launchUrl = `geschool://open?url=${encodeURIComponent(finalRedirectUrl)}`;
+      const baseUrl = window.location.origin + window.location.pathname;
+      const finalRedirectUrl = window.location.origin + `/api/auth/handoff?token=${handoffToken}&redirect=${encodeURIComponent(window.location.href)}`;
+      const launchUrl = `geschool://open?url=${encodeURIComponent(finalRedirectUrl)}`;
 
-        document.body.innerHTML = `
+      document.body.innerHTML = `
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#eff6ff;font-family:sans-serif;text-align:center;padding:24px;">
                     <div style="font-size:5rem;margin-bottom:24px;">🛡️</div>
                     <h1 style="color:#1d4ed8;font-size:2.5rem;font-weight:900;margin-bottom:12px;letter-spacing:-0.05em;">Geschool Secure Mode</h1>
@@ -930,7 +928,7 @@ export default function ExamTakingPage() {
                     <p style="color:#60a5fa;font-size:0.875rem;margin-top:32px;font-weight:500;">Sandi Emergency Exit: <strong>${examDetails.geschool_exit_password || 'rushless'}</strong></p>
                 </div>
             `;
-        return;
+      return;
     }
   }, [examDetails, examId]);
 
@@ -953,7 +951,7 @@ export default function ExamTakingPage() {
     let sse;
     try {
       sse = new EventSource(`/api/exams/timer-stream?exam_id=${examId}`);
-      
+
       sse.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -966,36 +964,36 @@ export default function ExamTakingPage() {
             return;
           }
 
-            // Handle force_logout signal from Admin
-            if (data.force_logout) {
-              sse.close();
-              if (typeof window !== 'undefined') {
-                localStorage.removeItem(`exam_instructions_ack_${examId}`);
-              }
-              window.location.href = '/';
-              return;
+          // Handle force_logout signal from Admin
+          if (data.force_logout) {
+            sse.close();
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem(`exam_instructions_ack_${examId}`);
             }
+            window.location.href = '/';
+            return;
+          }
 
-            // Handle force_submit signal from Admin
-            if (data.force_submit) {
-              submitExam(true); // Call existing submit logic with isAutoSubmit=true
-              return;
-            }
+          // Handle force_submit signal from Admin
+          if (data.force_submit) {
+            submitExam(true); // Call existing submit logic with isAutoSubmit=true
+            return;
+          }
 
-            // Handle refresh signal from Admin
-            if (data.refresh) {
-              // If we are currently locked, a refresh might clear it if the teacher unlocked it in DB
-              window.location.reload();
-              return;
-            }
+          // Handle refresh signal from Admin
+          if (data.refresh) {
+            // If we are currently locked, a refresh might clear it if the teacher unlocked it in DB
+            window.location.reload();
+            return;
+          }
 
-            // Handle real-time violation lock
-            if (data.violation_lock) {
-              setIsViolationLocked(true);
-              return;
-            }
+          // Handle real-time violation lock
+          if (data.violation_lock) {
+            setIsViolationLocked(true);
+            return;
+          }
 
-            // Server auto-submitted the exam (student was offline when timer expired)
+          // Server auto-submitted the exam (student was offline when timer expired)
           if (data.auto_submitted) {
             finishExamHandled.current = true;
             sse.close();
@@ -1003,10 +1001,10 @@ export default function ExamTakingPage() {
               localStorage.removeItem(`exam_instructions_ack_${examId}`);
             }
             setTimeLeft(0);
-            
-            const shouldShowResult = examDetails?.show_result === true || 
-                                     examDetails?.show_result === 1 || 
-                                     String(examDetails?.show_result) === '1';
+
+            const shouldShowResult = examDetails?.show_result === true ||
+              examDetails?.show_result === 1 ||
+              String(examDetails?.show_result) === '1';
 
             if (shouldShowResult && attemptDetails?.id) {
               toast.info('Waktu habis! Jawaban Anda telah dikumpulkan. Mengalihkan ke halaman hasil...', { duration: 5000 });
@@ -1027,32 +1025,32 @@ export default function ExamTakingPage() {
           });
 
           if (data.status && data.status !== 'in_progress') {
-             sse.close();
-             // Admin force-ended this attempt — clear the instruction confirmation for this exam
-             if (typeof window !== 'undefined') {
-               localStorage.removeItem(`exam_instructions_ack_${examId}`);
-             }
-             
-             // Unlock Android App if running in Rushless Safer
-             if (window.RushlessSafer && typeof window.RushlessSafer.remoteUnlock === 'function') {
-               window.RushlessSafer.remoteUnlock();
-             }
+            sse.close();
+            // Admin force-ended this attempt — clear the instruction confirmation for this exam
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem(`exam_instructions_ack_${examId}`);
+            }
 
-             // If the student already submitted manually, let the submit function handle navigation.
-             // If we get here because of force-submit or other status change, we handle it here.
-             if (finishExamHandled.current) return;
+            // Unlock Android App if running in Rushless Safer
+            if (window.RushlessSafer && typeof window.RushlessSafer.remoteUnlock === 'function') {
+              window.RushlessSafer.remoteUnlock();
+            }
 
-             const shouldShowResult = examDetails?.show_result === true || 
-                                      examDetails?.show_result === 1 || 
-                                      String(examDetails?.show_result) === '1';
+            // If the student already submitted manually, let the submit function handle navigation.
+            // If we get here because of force-submit or other status change, we handle it here.
+            if (finishExamHandled.current) return;
 
-             if (shouldShowResult && attemptDetails?.id) {
-                 router.push(`/dashboard/exams/hasil/${attemptDetails.id}`);
-             } else {
-                 if (data.status === 'completed') {
-                    router.push('/dashboard/exams');
-                 }
-             }
+            const shouldShowResult = examDetails?.show_result === true ||
+              examDetails?.show_result === 1 ||
+              String(examDetails?.show_result) === '1';
+
+            if (shouldShowResult && attemptDetails?.id) {
+              router.push(`/dashboard/exams/hasil/${attemptDetails.id}`);
+            } else {
+              if (data.status === 'completed') {
+                router.push('/dashboard/exams');
+              }
+            }
           }
         } catch (err) {
           console.error("Failed to parse SSE data", err);
@@ -1123,15 +1121,15 @@ export default function ExamTakingPage() {
 
     // Fetch site branding
     fetch('/api/web-settings?mode=branding')
-         .then(res => res.json())
-         .then(data => {
-             setBranding(data);
-             if (data.site_name) {
-                 const plainTextName = data.site_name.replace(/<[^>]*>?/gm, '').trim();
-                 document.title = `${plainTextName || 'Rushless Exam'} - Ujian`;
-             }
-         })
-         .catch(err => console.error(err));
+      .then(res => res.json())
+      .then(data => {
+        setBranding(data);
+        if (data.site_name) {
+          const plainTextName = data.site_name.replace(/<[^>]*>?/gm, '').trim();
+          document.title = `${plainTextName || 'Rushless Exam'} - Ujian`;
+        }
+      })
+      .catch(err => console.error(err));
 
     // Load confirmation state from localStorage
     if (typeof window !== 'undefined' && examId) {
@@ -1227,13 +1225,13 @@ export default function ExamTakingPage() {
         const optionKeys = ['a', 'b', 'c', 'd', 'e'];
         const numberKeys = ['1', '2', '3', '4', '5'];
         const key = e.key.toLowerCase();
-        
+
         let index = -1;
         if (optionKeys.includes(key)) index = optionKeys.indexOf(key);
         else if (numberKeys.includes(key)) index = numberKeys.indexOf(key);
 
         if (index !== -1 && currentQuestion.options && currentQuestion.options[index]) {
-            handleAnswerSelect(currentQuestion.id, currentQuestion.options[index].originalKey);
+          handleAnswerSelect(currentQuestion.id, currentQuestion.options[index].originalKey);
         }
       }
     };
@@ -1335,11 +1333,10 @@ export default function ExamTakingPage() {
           </div>
 
           {/* Confirmation Checkbox */}
-          <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all mb-6 ${
-            instructionsConfirmed
+          <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all mb-6 ${instructionsConfirmed
               ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
               : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
-          }`}>
+            }`}>
             <div className="relative flex-shrink-0 mt-0.5">
               <input
                 type="checkbox"
@@ -1347,11 +1344,10 @@ export default function ExamTakingPage() {
                 onChange={handleConfirmationChange}
                 className="sr-only"
               />
-              <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
-                instructionsConfirmed
+              <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${instructionsConfirmed
                   ? 'bg-indigo-600 border-indigo-600'
                   : 'border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700'
-              }`}>
+                }`}>
                 {instructionsConfirmed && (
                   <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
@@ -1360,9 +1356,8 @@ export default function ExamTakingPage() {
               </div>
             </div>
             <div>
-              <span className={`text-sm font-semibold ${
-                instructionsConfirmed ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'
-              }`}>
+              <span className={`text-sm font-semibold ${instructionsConfirmed ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'
+                }`}>
                 Saya sudah membaca dan memahami petunjuk ujian
               </span>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -1375,18 +1370,17 @@ export default function ExamTakingPage() {
           <button
             onClick={() => {
               if (examDetails?.require_token) {
-                 setShowInstructionsScreen(false);
-                 setShowTokenModal(true);
+                setShowInstructionsScreen(false);
+                setShowTokenModal(true);
               } else {
-                 startExamProcess(examDetails);
+                startExamProcess(examDetails);
               }
             }}
             disabled={startingExam || !instructionsConfirmed}
-            className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-lg transition-all ${
-              !instructionsConfirmed
+            className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-lg transition-all ${!instructionsConfirmed
                 ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none'
                 : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98] shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30 disabled:opacity-70 disabled:cursor-not-allowed'
-            }`}
+              }`}
           >
             {startingExam ? 'Memulai...' : instructionsConfirmed ? 'Mulai Ujian Sekarang' : 'Centang konfirmasi untuk melanjutkan'}
             {!startingExam && instructionsConfirmed && <Icons.ChevronRight />}
@@ -1401,27 +1395,27 @@ export default function ExamTakingPage() {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative border border-slate-200 dark:border-slate-700">
-          <button 
+          <button
             onClick={() => { setShowTokenModal(false); setTokenInput(''); setError(null); setShowInstructionsScreen(true); }}
             className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
           <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
-             <svg className="w-8 h-8 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-             </svg>
+            <svg className="w-8 h-8 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
           </div>
           <h3 className="text-xl font-bold text-slate-800 dark:text-white text-center mb-2">Masukkan Token Ujian</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-6">Ujian ini dilindungi dengan token. Masukkan token yang valid untuk melanjutkan.</p>
-          
+
           {error && (
             <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm text-center">
               {error}
             </div>
           )}
 
-          <input 
+          <input
             type="text"
             value={tokenInput}
             onChange={(e) => setTokenInput(e.target.value.toUpperCase())}
@@ -1430,7 +1424,7 @@ export default function ExamTakingPage() {
             autoFocus
             className="w-full text-center text-3xl font-mono font-black tracking-widest uppercase p-4 mb-6 border-2 border-slate-200 dark:border-slate-600 rounded-2xl bg-slate-50 dark:bg-slate-900/50 text-slate-800 dark:text-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 outline-none transition-all"
           />
-          
+
           <button
             onClick={() => startExamProcess(examDetails)}
             disabled={startingExam || tokenInput.length < 1}
@@ -1480,21 +1474,20 @@ export default function ExamTakingPage() {
             <div className="hidden sm:block">
               <SaveStatusIndicator status={saveStatus} />
             </div>
-            
+
             {/* Font Size Control */}
             <div className="relative">
-              <button 
-                onClick={() => setShowFontSizeMenu(!showFontSizeMenu)} 
-                className={`flex p-2.5 rounded-xl transition-all active:scale-95 ${
-                  showFontSizeMenu 
-                    ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800' 
+              <button
+                onClick={() => setShowFontSizeMenu(!showFontSizeMenu)}
+                className={`flex p-2.5 rounded-xl transition-all active:scale-95 ${showFontSizeMenu
+                    ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
                     : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700'
-                }`}
+                  }`}
                 title="Ukuran Font"
               >
                 <Icons.Type />
               </button>
-              
+
               {showFontSizeMenu && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowFontSizeMenu(false)}></div>
@@ -1511,9 +1504,8 @@ export default function ExamTakingPage() {
                       <button
                         key={size.id}
                         onClick={() => { setFontSize(size.id); setShowFontSizeMenu(false); }}
-                        className={`w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${
-                          fontSize === size.id ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-600 dark:text-slate-300'
-                        }`}
+                        className={`w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${fontSize === size.id ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-600 dark:text-slate-300'
+                          }`}
                       >
                         <span className={size.class}>{size.label}</span>
                         {fontSize === size.id && <Icons.CheckCircleSmall />}
@@ -1524,21 +1516,20 @@ export default function ExamTakingPage() {
               )}
             </div>
 
-            <button 
-              onClick={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)} 
-              className={`hidden md:flex p-2.5 rounded-xl transition-all active:scale-95 ${
-                isDesktopSidebarOpen 
-                  ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800' 
+            <button
+              onClick={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
+              className={`hidden md:flex p-2.5 rounded-xl transition-all active:scale-95 ${isDesktopSidebarOpen
+                  ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
                   : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700'
-              }`}
+                }`}
               title={isDesktopSidebarOpen ? "Sembunyikan Navigasi" : "Tampilkan Navigasi"}
             >
               <Icons.Sidebar />
             </button>
-            <Timer 
-              timeLeft={timeLeft} 
-              isHidden={isTimerHidden} 
-              onToggle={() => setIsTimerHidden(!isTimerHidden)} 
+            <Timer
+              timeLeft={timeLeft}
+              isHidden={isTimerHidden}
+              onToggle={() => setIsTimerHidden(!isTimerHidden)}
             />
             <button onClick={() => setIsSidebarVisible(!isSidebarVisible)} className="md:hidden p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600"><Icons.Grid /></button>
           </div>
@@ -1555,13 +1546,12 @@ export default function ExamTakingPage() {
                   <div className="p-6 md:p-8 flex-1">
                     <div className="flex justify-between items-start mb-6">
                       <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">Soal No. {currentQuestionIndex + 1}</span>
-                      <button 
-                        onClick={() => handleToggleDoubtful(currentQuestion.id)} 
-                        className={`group flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black transition-all duration-300 ${
-                          doubtfulAnswers[currentQuestion.id] 
-                            ? 'bg-amber-500 text-white shadow-lg shadow-amber-200 dark:shadow-none border-transparent' 
+                      <button
+                        onClick={() => handleToggleDoubtful(currentQuestion.id)}
+                        className={`group flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black transition-all duration-300 ${doubtfulAnswers[currentQuestion.id]
+                            ? 'bg-amber-500 text-white shadow-lg shadow-amber-200 dark:shadow-none border-transparent'
                             : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-amber-400'
-                        }`}
+                          }`}
                       >
                         <Icons.Flag filled={!!doubtfulAnswers[currentQuestion.id]} />
                         <span className="tracking-tight">
@@ -1570,9 +1560,9 @@ export default function ExamTakingPage() {
                       </button>
                     </div>
                     <div className="prose prose-slate dark:prose-invert max-w-none mb-8">
-                      <div 
-                        className={`${fsClasses.question} font-medium text-slate-800 dark:text-slate-100 leading-relaxed overflow-x-auto custom-content-wrapper transition-all duration-300`} 
-                        dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }} 
+                      <div
+                        className={`${fsClasses.question} font-medium text-slate-800 dark:text-slate-100 leading-relaxed overflow-x-auto custom-content-wrapper transition-all duration-300`}
+                        dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
                       />
                     </div>
                     <div className="space-y-3">
@@ -1600,12 +1590,12 @@ export default function ExamTakingPage() {
                           const isSelected = currentQuestion.question_type === 'multiple_choice_complex'
                             ? (answers[currentQuestion.id] || '').split(',').includes(option.originalKey)
                             : answers[currentQuestion.id] === option.originalKey;
-                          
+
                           return (
                             <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 dark:border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
                               <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-300 group-hover:bg-indigo-600 group-hover:text-white'}`}>{optionLabel}</div>
                               <div className="overflow-x-auto flex-1 custom-content-wrapper">
-                                  <span className={`${fsClasses.options} font-medium transition-all duration-300 ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-700 dark:text-slate-300 group-hover:text-indigo-900 dark:group-hover:text-white'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
+                                <span className={`${fsClasses.options} font-medium transition-all duration-300 ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-700 dark:text-slate-300 group-hover:text-indigo-900 dark:group-hover:text-white'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
                               </div>
                               {currentQuestion.question_type === 'multiple_choice_complex' ? (
                                 <div className={`w-6 h-6 rounded flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-slate-500'}`}>
@@ -1619,54 +1609,54 @@ export default function ExamTakingPage() {
 
                       {currentQuestion.question_type === 'matching' && currentQuestion.options && (
                         <div className="mt-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                           <div className="grid grid-cols-1 gap-4">
-                              {currentQuestion.options.pairs.map((pair, pIdx) => {
-                                 let currentAnswerObj = {};
-                                 try {
-                                    currentAnswerObj = typeof answers[currentQuestion.id] === 'string' 
-                                       ? JSON.parse(answers[currentQuestion.id]) 
-                                       : (answers[currentQuestion.id] || {});
-                                 } catch(e) { currentAnswerObj = {}; }
+                          <div className="grid grid-cols-1 gap-4">
+                            {currentQuestion.options.pairs.map((pair, pIdx) => {
+                              let currentAnswerObj = {};
+                              try {
+                                currentAnswerObj = typeof answers[currentQuestion.id] === 'string'
+                                  ? JSON.parse(answers[currentQuestion.id])
+                                  : (answers[currentQuestion.id] || {});
+                              } catch (e) { currentAnswerObj = {}; }
 
-                                 const selectedValue = currentAnswerObj[pair.id] || "";
+                              const selectedValue = currentAnswerObj[pair.id] || "";
 
-                                 return (
-                                    <div key={pair.id} className="flex flex-col md:flex-row gap-4 items-stretch md:items-center p-5 rounded-2xl bg-white dark:bg-slate-700/30 border-2 border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-900/30 transition-all duration-300 group shadow-sm hover:shadow-md">
-                                       <div className="flex-1 flex gap-5 items-center">
-                                          <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center font-black text-sm text-slate-400 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all">
-                                             {pIdx + 1}
-                                          </div>
-                                          <div className="flex-1 prose prose-sm dark:prose-invert max-w-none">
-                                             <div dangerouslySetInnerHTML={{ __html: pair.p }} className="text-slate-700 dark:text-slate-200 font-bold leading-relaxed" />
-                                          </div>
-                                       </div>
-                                       <div className="hidden md:flex items-center">
-                                          <svg className="w-6 h-6 text-slate-200 group-hover:text-indigo-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                                          </svg>
-                                       </div>
-                                       <div className="w-full md:w-72 relative">
-                                          <select 
-                                             value={selectedValue}
-                                             onChange={(e) => {
-                                                const newMatchingAnswer = { ...currentAnswerObj, [pair.id]: e.target.value };
-                                                handleAnswerSelect(currentQuestion.id, JSON.stringify(newMatchingAnswer));
-                                             }}
-                                             className={`w-full p-4 pr-12 rounded-2xl border-2 transition-all font-black text-sm outline-none appearance-none cursor-pointer ${selectedValue ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 text-indigo-600 dark:text-indigo-400 shadow-sm ring-4 ring-indigo-500/5' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 focus:bg-white dark:focus:bg-slate-700 focus:border-indigo-400'}`}
-                                          >
-                                             <option value="">Pilih Pasangan...</option>
-                                             {currentQuestion.options.responses.map((resp, rIdx) => (
-                                                <option key={rIdx} value={resp}>{resp.replace(/<[^>]*>?/gm, '').trim()}</option>
-                                             ))}
-                                          </select>
-                                          <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${selectedValue ? 'text-indigo-500' : 'text-slate-300'}`}>
-                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
-                                          </div>
-                                       </div>
+                              return (
+                                <div key={pair.id} className="flex flex-col md:flex-row gap-4 items-stretch md:items-center p-5 rounded-2xl bg-white dark:bg-slate-700/30 border-2 border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-900/30 transition-all duration-300 group shadow-sm hover:shadow-md">
+                                  <div className="flex-1 flex gap-5 items-center">
+                                    <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center font-black text-sm text-slate-400 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all">
+                                      {pIdx + 1}
                                     </div>
-                                 );
-                              })}
-                           </div>
+                                    <div className="flex-1 prose prose-sm dark:prose-invert max-w-none">
+                                      <div dangerouslySetInnerHTML={{ __html: pair.p }} className="text-slate-700 dark:text-slate-200 font-bold leading-relaxed" />
+                                    </div>
+                                  </div>
+                                  <div className="hidden md:flex items-center">
+                                    <svg className="w-6 h-6 text-slate-200 group-hover:text-indigo-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                                    </svg>
+                                  </div>
+                                  <div className="w-full md:w-72 relative">
+                                    <select
+                                      value={selectedValue}
+                                      onChange={(e) => {
+                                        const newMatchingAnswer = { ...currentAnswerObj, [pair.id]: e.target.value };
+                                        handleAnswerSelect(currentQuestion.id, JSON.stringify(newMatchingAnswer));
+                                      }}
+                                      className={`w-full p-4 pr-12 rounded-2xl border-2 transition-all font-black text-sm outline-none appearance-none cursor-pointer ${selectedValue ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 text-indigo-600 dark:text-indigo-400 shadow-sm ring-4 ring-indigo-500/5' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 focus:bg-white dark:focus:bg-slate-700 focus:border-indigo-400'}`}
+                                    >
+                                      <option value="">Pilih Pasangan...</option>
+                                      {currentQuestion.options.responses.map((resp, rIdx) => (
+                                        <option key={rIdx} value={resp}>{resp.replace(/<[^>]*>?/gm, '').trim()}</option>
+                                      ))}
+                                    </select>
+                                    <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${selectedValue ? 'text-indigo-500' : 'text-slate-300'}`}>
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1716,18 +1706,17 @@ export default function ExamTakingPage() {
                       </button>
                       {currentQuestionIndex === questions.length - 1 ? (
                         <div className="relative flex-[2] md:flex-none">
-                          <button onClick={handleFinishRequest} disabled={isSubmitDisabled} title={submitTitle} className={`w-full flex items-center justify-center gap-2 px-4 md:px-8 py-3.5 text-xs md:text-sm font-black text-white rounded-xl active:scale-95 transition-all shadow-xl disabled:cursor-not-allowed ${
-                            requireAllAnswered && !allAnswered
+                          <button onClick={handleFinishRequest} disabled={isSubmitDisabled} title={submitTitle} className={`w-full flex items-center justify-center gap-2 px-4 md:px-8 py-3.5 text-xs md:text-sm font-black text-white rounded-xl active:scale-95 transition-all shadow-xl disabled:cursor-not-allowed ${requireAllAnswered && !allAnswered
                               ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 shadow-none'
                               : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100 dark:shadow-none disabled:bg-emerald-300 dark:disabled:bg-emerald-800'
-                          }`}>
+                            }`}>
                             <Icons.CheckCircleSmall />
                             {requireAllAnswered && !allAnswered ? (
-                                <span>Jawab ({Object.keys(answers).length})</span>
+                              <span>Jawab ({Object.keys(answers).length})</span>
                             ) : isSubmitDisabled && minTimeLockoutSeconds > 0 && timeLeft !== null ? (
-                                <span>({formatTime(timeLeft - minTimeLockoutSeconds)})</span>
+                              <span>({formatTime(timeLeft - minTimeLockoutSeconds)})</span>
                             ) : (
-                                <span>Selesai</span>
+                              <span>Selesai</span>
                             )}
                           </button>
                         </div>
@@ -1756,7 +1745,7 @@ export default function ExamTakingPage() {
         <div className="fixed inset-0 z-50 md:hidden overflow-hidden">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-300" onClick={() => setIsSidebarVisible(false)}></div>
           <div className="absolute right-0 top-0 h-full w-[85%] sm:w-80 bg-white dark:bg-slate-900 shadow-2xl transform transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] flex flex-col animate-in slide-in-from-right">
-            
+
             {/* Drawer Header */}
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 sticky top-0 z-10">
               <div>
@@ -1766,8 +1755,8 @@ export default function ExamTakingPage() {
                 </h3>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Ujian: {examDetails?.exam_name}</p>
               </div>
-              <button 
-                onClick={() => setIsSidebarVisible(false)} 
+              <button
+                onClick={() => setIsSidebarVisible(false)}
                 className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all active:scale-90 shadow-sm border border-slate-100 dark:border-slate-800"
               >
                 <Icons.XCircle />
@@ -1776,20 +1765,20 @@ export default function ExamTakingPage() {
 
             {/* Stats Summary */}
             <div className="px-6 py-5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-               <div className="grid grid-cols-3 gap-3">
-                  <div className="text-center p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <div className="text-sm font-black text-emerald-600">{Object.keys(answers).length}</div>
-                    <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Dijawab</div>
-                  </div>
-                  <div className="text-center p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <div className="text-sm font-black text-amber-600">{Object.keys(doubtfulAnswers).length}</div>
-                    <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Ragu</div>
-                  </div>
-                  <div className="text-center p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <div className="text-sm font-black text-slate-500">{questions.length - Object.keys(answers).length}</div>
-                    <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Belum</div>
-                  </div>
-               </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                  <div className="text-sm font-black text-emerald-600">{Object.keys(answers).length}</div>
+                  <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Dijawab</div>
+                </div>
+                <div className="text-center p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                  <div className="text-sm font-black text-amber-600">{Object.values(doubtfulAnswers).filter(v => v).length}</div>
+                  <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Ragu</div>
+                </div>
+                <div className="text-center p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                  <div className="text-sm font-black text-slate-500">{questions.length - Object.keys(answers).length}</div>
+                  <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Belum</div>
+                </div>
+              </div>
             </div>
 
             {/* Question Grid */}
@@ -1799,9 +1788,9 @@ export default function ExamTakingPage() {
                   const isAnswered = answers[q.id] !== undefined;
                   const isDoubtful = doubtfulAnswers[q.id];
                   const isActive = index === currentQuestionIndex;
-                  
+
                   let buttonClass = 'h-12 rounded-2xl text-sm font-black transition-all border-2 relative active:scale-90 flex items-center justify-center ';
-                  
+
                   if (isActive) {
                     buttonClass += 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200 dark:shadow-none ring-4 ring-indigo-500/10 drop-shadow-md';
                   } else if (isDoubtful) {
@@ -1811,11 +1800,11 @@ export default function ExamTakingPage() {
                   } else {
                     buttonClass += 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-600 hover:text-indigo-600';
                   }
-                  
+
                   return (
-                    <button 
-                      key={q.id} 
-                      onClick={() => { handleSelectQuestion(index); setIsSidebarVisible(false); }} 
+                    <button
+                      key={q.id}
+                      onClick={() => { handleSelectQuestion(index); setIsSidebarVisible(false); }}
                       className={buttonClass}
                     >
                       {index + 1}
@@ -1829,12 +1818,12 @@ export default function ExamTakingPage() {
 
             {/* Drawer Footer */}
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
-               <button 
-                  onClick={() => setIsSidebarVisible(false)}
-                  className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black rounded-2xl shadow-xl hover:opacity-90 active:scale-[0.98] transition-all uppercase tracking-widest text-xs"
-               >
-                  Tutup Panel
-               </button>
+              <button
+                onClick={() => setIsSidebarVisible(false)}
+                className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black rounded-2xl shadow-xl hover:opacity-90 active:scale-[0.98] transition-all uppercase tracking-widest text-xs"
+              >
+                Tutup Panel
+              </button>
             </div>
           </div>
         </div>
@@ -1861,18 +1850,18 @@ export default function ExamTakingPage() {
             </div>
             <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-4 uppercase tracking-tight">Ujian Terkunci!</h2>
             <p className="text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
-              Ujian Anda telah dikunci secara otomatis karena terdeteksi meninggalkan halaman pengerjaan. 
+              Ujian Anda telah dikunci secara otomatis karena terdeteksi meninggalkan halaman pengerjaan.
               <br /><br />
               Silakan <strong>hubungi pengawas atau admin ujian</strong> untuk membuka kembali akses Anda.
             </p>
             <div className="space-y-3">
-              <button 
+              <button
                 onClick={() => window.location.reload()}
                 className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg hover:bg-indigo-700 active:scale-95 transition-all"
               >
                 Cek Status Kunci (Refresh)
               </button>
-              <button 
+              <button
                 onClick={() => router.push('/dashboard/exams')}
                 className="w-full py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
               >
