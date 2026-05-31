@@ -339,6 +339,7 @@ export default function ExamTakingPage() {
   const router = useRouter();
   const params = useParams();
   const examId = params.id;
+  const { user } = useUser();
 
   const [examDetails, setExamDetails] = useState(null);
   const [attemptDetails, setAttemptDetails] = useState(null);
@@ -1307,6 +1308,23 @@ export default function ExamTakingPage() {
             <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">{examDetails?.exam_name}</p>
           </div>
 
+          {/* User Profile Info */}
+          {user && (
+            <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-700/30 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center gap-4 animate-in fade-in slide-in-from-bottom duration-300">
+              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 p-[2px] flex-shrink-0">
+                <div className="h-full w-full rounded-full bg-white dark:bg-slate-800 flex items-center justify-center">
+                  <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+                    {user.name ? user.name.charAt(0).toUpperCase() : (user.username ? user.username.charAt(0).toUpperCase() : 'U')}
+                  </span>
+                </div>
+              </div>
+              <div className="min-w-0 text-left">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Peserta Ujian</p>
+                <p className="text-base font-bold text-slate-800 dark:text-white truncate">{user.name || user.username}</p>
+              </div>
+            </div>
+          )}
+
           {/* Instruction Body */}
           <div className="bg-slate-50 dark:bg-slate-700/50 p-6 rounded-2xl mb-6 border border-slate-100 dark:border-slate-600">
             {examDetails?.instruction_type === 'custom' && examDetails?.custom_instructions ? (
@@ -1471,6 +1489,12 @@ export default function ExamTakingPage() {
             <div><h1 className="text-base md:text-lg font-bold text-slate-800 dark:text-white line-clamp-1">{examDetails?.exam_name}</h1></div>
           </div>
           <div className="flex items-center gap-4">
+            {user && (
+              <div className="hidden md:flex flex-col text-right">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">Peserta</span>
+                <span className="text-sm font-black text-slate-800 dark:text-white mt-1 leading-none">{user.name || user.username}</span>
+              </div>
+            )}
             <div className="hidden sm:block">
               <SaveStatusIndicator status={saveStatus} />
             </div>
@@ -1754,6 +1778,9 @@ export default function ExamTakingPage() {
                   Daftar Soal
                 </h3>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Ujian: {examDetails?.exam_name}</p>
+                {user && (
+                  <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-0.5">Peserta: {user.name || user.username}</p>
+                )}
               </div>
               <button
                 onClick={() => setIsSidebarVisible(false)}

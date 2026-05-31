@@ -28,7 +28,12 @@ export async function GET(request) {
     try {
         // 1. Get Exam Details
         const examDetails = await query({
-            query: 'SELECT exam_name FROM rhs_exams WHERE id = ?',
+            query: `
+                SELECT e.exam_name, s.name as subject_name 
+                FROM rhs_exams e
+                LEFT JOIN rhs_subjects s ON e.subject_id = s.id
+                WHERE e.id = ?
+            `,
             values: [examId]
         });
 
@@ -36,6 +41,7 @@ export async function GET(request) {
             return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
         }
         const examName = examDetails[0].exam_name;
+        const subjectName = examDetails[0].subject_name || 'Tanpa Pelajaran';
 
         // 2. Get All Questions (Ordered) for Headers
         const questions = await query({
@@ -140,6 +146,7 @@ export async function GET(request) {
                 'Student Name': attempt.name || attempt.username, // Fallback to username if name is empty
                 'Student Username': attempt.username,
                 'Class': attempt.className || 'No Class',
+                'Subject': subjectName,
                 'Attempt': attempt.attemptNumber,
                 'State': attempt.status,
                 'Started on': attempt.start_time ? new Date(attempt.start_time).toLocaleString() : '-',
@@ -166,10 +173,11 @@ export async function GET(request) {
         const buf = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 
         // 8. Return Response
+        const safeFilename = `${examName}_${subjectName}_Results.xlsx`.replace(/[\\/:*?"<>|]/g, '_');
         return new NextResponse(buf, {
             status: 200,
             headers: {
-                'Content-Disposition': `attachment; filename="${examName}_Results.xlsx"`,
+                'Content-Disposition': `attachment; filename="${encodeURIComponent(safeFilename)}"`,
                 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             },
         });

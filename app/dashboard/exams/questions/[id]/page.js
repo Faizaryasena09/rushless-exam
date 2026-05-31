@@ -1048,15 +1048,47 @@ const ImportWordForm = ({ examId, onQuestionAdded }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [previewHtml, setPreviewHtml] = useState('');
+    const [previewLoading, setPreviewLoading] = useState(false);
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
 
     const handleFileChange = (e) => {
         const selectedFile = e.target.files?.[0];
-        if (selectedFile && (selectedFile.type === "application/zip" || selectedFile.type === "application/x-zip-compressed" || selectedFile.name.toLowerCase().endsWith('.zip'))) {
+        if (!selectedFile) return;
+
+        const nameLower = selectedFile.name.toLowerCase();
+        if (nameLower.endsWith('.zip') || nameLower.endsWith('.docx')) {
             setFile(selectedFile);
             setError('');
         } else {
             setFile(null);
-            setError('Please select a .zip file.');
+            setError('Please select a .zip or .docx file.');
+        }
+    };
+
+    const handlePreview = async () => {
+        if (!file) return;
+        setPreviewLoading(true);
+        setError('');
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const res = await fetch('/api/exams/questions/preview', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.message || 'Gagal memproses pratinjau file.');
+            }
+            setPreviewHtml(data.html);
+            setShowPreviewModal(true);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setPreviewLoading(false);
         }
     };
 
@@ -1097,24 +1129,94 @@ const ImportWordForm = ({ examId, onQuestionAdded }) => {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Select a .zip file containing HTML and Images</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Pilih file Word (.docx) atau Zip hasil export web page Word</label>
                 <div className="flex items-center justify-center w-full">
                     <label className="flex flex-col w-full h-32 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer">
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             <Icons.Upload />
                             <p className="text-sm text-slate-500 dark:text-slate-400">{file ? file.name : 'Click to upload'}</p>
                         </div>
-                        <input type="file" className="hidden" accept=".zip,application/zip,application/x-zip-compressed" onChange={handleFileChange} />
+                        <input type="file" className="hidden" accept=".docx,.zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,application/x-zip-compressed" onChange={handleFileChange} />
                     </label>
                 </div>
             </div>
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
             {success && <p className="text-sm text-green-600 dark:text-green-400">{success}</p>}
-            <div className="text-right">
-                <button type="submit" disabled={!file || loading} className="inline-flex items-center justify-center px-4 py-2 bg-sky-500 hover:bg-sky-600 dark:bg-sky-700 dark:hover:bg-sky-600 text-white text-sm font-semibold rounded-lg disabled:bg-sky-300">
-                    {loading ? 'Uploading...' : 'Upload & Import'}
+            
+            <div className="flex items-center justify-between gap-3 pt-2">
+                <div>
+                    {file && (
+                        <button 
+                            type="button" 
+                            disabled={previewLoading || loading}
+                            onClick={handlePreview}
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-650 text-slate-700 dark:text-slate-200 text-sm font-bold rounded-xl transition-all disabled:opacity-50"
+                        >
+                            {previewLoading ? (
+                                <>
+                                    <svg className="animate-spin h-4 w-4 text-slate-705 dark:text-slate-250" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Memuat...
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    Lihat File
+                                </>
+                            )}
+                        </button>
+                    )}
+                </div>
+                <button type="submit" disabled={!file || loading || previewLoading} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-blue-100 dark:shadow-none disabled:bg-slate-300 disabled:shadow-none disabled:scale-100">
+                    {loading ? 'Mengimpor...' : 'Upload & Import'}
                 </button>
             </div>
+
+            {showPreviewModal && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowPreviewModal(false)}>
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-4xl w-full h-[85vh] flex flex-col overflow-hidden border border-slate-100 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Pratinjau Dokumen</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{file?.name}</p>
+                            </div>
+                            <button 
+                                type="button"
+                                onClick={() => setShowPreviewModal(false)}
+                                className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 dark:text-slate-400"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 dark:bg-slate-900/30">
+                            <div className="bg-white dark:bg-slate-850 p-8 rounded-2xl border border-slate-100 dark:border-slate-750 shadow-sm prose prose-slate dark:prose-invert max-w-none">
+                                <div 
+                                    className="parsed-html-preview outline-none"
+                                    dangerouslySetInnerHTML={{ __html: previewHtml }} 
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-end">
+                            <button 
+                                type="button"
+                                onClick={() => setShowPreviewModal(false)}
+                                className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-650 text-slate-800 dark:text-slate-200 text-sm font-semibold rounded-xl transition-all"
+                            >
+                                Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </form>
     );
 };
@@ -1656,7 +1758,7 @@ export default function ManageQuestionsPage() {
                                     Manual Input
                                 </button>
                                 <button onClick={() => setActiveTab('import')} className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'import' ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300'}`}>
-                                    Import ZIP
+                                    Import Word / ZIP
                                 </button>
                                 <button 
                                     onClick={() => setIsBankPickerOpen(true)}

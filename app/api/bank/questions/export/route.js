@@ -390,15 +390,14 @@ export async function GET(request) {
                 await processParts(qParts, [new TextRun({ text: questionPrefix, bold: true, size: 24, font: 'Arial' })]);
 
                 for (const [key, value] of Object.entries(reKeyedOptions)) {
-                    const isCorrect = key === q.correct_option;
-                    const isRushlessCorrect = isCorrect && format === 'rushless';
                     const optParts = parseContent(String(value));
-                    await processParts(optParts, [new TextRun({ text: `${isRushlessCorrect ? '*' : ''}${key}. `, size: 22, font: 'Arial' })], true);
+                    await processParts(optParts, [new TextRun({ text: `${key}. `, size: 22, font: 'Arial' })], true);
                 }
 
-                if (mode === 'questions_and_answers' && format !== 'rushless') {
+                // Add "Ans: [Key]" if mode is questions_and_answers OR format is rushless
+                if ((mode === 'questions_and_answers' || format === 'rushless') && q.question_type !== 'matching' && q.question_type !== 'essay') {
                     paragraphsToPush.push(new Paragraph({
-                        children: [new TextRun({ text: `Answer : ${q.correct_option}`, bold: true, size: 22, font: 'Arial' })],
+                        children: [new TextRun({ text: `Ans: ${q.correct_option}`, bold: true, size: 22, font: 'Arial' })],
                         spacing: { before: 100, after: 200 },
                         indent: { left: 720 }
                     }));

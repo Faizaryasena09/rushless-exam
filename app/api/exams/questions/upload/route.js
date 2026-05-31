@@ -3,6 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import AdmZip from 'adm-zip';
 import iconv from 'iconv-lite';
+import mammoth from 'mammoth';
 import fs from 'fs/promises';
 import path from 'path';
 import { query } from '@/app/lib/db';
@@ -48,97 +49,206 @@ export async function POST(request) {
         console.log('[UPLOAD] ✅ Buffer created, length:', buffer.length);
 
         let htmlFn = '';
+        let documentListFormats = [];
 
-        try {
-            console.log('[UPLOAD] 3. Extracting ZIP...');
-            const zip = new AdmZip(buffer);
-            const zipEntries = zip.getEntries();
-            console.log('[UPLOAD] ✅ ZIP entries found:', zipEntries.length, '| Names:', zipEntries.map(e => e.entryName).join(', '));
+        const uploadDir = path.join(process.cwd(), 'public', 'uploads', `exam-${examId}`);
+        await fs.mkdir(uploadDir, { recursive: true });
+        console.log('[UPLOAD] 3. Upload dir ready:', uploadDir);
 
-            // Find the main HTML file
-            const htmlEntry = zipEntries.find(entry => entry.entryName.match(/\.(htm|html)$/i));
+        const isDocx = file.name.toLowerCase().endsWith('.docx');
 
-            if (!htmlEntry) {
-                console.log('[UPLOAD] ❌ No HTML file found in ZIP');
-                return NextResponse.json({ message: 'No .htm or .html file found inside the zip. Please ensure the zip contains the exported HTML file.' }, { status: 400 });
-            }
-            console.log('[UPLOAD] ✅ Found HTML file:', htmlEntry.entryName);
-
-            // Read HTML content and decode it using iconv-lite
-            // MS Word exports often use Windows-1252 encoding. We can attempt to decode using win1252.
-            console.log('[UPLOAD] 4. Decoding HTML content...');
-            const rawBuffer = htmlEntry.getData();
-            let htmlContent = iconv.decode(rawBuffer, 'win1252');
-
-            // Fallback safety: If HTML specifies utf-8 but we decoded it as win1252, we can re-decode if we find charset=utf-8 in the string
-            if (htmlContent.match(/charset=["']?utf-8/i)) {
-                htmlContent = rawBuffer.toString('utf8');
-                console.log('[UPLOAD] ✅ Re-decoded as UTF-8');
-            } else {
-                console.log('[UPLOAD] ✅ Decoded as Windows-1252');
-            }
-            console.log('[UPLOAD] HTML content length:', htmlContent.length, 'chars');
-
-            // Create upload directory if it doesn't exist
-            // Using process.cwd() for robust path handling
-            const uploadDir = path.join(process.cwd(), 'public', 'uploads', `exam-${examId}`);
-            await fs.mkdir(uploadDir, { recursive: true });
-            console.log('[UPLOAD] 5. Upload dir ready:', uploadDir);
-
-            // Replace image sources: write file asynchronously and generate URL
-            // Support both standard <img> and Word-specific <v:imagedata> tags, with optional quotes for src
-            const imgRegex = /<(?:img|v:imagedata)[^>]*src=["']?([^"'\s>]+)["']?[^>]*>/gi;
-
-            console.log('[UPLOAD] 6. Processing images in HTML...');
-            let imgCount = 0;
-            htmlContent = await replaceAsync(htmlContent, imgRegex, async (match, src) => {
-                let searchSrc = decodeURIComponent(src);
-                console.log('[UPLOAD]    → Found image reference:', searchSrc);
-
-                // Find entry in ZIP - check for exact path or just the filename
-                let imgEntry = zipEntries.find(e => e.entryName === searchSrc) ||
-                    zipEntries.find(e => e.entryName.replace(/\\/g, '/') === searchSrc.replace(/\\/g, '/')) ||
-                    zipEntries.find(e => e.entryName.toLowerCase().endsWith(searchSrc.split('/').pop().toLowerCase() || searchSrc.split('\\').pop().toLowerCase()));
-
-                if (imgEntry) {
-                    const imgBuffer = imgEntry.getData();
-
-                    // Generate unique filename to avoid overwrites
-                    const originalExt = path.extname(searchSrc) || '.png';
-                    const uniqueFilename = `img_${Date.now()}_${Math.random().toString(36).substring(2, 8)}${originalExt}`;
-                    const filePath = path.join(uploadDir, uniqueFilename);
-
-                    // Write the buffer to the filesystem
-                    await fs.writeFile(filePath, imgBuffer);
-                    imgCount++;
-                    console.log('[UPLOAD]    ✅ Saved image:', uniqueFilename, '| size:', imgBuffer.length, 'bytes');
-
-                    // Reconstruct a dynamic media URL path
-                    const nextPublicUrl = `/api/media/exam-${examId}/${uniqueFilename}`;
-
-                    // If it was a v:imagedata tag, convert it to a standard <img> tag for browser compatibility
-                    if (match.toLowerCase().startsWith('<v:imagedata')) {
-                        return `<img src="${nextPublicUrl}">`;
+        if (isDocx) {
+            try {
+                // Parse word/document.xml and word/numbering.xml to extract exact list formats
+                try {
+                    const zip = new AdmZip(buffer);
+                    const docXml = zip.readAsText('word/document.xml');
+                    let numberingXml = '';
+                    try {
+                        numberingXml = zip.readAsText('word/numbering.xml');
+                    } catch (e) {
+                        console.log('[UPLOAD] No word/numbering.xml found in DOCX');
                     }
 
-                    return match.replace(src, nextPublicUrl);
+                    if (numberingXml) {
+                        // Map abstractNumId -> ilvl -> numFmt
+                        const abstractNumFormats = {};
+                        const abstractNumBlocks = numberingXml.match(/<w:abstractNum[^>]*>[\s\S]*?<\/w:abstractNum>/g) || [];
+                        
+                        abstractNumBlocks.forEach(block => {
+                            const absIdMatch = block.match(/w:abstractNumId="(\d+)"/);
+                            if (absIdMatch) {
+                                const absId = absIdMatch[1];
+                                abstractNumFormats[absId] = {};
+                                const lvlBlocks = block.match(/<w:lvl[^>]*>[\s\S]*?<\/w:lvl>/g) || [];
+                                lvlBlocks.forEach(lvlBlock => {
+                                    const ilvlMatch = lvlBlock.match(/w:ilvl="(\d+)"/);
+                                    const numFmtMatch = lvlBlock.match(/<w:numFmt w:val="([^"]+)"/);
+                                    if (ilvlMatch && numFmtMatch) {
+                                        abstractNumFormats[absId][ilvlMatch[1]] = numFmtMatch[1];
+                                    }
+                                });
+                            }
+                        });
+
+                        // Map numId -> ilvl -> numFmt
+                        const numIdFormats = {};
+                        const numBlocks = numberingXml.match(/<w:num[^>]*>[\s\S]*?<\/w:num>/g) || [];
+                        numBlocks.forEach(numBlock => {
+                            const numIdMatch = numBlock.match(/w:numId="(\d+)"/);
+                            const absMatch = numBlock.match(/<w:abstractNumId w:val="(\d+)"/);
+                            if (numIdMatch && absMatch) {
+                                const numId = numIdMatch[1];
+                                const absIdRef = absMatch[1];
+                                numIdFormats[numId] = abstractNumFormats[absIdRef] || {};
+                            }
+                        });
+
+                        // Parse document.xml to extract all list paragraphs and their format/text for text-matching alignment
+                        const numCounts = {};
+                        const paragraphMatches = docXml.match(/<w:p[^>]*>[\s\S]*?<\/w:p>/g) || [];
+                        paragraphMatches.forEach(p => {
+                            const numPrMatch = p.match(/<w:numPr>([\s\S]*?)<\/w:numPr>/);
+                            if (numPrMatch) {
+                                const numIdMatch = numPrMatch[1].match(/<w:numId w:val="(\d+)"/);
+                                const ilvlMatch = numPrMatch[1].match(/<w:ilvl w:val="(\d+)"/);
+                                const numId = numIdMatch ? numIdMatch[1] : null;
+                                const ilvl = ilvlMatch ? ilvlMatch[1] : '0';
+                                const numFmt = (numIdFormats[numId] && numIdFormats[numId][ilvl]) || 'decimal';
+                                
+                                const key = `${numId}-${ilvl}`;
+                                if (!numCounts[key]) {
+                                    numCounts[key] = 0;
+                                }
+                                numCounts[key]++;
+                                const listIndex = numCounts[key];
+                                
+                                const textMatches = p.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+                                const text = textMatches.map(t => t.replace(/<[^>]+>/g, '')).join('');
+                                
+                                documentListFormats.push({ text: text.trim(), format: numFmt, index: listIndex });
+                            }
+                        });
+                        
+                        console.log('[UPLOAD] ✅ Extracted docx list paragraphs:', documentListFormats.length);
+                    }
+                } catch (zipError) {
+                    console.error('[UPLOAD] ⚠️ Failed to extract list formatting from ZIP:', zipError);
                 }
 
-                console.log('[UPLOAD]    ⚠️ Image not found in ZIP:', searchSrc);
-                return match;
-            });
-            console.log('[UPLOAD] ✅ Total images processed:', imgCount);
+                console.log('[UPLOAD] 4. Converting DOCX to HTML via Mammoth...');
+                const options = {
+                    styleMap: [
+                        "u => u",
+                        "strike => del"
+                    ],
+                    convertImage: mammoth.images.imgElement(async (image) => {
+                        const imgBuffer = await image.readAsBuffer();
+                        const extension = image.contentType.split('/')[1] || 'png';
+                        const uniqueFilename = `img_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${extension}`;
+                        const filePath = path.join(uploadDir, uniqueFilename);
+                        
+                        await fs.writeFile(filePath, imgBuffer);
+                        console.log('[UPLOAD]    ✅ Saved DOCX image:', uniqueFilename, '| size:', imgBuffer.length, 'bytes');
 
-            htmlFn = htmlContent;
+                        const nextPublicUrl = `/api/media/exam-${examId}/${uniqueFilename}`;
+                        return { src: nextPublicUrl };
+                    })
+                };
+                const result = await mammoth.convertToHtml({ buffer }, options);
+                htmlFn = result.value;
+                console.log('[UPLOAD] ✅ Mammoth conversion complete. HTML length:', htmlFn.length);
+                if (result.messages && result.messages.length > 0) {
+                    console.log('[UPLOAD] ⚠️ Mammoth warnings/messages:\n', result.messages.map(m => `  [${m.type}] ${m.message}`).join('\n'));
+                }
+            } catch (docxError) {
+                console.error('[UPLOAD] ❌ DOCX processing error:', docxError);
+                return NextResponse.json({ message: 'Failed to process DOCX file. ' + docxError.message }, { status: 400 });
+            }
+        } else {
+            try {
+                console.log('[UPLOAD] 4. Extracting ZIP...');
+                const zip = new AdmZip(buffer);
+                const zipEntries = zip.getEntries();
+                console.log('[UPLOAD] ✅ ZIP entries found:', zipEntries.length, '| Names:', zipEntries.map(e => e.entryName).join(', '));
 
-        } catch (zipError) {
-            console.error('[UPLOAD] ❌ Zip processing error:', zipError);
-            return NextResponse.json({ message: 'Failed to process zip file. ' + zipError.message }, { status: 400 });
+                // Find the main HTML file
+                const htmlEntry = zipEntries.find(entry => entry.entryName.match(/\.(htm|html)$/i));
+
+                if (!htmlEntry) {
+                    console.log('[UPLOAD] ❌ No HTML file found in ZIP');
+                    return NextResponse.json({ message: 'No .htm or .html file found inside the zip. Please ensure the zip contains the exported HTML file.' }, { status: 400 });
+                }
+                console.log('[UPLOAD] ✅ Found HTML file:', htmlEntry.entryName);
+
+                // Read HTML content and decode it using iconv-lite
+                console.log('[UPLOAD] 5. Decoding HTML content...');
+                const rawBuffer = htmlEntry.getData();
+                let htmlContent = iconv.decode(rawBuffer, 'win1252');
+
+                // Fallback safety: If HTML specifies utf-8 but we decoded it as win1252, we can re-decode if we find charset=utf-8 in the string
+                if (htmlContent.match(/charset=["']?utf-8/i)) {
+                    htmlContent = rawBuffer.toString('utf8');
+                    console.log('[UPLOAD] ✅ Re-decoded as UTF-8');
+                } else {
+                    console.log('[UPLOAD] ✅ Decoded as Windows-1252');
+                }
+                console.log('[UPLOAD] HTML content length:', htmlContent.length, 'chars');
+
+                // Replace image sources: write file asynchronously and generate URL
+                const imgRegex = /<(?:img|v:imagedata)[^>]*src=["']?([^"'\s>]+)["']?[^>]*>/gi;
+
+                console.log('[UPLOAD] 6. Processing images in HTML...');
+                let imgCount = 0;
+                htmlContent = await replaceAsync(htmlContent, imgRegex, async (match, src) => {
+                    let searchSrc = decodeURIComponent(src);
+                    console.log('[UPLOAD]    → Found image reference:', searchSrc);
+
+                    // Find entry in ZIP - check for exact path or just the filename
+                    let imgEntry = zipEntries.find(e => e.entryName === searchSrc) ||
+                        zipEntries.find(e => e.entryName.replace(/\\/g, '/') === searchSrc.replace(/\\/g, '/')) ||
+                        zipEntries.find(e => e.entryName.toLowerCase().endsWith(searchSrc.split('/').pop().toLowerCase() || searchSrc.split('\\').pop().toLowerCase()));
+
+                    if (imgEntry) {
+                        const imgBuffer = imgEntry.getData();
+
+                        // Generate unique filename to avoid overwrites
+                        const originalExt = path.extname(searchSrc) || '.png';
+                        const uniqueFilename = `img_${Date.now()}_${Math.random().toString(36).substring(2, 8)}${originalExt}`;
+                        const filePath = path.join(uploadDir, uniqueFilename);
+
+                        // Write the buffer to the filesystem
+                        await fs.writeFile(filePath, imgBuffer);
+                        imgCount++;
+                        console.log('[UPLOAD]    ✅ Saved image:', uniqueFilename, '| size:', imgBuffer.length, 'bytes');
+
+                        // Reconstruct a dynamic media URL path
+                        const nextPublicUrl = `/api/media/exam-${examId}/${uniqueFilename}`;
+
+                        // If it was a v:imagedata tag, convert it to a standard <img> tag for browser compatibility
+                        if (match.toLowerCase().startsWith('<v:imagedata')) {
+                            return `<img src="${nextPublicUrl}">`;
+                        }
+
+                        return match.replace(src, nextPublicUrl);
+                    }
+
+                    console.log('[UPLOAD]    ⚠️ Image not found in ZIP:', searchSrc);
+                    return match;
+                });
+                console.log('[UPLOAD] ✅ Total images processed:', imgCount);
+
+                htmlFn = htmlContent;
+
+            } catch (zipError) {
+                console.error('[UPLOAD] ❌ Zip processing error:', zipError);
+                return NextResponse.json({ message: 'Failed to process zip file. ' + zipError.message }, { status: 400 });
+            }
         }
 
         console.log('[UPLOAD] 7. Parsing HTML into questions...');
         const t0 = performance.now();
-        const parsedQuestions = parseHtmlContent(htmlFn);
+        const parsedQuestions = parseHtmlContent(htmlFn, documentListFormats);
         const t1 = performance.now();
         console.log(`[UPLOAD] ✅ Parsed questions: ${parsedQuestions.length} (took ${(t1 - t0).toFixed(1)}ms)`);
 
@@ -209,7 +319,209 @@ export async function POST(request) {
     }
 }
 
-function parseHtmlContent(html) {
+function getRomanNumeral(num) {
+    const lookup = { m: 1000, cm: 900, d: 500, cd: 400, c: 100, xc: 90, l: 50, xl: 40, x: 10, ix: 9, v: 5, iv: 4, i: 1 };
+    let roman = '';
+    for (let i in lookup) {
+        while (num >= lookup[i]) {
+            roman += i;
+            num -= lookup[i];
+        }
+    }
+    return roman;
+}
+
+function getFormatForHtmlLi(liText, xmlListItems, searchState) {
+    if (!xmlListItems || xmlListItems.length === 0) {
+        return null;
+    }
+    
+    if (searchState.currentIndex >= xmlListItems.length) {
+        return xmlListItems[xmlListItems.length - 1];
+    }
+
+    const cleanLi = liText.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    
+    if (cleanLi === '') {
+        return xmlListItems[searchState.currentIndex];
+    }
+    
+    for (let i = searchState.currentIndex; i < xmlListItems.length; i++) {
+        const cleanXml = xmlListItems[i].text.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        
+        const isExact = (cleanXml !== '' && cleanLi === cleanXml);
+        const isSub = (cleanXml.length >= 4 && cleanLi.length >= 4) && (cleanLi.includes(cleanXml) || cleanXml.includes(cleanLi));
+
+        if (isExact || isSub) {
+            searchState.currentIndex = i + 1;
+            
+            // Consume subsequent XML items merged into this single HTML li
+            let nextIdx = i + 1;
+            let currentCombined = cleanXml;
+            while (nextIdx < xmlListItems.length) {
+                const nextXml = xmlListItems[nextIdx].text.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                if (nextXml !== '' && cleanLi.includes(currentCombined + nextXml)) {
+                    currentCombined += nextXml;
+                    searchState.currentIndex = nextIdx + 1;
+                    nextIdx++;
+                } else {
+                    break;
+                }
+            }
+            
+            return xmlListItems[i];
+        }
+    }
+    
+    return xmlListItems[searchState.currentIndex];
+}
+
+function restoreListMarkers(html, documentListFormats) {
+    let output = '';
+    let pos = 0;
+    
+    const tokenRegex = /(<\/?[a-z0-9]+[^>]*>|\[Multiple Choice\]|\[Pilihan Ganda\]|\[OPT\]|\[MATCHING\]|\[Menjodohkan\]|\[ESSAY\]|\[Esai\]|\[Uraian\]|\b(?:ans|jawaban|kunci|key)\s*:)/gi;
+    
+    let currentQuestionType = 'multiple_choice';
+    let isOptSection = false;
+    let matchingListCount = 0;
+    
+    const listStack = [];
+    const searchState = { currentIndex: 0 };
+    
+    let lastMatch;
+    let lastIndex = 0;
+    
+    while ((lastMatch = tokenRegex.exec(html)) !== null) {
+        const textBefore = html.substring(lastIndex, lastMatch.index);
+        output += textBefore;
+        
+        const token = lastMatch[0];
+        const tokenLower = token.toLowerCase();
+        
+        if (tokenLower.includes('[multiple choice]') || tokenLower.includes('[pilihan ganda]')) {
+            currentQuestionType = 'multiple_choice';
+            isOptSection = false;
+            output += token;
+        } else if (tokenLower.includes('[matching]') || tokenLower.includes('[menjodohkan]')) {
+            currentQuestionType = 'matching';
+            matchingListCount = 0;
+            output += token;
+        } else if (tokenLower.includes('[essay]') || tokenLower.includes('[esai]') || tokenLower.includes('[uraian]')) {
+            currentQuestionType = 'essay';
+            output += token;
+        } else if (tokenLower.includes('[opt]')) {
+            isOptSection = true;
+            output += token;
+        } else if (tokenLower.match(/\b(?:ans|jawaban|kunci|key)\s*:/)) {
+            isOptSection = false;
+            output += token;
+        } else if (tokenLower.startsWith('<ol') || tokenLower.startsWith('<ul')) {
+            const isOl = tokenLower.startsWith('<ol');
+            listStack.push({
+                isOl,
+                index: 0
+            });
+            output += token;
+        } else if (tokenLower.startsWith('</ol') || tokenLower.startsWith('</ul')) {
+            const popped = listStack.pop();
+            if (popped && currentQuestionType === 'matching' && listStack.length === 0) {
+                matchingListCount++;
+            }
+            output += token;
+        } else if (tokenLower.startsWith('<li')) {
+            const currentList = listStack[listStack.length - 1];
+            if (currentList) {
+                currentList.index++;
+                const index = currentList.index;
+                
+                let prefix = '';
+                
+                // Extract clean text content of the list item to run text-matching alignment
+                const itemStart = lastMatch.index + token.length;
+                let nextStopIndex = html.length;
+                const nextLi = html.indexOf('<li', itemStart);
+                const nextLiClose = html.indexOf('</li>', itemStart);
+                const nextOl = html.indexOf('<ol', itemStart);
+                const nextOlClose = html.indexOf('</ol>', itemStart);
+                const nextUl = html.indexOf('<ul', itemStart);
+                const nextUlClose = html.indexOf('</ul>', itemStart);
+                
+                const indices = [nextLi, nextLiClose, nextOl, nextOlClose, nextUl, nextUlClose].filter(idx => idx !== -1);
+                if (indices.length > 0) {
+                    nextStopIndex = Math.min(...indices);
+                }
+                
+                const liTextRaw = html.substring(itemStart, nextStopIndex);
+                const liText = liTextRaw.replace(/<[^>]+>/g, '').trim();
+                
+                let xmlFormat = null;
+                if (documentListFormats && documentListFormats.length > 0) {
+                    xmlFormat = getFormatForHtmlLi(liText, documentListFormats, searchState);
+                }
+                
+                if (currentQuestionType === 'multiple_choice' && isOptSection) {
+                    // Multiple choice options ALWAYS get uppercase letters A, B, C...
+                    prefix = String.fromCharCode(64 + index) + '. ';
+                                } else if (xmlFormat) {
+                    // Apply exact numbering format matched from Word XML
+                    const fmt = xmlFormat.format;
+                    const idx = xmlFormat.index || index;
+                    if (fmt === 'decimal') {
+                        prefix = idx + '. ';
+                    } else if (fmt === 'lowerLetter') {
+                        prefix = String.fromCharCode(96 + idx) + '. ';
+                    } else if (fmt === 'upperLetter') {
+                        prefix = String.fromCharCode(64 + idx) + '. ';
+                    } else if (fmt === 'lowerRoman') {
+                        prefix = getRomanNumeral(idx) + '. ';
+                    } else if (fmt === 'upperRoman') {
+                        prefix = getRomanNumeral(idx).toUpperCase() + '. ';
+                    } else if (fmt === 'bullet') {
+                        prefix = '• ';
+                    } else {
+                        prefix = idx + '. ';
+                    }
+                } else {
+                    // Fallback to structural deduction
+                    if (currentQuestionType === 'multiple_choice') {
+                        if (currentList.isOl) {
+                            prefix = index + '. ';
+                        } else {
+                            prefix = '• ';
+                        }
+                    } else if (currentQuestionType === 'matching') {
+                        if (matchingListCount === 0) {
+                            prefix = index + '. ';
+                        } else {
+                            prefix = String.fromCharCode(64 + index) + '. ';
+                        }
+                    } else {
+                        if (currentList.isOl) {
+                            prefix = index + '. ';
+                        } else {
+                            prefix = '• ';
+                        }
+                    }
+                }
+                
+                output += token + prefix;
+            } else {
+                output += token;
+            }
+        } else {
+            output += token;
+        }
+        
+        lastIndex = tokenRegex.lastIndex;
+    }
+    
+    output += html.substring(lastIndex);
+    return output;
+}
+
+function parseHtmlContent(rawHtml, documentListFormats) {
+    const html = restoreListMarkers(rawHtml, documentListFormats);
     // Normalize literal newlines in HTML source to prevent unwanted line breaks from hard wraps
     const normalizedHtml = html.replace(/[\r\n]+/g, ' ');
 
@@ -233,13 +545,9 @@ function parseHtmlContent(html) {
         // Remove style blocks and script blocks entirely (including their content)
         .replace(/<(style|script)[^>]*>[\s\S]*?<\/\1>/gi, '')
         // Clean up spans, fonts, and other noisy inline wrappers that Word exports 
-        // We replace the opening and closing tags but keep the text inside.
         .replace(/<\/?(?:span|font)[^>]*>/gi, '')
         // Strip out structural document tags and block containers we already newline'd.
-        // Doing this safely so we don't accidentally match half a tag
         .replace(/<\/?(?:html|head|body|title|meta|link|p|div|ul|ol|li|h[1-6])[^>]*>/gi, '')
-        // Convert table semantics to newlines or keep them if they are useful for layout
-        // We will keep table tags, but we need to ensure they don't break our line logic
         .split('\n')
         .map(l => l.trim())
         .filter(l => l);
@@ -255,30 +563,18 @@ function parseHtmlContent(html) {
 
     const questions = [];
     let currentQuestion = null;
-    let currentOptionKey = null;
+    let currentSection = null;
 
-    // OPTIMIZED: Match patterns on CLEAN text (HTML stripped) to avoid catastrophic backtracking.
-    // The old htmlTagSpacing regex `(?:\s*<[^>]+>\s*|\s+)*` caused exponential backtracking
-    // because \s* and \s+ alternatives overlap — on non-matching lines the engine tries
-    // millions of combinations before giving up. Stripping HTML first makes this O(n).
-    const qRegexClean = /^\s*(\d+)\s*[.)]\s*(.*)/s;
-    const optRegexClean = /^\s*(\**)\s*([A-Za-z])\s*[.)]\s*(.*)/s;
-
-    // Helper: given a prefix pattern matched on clean text, extract the content after
-    // that prefix from the original HTML line (preserving images, tables, etc.)
     const extractContentAfterPrefix = (originalLine, prefixPattern) => {
         const stripped = originalLine.replace(/<[^>]+>/g, '');
         const m = stripped.match(prefixPattern);
         if (!m) return originalLine;
 
-        // Calculate where the prefix ends in the clean string
         const prefixEndClean = m.index + m[0].length;
-        // Map that position back to the original HTML string
         let cleanPos = 0;
         let origPos = 0;
         while (cleanPos < prefixEndClean && origPos < originalLine.length) {
             if (originalLine[origPos] === '<') {
-                // Skip entire HTML tag in original
                 const tagEnd = originalLine.indexOf('>', origPos);
                 origPos = tagEnd !== -1 ? tagEnd + 1 : origPos + 1;
             } else {
@@ -286,7 +582,6 @@ function parseHtmlContent(html) {
                 origPos++;
             }
         }
-        // Also skip any HTML tags immediately following the prefix
         while (origPos < originalLine.length && originalLine[origPos] === '<') {
             const tagEnd = originalLine.indexOf('>', origPos);
             origPos = tagEnd !== -1 ? tagEnd + 1 : origPos + 1;
@@ -294,198 +589,314 @@ function parseHtmlContent(html) {
         return originalLine.substring(origPos);
     };
 
-    restoredLines.forEach(line => {
-        // Strip HTML tags once per line for fast pattern matching
-        const cleanLine = line.replace(/<[^>]+>/g, '').trim();
-        const questionMatch = cleanLine.match(qRegexClean);
-
-        if (questionMatch) {
-            if (currentQuestion) {
-                // Save previous question
-                questions.push({ ...currentQuestion });
-            }
-            // Extract question text from original line, preserving HTML (images, tables)
-            const contentFromOriginal = extractContentAfterPrefix(line, /^\s*\d+\s*[.)]\s*/);
-            currentQuestion = {
-                question_text: contentFromOriginal.trim() || questionMatch[2].trim(),
-                options: {},
-                correct_options: []
-            };
-            currentOptionKey = null;
-            return;
+    const finalizeQuestion = (q) => {
+        let questionText = q.question_text_lines.join(' <br> ');
+        questionText = questionText.replace(/^\s*\d+\s*[.)]\s*/, '').trim();
+        
+        let points = 1.0;
+        const pointMatch = questionText.match(/\[(?:BOBOT|POINT):\s*([\d.]+)\]/i);
+        if (pointMatch) {
+            points = parseFloat(pointMatch[1]);
+            questionText = questionText.replace(pointMatch[0], '').trim();
         }
 
-        const optionMatch = cleanLine.match(optRegexClean);
-        const cleanLineLower = cleanLine.toLowerCase();
-        const tfMatch = cleanLineLower.match(/^(\*?)\s*(benar|salah)\s*(\*?)$/i);
+        let result = {
+            question_type: q.question_type,
+            question_text: questionText,
+            points: points,
+            options: {},
+            correct_option: '',
+            scoring_strategy: 'standard',
+            scoring_metadata: null
+        };
 
-        if (optionMatch && currentQuestion) {
-            const isStarredPrefix = optionMatch[1].includes('*');
-            const key = optionMatch[2].toUpperCase();
-            // Extract option text from original line, preserving HTML
-            let optionText = extractContentAfterPrefix(line, /^\s*\**\s*[A-Za-z]\s*[.)]\s*/).trim() || optionMatch[3].trim();
-            let isCorrect = isStarredPrefix;
-
-            // To check suffix or prefix asterisks accurately, we strip HTML
-            const cleanOptionText = optionText.replace(/<[^>]+>/g, '').trim();
-
-            if (!isCorrect && cleanOptionText.endsWith('*')) {
-                isCorrect = true;
-                optionText = optionText.replace(/\*(\s*<[^>]+>\s*)*$/, '').trim();
-            } else if (!isCorrect && cleanOptionText.startsWith('*')) {
-                isCorrect = true;
-                optionText = optionText.replace(/^(?:\s*<[^>]+>\s*)*\*/, '').trim();
-            }
-
-            currentOptionKey = key;
-            currentQuestion.options[key] = optionText;
-
-            if (isCorrect) {
-                currentQuestion.correct_options.push(key);
-            }
-            return;
-        } else if (tfMatch && currentQuestion) {
-            // Handle True/False option without prefix (e.g., "*Benar" or "Salah")
-            const isCorrect = tfMatch[1] === '*' || tfMatch[3] === '*';
-            const tfText = tfMatch[2].charAt(0).toUpperCase() + tfMatch[2].slice(1).toLowerCase();
-
-            // Assign sequential keys A, B...
-            const existingKeys = Object.keys(currentQuestion.options);
-            const key = String.fromCharCode(65 + existingKeys.length);
-
-            currentOptionKey = key;
-            currentQuestion.options[key] = tfText;
-
-            if (isCorrect) {
-                currentQuestion.correct_options.push(key);
-            }
-            return;
-        }
-
-        // Handle multi-line question text or options
-        if (currentQuestion) {
-            if (currentOptionKey && currentQuestion.options[currentOptionKey] !== undefined) {
-                let continuationText = line;
-                const cleanContinuation = continuationText.replace(/<[^>]+>/g, '').trim();
-
-                if (cleanContinuation.endsWith('*')) {
-                    if (!currentQuestion.correct_options.includes(currentOptionKey)) {
-                        currentQuestion.correct_options.push(currentOptionKey);
-                    }
-                    continuationText = continuationText.replace(/\*(\s*<[^>]+>\s*)*$/, '').trim();
+        if (q.question_type === 'multiple_choice') {
+            const parsedOpts = {};
+            let currentKey = null;
+            
+            q.opt_lines.forEach(line => {
+                const cleanLine = line.replace(/<[^>]+>/g, '').trim();
+                const optMatch = cleanLine.match(/^\s*([A-Za-z])\s*([.)\-:]\s+|\s+)(.*)/s);
+                if (optMatch) {
+                    currentKey = optMatch[1].toUpperCase();
+                    const content = extractContentAfterPrefix(line, /^\s*[A-Za-z]\s*([.)\-:]\s*|\s+)/);
+                    parsedOpts[currentKey] = content.trim();
+                } else if (currentKey) {
+                    parsedOpts[currentKey] += ' <br> ' + line;
                 }
+            });
 
-                if (continuationText) {
-                    currentQuestion.options[currentOptionKey] += ' <br> ' + continuationText;
+            // Re-key sequentially to A, B, C...
+            const sortedKeys = Object.keys(parsedOpts).sort();
+            const reKeyedOptions = {};
+            const keyMap = {};
+            sortedKeys.forEach((oldKey, index) => {
+                const newKey = String.fromCharCode(65 + index);
+                reKeyedOptions[newKey] = parsedOpts[oldKey];
+                keyMap[oldKey] = newKey;
+            });
+
+            result.options = reKeyedOptions;
+
+            // Parse Ans key
+            const correctKeys = [];
+            const rawAnsKeys = q.ans_line ? q.ans_line.toUpperCase().split(',').map(s => s.trim()) : [];
+            rawAnsKeys.forEach(k => {
+                if (keyMap[k]) {
+                    correctKeys.push(keyMap[k]);
+                } else if (reKeyedOptions[k]) {
+                    correctKeys.push(k);
+                } else {
+                    correctKeys.push(k);
                 }
+            });
+
+            // Determine if it is multiple choice complex (PGK)
+            if (correctKeys.length > 1) {
+                result.question_type = 'multiple_choice_complex';
+                result.correct_option = correctKeys.sort().join(',');
+                result.scoring_strategy = 'pgk_partial'; // default
+
+                const fullCheckString = questionText + ' ' + (q.ans_line || '');
+                if (fullCheckString.match(/\[PGK_STRICT\]/i)) {
+                    result.scoring_strategy = 'pgk_strict';
+                } else if (fullCheckString.match(/\[PGK_ANY\]/i)) {
+                    result.scoring_strategy = 'pgk_any';
+                } else if (fullCheckString.match(/\[PGK_ADDITIVE\]/i)) {
+                    result.scoring_strategy = 'pgk_additive';
+                }
+                
+                result.question_text = result.question_text
+                    .replace(/\[PGK_STRICT\]/gi, '')
+                    .replace(/\[PGK_PARTIAL\]/gi, '')
+                    .replace(/\[PGK_ANY\]/gi, '')
+                    .replace(/\[PGK_ADDITIVE\]/gi, '')
+                    .trim();
             } else {
-                // Continuing the question text
-                currentQuestion.question_text += (currentQuestion.question_text ? ' <br> ' : '') + line;
+                const keys = Object.keys(reKeyedOptions);
+                if (keys.length === 2 && keys.every(k => reKeyedOptions[k].toLowerCase() === 'benar' || reKeyedOptions[k].toLowerCase() === 'salah')) {
+                    result.question_type = 'true_false';
+                } else {
+                    result.question_type = 'multiple_choice';
+                }
+                result.correct_option = correctKeys[0] || keys[0] || 'A';
+                result.scoring_strategy = 'standard';
             }
+        } else if (q.question_type === 'essay') {
+            result.options = {};
+            result.correct_option = '';
+            
+            let strategy = 'essay_manual';
+            let cleanAnsLine = q.ans_line || '';
+            
+            const fullCheckString = questionText + ' ' + cleanAnsLine;
+            if (fullCheckString.match(/\[ESSAY_ANY\]/i)) {
+                strategy = 'essay_any_keyword';
+                cleanAnsLine = cleanAnsLine.replace(/\[ESSAY_ANY\]/gi, '').trim();
+            } else if (fullCheckString.match(/\[ESSAY_STRICT\]/i)) {
+                strategy = 'essay_strict_keywords';
+                cleanAnsLine = cleanAnsLine.replace(/\[ESSAY_STRICT\]/gi, '').trim();
+            } else if (fullCheckString.match(/\[ESSAY_MANUAL\]/i)) {
+                strategy = 'essay_manual';
+                cleanAnsLine = cleanAnsLine.replace(/\[ESSAY_MANUAL\]/gi, '').trim();
+            } else if (cleanAnsLine.length > 0) {
+                strategy = 'essay_keywords';
+            }
+
+            result.scoring_strategy = strategy;
+            result.question_text = result.question_text
+                .replace(/\[ESSAY_ANY\]/gi, '')
+                .replace(/\[ESSAY_STRICT\]/gi, '')
+                .replace(/\[ESSAY_MANUAL\]/gi, '')
+                .trim();
+
+            if (strategy !== 'essay_manual' && cleanAnsLine) {
+                const keywords = cleanAnsLine.split(',').map(k => k.trim()).filter(k => k);
+                result.scoring_metadata = { keywords };
+            }
+        } else if (q.question_type === 'matching') {
+            const allLines = [
+                ...q.question_text_lines,
+                ...q.opt_lines,
+                ...q.raw_lines
+            ];
+
+            const premises = {};
+            const responses = {};
+            const qTextParts = [];
+            let foundFirstItem = false;
+
+            allLines.forEach((line, idx) => {
+                const cleanLine = line.replace(/<[^>]+>/g, '').trim();
+                const premiseMatch = cleanLine.match(/^\s*(\d+)\s*([.)\-:]\s+|\s+)(.*)/s);
+                const responseMatch = cleanLine.match(/^\s*([A-Za-z])\s*([.)\-:]\s+|\s+)(.*)/s);
+
+                if (idx > 0 && premiseMatch) {
+                    foundFirstItem = true;
+                    const key = premiseMatch[1];
+                    const val = extractContentAfterPrefix(line, /^\s*\d+\s*([.)\-:]\s*|\s+)/).trim() || premiseMatch[3].trim();
+                    premises[key] = val;
+                } else if (idx > 0 && responseMatch) {
+                    foundFirstItem = true;
+                    const key = responseMatch[1].toLowerCase();
+                    const val = extractContentAfterPrefix(line, /^\s*[A-Za-z]\s*([.)\-:]\s*|\s+)/).trim() || responseMatch[3].trim();
+                    responses[key] = val;
+                } else if (!foundFirstItem) {
+                    qTextParts.push(line);
+                }
+            });
+
+            let finalQText = qTextParts.join(' <br> ').replace(/^\s*\d+\s*[.)]\s*/, '').trim();
+            const finalPointMatch = finalQText.match(/\[(?:BOBOT|POINT):\s*([\d.]+)\]/i);
+            if (finalPointMatch) {
+                result.points = parseFloat(finalPointMatch[1]);
+                finalQText = finalQText.replace(finalPointMatch[0], '').trim();
+            }
+            result.question_text = finalQText;
+
+            const pairs = [];
+            const ansParts = q.ans_line ? q.ans_line.split(',').map(s => s.trim()) : [];
+            ansParts.forEach(part => {
+                const match = part.match(/^\s*(\d+)\s*[-=]\s*([A-Za-z]+)/);
+                if (match) {
+                    const pKey = match[1];
+                    const rKey = match[2].toLowerCase();
+                    const pText = premises[pKey] || '';
+                    const rText = responses[rKey] || '';
+                    pairs.push({
+                        id: pKey,
+                        p: pText,
+                        r: rText
+                    });
+                }
+            });
+
+            result.options = {
+                pairs,
+                responses: Object.values(responses)
+            };
+            result.correct_option = ansParts.join(',');
+            result.scoring_strategy = 'standard';
         }
-    });
 
-    // Push the last question if exists
-    if (currentQuestion) {
-        questions.push({ ...currentQuestion });
-    }
-
-    // Smart cleaning helper
-    const cleanContent = (text) => {
-        if (!text) return '';
-        return text
-            .replace(/&nbsp;/gi, ' ') // Replace non-breaking space
-            .replace(/[ \t]+/g, ' ')    // Collapse multiple horizontal spaces
-            .replace(/(?:\s*<br\s*\/?>\s*){2,}/gi, ' <br> ') // Collapse multiple enters to exactly one
-            .replace(/^\s*<br\s*\/?>|<br\s*\/?>\s*$/gi, '') // Trim leading/trailing <br>
-            .trim();
+        return result;
     };
 
-    // Default processing for missing correct options and types
-    questions.forEach(q => {
-        // Apply smart cleanup
-        q.question_text = cleanContent(q.question_text);
-        Object.keys(q.options).forEach(key => {
-            q.options[key] = cleanContent(q.options[key]);
-        });
+    let currentQuestionType = 'multiple_choice';
 
-        // Detect Markers in question text
-        // Point Marker: [BOBOT: 5] or [POINT: 5]
-        const pointMatch = q.question_text.match(/\[(?:BOBOT|POINT):\s*([\d.]+)\]/i);
-        if (pointMatch) {
-            q.points = parseFloat(pointMatch[1]);
-            q.question_text = q.question_text.replace(pointMatch[0], '').trim();
+    restoredLines.forEach(line => {
+        const cleanLine = line.replace(/<[^>]+>/g, '').trim();
+        const typeMatch = cleanLine.match(/^\s*\[(Multiple Choice|Pilihan Ganda|ESSAY|Esai|Uraian|MATCHING|Menjodohkan)\]/i);
+        
+        if (typeMatch) {
+            if (currentQuestion) {
+                questions.push(finalizeQuestion(currentQuestion));
+            }
+            const rawType = typeMatch[1].toLowerCase();
+            let type = 'multiple_choice';
+            if (rawType === 'essay' || rawType === 'esai' || rawType === 'uraian') {
+                type = 'essay';
+            } else if (rawType === 'matching' || rawType === 'menjodohkan') {
+                type = 'matching';
+            }
+            currentQuestionType = type;
+            
+            currentQuestion = {
+                question_type: type,
+                question_text_lines: [],
+                raw_lines: [],
+                opt_lines: [],
+                ans_line: null
+            };
+            currentSection = 'question';
+            return;
+        }
+
+        // Detect implicit new question starting after Ans line
+        if (currentQuestion && currentQuestion.ans_line !== null) {
+            questions.push(finalizeQuestion(currentQuestion));
+            currentQuestion = {
+                question_type: currentQuestionType,
+                question_text_lines: [line],
+                raw_lines: [],
+                opt_lines: [],
+                ans_line: null
+            };
+            currentSection = 'question';
+            return;
+        }
+
+        const isTableLine = /<\/?(?:table|tr|td|th|tbody|thead|tfoot)\b/i.test(line);
+
+        // Detect implicit new question starting with a number
+        if (currentQuestion && currentQuestion.question_type !== 'matching') {
+            const isNumbered = cleanLine.match(/^\s*\d+\s*[.)]/);
+            const isPrevComplete = currentQuestion.opt_lines.length > 0 || currentQuestion.ans_line !== null;
+            
+            if (isNumbered && isPrevComplete && !isTableLine) {
+                questions.push(finalizeQuestion(currentQuestion));
+                currentQuestion = {
+                    question_type: currentQuestionType,
+                    question_text_lines: [line],
+                    raw_lines: [],
+                    opt_lines: [],
+                    ans_line: null
+                };
+                currentSection = 'question';
+                return;
+            }
+        }
+
+        if (!currentQuestion) {
+            const isNumbered = cleanLine.match(/^\s*\d+\s*[.)]/);
+            if (isNumbered) {
+                currentQuestion = {
+                    question_type: 'multiple_choice',
+                    question_text_lines: [line],
+                    raw_lines: [],
+                    opt_lines: [],
+                    ans_line: null
+                };
+                currentSection = 'question';
+            }
+            return;
+        }
+
+        if (cleanLine.match(/^\s*\[OPT\]/i)) {
+            currentSection = 'options';
+            return;
+        }
+
+        // Auto-detect start of options section for multiple choice questions if encountering 'A' or 'a' prefix
+        if (currentQuestion && 
+            currentQuestion.question_type === 'multiple_choice' && 
+            currentSection === 'question' &&
+            !isTableLine) {
+            const isOptionStart = cleanLine.match(/^\s*[aA]\s*[.)\-:]\s+/);
+            if (isOptionStart) {
+                currentSection = 'options';
+            }
+        }
+
+        const ansMatch = cleanLine.match(/^\s*(?:ans|jawaban|kunci|key)\s*:\s*(.*)/i);
+        if (ansMatch) {
+            currentQuestion.ans_line = ansMatch[1].trim();
+            currentSection = null;
+            return;
+        }
+
+        if (currentSection === 'question') {
+            currentQuestion.question_text_lines.push(line);
+        } else if (currentSection === 'options') {
+            currentQuestion.opt_lines.push(line);
         } else {
-            q.points = 1.0;
+            currentQuestion.raw_lines.push(line);
         }
-
-        // Strategy Markers
-        if (q.question_text.match(/\[PGK_STRICT\]/i)) {
-            q.scoring_strategy = 'pgk_strict';
-            q.question_text = q.question_text.replace(/\[PGK_STRICT\]/gi, '').trim();
-        } else if (q.question_text.match(/\[PGK_PARTIAL\]/i)) {
-            q.scoring_strategy = 'pgk_partial';
-            q.question_text = q.question_text.replace(/\[PGK_PARTIAL\]/gi, '').trim();
-        } else if (q.question_text.match(/\[PGK_ANY\]/i)) {
-            q.scoring_strategy = 'pgk_any';
-            q.question_text = q.question_text.replace(/\[PGK_ANY\]/gi, '').trim();
-        } else if (q.question_text.match(/\[PGK_ADDITIVE\]/i)) {
-            q.scoring_strategy = 'pgk_additive';
-            q.question_text = q.question_text.replace(/\[PGK_ADDITIVE\]/gi, '').trim();
-        }
-
-        // Keywords Marker
-        const kwMatch = q.question_text.match(/\[KEYWORDS:\s*([^\]]+)\]/i);
-        const kwAnyMatch = q.question_text.match(/\[ESSAY_ANY:\s*([^\]]+)\]/i);
-        const kwStrictMatch = q.question_text.match(/\[ESSAY_STRICT:\s*([^\]]+)\]/i);
-
-        if (kwMatch) {
-            q.scoring_metadata = { keywords: kwMatch[1].split(',').map(k => k.trim()).filter(k => k) };
-            q.scoring_strategy = 'essay_keywords';
-            q.question_text = q.question_text.replace(kwMatch[0], '').trim();
-        } else if (kwAnyMatch) {
-            q.scoring_metadata = { keywords: kwAnyMatch[1].split(',').map(k => k.trim()).filter(k => k) };
-            q.scoring_strategy = 'essay_any_keyword';
-            q.question_text = q.question_text.replace(kwAnyMatch[0], '').trim();
-        } else if (kwStrictMatch) {
-            q.scoring_metadata = { keywords: kwStrictMatch[1].split(',').map(k => k.trim()).filter(k => k) };
-            q.scoring_strategy = 'essay_strict_keywords';
-            q.question_text = q.question_text.replace(kwStrictMatch[0], '').trim();
-        }
-
-        // Detect Essay
-        if (q.question_text.toLowerCase().includes('[essay]')) {
-            q.question_type = 'essay';
-            q.question_text = q.question_text.replace(/\[essay\]/gi, '').trim();
-            q.options = {};
-            q.correct_option = '';
-            if (!q.scoring_strategy) q.scoring_strategy = 'essay_manual';
-        } else {
-            const keys = Object.keys(q.options);
-            const correctKeys = q.correct_options || [];
-
-            // Detect Multiple Choice Complex
-            if (correctKeys.length > 1) {
-                q.question_type = 'multiple_choice_complex';
-                q.correct_option = correctKeys.sort().join(',');
-                if (!q.scoring_strategy) q.scoring_strategy = 'pgk_partial'; // Default to partial for PGK
-            }
-            // Detect True/False
-            else if (keys.length === 2 &&
-                keys.every(k => q.options[k].toLowerCase() === 'benar' || q.options[k].toLowerCase() === 'salah')) {
-                q.question_type = 'true_false';
-                q.correct_option = correctKeys[0] || 'A';
-                q.scoring_strategy = 'standard';
-            }
-            // Standard Multiple Choice
-            else {
-                q.question_type = 'multiple_choice';
-                q.correct_option = correctKeys[0] || keys[0] || 'A';
-                q.scoring_strategy = 'standard';
-            }
-        }
-        delete q.correct_options; // Cleanup temp field
     });
+
+    if (currentQuestion) {
+        questions.push(finalizeQuestion(currentQuestion));
+    }
 
     return questions;
 }
