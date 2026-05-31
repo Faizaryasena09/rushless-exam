@@ -1620,6 +1620,36 @@ export default function ManageQuestionsPage() {
                 examName={examName}
             />
             <div className="container mx-auto p-4 md:p-6">
+                <style dangerouslySetInnerHTML={{ __html: `
+                    @keyframes fadeInUp {
+                      from {
+                        opacity: 0;
+                        transform: translateY(15px);
+                      }
+                      to {
+                        opacity: 1;
+                        transform: translateY(0);
+                      }
+                    }
+                    @keyframes fadeInDown {
+                      from {
+                        opacity: 0;
+                        transform: translateY(-15px);
+                      }
+                      to {
+                        opacity: 1;
+                        transform: translateY(0);
+                      }
+                    }
+                    .animate-fade-in-down {
+                      animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                    }
+                    .animate-fade-in-up {
+                      animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                      opacity: 0;
+                    }
+                ` }} />
+
                 <Link 
                     href={`/dashboard/exams/manage/${examId}`}
                     className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg transition-all active:scale-95"
@@ -1627,7 +1657,7 @@ export default function ManageQuestionsPage() {
                     <ArrowLeft size={18} />
                     Kembali ke Pengaturan Ujian
                 </Link>
-                <div className="mb-8 flex justify-between items-start">
+                <div className="animate-fade-in-down mb-8 flex justify-between items-start">
                     <div>
                         <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">{examName ? `Kelola Soal: ${examName}` : 'Kelola Soal'}</h1>
                     </div>
@@ -1643,7 +1673,7 @@ export default function ManageQuestionsPage() {
                     </Link>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-1">
+                    <div className="animate-fade-in-up lg:col-span-1" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                         {/* Scoring Configuration Panel */}
                         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 mb-8 overflow-hidden transition-all duration-300 hover:shadow-2xl">
                             <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-1"></div>
@@ -1772,7 +1802,7 @@ export default function ManageQuestionsPage() {
                             {activeTab === 'import' && <ImportWordForm examId={examId} onQuestionAdded={fetchQuestions} />}
                         </div>
                     </div>
-                    <div className="lg:col-span-2">
+                    <div className="animate-fade-in-up lg:col-span-2" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
                         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Existing Questions ({questions.length})</h2>

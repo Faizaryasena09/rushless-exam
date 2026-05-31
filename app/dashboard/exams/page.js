@@ -980,7 +980,37 @@ export default function ExamsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(15px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes fadeInDown {
+          from {
+            opacity: 0;
+            transform: translateY(-15px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in-down {
+          animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .animate-fade-in-up {
+          animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          opacity: 0;
+        }
+      ` }} />
+
+      <div className="animate-fade-in-down flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
         <div className="space-y-1 text-left">
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase leading-tight">
             {isStudent ? t('exams_title_student') : t('exams_title_admin')}
@@ -1024,7 +1054,7 @@ export default function ExamsPage() {
       </div>
 
       {filteredExams.length === 0 ? (
-        <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600">
+        <div className="animate-fade-in-up text-center py-20 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
           <Icons.FileText className="block mx-auto w-12 h-12 text-slate-400" />
           <h3 className="mt-4 text-lg font-semibold text-slate-800 dark:text-white">
             {searchTerm ? t('exams_empty_match') : t('exams_empty_found')}
@@ -1034,7 +1064,7 @@ export default function ExamsPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="animate-fade-in-up space-y-6" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
           {/* Tanpa Nama Category (Uncategorized) */}
           <CategoryAccordion
             id="uncategorized"

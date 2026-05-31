@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 const Icons = {
   Add: () => (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
   Edit: () => (
@@ -158,8 +158,38 @@ const SubjectsPage = () => {
 
   return (
     <div className="space-y-6 pb-20">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(15px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes fadeInDown {
+          from {
+            opacity: 0;
+            transform: translateY(-15px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in-down {
+          animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .animate-fade-in-up {
+          animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          opacity: 0;
+        }
+      ` }} />
+
       {/* --- Page Header --- */}
-      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+      <div className="animate-fade-in-down bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('nav_manage_subjects')}</h1>
           <p className="text-sm text-slate-500 mt-1 dark:text-slate-400">
@@ -197,7 +227,7 @@ const SubjectsPage = () => {
           <p className="mt-2 text-slate-400 text-sm">{t('layout_loading')}</p>
         </div>
       ) : filteredData.length === 0 ? (
-        <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+        <div className="animate-fade-in-up text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
           <div className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-3">
             <Icons.Subject />
           </div>
@@ -209,7 +239,7 @@ const SubjectsPage = () => {
           </p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
+        <div className="animate-fade-in-up bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
             <thead className="bg-slate-50/80 dark:bg-slate-700/50">

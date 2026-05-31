@@ -217,9 +217,39 @@ export default function BankSoalPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-20">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(15px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes fadeInDown {
+          from {
+            opacity: 0;
+            transform: translateY(-15px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in-down {
+          animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .animate-fade-in-up {
+          animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          opacity: 0;
+        }
+      ` }} />
+
       {/* 1. Bagian Judul & Tombol (Akan Tergulung Ke Atas) */}
       <div className="bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="animate-fade-in-down max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-200 dark:shadow-none shrink-0">
@@ -319,7 +349,7 @@ export default function BankSoalPage() {
           <div className="space-y-6">
             {/* Folders Grid */}
             {currentFolders.length > 0 && (
-              <section>
+              <section className="animate-fade-in-up" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                 <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <div className="w-1 h-3 bg-indigo-500 rounded-full"></div>
                   Folders ({currentFolders.length})
@@ -371,7 +401,7 @@ export default function BankSoalPage() {
 
             {/* Questions Section */}
             {currentFolderId && (
-              <section className="mt-10">
+              <section className="animate-fade-in-up mt-10" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -490,7 +520,7 @@ export default function BankSoalPage() {
 
             {/* Empty State for Root */}
             {!currentFolderId && currentFolders.length === 0 && (
-              <div className="bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl p-20 flex flex-col items-center justify-center text-center">
+              <div className="animate-fade-in-up bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl p-20 flex flex-col items-center justify-center text-center" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                 <div className="p-6 bg-slate-50 dark:bg-slate-900 rounded-full mb-6">
                   <Folder className="w-16 h-16 text-slate-200" />
                 </div>

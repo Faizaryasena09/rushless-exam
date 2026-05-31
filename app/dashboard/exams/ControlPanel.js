@@ -421,9 +421,39 @@ export default function ControlPanel() {
 
     return (
         <div className="space-y-6">
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes fadeInUp {
+                  from {
+                    opacity: 0;
+                    transform: translateY(15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                @keyframes fadeInDown {
+                  from {
+                    opacity: 0;
+                    transform: translateY(-15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                .animate-fade-in-down {
+                  animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                .animate-fade-in-up {
+                  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                  opacity: 0;
+                }
+            ` }} />
+
             {logStudent && <LogPanel student={logStudent} sseLog={sseLog} onClose={() => setLogStudent(null)} />}
 
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden text-slate-800 dark:text-slate-200">
+            <div className="animate-fade-in-down bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden text-slate-800 dark:text-slate-200">
                 <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-slate-50/30 dark:bg-slate-700/30">
                     <div>
                         <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
@@ -502,7 +532,7 @@ export default function ControlPanel() {
                 </div>
             </div>
 
-            <div className="hidden md:block bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="animate-fade-in-up hidden md:block bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                     <thead className="bg-slate-50/80 dark:bg-slate-700/50">
                         <tr>
@@ -584,7 +614,7 @@ export default function ControlPanel() {
 
             {/* Pagination / Empty State */}
             {sortedStudents.length === 0 && (
-                <div className="bg-white dark:bg-slate-800 p-12 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 text-center">
+                <div className="animate-fade-in-up bg-white dark:bg-slate-800 p-12 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 text-center" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                     <p className="text-slate-400 italic">Tidak ada siswa ditemukan.</p>
                 </div>
             )}

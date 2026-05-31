@@ -104,7 +104,7 @@ const Timer = memo(({ timeLeft, isHidden, onToggle }) => {
     return (
       <button
         onClick={onToggle}
-        className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-90 ${isCritical ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}`}
+        className={`flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-xl transition-all active:scale-90 ${isCritical ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}`}
         title="Klik untuk melihat sisa waktu"
       >
         <Icons.Clock />
@@ -115,11 +115,11 @@ const Timer = memo(({ timeLeft, isHidden, onToggle }) => {
   return (
     <div
       onClick={onToggle}
-      className={`flex items-center gap-2 font-mono px-3 py-1.5 rounded-lg cursor-pointer select-none transition-all active:scale-95 hover:brightness-95 ${isCritical ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}
+      className={`flex-shrink-0 flex items-center gap-1.5 md:gap-2 font-mono px-2 md:px-3 py-1 md:py-1.5 rounded-lg cursor-pointer select-none transition-all active:scale-95 hover:brightness-95 ${isCritical ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}
       title="Klik untuk menyembunyikan timer"
     >
-      <Icons.Clock />
-      <span className="text-sm font-semibold tracking-wider">{formatTime(timeLeft)}</span>
+      <span className="hidden sm:inline-block"><Icons.Clock /></span>
+      <span className="text-xs md:text-sm font-bold tracking-wider">{formatTime(timeLeft)}</span>
     </div>
   );
 });
@@ -1297,7 +1297,36 @@ export default function ExamTakingPage() {
 
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl w-full max-w-2xl border border-slate-200 dark:border-slate-700">
+        <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes fadeInUp {
+              from {
+                opacity: 0;
+                transform: translateY(15px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+            @keyframes fadeInDown {
+              from {
+                opacity: 0;
+                transform: translateY(-15px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+            .animate-fade-in-down {
+              animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+            .animate-fade-in-up {
+              animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+              opacity: 0;
+            }
+        ` }} />
+        <div className="animate-fade-in-up bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl w-full max-w-2xl border border-slate-200 dark:border-slate-700" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
 
           {/* Header */}
           <div className="text-center mb-6">
@@ -1412,7 +1441,23 @@ export default function ExamTakingPage() {
   if (showTokenModal) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative border border-slate-200 dark:border-slate-700">
+        <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes fadeInUp {
+              from {
+                opacity: 0;
+                transform: translateY(15px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+            .animate-fade-in-up {
+              animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+              opacity: 0;
+            }
+        ` }} />
+        <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative border border-slate-200 dark:border-slate-700" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
           <button
             onClick={() => { setShowTokenModal(false); setTokenInput(''); setError(null); setShowInstructionsScreen(true); }}
             className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition"
@@ -1459,6 +1504,48 @@ export default function ExamTakingPage() {
   // --- RENDERING ACTUAL EXAM ---
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-transparent pb-20">
+      <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes fadeInUp {
+            from {
+              opacity: 0;
+              transform: translateY(15px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          @keyframes fadeInDown {
+            from {
+              opacity: 0;
+              transform: translateY(-15px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          .animate-fade-in-down {
+            animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          }
+          .animate-fade-in-up {
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+          }
+          @keyframes questionFade {
+            from {
+              opacity: 0;
+              transform: translateY(6px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          .animate-question-fade {
+            animation: questionFade 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          }
+      ` }} />
       {/* Offline Alert Banner */}
       {!isOnline && (
         <div className="fixed top-0 left-0 right-0 z-[100] animate-in slide-in-from-top duration-300">
@@ -1480,15 +1567,19 @@ export default function ExamTakingPage() {
       )}
 
 
-      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 dark:text-slate-400 transition-colors">
+      <header className="animate-fade-in-down bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-7xl mx-auto px-3 md:px-8 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
+            <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 dark:text-slate-400 transition-colors flex-shrink-0">
               <Icons.ArrowLeft />
             </button>
-            <div><h1 className="text-base md:text-lg font-bold text-slate-800 dark:text-white line-clamp-1">{examDetails?.exam_name}</h1></div>
+            <div className="min-w-0">
+              <h1 className="text-base md:text-lg font-bold text-slate-800 dark:text-white truncate" title={examDetails?.exam_name}>
+                {examDetails?.exam_name}
+              </h1>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
             {user && (
               <div className="hidden md:flex flex-col text-right">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">Peserta</span>
@@ -1555,19 +1646,27 @@ export default function ExamTakingPage() {
               isHidden={isTimerHidden}
               onToggle={() => setIsTimerHidden(!isTimerHidden)}
             />
-            <button onClick={() => setIsSidebarVisible(!isSidebarVisible)} className="md:hidden p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600"><Icons.Grid /></button>
           </div>
         </div>
         <div className="h-1 w-full bg-slate-100 dark:bg-slate-700 md:hidden"><div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${progressPercentage}%` }}></div></div>
       </header>
 
-      <div className="max-w-7xl mx-auto p-4 md:p-8">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-          <div className={`${isDesktopSidebarOpen ? 'md:col-span-8 lg:col-span-9' : 'md:col-span-12'} space-y-6 transition-all duration-500 ease-in-out`}>
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden min-h-[500px] flex flex-col">
+      {/* Floating Question List Button (Mobile only, floats at the bottom right) */}
+      <button
+        onClick={() => setIsSidebarVisible(true)}
+        className="md:hidden fixed bottom-6 right-4 z-40 flex items-center justify-center w-12 h-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all border border-indigo-500"
+        title="Tampilkan Daftar Soal"
+      >
+        <Icons.Grid />
+      </button>
+
+      <div className="max-w-7xl mx-auto px-4 py-3 md:p-8 w-full min-w-0 overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8">
+          <div className={`${isDesktopSidebarOpen ? 'md:col-span-8 lg:col-span-9' : 'md:col-span-12'} animate-fade-in-up space-y-6 transition-all duration-500 ease-in-out min-w-0 w-full`} style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden min-h-[500px] flex flex-col w-full min-w-0">
               {currentQuestion ? (
                 <>
-                  <div className="p-6 md:p-8 flex-1">
+                  <div key={currentQuestion.id} className="animate-question-fade p-4 md:p-8 flex-1 min-w-0 w-full">
                     <div className="flex justify-between items-start mb-6">
                       <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">Soal No. {currentQuestionIndex + 1}</span>
                       <button
@@ -1583,9 +1682,9 @@ export default function ExamTakingPage() {
                         </span>
                       </button>
                     </div>
-                    <div className="prose prose-slate dark:prose-invert max-w-none mb-8">
+                    <div className="prose prose-slate dark:prose-invert max-w-none mb-8 min-w-0 w-full overflow-hidden">
                       <div
-                        className={`${fsClasses.question} font-medium text-slate-800 dark:text-slate-100 leading-relaxed overflow-x-auto custom-content-wrapper transition-all duration-300`}
+                        className={`${fsClasses.question} font-medium text-slate-800 dark:text-slate-100 leading-relaxed overflow-x-auto custom-content-wrapper transition-all duration-300 min-w-0 break-words`}
                         dangerouslySetInnerHTML={{ __html: currentQuestion.question_text }}
                       />
                     </div>
@@ -1616,10 +1715,10 @@ export default function ExamTakingPage() {
                             : answers[currentQuestion.id] === option.originalKey;
 
                           return (
-                            <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 dark:border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
+                            <div key={option.originalKey} onClick={() => handleAnswerSelect(currentQuestion.id, option.originalKey)} className={`group flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 dark:border-indigo-500 shadow-sm ring-1 ring-indigo-500' : 'bg-white dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
                               <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-300 group-hover:bg-indigo-600 group-hover:text-white'}`}>{optionLabel}</div>
-                              <div className="overflow-x-auto flex-1 custom-content-wrapper">
-                                <span className={`${fsClasses.options} font-medium transition-all duration-300 ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-700 dark:text-slate-300 group-hover:text-indigo-900 dark:group-hover:text-white'}`} dangerouslySetInnerHTML={{ __html: option.text }} />
+                              <div className="overflow-x-auto flex-1 min-w-0 custom-content-wrapper">
+                                <div className={`${fsClasses.options} font-medium transition-all duration-300 ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-700 dark:text-slate-300 group-hover:text-indigo-900 dark:group-hover:text-white'} break-words`} dangerouslySetInnerHTML={{ __html: option.text }} />
                               </div>
                               {currentQuestion.question_type === 'multiple_choice_complex' ? (
                                 <div className={`w-6 h-6 rounded flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-slate-500'}`}>
@@ -1686,11 +1785,23 @@ export default function ExamTakingPage() {
                     </div>
 
                     <style jsx global>{`
+                        html, body, main {
+                            max-width: 100vw !important;
+                            overflow-x: hidden !important;
+                        }
                         .custom-content-wrapper img {
                             max-width: 100% !important;
                             height: auto !important;
                             border-radius: 12px;
                             margin: 1rem 0;
+                            display: inline-block;
+                        }
+                        @media (max-width: 768px) {
+                            .custom-content-wrapper img {
+                                max-width: 80% !important;
+                                display: block !important;
+                                margin: 0.75rem auto !important;
+                            }
                         }
                         .custom-content-wrapper table {
                             width: 100% !important;
@@ -1759,16 +1870,24 @@ export default function ExamTakingPage() {
             </div>
           </div>
           {isDesktopSidebarOpen && (
-            <div className="hidden md:block md:col-span-4 lg:col-span-3 transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-right-4">
+            <div className="animate-fade-in-up hidden md:block md:col-span-4 lg:col-span-3 transition-all duration-500 ease-in-out" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
               <QuestionNavigation questions={questions} answers={answers} doubtful={doubtfulAnswers} currentIndex={currentQuestionIndex} onSelect={handleSelectQuestion} />
             </div>
           )}
         </div>
       </div>
-      {isSidebarVisible && (
-        <div className="fixed inset-0 z-50 md:hidden overflow-hidden">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-300" onClick={() => setIsSidebarVisible(false)}></div>
-          <div className="absolute right-0 top-0 h-full w-[85%] sm:w-80 bg-white dark:bg-slate-900 shadow-2xl transform transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] flex flex-col animate-in slide-in-from-right">
+      {/* Question Navigation Drawer (Mobile only) */}
+      <div className="fixed inset-0 z-50 md:hidden pointer-events-none">
+        {/* Backdrop */}
+        <div 
+          className={`absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-300 ${isSidebarVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
+          onClick={() => setIsSidebarVisible(false)}
+        ></div>
+        
+        {/* Drawer Content */}
+        <div 
+          className={`absolute right-0 top-0 h-full w-[85%] sm:w-80 bg-white dark:bg-slate-900 shadow-2xl flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-auto ${isSidebarVisible ? 'translate-x-0' : 'translate-x-full'}`}
+        >
 
             {/* Drawer Header */}
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 sticky top-0 z-10">
@@ -1852,9 +1971,8 @@ export default function ExamTakingPage() {
                 Tutup Panel
               </button>
             </div>
-          </div>
         </div>
-      )}
+      </div>
 
       {/* Confirmation Modal */}
       <FinishConfirmationModal

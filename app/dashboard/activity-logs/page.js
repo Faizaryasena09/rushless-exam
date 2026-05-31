@@ -113,8 +113,37 @@ export default function ActivityLogsPage() {
 
     return (
         <div className="space-y-5">
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes fadeInUp {
+                  from {
+                    opacity: 0;
+                    transform: translateY(15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                @keyframes fadeInDown {
+                  from {
+                    opacity: 0;
+                    transform: translateY(-15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                .animate-fade-in-down {
+                  animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                .animate-fade-in-up {
+                  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                  opacity: 0;
+                }
+            ` }} />
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="animate-fade-in-down flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div className="flex items-center gap-3">
                     <Link href="/dashboard/web-settings" className="text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -148,7 +177,7 @@ export default function ActivityLogsPage() {
             </div>
 
             {/* Filters */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
+            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
                 <div className="flex flex-col lg:flex-row gap-3">
                     <form onSubmit={handleSearch} className="flex-1 flex gap-2 w-full lg:w-auto">
                         <input
@@ -198,7 +227,7 @@ export default function ActivityLogsPage() {
             )}
 
             {/* Table / List Container */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
                 {/* Desktop View (Table) */}
                 <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-sm">

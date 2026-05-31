@@ -130,10 +130,55 @@ function LoginForm() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 transition-colors duration-300 p-6">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 shadow-2xl rounded-2xl overflow-hidden border border-gray-200/50 dark:border-gray-700 transition-colors duration-300">
+    <main className="flex min-h-screen items-center justify-center animated-bg transition-colors duration-300 p-6">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes cardFadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.96) translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+        @keyframes itemFadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-card {
+          animation: cardFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .animate-item {
+          animation: itemFadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          opacity: 0;
+        }
+        .animated-bg {
+          background: linear-gradient(-45deg, #f1f5f9, #e2e8f0, #cbd5e1, #f8fafc);
+          background-size: 400% 400%;
+          animation: gradientShift 15s ease infinite;
+        }
+        .dark .animated-bg {
+          background: linear-gradient(-45deg, #020617, #0f172a, #1e293b, #0f172a);
+          background-size: 400% 400%;
+          animation: gradientShift 15s ease infinite;
+        }
+      ` }} />
 
-        <div className="p-8 text-center">
+      <div className="w-full max-w-md bg-white dark:bg-gray-800 shadow-2xl rounded-2xl overflow-hidden border border-gray-200/50 dark:border-gray-700 transition-colors duration-300 animate-card">
+
+        <div className="p-8 text-center animate-item" style={{ animationDelay: '50ms', animationFillMode: 'forwards' }}>
           <div className="flex justify-center mb-4">
             <img src={branding.site_logo} alt={`${branding.site_name} Logo`} className="h-14 w-auto object-contain drop-shadow-sm" />
           </div>
@@ -162,7 +207,7 @@ function LoginForm() {
             </div>
           )}
 
-          <div>
+          <div className="animate-item" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
             <label className="block text-gray-600 dark:text-gray-300 text-sm font-semibold mb-2 transition-colors duration-300" htmlFor="username">
               {t('login_username_label')}
             </label>
@@ -186,7 +231,7 @@ function LoginForm() {
             </div>
           </div>
 
-          <div>
+          <div className="animate-item" style={{ animationDelay: '350ms', animationFillMode: 'forwards' }}>
             <label className="block text-gray-600 dark:text-gray-300 text-sm font-semibold mb-2 transition-colors duration-300" htmlFor="password">
               {t('login_password_label')}
             </label>
@@ -221,25 +266,27 @@ function LoginForm() {
             </div>
           </div>
 
-          <button
-            className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform hover:scale-105 ${isLoading || lockoutEndTs !== null ? 'opacity-70 cursor-not-allowed' : ''
-              }`}
-            type="submit"
-            disabled={isLoading || lockoutEndTs !== null}
-            suppressHydrationWarning={true}
-          >
-            {isLoading ? (
-              <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                {t('login_btn_loading')}
-              </span>
-            ) : (
-              t('login_btn')
-            )}
-          </button>
+          <div className="animate-item" style={{ animationDelay: '500ms', animationFillMode: 'forwards' }}>
+            <button
+              className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform hover:scale-105 ${isLoading || lockoutEndTs !== null ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
+              type="submit"
+              disabled={isLoading || lockoutEndTs !== null}
+              suppressHydrationWarning={true}
+            >
+              {isLoading ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {t('login_btn_loading')}
+                </span>
+              ) : (
+                t('login_btn')
+              )}
+            </button>
+          </div>
         </form>
 
         <div className="bg-gray-50 dark:bg-gray-800/80 px-8 py-4 border-t border-gray-100 dark:border-gray-700 transition-colors duration-300">

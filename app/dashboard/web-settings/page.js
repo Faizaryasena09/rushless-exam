@@ -254,8 +254,38 @@ export default function WebSettingsPage() {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes fadeInUp {
+                  from {
+                    opacity: 0;
+                    transform: translateY(15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                @keyframes fadeInDown {
+                  from {
+                    opacity: 0;
+                    transform: translateY(-15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                .animate-fade-in-down {
+                  animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                .animate-fade-in-up {
+                  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                  opacity: 0;
+                }
+            ` }} />
+
             {/* Page Title */}
-            <div className="flex items-center gap-3">
+            <div className="animate-fade-in-down flex items-center gap-3">
                 <div className="p-2.5 bg-gradient-to-br from-slate-600 to-slate-800 dark:from-slate-700 dark:to-slate-900 rounded-xl shadow-lg shadow-slate-500/20">
                     <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -269,7 +299,7 @@ export default function WebSettingsPage() {
             </div>
 
             {/* Quick Navigation Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="animate-fade-in-up grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                 <Link href="/dashboard/system-overview" className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 dark:from-indigo-500/10 dark:to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="relative flex items-start gap-4">
@@ -326,7 +356,7 @@ export default function WebSettingsPage() {
             </div>
 
             {/* Site Branding Section */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
                 <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-blue-50/30 dark:from-slate-700/50 dark:to-blue-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
                     <div className="p-1.5 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
                         <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -430,7 +460,7 @@ export default function WebSettingsPage() {
             </div>
 
             {/* Language Section */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden" style={{ animationDelay: '250ms', animationFillMode: 'forwards' }}>
                 <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-violet-50/30 dark:from-slate-700/50 dark:to-violet-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
                     <div className="p-1.5 bg-violet-100 dark:bg-violet-900/40 rounded-lg">
                         <svg className="w-4 h-4 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -484,7 +514,7 @@ export default function WebSettingsPage() {
             </div>
 
             {/* Android App Configuration Section */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden" style={{ animationDelay: '300ms', animationFillMode: 'forwards' }}>
                 <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-emerald-50/30 dark:from-slate-700/50 dark:to-emerald-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
                     <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg">
                         <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -542,7 +572,7 @@ export default function WebSettingsPage() {
             </div>
 
             {/* Profile Permissions Section */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden" style={{ animationDelay: '350ms', animationFillMode: 'forwards' }}>
                 <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-indigo-50/30 dark:from-slate-700/50 dark:to-indigo-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
                     <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg">
                         <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -643,7 +673,7 @@ export default function WebSettingsPage() {
             </div>
 
             {/* Brute Force Protection Section */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden" style={{ animationDelay: '400ms', animationFillMode: 'forwards' }}>
                 <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-red-50/30 dark:from-slate-700/50 dark:to-red-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
                     <div className="p-1.5 bg-red-100 dark:bg-red-900/40 rounded-lg">
                         <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

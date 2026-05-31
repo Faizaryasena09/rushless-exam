@@ -191,6 +191,17 @@ export default function Header({ user, isLoading, toggleSidebar, showToggleButto
                     <span className="font-medium">{t('header_my_profile')}</span>
                   </Link>
 
+                  <Link
+                    href="/dashboard/download-app"
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors duration-150"
+                  >
+                    <svg className="w-4 h-4 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span className="font-medium">Download Aplikasi</span>
+                  </Link>
+
                   {/* Theme Toggle in Dropdown */}
                   <button
                     onClick={() => { toggleTheme(); }}

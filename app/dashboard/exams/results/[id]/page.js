@@ -146,8 +146,38 @@ export default function ExamResultsPage() {
 
     return (
         <div className="space-y-8">
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes fadeInUp {
+                  from {
+                    opacity: 0;
+                    transform: translateY(15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                @keyframes fadeInDown {
+                  from {
+                    opacity: 0;
+                    transform: translateY(-15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                .animate-fade-in-down {
+                  animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                .animate-fade-in-up {
+                  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                  opacity: 0;
+                }
+            ` }} />
+
             {/* Header section with Premium feel */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="animate-fade-in-down flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                 <div className="space-y-1">
                     <Link href="/dashboard/exams" className="group inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-all">
                         <span className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/40 group-hover:text-indigo-600 transition-colors">
@@ -206,7 +236,7 @@ export default function ExamResultsPage() {
             </div>
 
             {/* Filter Controls */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="animate-fade-in-up grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                 <div className="sm:col-span-2 lg:col-span-3 relative group">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
@@ -231,7 +261,7 @@ export default function ExamResultsPage() {
             </div>
 
             {/* Results Section */}
-            <div className="space-y-4">
+            <div className="animate-fade-in-up space-y-4" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
                 <div className="flex items-center justify-between px-2">
                     <h2 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
                         <span className="w-2 h-6 bg-indigo-500 rounded-full" />

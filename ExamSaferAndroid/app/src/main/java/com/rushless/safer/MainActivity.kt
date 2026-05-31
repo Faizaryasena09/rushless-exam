@@ -28,6 +28,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.Icon
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -37,6 +41,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.OnBackPressedCallback
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -57,9 +62,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.rushless.safer.ui.theme.MyApplicationTheme
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextField
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Button
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.material3.CircularProgressIndicator
 
 class MainActivity : ComponentActivity() {
 
@@ -146,8 +153,16 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    val showSplash = remember { mutableStateOf(true) }
+                    LaunchedEffect(Unit) {
+                        kotlinx.coroutines.delay(1800)
+                        showSplash.value = false
+                    }
+
                     Box {
-                        if (showSetupWizard.value && !examMode.value) {
+                        if (showSplash.value) {
+                            SplashScreen()
+                        } else if (showSetupWizard.value && !examMode.value) {
                             SetupWizard(
                                 onRefresh = { checkPermissions() },
                                 hasOverlay = hasOverlayPermission.value
@@ -159,11 +174,19 @@ class MainActivity : ComponentActivity() {
                                 batteryLevel = batteryLevel.value,
                                 isCharging = isCharging.value,
                                 showWarning = showViolationWarning,
-                                onFinished = { onExamFinished() }
+                                onFinished = { onExamFinished() },
+                                onExitClick = {
+                                    if (emergencyPassword.value.isEmpty()) {
+                                        onEmergencyExit()
+                                        showExitDialog.value = false
+                                    } else {
+                                        showExitDialog.value = true
+                                    }
+                                }
                             )
                         }
                         
-                        if (showExitDialog.value) {
+                        if (showExitDialog.value && !showSplash.value) {
                             EmergencyExitDialog(
                                 onDismiss = { showExitDialog.value = false },
                                 onConfirm = { password ->
@@ -446,23 +469,25 @@ class MainActivity : ComponentActivity() {
         
         if (!isPinned) {
             val currentTime = System.currentTimeMillis()
-            val inCooldown = currentTime - lastLockAttemptTime < 5000 // 5s for initial dialog
             
-            if (inCooldown) {
-                removeStatusBarBlocker()
-                return
+            // Only apply initial dialog cooldown if we haven't been successfully pinned yet
+            if (isWaitingForFirstPin) {
+                val inCooldown = currentTime - lastLockAttemptTime < 5000
+                if (inCooldown) {
+                    removeStatusBarBlocker()
+                    return
+                }
             }
             
             if (!isWaitingForFirstPin) {
                 violationDetected = true // Mark violation ONLY if not in cooldown/initial
-            } else {
-                // If we are still waiting but cooldown passed, it's likely they ignored/canceled
-                // We'll keep trying but maybe warn them now? 
-                // For now, let's keep it quiet until they manage to pin.
             }
-            // Not pinned and not in cooldown -> Try to lock aggressively
+            
+            // Not pinned -> Try to lock aggressively and immediately
             forcePullBack() // Bring to front BEFORE locking
-            if (currentTime - lastLockAttemptTime > 2000) { 
+            
+            // Re-enforce with a safety rate-limit of 1.5 seconds to prevent race conditions & screen flickering
+            if (currentTime - lastLockAttemptTime > 1500) { 
                 try {
                     lastLockAttemptTime = currentTime
                     removeStatusBarBlocker()
@@ -471,8 +496,8 @@ class MainActivity : ComponentActivity() {
                     Log.e("RushlessSafer", "Failed to re-enforce lockdown", e)
                 }
             }
-            // Show Violation Screen
-            showLockdownOverlay(isViolation = true)
+            // Keep normal status bar overlay active, no full screen breach alert
+            showLockdownOverlay(isViolation = false)
         } else {
             // Already Pinned -> Active the Iron Curtain (Safety Blocker)
             isWaitingForFirstPin = false // Confirmed pinned!
@@ -480,7 +505,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun fetchEmergencyPassword() {
+    fun fetchEmergencyPassword() {
         // We'll fetch this from the server. For now, we can use the targetUrl's origin
         // or a hardcoded fallback if needed.
         val origin = if (targetUrl.value.isNotEmpty()) {
@@ -525,8 +550,11 @@ class MainActivity : ComponentActivity() {
         if (volumeUpCount == 3 && volumeDownCount == 2) {
             volumeUpCount = 0
             volumeDownCount = 0
-            showExitDialog.value = true
-            fetchEmergencyPassword() // Refresh just in case
+            if (emergencyPassword.value.isEmpty()) {
+                onEmergencyExit()
+            } else {
+                showExitDialog.value = true
+            }
         }
     }
 
@@ -577,6 +605,7 @@ class MainActivity : ComponentActivity() {
             if (examMode.value) {
                 examMode.value = false
                 targetUrl.value = ""
+                emergencyPassword.value = ""
                 try {
                     removeStatusBarBlocker()
                     stopLockTask()
@@ -612,12 +641,13 @@ fun MainContent(
     batteryLevel: Int,
     isCharging: Boolean,
     showWarning: MutableState<Boolean>, 
-    onFinished: () -> Unit
+    onFinished: () -> Unit,
+    onExitClick: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         if (isExamMode) {
-            // Minimalist Battery Header
-            BatteryHeader(level = batteryLevel, isCharging = isCharging)
+            // Modern Status & Battery Header
+            BatteryHeader(level = batteryLevel, isCharging = isCharging, onExitClick = onExitClick)
             
             Box(modifier = Modifier.weight(1f)) {
                 ExamWebView(url, onFinished)
@@ -642,38 +672,106 @@ fun MainContent(
 }
 
 @Composable
-fun BatteryHeader(level: Int, isCharging: Boolean) {
+fun BatteryHeader(level: Int, isCharging: Boolean, onExitClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color(0xFF0F172A))
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.End,
+            .border(width = 1.dp, color = Color(0xFF1E293B))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val batteryColor = when {
-            level <= 15 -> Color(0xFFF43F5E) // Red
-            level <= 30 -> Color(0xFFFACC15) // Yellow
-            else -> Color(0xFF22C55E) // Green
-        }
-        
-        if (isCharging) {
-            androidx.compose.material3.Icon(
-                imageVector = Icons.Default.Info, // Fallback
+        // Left: Security Status
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Lock,
                 contentDescription = null,
-                tint = Color(0xFF38BDF8),
+                tint = Color(0xFF22C55E),
                 modifier = Modifier.size(12.dp)
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "MODE AMAN RUSHLESS",
+                color = Color(0xFF22C55E),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 0.5.sp
+            )
         }
-        
-        Text(
-            text = "BATTERY: $level%",
-            color = batteryColor,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 1.sp
-        )
+
+        // Right: Battery & Exit Button
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.End
+        ) {
+            // Battery Icon + Text Container
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .background(Color(0xFF1E293B), shape = RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+            ) {
+                val batteryColor = when {
+                    level <= 15 -> Color(0xFFEF4444)
+                    level <= 30 -> Color(0xFFF59E0B)
+                    else -> Color(0xFF10B981)
+                }
+
+                // Battery Body
+                Box(
+                    modifier = Modifier
+                        .width(22.dp)
+                        .height(12.dp)
+                        .border(BorderStroke(1.dp, Color(0xFF94A3B8)), RoundedCornerShape(2.dp))
+                        .padding(1.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(fraction = level / 100f)
+                            .background(batteryColor, RoundedCornerShape(1.dp))
+                    )
+                }
+                // Battery Cap
+                Box(
+                    modifier = Modifier
+                        .width(1.5.dp)
+                        .height(4.dp)
+                        .background(Color(0xFF94A3B8))
+                )
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                Text(
+                    text = "$level%${if (isCharging) "+" else ""}",
+                    color = Color.White,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Exit / Power Button
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .background(Color(0xFFEF4444), shape = RoundedCornerShape(8.dp))
+                    .clickable { onExitClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Exit",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
     }
 }
 
@@ -825,19 +923,26 @@ fun EmergencyExitDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "Sandi Keluar Darurat", fontWeight = FontWeight.Bold) },
+        title = { 
+            Text(
+                text = "Konfirmasi Keluar", 
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                fontSize = 18.sp
+            ) 
+        },
         text = {
             Column {
                 Text(
-                    text = "Aplikasi dalam mode lockdown. Masukkan sandi emergency exit untuk keluar.",
-                    fontSize = 14.sp,
-                    color = Color.Gray,
+                    text = "Masukkan sandi untuk keluar dari mode ujian.",
+                    fontSize = 13.sp,
+                    color = Color(0xFF94A3B8),
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
-                TextField(
+                OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Sandi") },
+                    label = { Text("Sandi Keluar") },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -846,20 +951,22 @@ fun EmergencyExitDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
         },
         confirmButton = {
             Button(
-                onClick = { onConfirm(password) }
+                onClick = { onConfirm(password) },
+                shape = RoundedCornerShape(8.dp)
             ) {
-                Text("Buka Kunci")
+                Text("Buka Kunci", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(
                 onClick = onDismiss
             ) {
-                Text("Batal")
+                Text("Batal", color = Color(0xFF94A3B8))
             }
         },
-        containerColor = Color.White,
-        tonalElevation = 8.dp
+        containerColor = Color(0xFF1E293B),
+        tonalElevation = 8.dp,
+        shape = RoundedCornerShape(16.dp)
     )
 }
 
@@ -927,6 +1034,11 @@ fun ExamWebView(url: String, onFinished: () -> Unit) {
                     super.onPageFinished(view, url)
                     // Persist cookies to disk
                     cookieManager.flush()
+
+                    // Fetch emergency password early when starting the exam (network is active and cookies are set)
+                    if (activity != null && activity.examMode.value) {
+                        activity.fetchEmergencyPassword()
+                    }
                 }
             }
             
@@ -936,11 +1048,54 @@ fun ExamWebView(url: String, onFinished: () -> Unit) {
 }
 
 @Composable
+fun SplashScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF0F172A)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.logo),
+                contentDescription = "Rushless Logo",
+                modifier = Modifier.size(150.dp)
+            )
+            Spacer(modifier = Modifier.height(28.dp))
+            Text(
+                text = "RUSHLESS EXAM",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black,
+                color = Color.White,
+                letterSpacing = 3.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "SECURE EXAM WEBVIEW",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF6366F1),
+                letterSpacing = 1.5.sp
+            )
+            Spacer(modifier = Modifier.height(48.dp))
+            CircularProgressIndicator(
+                color = Color(0xFF6366F1),
+                strokeWidth = 3.dp,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+    }
+}
+
+@Composable
 fun WelcomeScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0F172A)) // Match the SetupWizard dark theme
+            .background(Color(0xFF0F172A))
             .padding(24.dp)
     ) {
         Column(
@@ -948,45 +1103,128 @@ fun WelcomeScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.logo),
-                contentDescription = "Rushless Logo",
-                modifier = Modifier.size(140.dp)
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            Text(
-                text = "RUSHELESS SAFER",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Black,
-                textAlign = TextAlign.Center,
-                color = Color.White,
-                letterSpacing = 2.sp
-            )
-
+            // Elegant boxy logo container
+            Box(
+                modifier = Modifier
+                    .background(Color(0xFF1E293B), shape = RoundedCornerShape(16.dp))
+                    .border(1.dp, Color(0xFF334155), shape = RoundedCornerShape(16.dp))
+                    .padding(24.dp)
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.logo),
+                    contentDescription = "Rushless Logo",
+                    modifier = Modifier.size(110.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Text(
-                text = "Silakan buka link ujian dari browser Anda.\nSesi akan otomatis ditarik ke aplikasi ini.",
-                fontSize = 15.sp,
-                lineHeight = 22.sp,
-                textAlign = TextAlign.Center,
-                color = Color(0xFF94A3B8)
-            )
+            // Two-tone typography (Fixed spelling from RUSHELESS to RUSHLESS EXAM)
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "RUSHLESS",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    letterSpacing = 2.sp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "EXAM",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Light,
+                    color = Color(0xFF6366F1),
+                    letterSpacing = 2.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Active/Ready Badge
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .background(Color(0x1A22C55E), shape = RoundedCornerShape(50.dp))
+                    .border(1.dp, Color(0x3322C55E), shape = RoundedCornerShape(50.dp))
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .background(Color(0xFF22C55E), shape = CircleShape)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "SISTEM SIAP",
+                    color = Color(0xFF22C55E),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(36.dp))
+
+            // Instructions Boxy Card
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF1E293B), shape = RoundedCornerShape(12.dp))
+                    .border(1.dp, Color(0xFF334155), shape = RoundedCornerShape(12.dp))
+                    .padding(18.dp)
+            ) {
+                Text(
+                    text = "PROSEDUR MEMULAI UJIAN",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                val steps = listOf(
+                    "Buka browser Chrome/bawaan pada perangkat Anda.",
+                    "Masuk ke portal ujian dan klik tombol 'Mulai Ujian'.",
+                    "Sesi pengerjaan akan otomatis dialihkan dan dikunci secara aman ke aplikasi ini."
+                )
+
+                steps.forEachIndexed { index, step ->
+                    Row(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(
+                            text = "${index + 1}.",
+                            color = Color(0xFF6366F1),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.width(20.dp)
+                        )
+                        Text(
+                            text = step,
+                            color = Color(0xFFCBD5E1),
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+            }
         }
 
+        // Bottom Footer (Clean alignment)
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp),
+                .padding(bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Copyright Rushless Exam",
+                text = "© 2025-2026 Kodealab. All rights reserved.",
                 fontSize = 10.sp,
-                color = Color(0xFF475569)
+                color = Color(0xFF475569),
+                fontWeight = FontWeight.Medium
             )
         }
     }

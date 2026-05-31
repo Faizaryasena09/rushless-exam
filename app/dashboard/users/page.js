@@ -395,10 +395,40 @@ const ManageUsersPage = () => {
 
   return (
     <div className="relative min-h-screen space-y-8 pb-20 bg-slate-50 dark:bg-slate-950">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(15px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes fadeInDown {
+          from {
+            opacity: 0;
+            transform: translateY(-15px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in-down {
+          animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .animate-fade-in-up {
+          animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          opacity: 0;
+        }
+      ` }} />
+      
       <div className="max-w-7xl mx-auto px-6 pt-10 space-y-8 relative z-10">
         
         {/* Header Section */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800">
+        <div className="animate-fade-in-down bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <div className="h-14 w-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-md">
@@ -503,7 +533,7 @@ const ManageUsersPage = () => {
              <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">{t('layout_loading')}</p>
           </div>
         ) : (
-          <div className="animate-in fade-in duration-500">
+          <div className="animate-fade-in-up" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
             {/* Desktop View */}
             <div className="hidden lg:block bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
               <table className="w-full text-left border-collapse">

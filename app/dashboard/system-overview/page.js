@@ -415,8 +415,37 @@ export default function WebSettingsPage() {
 
     return (
         <div className="space-y-6">
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes fadeInUp {
+                  from {
+                    opacity: 0;
+                    transform: translateY(15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                @keyframes fadeInDown {
+                  from {
+                    opacity: 0;
+                    transform: translateY(-15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                .animate-fade-in-down {
+                  animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                .animate-fade-in-up {
+                  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                  opacity: 0;
+                }
+            ` }} />
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="animate-fade-in-down flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                         System Overview
@@ -448,7 +477,7 @@ export default function WebSettingsPage() {
             </div>
 
             {/* Realtime Overview: Big gauges */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="animate-fade-in-up grid grid-cols-1 md:grid-cols-2 gap-6" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
                 {/* CPU Usage Graph */}
                 <InfoCard icon={Icons.Cpu} title="CPU Usage" live={isLive}>
                     <div className="flex items-center gap-6 mb-4">
@@ -490,17 +519,19 @@ export default function WebSettingsPage() {
 
             {/* Per-Core CPU usage */}
             {perCore.length > 0 && (
-                <InfoCard icon={Icons.Cpu} title={`CPU Cores (${perCore.length} cores)`} live={isLive}>
+                <div className="animate-fade-in-up" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
+                    <InfoCard icon={Icons.Cpu} title={`CPU Cores (${perCore.length} cores)`} live={isLive}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
                         {perCore.map((usage, i) => (
                             <CoreBar key={i} index={i} value={usage} />
                         ))}
                     </div>
-                </InfoCard>
+                    </InfoCard>
+                </div>
             )}
 
             {/* Process Memory Graphs */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="animate-fade-in-up grid grid-cols-1 md:grid-cols-2 gap-6" style={{ animationDelay: '250ms', animationFillMode: 'forwards' }}>
                 <InfoCard icon={Icons.Chart} title="Node.js Heap Memory" live={isLive}>
                     <div className="flex items-center justify-between mb-3">
                         <div>
@@ -542,7 +573,8 @@ export default function WebSettingsPage() {
 
             {/* Network Bandwidth */}
             {currentBw && (
-                <InfoCard icon={Icons.Network} title="Network Bandwidth" live={isLive}>
+                <div className="animate-fade-in-up" style={{ animationDelay: '300ms', animationFillMode: 'forwards' }}>
+                    <InfoCard icon={Icons.Network} title="Network Bandwidth" live={isLive}>
                     <div className="grid grid-cols-2 gap-6 mb-4">
                         <div className="text-center">
                             <div className="text-xs text-slate-400 mb-1">↓ Download</div>
@@ -582,11 +614,12 @@ export default function WebSettingsPage() {
                         </div>
                     </div>
                 </InfoCard>
+                </div>
             )}
 
             {/* App Stats */}
             {app && (
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div className="animate-fade-in-up grid grid-cols-2 sm:grid-cols-5 gap-3" style={{ animationDelay: '350ms', animationFillMode: 'forwards' }}>
                     <StatBadge label="Total Users" value={app.totalUsers} color="indigo" />
                     <StatBadge label="Admin" value={app.userCounts?.admin || 0} color="violet" />
                     <StatBadge label="Teacher" value={app.userCounts?.teacher || 0} color="sky" />
@@ -596,7 +629,7 @@ export default function WebSettingsPage() {
             )}
 
             {/* Static Info Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="animate-fade-in-up grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style={{ animationDelay: '400ms', animationFillMode: 'forwards' }}>
                 {/* System Info */}
                 {system && (
                     <InfoCard icon={Icons.Server} title="System Information">
@@ -677,7 +710,8 @@ export default function WebSettingsPage() {
 
             {/* Network Interfaces */}
             {system?.network && system.network.length > 0 && (
-                <InfoCard icon={Icons.Network} title={`Network Interfaces (${[...new Set(system.network.map(n => n.adapter))].length} adapters)`}>
+                <div className="animate-fade-in-up" style={{ animationDelay: '450ms', animationFillMode: 'forwards' }}>
+                    <InfoCard icon={Icons.Network} title={`Network Interfaces (${[...new Set(system.network.map(n => n.adapter))].length} adapters)`}>
                     {/* Desktop View */}
                     <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-xs">
@@ -741,11 +775,13 @@ export default function WebSettingsPage() {
                         ))}
                     </div>
                 </InfoCard>
+                </div>
             )}
 
             {/* Database Tables */}
             {database?.tables && database.tables.length > 0 && (
-                <InfoCard icon={Icons.Database} title={`Database Tables (${database.tables.length})`}>
+                <div className="animate-fade-in-up" style={{ animationDelay: '500ms', animationFillMode: 'forwards' }}>
+                    <InfoCard icon={Icons.Database} title={`Database Tables (${database.tables.length})`}>
                     {/* Desktop View */}
                     <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-xs">
@@ -818,6 +854,7 @@ export default function WebSettingsPage() {
                         </div>
                     </div>
                 </InfoCard>
+                </div>
             )}
         </div>
     );

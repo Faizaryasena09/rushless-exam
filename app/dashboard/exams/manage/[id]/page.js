@@ -319,6 +319,36 @@ export default function ManageExamPage() {
 
   return (
     <div className="container mx-auto p-4 md:p-6">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(15px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes fadeInDown {
+          from {
+            opacity: 0;
+            transform: translateY(-15px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in-down {
+          animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .animate-fade-in-up {
+          animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          opacity: 0;
+        }
+      ` }} />
+
       <Link 
         href="/dashboard/exams" 
         className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg transition-all active:scale-95"
@@ -326,14 +356,14 @@ export default function ManageExamPage() {
         <ArrowLeft size={18} />
         Kembali ke Daftar Ujian
       </Link>
-      <div className="mb-6">
+      <div className="animate-fade-in-down mb-6">
         <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100">{examName || 'Kelola Ujian'}</h1>
         <p className="text-lg text-slate-500 dark:text-slate-400 mt-1">Atur detail ujian, pengaturan pengerjaan, dan daftar soal. Setiap perubahan disimpan secara otomatis.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 
-        <div className="md:col-span-2">
+        <div className="animate-fade-in-up md:col-span-2" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
           <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 space-y-6">
             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-4">
               <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Detail Ujian</h2>
@@ -734,7 +764,7 @@ export default function ManageExamPage() {
           </div>
         </div>
 
-        <div className="md:col-span-1">
+        <div className="animate-fade-in-up md:col-span-1" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
           <div className="space-y-6 sticky top-24">
             <div className="p-6 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded-2xl text-center">
               <h3 className="font-bold text-sky-800 dark:text-sky-400 text-lg">Kelola Soal</h3>

@@ -162,8 +162,37 @@ export default function ProfilePage() {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes fadeInUp {
+                  from {
+                    opacity: 0;
+                    transform: translateY(15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                @keyframes fadeInDown {
+                  from {
+                    opacity: 0;
+                    transform: translateY(-15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                .animate-fade-in-down {
+                  animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                .animate-fade-in-up {
+                  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                  opacity: 0;
+                }
+            ` }} />
             {/* Page Title */}
-            <div className="flex items-center gap-3">
+            <div className="animate-fade-in-down flex items-center gap-3">
                 <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20">
                     <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -176,7 +205,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Profile Card */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
+            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
                 <div className="h-24 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
                 <div className="px-6 pb-6 -mt-12">
                     <div className="flex flex-col sm:flex-row sm:items-end gap-4">
@@ -247,7 +276,7 @@ export default function ProfilePage() {
             {/* Forms Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Change Password */}
-                <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 p-6">
+                <div className="animate-fade-in-up relative bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 p-6" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
                     {!permissions.can_change_password && (
                         <div className="absolute inset-0 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-6">
                             <div className="p-3 bg-slate-100 rounded-full mb-3">
@@ -355,7 +384,7 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Change Username */}
-                <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 p-6">
+                <div className="animate-fade-in-up relative bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 p-6" style={{ animationDelay: '300ms', animationFillMode: 'forwards' }}>
                     {!permissions.can_change_username && (
                         <div className="absolute inset-0 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-6">
                             <div className="p-3 bg-slate-100 rounded-full mb-3">

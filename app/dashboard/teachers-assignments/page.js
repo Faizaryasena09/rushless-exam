@@ -261,7 +261,37 @@ export default function TeachersAssignmentsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4">
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes fadeInUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(15px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                @keyframes fadeInDown {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-15px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                .animate-fade-in-down {
+                    animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                .animate-fade-in-up {
+                    animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                    opacity: 0;
+                }
+            ` }} />
+            
+            <div className="animate-fade-in-down flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t('nav_teacher_assignments')}</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">{t('teachers_subtitle')}</p>
@@ -282,7 +312,7 @@ export default function TeachersAssignmentsPage() {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 md:table flex flex-col">
                         <thead className="bg-slate-50 dark:bg-slate-700/50 hidden md:table-header-group">

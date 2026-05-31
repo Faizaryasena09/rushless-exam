@@ -15,9 +15,9 @@ import { useUser } from '@/app/context/UserContext';
 
 // --- COMPONENTS ---
 
-function DashboardCard({ href, title, description, icon, gradient }) {
+function DashboardCard({ href, title, description, icon, gradient, style }) {
     return (
-        <Link href={href} className="group relative block transition-all duration-300 hover:-translate-y-1">
+        <Link href={href} className="group relative block transition-all duration-300 hover:-translate-y-1 animate-fade-in-up" style={style}>
             <div className={`relative overflow-hidden rounded-2xl p-6 shadow-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all group-hover:shadow-xl`}>
                 <div className="relative z-10 flex flex-col h-full">
                     <div className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl text-white shadow-sm transition-transform group-hover:scale-110 ${gradient}`}>
@@ -35,7 +35,7 @@ function DashboardCard({ href, title, description, icon, gradient }) {
     );
 }
 
-function StatCard({ title, value, icon, colorClass }) {
+function StatCard({ title, value, icon, colorClass, style }) {
     const colorStyles = {
         blue: { bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400' },
         violet: { bg: 'bg-violet-500/10', text: 'text-violet-600 dark:text-violet-400' },
@@ -43,11 +43,11 @@ function StatCard({ title, value, icon, colorClass }) {
         emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400' },
     };
     
-    const style = colorStyles[colorClass] || colorStyles.blue;
+    const styleObj = colorStyles[colorClass] || colorStyles.blue;
 
     return (
-        <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3 sm:gap-4 transition-all hover:shadow-md overflow-hidden">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${style.bg} ${style.text} flex-shrink-0`}>
+        <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3 sm:gap-4 transition-all hover:shadow-md overflow-hidden animate-fade-in-up" style={style}>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${styleObj.bg} ${styleObj.text} flex-shrink-0`}>
                 {icon}
             </div>
             <div className="min-w-0 flex-1">
@@ -136,10 +136,40 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-10">
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes fadeInUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                @keyframes fadeInDown {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                .animate-fade-in-down {
+                    animation: fadeInDown 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                .animate-fade-in-up {
+                    animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                    opacity: 0;
+                }
+            ` }} />
+            
             <div className="max-w-7xl mx-auto px-6 pt-10 space-y-8">
                 
                 {/* Header / Hero */}
-                <div className="flex flex-col md:flex-row justify-between items-center gap-6 bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                <div className="animate-fade-in-down flex flex-col md:flex-row justify-between items-center gap-6 bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                     <div className="text-center md:text-left min-w-0 w-full">
                         <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight break-words">
                             {getGreeting()}, <br />
@@ -173,18 +203,21 @@ export default function DashboardPage() {
                                 value={stats?.totalExams || 0} 
                                 icon={<Copy size={18} />} 
                                 colorClass="blue" 
+                                style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}
                             />
                             <StatCard 
                                 title={t('dash_stat_users')} 
                                 value={stats?.totalUsers || 0} 
                                 icon={<Users size={18} />} 
                                 colorClass="violet" 
+                                style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}
                             />
                             <StatCard 
                                 title={t('dash_stat_questions')} 
                                 value={stats?.totalQuestions || 0} 
                                 icon={<List size={18} />} 
                                 colorClass="indigo" 
+                                style={{ animationDelay: '300ms', animationFillMode: 'forwards' }}
                             />
                         </>
                     )}
@@ -197,6 +230,10 @@ export default function DashboardPage() {
                         } 
                         icon={<GraduationCap size={18} />} 
                         colorClass="emerald" 
+                        style={{ 
+                            animationDelay: user.roleName === 'admin' ? '400ms' : '100ms', 
+                            animationFillMode: 'forwards' 
+                        }}
                     />
                 </div>
 
@@ -208,6 +245,10 @@ export default function DashboardPage() {
                         icon={<Copy size={24} />}
                         href="/dashboard/exams"
                         gradient="bg-indigo-600"
+                        style={{ 
+                            animationDelay: user.roleName === 'admin' ? '500ms' : '200ms', 
+                            animationFillMode: 'forwards' 
+                        }}
                     />
                     
                     {user.roleName === 'admin' && (
@@ -218,6 +259,7 @@ export default function DashboardPage() {
                                 icon={<Users size={24} />}
                                 href="/dashboard/users"
                                 gradient="bg-violet-600"
+                                style={{ animationDelay: '600ms', animationFillMode: 'forwards' }}
                             />
                             <DashboardCard
                                 title={t('dash_card_settings_title')}
@@ -225,13 +267,18 @@ export default function DashboardPage() {
                                 icon={<List size={24} />}
                                 href="/dashboard/web-settings"
                                 gradient="bg-blue-600"
+                                style={{ animationDelay: '700ms', animationFillMode: 'forwards' }}
                             />
                         </>
                     )}
 
                     <button
                         onClick={handleLogout}
-                        className="group flex flex-col p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-red-500/50 transition-all text-left"
+                        className="group flex flex-col p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-red-500/50 transition-all text-left animate-fade-in-up"
+                        style={{ 
+                            animationDelay: user.roleName === 'admin' ? '800ms' : '300ms', 
+                            animationFillMode: 'forwards' 
+                        }}
                     >
                         <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 transition-transform group-hover:scale-110">
                             <LogOut size={24} />

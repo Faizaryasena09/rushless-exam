@@ -253,6 +253,48 @@ export default function ExamPreviewPage() {
 
     return (
         <div className="min-h-screen bg-slate-50/50 pb-20 pt-10">
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes fadeInUp {
+                  from {
+                    opacity: 0;
+                    transform: translateY(15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                @keyframes fadeInDown {
+                  from {
+                    opacity: 0;
+                    transform: translateY(-15px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                .animate-fade-in-down {
+                  animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                .animate-fade-in-up {
+                  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                  opacity: 0;
+                }
+                @keyframes questionFade {
+                  from {
+                    opacity: 0;
+                    transform: translateY(6px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+                .animate-question-fade {
+                  animation: questionFade 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+            ` } } />
             {/* Preview Banner */}
             <div className="fixed top-0 left-0 right-0 bg-amber-500 text-white z-[60] shadow-md">
                 <div className="max-w-7xl mx-auto px-4 h-10 flex items-center justify-between gap-2 overflow-hidden">
@@ -270,7 +312,7 @@ export default function ExamPreviewPage() {
                 </div>
             </div>
 
-            <header className="bg-white border-b border-slate-200 sticky top-10 z-30 shadow-sm">
+            <header className="animate-fade-in-down bg-white border-b border-slate-200 sticky top-10 z-30 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
                         <button onClick={() => router.back()} className="flex-shrink-0 p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
@@ -301,10 +343,10 @@ export default function ExamPreviewPage() {
             <div className="max-w-7xl mx-auto p-4 md:p-8">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
                     <div className="md:col-span-8 lg:col-span-9 space-y-6">
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[500px] flex flex-col">
+                        <div className="animate-fade-in-up bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[500px] flex flex-col" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                             {currentQuestion ? (
                                 <>
-                                    <div className="p-6 md:p-8 flex-1">
+                                    <div key={currentQuestion.id} className="animate-question-fade p-6 md:p-8 flex-1">
                                         <div className="flex justify-between items-start mb-6">
                                             <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-bold uppercase tracking-wider">Soal No. {currentQuestionIndex + 1}</span>
                                             <button onClick={() => handleToggleDoubtful(currentQuestion.id)} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${doubtfulAnswers[currentQuestion.id] ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}>
@@ -448,7 +490,7 @@ export default function ExamPreviewPage() {
                             )}
                         </div>
                     </div>
-                    <div className="hidden md:block md:col-span-4 lg:col-span-3">
+                    <div className="animate-fade-in-up hidden md:block md:col-span-4 lg:col-span-3" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
                         <QuestionNavigation questions={questions} answers={answers} doubtful={doubtfulAnswers} currentIndex={currentQuestionIndex} onSelect={handleSelectQuestion} />
                     </div>
                 </div>
