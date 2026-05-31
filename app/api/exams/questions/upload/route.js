@@ -142,6 +142,26 @@ export async function POST(request) {
                         "u => u",
                         "strike => del"
                     ],
+                    transformDocument: mammoth.transforms.paragraph((element) => {
+                        if (element.alignment) {
+                            return {
+                                ...element,
+                                children: [
+                                    {
+                                        type: "run",
+                                        children: [
+                                            {
+                                                type: "text",
+                                                value: `[[ALIGN:${element.alignment}]]`
+                                            }
+                                        ]
+                                    },
+                                    ...element.children
+                                ]
+                            };
+                        }
+                        return element;
+                    }),
                     convertImage: mammoth.images.imgElement(async (image) => {
                         const imgBuffer = await image.readAsBuffer();
                         const extension = image.contentType.split('/')[1] || 'png';
@@ -156,7 +176,21 @@ export async function POST(request) {
                     })
                 };
                 const result = await mammoth.convertToHtml({ buffer }, options);
-                htmlFn = result.value;
+                let convertedHtml = result.value;
+                
+                // Replace alignment markers with inline styling
+                convertedHtml = convertedHtml.replace(/<(p|h[1-6]|li)([^>]*)>\s*\[\[ALIGN:(center|right|left|justify|both)\]\]/gi, (match, tag, attrs, align) => {
+                    const cssAlign = align.toLowerCase() === 'both' ? 'justify' : align.toLowerCase();
+                    let newAttrs = attrs;
+                    if (attrs.includes('style=')) {
+                        newAttrs = attrs.replace(/style=(["'])(.*?)\1/gi, `style=$1$2; text-align: ${cssAlign};$1`);
+                    } else {
+                        newAttrs = attrs + ` style="text-align: ${cssAlign};"`;
+                    }
+                    return `<${tag}${newAttrs}>`;
+                });
+                
+                htmlFn = convertedHtml;
                 console.log('[UPLOAD] ✅ Mammoth conversion complete. HTML length:', htmlFn.length);
                 if (result.messages && result.messages.length > 0) {
                     console.log('[UPLOAD] ⚠️ Mammoth warnings/messages:\n', result.messages.map(m => `  [${m.type}] ${m.message}`).join('\n'));
@@ -521,14 +555,122 @@ function restoreListMarkers(html, documentListFormats) {
 }
 
 function parseHtmlContent(rawHtml, documentListFormats) {
-    const html = restoreListMarkers(rawHtml, documentListFormats);
+    const decodedRaw = String(rawHtml || '').replace(/&nbsp;/gi, ' ').replace(/&#160;/gi, ' ');
+    const html = restoreListMarkers(decodedRaw, documentListFormats);
     // Normalize literal newlines in HTML source to prevent unwanted line breaks from hard wraps
     const normalizedHtml = html.replace(/[\r\n]+/g, ' ');
+
+    const styleTableHtml = (tableHtml) => {
+        return tableHtml
+            .replace(/<table([^>]*)>/gi, (match, attrs) => {
+                if (attrs.includes('style=')) {
+                    return match.replace(/style=(["'])(.*?)\1/gi, 'style=$1$2; border-collapse: collapse; width: 100%; margin: 12px 0;$1');
+                }
+                return `<table${attrs} style="border-collapse: collapse; width: 100%; margin: 12px 0;">`;
+            })
+            .replace(/<th([^>]*)>/gi, (match, attrs) => {
+                if (attrs.includes('style=')) {
+                    return match.replace(/style=(["'])(.*?)\1/gi, 'style=$1$2; border: 1px solid #cbd5e1; padding: 8px; background-color: #f8fafc; font-weight: 600;$1');
+                }
+                return `<th${attrs} style="border: 1px solid #cbd5e1; padding: 8px; background-color: #f8fafc; font-weight: 600;">`;
+            })
+            .replace(/<td([^>]*)>/gi, (match, attrs) => {
+                if (attrs.includes('style=')) {
+                    return match.replace(/style=(["'])(.*?)\1/gi, 'style=$1$2; border: 1px solid #cbd5e1; padding: 8px;$1');
+                }
+                return `<td${attrs} style="border: 1px solid #cbd5e1; padding: 8px;">`;
+            });
+    };
+
+    const joinLinesHtml = (linesArray) => {
+        let output = '';
+        linesArray.forEach((line, index) => {
+            if (index === 0) {
+                output = line;
+            } else {
+                const prevEndsWithBlock = /<\/(p|div|h[1-6]|table|tr|ul|ol|li)>\s*$/i.test(output);
+                const currStartsWithBlock = /^\s*<(p|div|h[1-6]|table|tr|ul|ol|li)\b/i.test(line);
+                
+                if (prevEndsWithBlock || currStartsWithBlock) {
+                    output += ' ' + line;
+                } else {
+                    output += ' <br> ' + line;
+                }
+            }
+        });
+        return output;
+    };
+
+    const isStatement = (text) => {
+        const clean = text.replace(/<[^>]+>/g, '').trim();
+        // Matches (1), 1), [1], 1. at the start of the line
+        return /^\s*(?:\(\d+\)|\d+\)|\[\d+\]|\d+\.)\s*/.test(clean);
+    };
+
+    const formatLine = (line) => {
+        const trimmed = line.trim();
+        if (/^\s*<(table|tr|td|ul|ol|li|div|h[1-6])\b/i.test(trimmed)) {
+            return line;
+        }
+        
+        if (isStatement(line)) {
+            if (/^\s*<(p|li)\b/i.test(trimmed)) {
+                if (trimmed.includes('style=')) {
+                    return trimmed.replace(/style=(["'])(.*?)\1/gi, (match, quote, style) => {
+                        return `style=${quote}${style}; margin-bottom: 4px; margin-left: 20px; padding-left: 24px; text-indent: -24px;${quote}`;
+                    });
+                } else {
+                    return trimmed.replace(/<(p|li)/i, `<$1 style="margin-bottom: 4px; margin-left: 20px; padding-left: 24px; text-indent: -24px;"`);
+                }
+            } else {
+                return `<p style="margin-bottom: 4px; margin-left: 20px; padding-left: 24px; text-indent: -24px; text-align: justify;">${trimmed}</p>`;
+            }
+        } else {
+            if (/^\s*<(p|li)\b/i.test(trimmed)) {
+                if (trimmed.includes('style=')) {
+                    return trimmed.replace(/style=(["'])(.*?)\1/gi, (match, quote, style) => {
+                        return `style=${quote}${style}; margin-bottom: 12px;${quote}`;
+                    });
+                } else {
+                    return trimmed.replace(/<(p|li)/i, `<$1 style="margin-bottom: 12px;"`);
+                }
+            } else {
+                return `<p style="margin-bottom: 12px; text-align: justify;">${trimmed}</p>`;
+            }
+        }
+    };
+
+    // Step 0.3: Replace <table> blocks with unique placeholders BEFORE stripping HTML to preserve table structures
+    const tableMap = {};
+    let tableCounter = 0;
+    let tableProcessedHtml = normalizedHtml.replace(/<table[\s\S]*?<\/table>/gi, (match) => {
+        const placeholder = `__TABLE_${tableCounter}__`;
+        tableMap[placeholder] = styleTableHtml(match);
+        tableCounter++;
+        return '\n' + placeholder + '\n';
+    });
+
+    // Step 0.4: Replace MathML <math> blocks with unique placeholders BEFORE stripping HTML to preserve equations
+    const mathMap = {};
+    let mathCounter = 0;
+    let mathProcessedHtml = tableProcessedHtml.replace(/<math[\s\S]*?<\/math>/gi, (match) => {
+        const placeholder = `__MATH_${mathCounter}__`;
+        mathMap[placeholder] = match;
+        mathCounter++;
+        return placeholder;
+    });
+
+    // Step 0.5: Replace aligned tags with unique placeholders BEFORE stripping HTML to preserve alignments
+    let alignCounter = 0;
+    let processedHtml = mathProcessedHtml.replace(/<(p|h[1-6]|li)([^>]*)(?:style=(["'])[^'\"]*text-align:\s*(center|right|left|justify|both)[^'\"]*\3)([^>]*)>/gi, (match, tag, beforeStyle, quote, align, afterStyle) => {
+        const cssAlign = align.toLowerCase() === 'both' ? 'justify' : align.toLowerCase();
+        return `__ALIGN_START_${cssAlign.toUpperCase()}_${alignCounter++}__`;
+    });
 
     // Step 1: Replace <img> tags with unique placeholders BEFORE stripping HTML
     const imgMap = {};
     let imgCounter = 0;
-    let processedHtml = normalizedHtml.replace(/<img[^>]*>/gi, (match) => {
+    processedHtml = processedHtml.replace(/<img[^>]*>/gi, (match) => {
         const placeholder = `__IMG_${imgCounter}__`;
         imgMap[placeholder] = match;
         imgCounter++;
@@ -552,11 +694,30 @@ function parseHtmlContent(rawHtml, documentListFormats) {
         .map(l => l.trim())
         .filter(l => l);
 
-    // Step 3: Restore <img> placeholders back to real tags
+    // Step 3: Restore placeholders back to real tags
     const restoredLines = lines.map(line => {
         let restored = line;
+        
+        // Restore table placeholders
+        for (const [placeholder, tableTag] of Object.entries(tableMap)) {
+            restored = restored.replace(new RegExp(placeholder, 'g'), tableTag);
+        }
+        
+        // Restore math placeholders
+        for (const [placeholder, mathTag] of Object.entries(mathMap)) {
+            restored = restored.replace(new RegExp(placeholder, 'g'), mathTag);
+        }
+        
+        // Restore img placeholders
         for (const [placeholder, imgTag] of Object.entries(imgMap)) {
             restored = restored.replace(new RegExp(placeholder, 'g'), imgTag);
+        }
+        
+        // Restore alignment placeholders
+        const alignMatch = restored.match(/__ALIGN_START_(CENTER|RIGHT|LEFT|JUSTIFY)_[0-9]+__/i);
+        if (alignMatch) {
+            const align = alignMatch[1].toLowerCase();
+            restored = restored.replace(/__ALIGN_START_(CENTER|RIGHT|LEFT|JUSTIFY)_[0-9]+__/i, `<p style="text-align: ${align};">`) + '</p>';
         }
         return restored;
     });
@@ -590,8 +751,9 @@ function parseHtmlContent(rawHtml, documentListFormats) {
     };
 
     const finalizeQuestion = (q) => {
-        let questionText = q.question_text_lines.join(' <br> ');
-        questionText = questionText.replace(/^\s*\d+\s*[.)]\s*/, '').trim();
+        const formattedLines = q.question_text_lines.map(line => formatLine(line));
+        let questionText = joinLinesHtml(formattedLines);
+        questionText = questionText.replace(/^(\s*(?:<[^>]+>\s*)*)\d+\s*[.)]\s*/, '$1').trim();
         
         let points = 1.0;
         const pointMatch = questionText.match(/\[(?:BOBOT|POINT):\s*([\d.]+)\]/i);
@@ -622,7 +784,14 @@ function parseHtmlContent(rawHtml, documentListFormats) {
                     const content = extractContentAfterPrefix(line, /^\s*[A-Za-z]\s*([.)\-:]\s*|\s+)/);
                     parsedOpts[currentKey] = content.trim();
                 } else if (currentKey) {
-                    parsedOpts[currentKey] += ' <br> ' + line;
+                    const prevText = parsedOpts[currentKey];
+                    const prevEndsWithBlock = /<\/(p|div|h[1-6]|table|tr|ul|ol|li)>\s*$/i.test(prevText);
+                    const currStartsWithBlock = /^\s*<(p|div|h[1-6]|table|tr|ul|ol|li)\b/i.test(line);
+                    if (prevEndsWithBlock || currStartsWithBlock) {
+                        parsedOpts[currentKey] += ' ' + line;
+                    } else {
+                        parsedOpts[currentKey] += ' <br> ' + line;
+                    }
                 }
             });
 
@@ -674,7 +843,10 @@ function parseHtmlContent(rawHtml, documentListFormats) {
                     .trim();
             } else {
                 const keys = Object.keys(reKeyedOptions);
-                if (keys.length === 2 && keys.every(k => reKeyedOptions[k].toLowerCase() === 'benar' || reKeyedOptions[k].toLowerCase() === 'salah')) {
+                if (keys.length === 2 && keys.every(k => {
+                    const cleanVal = String(reKeyedOptions[k] || '').replace(/<[^>]+>/g, '').trim().toLowerCase();
+                    return cleanVal === 'benar' || cleanVal === 'salah';
+                })) {
                     result.question_type = 'true_false';
                 } else {
                     result.question_type = 'multiple_choice';
@@ -746,7 +918,9 @@ function parseHtmlContent(rawHtml, documentListFormats) {
                 }
             });
 
-            let finalQText = qTextParts.join(' <br> ').replace(/^\s*\d+\s*[.)]\s*/, '').trim();
+            const formattedParts = qTextParts.map(line => formatLine(line));
+            let finalQText = joinLinesHtml(formattedParts);
+            finalQText = finalQText.replace(/^(\s*(?:<[^>]+>\s*)*)\d+\s*[.)]\s*/, '$1').trim();
             const finalPointMatch = finalQText.match(/\[(?:BOBOT|POINT):\s*([\d.]+)\]/i);
             if (finalPointMatch) {
                 result.points = parseFloat(finalPointMatch[1]);

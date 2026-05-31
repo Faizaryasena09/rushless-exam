@@ -21,6 +21,7 @@ const Icons = {
     Grip: () => <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>,
     Warning: () => <svg className="w-12 h-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.997L13.732 4.832c-.77-1.333-2.694-1.333-3.464 0L3.34 16.003c-.77 1.33.192 2.997 1.732 2.997z" /></svg>,
     Download: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
+    BookOpen: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>,
 };
 
 // --- Editor Configuration ---
@@ -30,6 +31,7 @@ const useJoditConfig = () => {
         height: 'auto',
         minHeight: 100,
         insertImageAsBase64URL: true, // Insert images as Base64
+        hidePoweredByJodit: true,
         buttons: 'bold,italic,underline,strikethrough,|,ul,ol,|,outdent,indent,|,font,fontsize,brush,paragraph,|,image,video,table,link,|,align,undo,redo,\n,cut,hr,eraser,copyformat,|,symbol,fullsize,print,about'
     }), []);
 };
@@ -1127,14 +1129,48 @@ const ImportWordForm = ({ examId, onQuestionAdded }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Guide & Template Card */}
+            <div className="bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/50 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-md">
+                        <Icons.BookOpen className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Format & Penyekoran Soal</h4>
+                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">Pelajari cara menulis soal, tipe soal, dan strategi penilaian cerdas.</p>
+                    </div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                    <Link
+                        href="/dashboard/exams/questions/panduan"
+                        target="_blank"
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-755 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 text-center"
+                    >
+                        Buka Panduan
+                    </Link>
+                    <a 
+                        href="/Template Soal Rushless.docx" 
+                        download 
+                        className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all active:scale-95 text-center"
+                    >
+                        Unduh Template
+                    </a>
+                </div>
+            </div>
+
             <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Pilih file Word (.docx) atau Zip hasil export web page Word</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
+                    Unggah file Word (.docx) atau Zip hasil ekspor Word:
+                </label>
                 <div className="flex items-center justify-center w-full">
-                    <label className="flex flex-col w-full h-32 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer">
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                            <Icons.Upload />
-                            <p className="text-sm text-slate-500 dark:text-slate-400">{file ? file.name : 'Click to upload'}</p>
+                    <label className="flex flex-col w-full h-36 border-2 border-dashed border-slate-200 dark:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 rounded-2xl cursor-pointer transition-all justify-center items-center">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4">
+                            <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-500 mb-2">
+                                <Icons.Upload />
+                            </div>
+                            <p className="text-xs font-black text-slate-700 dark:text-slate-200">{file ? file.name : 'Pilih File untuk Diunggah'}</p>
+                            <p className="text-[10px] text-slate-400 font-bold mt-1">Dukung file berekstensi .docx dan .zip</p>
                         </div>
                         <input type="file" className="hidden" accept=".docx,.zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,application/x-zip-compressed" onChange={handleFileChange} />
                     </label>

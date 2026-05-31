@@ -249,8 +249,12 @@ export default function AnalysisPage() {
                                 ) : (
                                     Array.isArray(q.options) && q.options.map((opt, optIdx) => {
                                         const optionLetter = String.fromCharCode(65 + optIdx);
-                                        const isSelected = q.student_option === opt.originalKey;
-                                        const isActualCorrect = q.correct_option === opt.originalKey;
+                                        const isSelected = q.student_option 
+                                            ? String(q.student_option).split(',').includes(opt.originalKey)
+                                            : false;
+                                        const isActualCorrect = q.correct_option 
+                                            ? String(q.correct_option).split(',').includes(opt.originalKey)
+                                            : false;
 
                                         let optClass = 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400';
                                         

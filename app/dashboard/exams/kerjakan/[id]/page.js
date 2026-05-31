@@ -385,6 +385,7 @@ export default function ExamTakingPage() {
     toolbar: true,
     placeholder: 'Tulis jawaban esai Anda di sini...',
     height: 300,
+    hidePoweredByJodit: true,
     buttons: ['bold', 'italic', 'underline', 'strikethrough', '|', 'ul', 'ol', '|', 'font', 'fontsize', 'brush', 'paragraph', '|', 'image', 'table', 'link', '|', 'align', 'undo', 'redo', '|', 'hr', 'eraser', 'fullsize']
   }), []);
   const finishExamHandled = useRef(false);

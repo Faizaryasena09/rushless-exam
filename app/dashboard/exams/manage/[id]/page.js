@@ -693,6 +693,7 @@ export default function ManageExamPage() {
                           config={{
                             readonly: saving,
                             theme: 'default',
+                            hidePoweredByJodit: true,
                             placeholder: 'Ketik petunjuk kustom di sini...',
                           }}
                         />

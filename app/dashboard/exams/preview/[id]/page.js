@@ -76,6 +76,7 @@ export default function ExamPreviewPage() {
         toolbar: true,
         placeholder: 'Tulis jawaban esai Anda di sini...',
         height: 300,
+        hidePoweredByJodit: true,
         buttons: ['bold', 'italic', 'underline', 'strikethrough', '|', 'ul', 'ol', '|', 'font', 'fontsize', 'brush', 'paragraph', '|', 'image', 'table', 'link', '|', 'align', 'undo', 'redo', '|', 'hr', 'eraser', 'fullsize']
     }), []);
 
@@ -376,7 +377,7 @@ export default function ExamPreviewPage() {
                                             )}
 
                                             {/* Multiple Choice UI */}
-                                            {['multiple_choice', 'multiple_choice_complex'].includes(currentQuestion.question_type) && currentQuestion.options && Array.isArray(currentQuestion.options) && (
+                                            {['multiple_choice', 'multiple_choice_complex', 'true_false'].includes(currentQuestion.question_type) && currentQuestion.options && Array.isArray(currentQuestion.options) && (
                                                 <div className="space-y-3">
                                                     {currentQuestion.options.map((option, idx) => {
                                                         const optionLabel = String.fromCharCode(65 + idx);

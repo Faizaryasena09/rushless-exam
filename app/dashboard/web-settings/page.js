@@ -384,6 +384,7 @@ export default function WebSettingsPage() {
                                         readonly: saving.site_name,
                                         toolbarInline: true,
                                         theme: 'default',
+                                        hidePoweredByJodit: true,
                                         placeholder: t('admin_branding_name_placeholder'),
                                     }}
                                 />

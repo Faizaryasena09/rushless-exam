@@ -5,7 +5,7 @@ import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import {
     Document, Packer, Paragraph, TextRun, AlignmentType,
-    HeadingLevel, BorderStyle, ImageRun
+    HeadingLevel, BorderStyle, ImageRun, Table, TableRow, TableCell
 } from 'docx';
 import path from 'path';
 import iconv from 'iconv-lite';
@@ -18,38 +18,198 @@ async function getSession() {
     return await getIronSession(cookieStore, sessionOptions);
 }
 
-// Helper to separate text and images from HTML
-function parseContent(html) {
-    if (!html) return [];
+// Helper to convert HTML table to docx Table object
+function parseHtmlTableToDocx(tableHtml) {
+    const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    const cellRegex = /<(td|th)[^>]*>([\s\S]*?)<\/\1>/gi;
+    
+    const rows = [];
+    let rowMatch;
+    
+    while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
+        const rowContent = rowMatch[1];
+        const cells = [];
+        let cellMatch;
+        
+        while ((cellMatch = cellRegex.exec(rowContent)) !== null) {
+            const cellText = stripHtml(cellMatch[2]);
+            cells.push(
+                new TableCell({
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: cellText,
+                                    size: 20, // slightly smaller font for tables
+                                    font: 'Arial'
+                                })
+                            ]
+                        })
+                    ]
+                })
+            );
+        }
+        
+        if (cells.length > 0) {
+            rows.push(
+                new TableRow({
+                    children: cells
+                })
+            );
+        }
+    }
+    
+    if (rows.length > 0) {
+        return new Table({
+            rows: rows
+        });
+    }
+    return null;
+}
 
-    // More robust regex to capture <img> tags and their src regardless of quotes or positions
-    const imgRegex = /<img\s+[^>]*src\s*=\s*(["'])(.*?)\1[^>]*>/gi;
-    const parts = [];
+// Helper to parse bold, italic, and underline tags into runs
+function parseInlineRuns(html) {
+    if (!html) return [];
+    const inlineRegex = /<(strong|b|em|i|u)\b[^>]*>([\s\S]*?)<\/\1>/gi;
+    const runs = [];
     let lastIndex = 0;
     let match;
+    
+    while ((match = inlineRegex.exec(html)) !== null) {
+        const textBefore = html.substring(lastIndex, match.index);
+        if (textBefore) {
+            runs.push({ text: decodeEntities(textBefore) });
+        }
+        
+        const tag = match[1].toLowerCase();
+        const content = match[2];
+        
+        const subRuns = parseInlineRuns(content);
+        if (subRuns.length === 0) {
+            const run = { text: decodeEntities(content) };
+            if (tag === 'strong' || tag === 'b') run.bold = true;
+            if (tag === 'em' || tag === 'i') run.italic = true;
+            if (tag === 'u') run.underline = true;
+            runs.push(run);
+        } else {
+            subRuns.forEach(r => {
+                if (tag === 'strong' || tag === 'b') r.bold = true;
+                if (tag === 'em' || tag === 'i') r.italic = true;
+                if (tag === 'u') r.underline = true;
+                runs.push(r);
+            });
+        }
+        
+        lastIndex = inlineRegex.lastIndex;
+    }
+    
+    const remainingText = html.substring(lastIndex);
+    if (remainingText) {
+        runs.push({ text: decodeEntities(remainingText) });
+    }
+    
+    return runs;
+}
 
-    while ((match = imgRegex.exec(html)) !== null) {
-        // Text before image
+// Helper to separate text, images, tables, and alignments from HTML with styles
+function parseContent(html) {
+    if (!html) return [];
+    
+    const tagRegex = /<(p|h[1-6]|li)\b([^>]*?)>([\s\S]*?)<\/\1>|<img\s+[^>]*src\s*=\s*(["'])(.*?)\4[^>]*>|<table[\s\S]*?<\/table>/gi;
+    
+    const blocks = [];
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = tagRegex.exec(html)) !== null) {
         const textBefore = html.substring(lastIndex, match.index);
         if (textBefore) {
             const stripped = stripHtml(textBefore);
-            if (stripped) parts.push({ type: 'text', value: stripped });
+            if (stripped) {
+                blocks.push({ type: 'paragraph', value: stripped, alignment: 'left' });
+            }
         }
-
-        // Image data - match[2] is the content of src
-        const imgSrc = match[2];
-        parts.push({ type: 'image', value: imgSrc });
-        lastIndex = imgRegex.lastIndex;
+        
+        if (match[1]) {
+            const tag = match[1].toLowerCase();
+            const attrs = match[2] || '';
+            const content = match[3] || '';
+            
+            let alignment = 'left';
+            const alignMatch = attrs.match(/text-align:\s*(center|right|left|justify|both)/i);
+            if (alignMatch) {
+                alignment = alignMatch[1].toLowerCase() === 'both' ? 'justify' : alignMatch[1].toLowerCase();
+            }
+            
+            let leftIndent = 0;
+            let hangingIndent = 0;
+            let spaceAfter = 0;
+            
+            const mlMatch = attrs.match(/(?:margin-left|padding-left):\s*(-?\d+)px/i);
+            if (mlMatch) {
+                leftIndent = parseInt(mlMatch[1]);
+            }
+            const tiMatch = attrs.match(/text-indent:\s*(-?\d+)px/i);
+            if (tiMatch) {
+                const tiVal = parseInt(tiMatch[1]);
+                if (tiVal < 0) {
+                    hangingIndent = Math.abs(tiVal);
+                }
+            }
+            const mbMatch = attrs.match(/margin-bottom:\s*(-?\d+)px/i);
+            if (mbMatch) {
+                spaceAfter = parseInt(mbMatch[1]);
+            }
+            
+            const imgRegex = /<img\s+[^>]*src\s*=\s*(["'])(.*?)\1[^>]*>/gi;
+            let subLastIndex = 0;
+            let imgMatch;
+            const subBlocks = [];
+            
+            while ((imgMatch = imgRegex.exec(content)) !== null) {
+                const textBeforeImg = content.substring(subLastIndex, imgMatch.index);
+                if (textBeforeImg) {
+                    const cleanInlineHtml = textBeforeImg.replace(/<(?!strong|b|em|i|u|span|font)\/?[^>]*>/gi, '');
+                    subBlocks.push({ type: 'text', runs: parseInlineRuns(cleanInlineHtml) });
+                }
+                subBlocks.push({ type: 'image', value: imgMatch[2] });
+                subLastIndex = imgRegex.lastIndex;
+            }
+            
+            const remainingContent = content.substring(subLastIndex);
+            if (remainingContent) {
+                const cleanInlineHtml = remainingContent.replace(/<(?!strong|b|em|i|u|span|font)\/?[^>]*>/gi, '');
+                subBlocks.push({ type: 'text', runs: parseInlineRuns(cleanInlineHtml) });
+            }
+            
+            blocks.push({
+                type: 'paragraph',
+                tag: tag,
+                alignment: alignment,
+                leftIndent: leftIndent,
+                hangingIndent: hangingIndent,
+                spaceAfter: spaceAfter,
+                subBlocks: subBlocks
+            });
+        } else if (match[5]) {
+            const imgSrc = match[5];
+            blocks.push({ type: 'image', value: imgSrc });
+        } else if (match[0].startsWith('<table')) {
+            blocks.push({ type: 'table', value: match[0] });
+        }
+        
+        lastIndex = tagRegex.lastIndex;
     }
-
-    // Remaining text
+    
     const remainingText = html.substring(lastIndex);
     if (remainingText) {
         const stripped = stripHtml(remainingText);
-        if (stripped) parts.push({ type: 'text', value: stripped });
+        if (stripped) {
+            blocks.push({ type: 'paragraph', value: stripped, alignment: 'left' });
+        }
     }
-
-    return parts;
+    
+    return blocks;
 }
 
 // Helper to clean up encoding issues using iconv-lite
@@ -349,10 +509,7 @@ export async function GET(request) {
             }
         } else {
             // --- Questions (with or without answers) ---
-            for (let i = 0; i < questions.length; i++) {
-                const q = questions[i];
-                const index = i;
-
+            const renderQuestion = async (q, index) => {
                 let opts = {};
                 try {
                     opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || {});
@@ -363,11 +520,10 @@ export async function GET(request) {
                 if (q.question_type !== 'matching') {
                     const optionValues = Object.values(opts);
                     const letterKeys = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                    optionValues.forEach((val, i) => {
-                        if (letterKeys[i]) {
-                            // For options, we also support HTML/Images
+                    optionValues.forEach((val, idx) => {
+                        if (letterKeys[idx]) {
                             const optValue = (val && typeof val === 'object' && val.hasOwnProperty('text')) ? val.text : val;
-                            reKeyedOptions[letterKeys[i]] = optValue;
+                            reKeyedOptions[letterKeys[idx]] = optValue;
                         }
                     });
                 }
@@ -380,24 +536,16 @@ export async function GET(request) {
                     
                     // Prepend type/strategy markers
                     if (q.question_type === 'essay') {
-                        questionPrefix += '[ESSAY] ';
-                    }
-                    
-                    if (q.scoring_strategy && q.scoring_strategy !== 'standard' && q.scoring_strategy !== 'essay_manual') {
-                        const strategyTag = q.scoring_strategy.toUpperCase();
-                        if (strategyTag.startsWith('PGK_')) {
-                            questionPrefix += `[${strategyTag}] `;
-                        } else if (strategyTag.startsWith('ESSAY_')) {
-                            // Handle keywords for essay strategies
-                            let metadata = {};
-                            try {
-                                metadata = typeof q.scoring_metadata === 'string' ? JSON.parse(q.scoring_metadata) : (q.scoring_metadata || {});
-                            } catch { metadata = {}; }
-                            
-                            if (metadata.keywords && metadata.keywords.length > 0) {
-                                const kwString = Array.isArray(metadata.keywords) ? metadata.keywords.join(', ') : String(metadata.keywords);
-                                if (strategyTag === 'ESSAY_KEYWORDS') questionPrefix += `[KEYWORDS: ${kwString}] `;
-                                else questionPrefix += `[${strategyTag}: ${kwString}] `;
+                        const strategyTag = q.scoring_strategy ? q.scoring_strategy.toUpperCase() : 'ESSAY';
+                        if (strategyTag === 'ESSAY_ANY_KEYWORD') questionPrefix += '[ESSAY_ANY] ';
+                        else if (strategyTag === 'ESSAY_STRICT_KEYWORDS') questionPrefix += '[ESSAY_STRICT] ';
+                        else if (strategyTag === 'ESSAY_MANUAL') questionPrefix += '[ESSAY_MANUAL] ';
+                        else questionPrefix += '[ESSAY] ';
+                    } else if (q.question_type === 'multiple_choice_complex' || q.question_type === 'multiple_choice') {
+                        if (q.scoring_strategy && q.scoring_strategy !== 'standard') {
+                            const strategyTag = q.scoring_strategy.toUpperCase();
+                            if (strategyTag.startsWith('PGK_')) {
+                                questionPrefix += `[${strategyTag}] `;
                             }
                         }
                     }
@@ -415,37 +563,107 @@ export async function GET(request) {
 
                 const paragraphsToPush = [];
 
-                const processParts = async (parts, baseChildren, indent = false, isCorrect = false) => {
-                    let children = [...baseChildren];
-                    for (const part of parts) {
-                        if (part.type === 'text') {
-                            children.push(new TextRun({
-                                text: part.value,
-                                size: indent ? 22 : 24,
-                                font: 'Arial',
-                            }));
-                        } else if (part.type === 'image') {
-                            const buffer = await getImageData(part.value);
+                const processBlocks = async (blocks, isOption = false, basePrefix = null) => {
+                    for (const block of blocks) {
+                        if (block.type === 'paragraph') {
+                            const alignmentMap = {
+                                'left': AlignmentType.LEFT,
+                                'center': AlignmentType.CENTER,
+                                'right': AlignmentType.RIGHT,
+                                'justify': AlignmentType.JUSTIFY
+                            };
+                            const alignment = alignmentMap[block.alignment] || AlignmentType.LEFT;
+                            
+                            // Convert pixels to dxa (1px = 15 dxa)
+                            const leftIndentDxa = (block.leftIndent || 0) * 15;
+                            const hangingIndentDxa = (block.hangingIndent || 0) * 15;
+                            const spaceAfterDxa = (block.spaceAfter || 0) * 15;
+                            
+                            let currentParagraphRuns = [];
+                            if (basePrefix) {
+                                currentParagraphRuns.push(...basePrefix);
+                                basePrefix = null; // Consume prefix only once
+                            }
+                            
+                            const flushParagraph = () => {
+                                if (currentParagraphRuns.length > 0) {
+                                    const indentOpt = {};
+                                    if (leftIndentDxa > 0) indentOpt.left = leftIndentDxa;
+                                    if (hangingIndentDxa > 0) {
+                                        indentOpt.hanging = hangingIndentDxa;
+                                        indentOpt.left = (indentOpt.left || 0) + hangingIndentDxa;
+                                    }
+                                    if (isOption && Object.keys(indentOpt).length === 0) {
+                                        indentOpt.left = 720;
+                                    }
+                                    
+                                    paragraphsToPush.push(new Paragraph({
+                                        children: currentParagraphRuns.slice(),
+                                        alignment: alignment,
+                                        spacing: { 
+                                            before: isOption ? 40 : 80, 
+                                            after: spaceAfterDxa > 0 ? spaceAfterDxa : (isOption ? 40 : 120) 
+                                        },
+                                        indent: Object.keys(indentOpt).length > 0 ? indentOpt : undefined
+                                    }));
+                                    currentParagraphRuns = [];
+                                }
+                            };
+                            
+                            const subBlocksToProcess = block.subBlocks || [{ type: 'text', runs: [{ text: block.value }] }];
+                            for (const sub of subBlocksToProcess) {
+                                if (sub.type === 'text') {
+                                    (sub.runs || []).forEach(runData => {
+                                        currentParagraphRuns.push(new TextRun({
+                                            text: runData.text || '',
+                                            bold: runData.bold || false,
+                                            italics: runData.italic || false,
+                                            underline: runData.underline ? {} : undefined,
+                                            size: isOption ? 22 : 24,
+                                            font: 'Arial'
+                                        }));
+                                    });
+                                } else if (sub.type === 'image') {
+                                    flushParagraph();
+                                    
+                                    const buffer = await getImageData(sub.value);
+                                    if (buffer) {
+                                        const dims = getImageDimensions(buffer);
+                                        const maxWidth = 450;
+                                        const scale = dims.width > maxWidth ? maxWidth / dims.width : 1;
+                                        
+                                        paragraphsToPush.push(new Paragraph({
+                                            children: [
+                                                new ImageRun({
+                                                    data: buffer,
+                                                    type: getImageType(sub.value, buffer),
+                                                    transformation: {
+                                                        width: dims.width * scale,
+                                                        height: dims.height * scale,
+                                                    },
+                                                }),
+                                            ],
+                                            alignment: alignment,
+                                            spacing: { after: 120 },
+                                            indent: isOption ? { left: 720 } : undefined
+                                        }));
+                                    }
+                                }
+                            }
+                            
+                            flushParagraph();
+                        } else if (block.type === 'image') {
+                            const buffer = await getImageData(block.value);
                             if (buffer) {
                                 const dims = getImageDimensions(buffer);
                                 const maxWidth = 450;
                                 const scale = dims.width > maxWidth ? maxWidth / dims.width : 1;
                                 
-                                // Flush text before image
-                                if (children.length > 0) {
-                                    paragraphsToPush.push(new Paragraph({
-                                        children: children,
-                                        spacing: { before: children === baseChildren ? 240 : 80, after: 80 },
-                                        indent: indent ? { left: 720 } : { left: 720, hanging: 720 }
-                                    }));
-                                    children = [];
-                                }
-
                                 paragraphsToPush.push(new Paragraph({
                                     children: [
                                         new ImageRun({
                                             data: buffer,
-                                            type: getImageType(part.value, buffer),
+                                            type: getImageType(block.value, buffer),
                                             transformation: {
                                                 width: dims.width * scale,
                                                 height: dims.height * scale,
@@ -453,67 +671,53 @@ export async function GET(request) {
                                         }),
                                     ],
                                     spacing: { after: 120 },
-                                    indent: indent ? { left: 720 } : { left: 720 }
+                                    indent: isOption ? { left: 720 } : undefined
                                 }));
+                            }
+                        } else if (block.type === 'table') {
+                            const docxTable = parseHtmlTableToDocx(block.value);
+                            if (docxTable) {
+                                paragraphsToPush.push(docxTable);
                             }
                         }
                     }
-                    if (children.length > 0) {
-                        // Add checkmark if correct and text part
-
-                        const isFirstParaOfQuestion = children.length > 0 && children[0].text && children[0].text.includes(`${index + 1}. `);
-
-                        paragraphsToPush.push(new Paragraph({
-                            children,
-                            spacing: {
-                                before: isFirstParaOfQuestion ? 400 : (indent ? 40 : 80),
-                                after: indent ? 40 : 120
-                            },
-                            indent: indent ? { left: 720 } : { left: 720, hanging: 720 }
-                        }));
-                    }
                 };
 
-                // Process Question
-                await processParts(qParts, baseQChildren);
+                // Process Question Blocks
+                await processBlocks(qParts, false, baseQChildren);
 
                 // Process Options / Pairs
                 if (q.question_type === 'matching') {
                     const pairs = opts.pairs || [];
+                    
+                    // List all premises
                     for (let pIdx = 0; pIdx < pairs.length; pIdx++) {
                         const pair = pairs[pIdx];
-                        
-                        // Premise (Left)
                         const pParts = parseContent(pair.p);
                         const basePChildren = [
                             new TextRun({
-                                text: `[${pIdx + 1}] Premis : `,
+                                text: `${pIdx + 1}. `,
                                 bold: true,
                                 size: 22,
                                 font: 'Arial',
                             })
                         ];
-                        await processParts(pParts, basePChildren, true);
-
-                        // Response (Right)
+                        await processBlocks(pParts, true, basePChildren);
+                    }
+                    
+                    // List all responses (A, B, C...)
+                    const responseKeys = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                    for (let rIdx = 0; rIdx < pairs.length; rIdx++) {
+                        const pair = pairs[rIdx];
                         const rParts = parseContent(pair.r);
                         const baseRChildren = [
                             new TextRun({
-                                text: `Pasangan : `,
-                                bold: true,
-                                color: '4B5563', // Slate-600
+                                text: `${responseKeys[rIdx] || 'A'}. `,
                                 size: 22,
                                 font: 'Arial',
                             })
                         ];
-                        await processParts(rParts, baseRChildren, true);
-                        
-                        // Visual Divider
-                        paragraphsToPush.push(new Paragraph({
-                            border: { bottom: { color: 'E2E8F0', space: 1, style: BorderStyle.DOTTED, size: 6 } },
-                            spacing: { after: 120 },
-                            indent: { left: 720 }
-                        }));
+                        await processBlocks(rParts, true, baseRChildren);
                     }
                 } else {
                     for (const [key, value] of Object.entries(reKeyedOptions)) {
@@ -525,27 +729,131 @@ export async function GET(request) {
                                 font: 'Arial',
                             })
                         ];
-                        await processParts(optParts, baseOptChildren, true, false);
+                        await processBlocks(optParts, true, baseOptChildren);
                     }
                 }
                 
-                // Add "Ans: [Key]" if mode is questions_and_answers OR format is rushless
-                if ((mode === 'questions_and_answers' || format === 'rushless') && q.question_type !== 'matching' && q.question_type !== 'essay') {
-                    paragraphsToPush.push(new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: `Ans: ${q.correct_option}`,
-                                bold: true,
-                                size: 22,
-                                font: 'Arial',
-                            })
-                        ],
-                        spacing: { before: 100, after: 200 },
-                        indent: { left: 720 }
-                    }));
+                // Add Answer line
+                if (mode === 'questions_and_answers' || format === 'rushless') {
+                    let ansText = '';
+                    if (q.question_type === 'matching') {
+                        ansText = `Ans: ${q.correct_option}`;
+                    } else if (q.question_type === 'essay') {
+                        if (q.scoring_strategy !== 'essay_manual') {
+                            let metadata = {};
+                            try {
+                                metadata = typeof q.scoring_metadata === 'string' ? JSON.parse(q.scoring_metadata) : (q.scoring_metadata || {});
+                            } catch { metadata = {}; }
+                            
+                            if (metadata.keywords && metadata.keywords.length > 0) {
+                                const kwString = Array.isArray(metadata.keywords) ? metadata.keywords.join(', ') : String(metadata.keywords);
+                                ansText = `Ans: ${kwString}`;
+                            }
+                        }
+                    } else {
+                        ansText = `Ans: ${q.correct_option}`;
+                    }
+
+                    if (ansText) {
+                        paragraphsToPush.push(new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: ansText,
+                                    bold: true,
+                                    size: 22,
+                                    font: 'Arial',
+                                })
+                            ],
+                            spacing: { before: 100, after: 200 },
+                            indent: { left: 720 }
+                        }));
+                    }
                 }
 
                 docChildren.push(...paragraphsToPush);
+            };
+
+            if (format === 'rushless') {
+                // Group questions by type
+                const mcQuestions = [];
+                const matchingQuestions = [];
+                const essayQuestions = [];
+
+                questions.forEach((q, idx) => {
+                    const item = { ...q, originalIndex: idx };
+                    if (q.question_type === 'matching') {
+                        matchingQuestions.push(item);
+                    } else if (q.question_type === 'essay') {
+                        essayQuestions.push(item);
+                    } else {
+                        mcQuestions.push(item);
+                    }
+                });
+
+                // Write Pilihan Ganda group
+                if (mcQuestions.length > 0) {
+                    docChildren.push(
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: '[Pilihan Ganda]',
+                                    bold: true,
+                                    size: 26,
+                                    font: 'Arial',
+                                }),
+                            ],
+                            spacing: { before: 200, after: 200 },
+                        })
+                    );
+                    for (const q of mcQuestions) {
+                        await renderQuestion(q, q.originalIndex);
+                    }
+                }
+
+                // Write Menjodohkan group
+                if (matchingQuestions.length > 0) {
+                    docChildren.push(
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: '[Menjodohkan]',
+                                    bold: true,
+                                    size: 26,
+                                    font: 'Arial',
+                                }),
+                            ],
+                            spacing: { before: 200, after: 200 },
+                        })
+                    );
+                    for (const q of matchingQuestions) {
+                        await renderQuestion(q, q.originalIndex);
+                    }
+                }
+
+                // Write Esai group
+                if (essayQuestions.length > 0) {
+                    docChildren.push(
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: '[Esai]',
+                                    bold: true,
+                                    size: 26,
+                                    font: 'Arial',
+                                }),
+                            ],
+                            spacing: { before: 200, after: 200 },
+                        })
+                    );
+                    for (const q of essayQuestions) {
+                        await renderQuestion(q, q.originalIndex);
+                    }
+                }
+            } else {
+                // Standard Format: print sequentially
+                for (let i = 0; i < questions.length; i++) {
+                    await renderQuestion(questions[i], i);
+                }
             }
         }
 

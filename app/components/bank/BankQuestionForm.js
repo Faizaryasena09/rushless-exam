@@ -28,6 +28,7 @@ const JoditEditorWithUpload = ({ value, onBlur }) => {
         height: 'auto',
         minHeight: 150,
         insertImageAsBase64URL: true,
+        hidePoweredByJodit: true,
         buttons: 'bold,italic,underline,strikethrough,|,ul,ol,|,outdent,indent,|,font,fontsize,brush,paragraph,|,image,video,table,link,|,align,undo,redo,\n,cut,hr,eraser,copyformat,|,symbol,fullsize,print,about'
     }), []);
 

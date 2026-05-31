@@ -309,6 +309,26 @@ export async function POST(request) {
                 // Convert to html with Base64 inline images
                 const options = {
                     styleMap: ["u => u", "strike => del"],
+                    transformDocument: mammoth.transforms.paragraph((element) => {
+                        if (element.alignment) {
+                            return {
+                                ...element,
+                                children: [
+                                    {
+                                        type: "run",
+                                        children: [
+                                            {
+                                                type: "text",
+                                                value: `[[ALIGN:${element.alignment}]]`
+                                            }
+                                        ]
+                                    },
+                                    ...element.children
+                                ]
+                            };
+                        }
+                        return element;
+                    }),
                     convertImage: mammoth.images.imgElement(async (image) => {
                         const imgBuffer = await image.readAsBuffer();
                         const base64 = imgBuffer.toString('base64');
@@ -316,7 +336,21 @@ export async function POST(request) {
                     })
                 };
                 const result = await mammoth.convertToHtml({ buffer }, options);
-                htmlFn = result.value;
+                let convertedHtml = result.value;
+                
+                // Replace alignment markers with inline styling
+                convertedHtml = convertedHtml.replace(/<(p|h[1-6]|li)([^>]*)>\s*\[\[ALIGN:(center|right|left|justify|both)\]\]/gi, (match, tag, attrs, align) => {
+                    const cssAlign = align.toLowerCase() === 'both' ? 'justify' : align.toLowerCase();
+                    let newAttrs = attrs;
+                    if (attrs.includes('style=')) {
+                        newAttrs = attrs.replace(/style=(["'])(.*?)\1/gi, `style=$1$2; text-align: ${cssAlign};$1`);
+                    } else {
+                        newAttrs = attrs + ` style="text-align: ${cssAlign};"`;
+                    }
+                    return `<${tag}${newAttrs}>`;
+                });
+                
+                htmlFn = convertedHtml;
             } catch (docxError) {
                 return NextResponse.json({ message: 'Failed to process DOCX file. ' + docxError.message }, { status: 400 });
             }
@@ -358,10 +392,33 @@ export async function POST(request) {
             }
         }
 
+        const styleTableHtml = (tableHtml) => {
+            return tableHtml
+                .replace(/<table([^>]*)>/gi, (match, attrs) => {
+                    if (attrs.includes('style=')) {
+                        return match.replace(/style=(["'])(.*?)\1/gi, 'style=$1$2; border-collapse: collapse; width: 100%; margin: 12px 0;$1');
+                    }
+                    return `<table${attrs} style="border-collapse: collapse; width: 100%; margin: 12px 0;">`;
+                })
+                .replace(/<th([^>]*)>/gi, (match, attrs) => {
+                    if (attrs.includes('style=')) {
+                        return match.replace(/style=(["'])(.*?)\1/gi, 'style=$1$2; border: 1px solid #cbd5e1; padding: 8px; background-color: #f8fafc; font-weight: 600;$1');
+                    }
+                    return `<th${attrs} style="border: 1px solid #cbd5e1; padding: 8px; background-color: #f8fafc; font-weight: 600;">`;
+                })
+                .replace(/<td([^>]*)>/gi, (match, attrs) => {
+                    if (attrs.includes('style=')) {
+                        return match.replace(/style=(["'])(.*?)\1/gi, 'style=$1$2; border: 1px solid #cbd5e1; padding: 8px;$1');
+                    }
+                    return `<td${attrs} style="border: 1px solid #cbd5e1; padding: 8px;">`;
+                });
+        };
+
         // Restore list markers
         const finalizedHtml = restoreListMarkers(htmlFn, documentListFormats);
+        const styledHtml = styleTableHtml(finalizedHtml);
 
-        return NextResponse.json({ html: finalizedHtml });
+        return NextResponse.json({ html: styledHtml });
     } catch (error) {
         return NextResponse.json({ message: error.message }, { status: 500 });
     }
