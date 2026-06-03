@@ -9,7 +9,7 @@ import { recalculateExamScores, invalidateExamCache } from '@/app/lib/exams';
 // DELETE handler to remove ALL questions for an exam
 export async function DELETE(request) {
     const session = await getIronSession(await cookies(), sessionOptions);
-    if (!session.user || session.user.roleName !== 'admin') {
+    if (!session.user || !['admin', 'teacher'].includes(session.user.roleName)) {
         return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 

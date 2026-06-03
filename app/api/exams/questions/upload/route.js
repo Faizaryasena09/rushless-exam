@@ -752,8 +752,19 @@ function parseHtmlContent(rawHtml, documentListFormats) {
 
     const finalizeQuestion = (q) => {
         const formattedLines = q.question_text_lines.map(line => formatLine(line));
-        let questionText = joinLinesHtml(formattedLines);
-        questionText = questionText.replace(/^(\s*(?:<[^>]+>\s*)*)\d+\s*[.)]\s*/, '$1').trim();
+        let questionText = joinLinesHtml(formattedLines).trim();
+        
+        // Strip question number from the start of the joined question text
+        questionText = questionText.replace(/^(\s*(?:<[^>]+>\s*)*)\d+\s*[.)]\s*/, '$1');
+        
+        // Clean up the styling of the first paragraph tag if it was marked as a statement (hanging indent)
+        questionText = questionText.replace(/(^\s*<p[^>]*style=["'])([^"']*)(["'])/i, (m, p1, p2, p3) => {
+            const cleanedStyle = p2
+                .replace(/padding-left:\s*24px;?/gi, '')
+                .replace(/text-indent:\s*-24px;?/gi, '')
+                .replace(/margin-bottom:\s*4px;?/gi, 'margin-bottom: 12px;');
+            return p1 + cleanedStyle + p3;
+        });
         
         let points = 1.0;
         const pointMatch = questionText.match(/\[(?:BOBOT|POINT):\s*([\d.]+)\]/i);
@@ -919,8 +930,19 @@ function parseHtmlContent(rawHtml, documentListFormats) {
             });
 
             const formattedParts = qTextParts.map(line => formatLine(line));
-            let finalQText = joinLinesHtml(formattedParts);
-            finalQText = finalQText.replace(/^(\s*(?:<[^>]+>\s*)*)\d+\s*[.)]\s*/, '$1').trim();
+            let finalQText = joinLinesHtml(formattedParts).trim();
+            
+            // Strip question number from the start of the joined matching text
+            finalQText = finalQText.replace(/^(\s*(?:<[^>]+>\s*)*)\d+\s*[.)]\s*/, '$1');
+            
+            // Clean up the styling of the first paragraph tag if it was marked as a statement (hanging indent)
+            finalQText = finalQText.replace(/(^\s*<p[^>]*style=["'])([^"']*)(["'])/i, (m, p1, p2, p3) => {
+                const cleanedStyle = p2
+                    .replace(/padding-left:\s*24px;?/gi, '')
+                    .replace(/text-indent:\s*-24px;?/gi, '')
+                    .replace(/margin-bottom:\s*4px;?/gi, 'margin-bottom: 12px;');
+                return p1 + cleanedStyle + p3;
+            });
             const finalPointMatch = finalQText.match(/\[(?:BOBOT|POINT):\s*([\d.]+)\]/i);
             if (finalPointMatch) {
                 result.points = parseFloat(finalPointMatch[1]);
