@@ -92,9 +92,23 @@ export default function AnalysisPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-20">
-      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-20 flex flex-col">
+      {/* Mobile top bar */}
+      <div className="md:hidden bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+        <div className="px-4 pt-3 pb-3 flex">
+          <button
+            onClick={handleExit}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl border border-indigo-500 font-bold text-sm transition-all active:scale-95 shadow-lg"
+          >
+            <Icons.ArrowLeft />
+            {t('exams_btn_back_dashboard')}
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop header */}
+      <header className="hidden md:flex bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between gap-4 w-full">
           <div className="flex items-center gap-4 min-w-0">
             <h1 className="text-lg font-bold text-slate-800 dark:text-white truncate">{t('exams_analysis_title')}</h1>
           </div>
@@ -106,7 +120,7 @@ export default function AnalysisPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
+      <div className="flex-1 w-full max-w-4xl mx-auto p-4 md:p-8 space-y-8 pt-4 md:pt-8">
         {/* Professional Score Section */}
         <div className="bg-white dark:bg-slate-800 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
             <div className="p-8 md:p-12">
@@ -299,7 +313,7 @@ export default function AnalysisPage() {
                 })}
             </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }

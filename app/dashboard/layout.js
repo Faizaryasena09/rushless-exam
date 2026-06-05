@@ -116,6 +116,7 @@ export default function DashboardLayout({ children }) {
 
   const isPreview = pathname.includes('/preview/');
   const isExamTaking = pathname.includes('/exams/kerjakan/');
+  const isHasil = pathname.includes('/exams/hasil/');
   const isStudent = user?.roleName === 'student';
 
   if (loading) {
@@ -136,9 +137,9 @@ export default function DashboardLayout({ children }) {
   return (
     <UserProvider value={{ user, loading }}>
       <div className="relative flex h-screen bg-gray-100 dark:bg-slate-900 overflow-hidden">
-        {(!isStudent && !isPreview && !isExamTaking) && <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />}
-        <div className={`flex-1 flex flex-col transition-all duration-300 ${(sidebarOpen && !isStudent && !isPreview && !isExamTaking) ? 'lg:ml-64' : ''}`}>
-          {(!isPreview && !isExamTaking) && (
+        {(!isStudent && !isPreview && !isExamTaking && !isHasil) && <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />}
+        <div className={`flex-1 flex flex-col transition-all duration-300 ${(sidebarOpen && !isStudent && !isPreview && !isExamTaking && !isHasil) ? 'lg:ml-64' : ''}`}>
+          {(!isPreview && !isExamTaking && !isHasil) && (
             <Header
               user={user}
               isLoading={loading}
@@ -147,7 +148,7 @@ export default function DashboardLayout({ children }) {
             />
           )}
           <main className="flex-1 overflow-x-hidden overflow-y-auto">
-            <div className={`w-full ${(isPreview || isExamTaking) ? 'px-0 py-0' : 'px-4 sm:px-6 py-4 sm:py-8'}`}>
+            <div className={`w-full ${(isPreview || isExamTaking || isHasil) ? 'px-0 py-0' : 'px-4 sm:px-6 py-4 sm:py-8'}`}>
               {children}
             </div>
           </main>

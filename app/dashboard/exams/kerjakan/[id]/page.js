@@ -1655,7 +1655,7 @@ export default function ExamTakingPage() {
       {/* Floating Question List Button (Mobile only, floats at the bottom right) */}
       <button
         onClick={() => setIsSidebarVisible(true)}
-        className="md:hidden fixed bottom-6 right-4 z-40 flex items-center justify-center w-12 h-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all border border-indigo-500"
+        className="md:hidden fixed bottom-16 right-4 z-40 flex items-center justify-center w-12 h-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all border border-indigo-500"
         title="Tampilkan Daftar Soal"
       >
         <Icons.Grid />
