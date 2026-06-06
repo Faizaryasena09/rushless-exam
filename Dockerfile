@@ -26,7 +26,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Install PM2 globally and Redis
-RUN apk add --no-cache redis && npm install pm2 -g
+RUN apk update && apk add --no-cache redis-server && npm install pm2 -g
 
 # Buat folder untuk upload dan atur izin
 RUN mkdir -p public/uploads && chown -R nextjs:nodejs /app
