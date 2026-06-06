@@ -150,6 +150,7 @@ const translations = {
     exams_analysis_points: 'Poin',
     exams_analysis_key: 'Kunci Jawaban',
     exams_btn_back_dashboard: 'Kembali ke Dashboard',
+    exams_btn_sort: 'Urutkan Waktu',
 
     // --- Manage Questions Page ---
     questions_page_title: 'Kelola Soal',
@@ -606,6 +607,7 @@ const translations = {
     exams_analysis_points: 'Points',
     exams_analysis_key: 'Correct Answer',
     exams_btn_back_dashboard: 'Back to Dashboard',
+    exams_btn_sort: 'Sort by Time',
 
     // --- Manage Questions Page ---
     questions_page_title: 'Manage Questions',

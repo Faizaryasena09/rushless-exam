@@ -633,6 +633,7 @@ export default function ExamsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false); // To trigger re-fetch
   const [isExecuting, setIsExecuting] = useState(false); // To show loading state on buttons
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('start_time');
 
   // Accordion state
   const [openCategories, setOpenCategories] = useState({});
@@ -648,11 +649,25 @@ export default function ExamsPage() {
 
   const filteredExams = useMemo(() => {
     if (!exams) return [];
-    return exams.filter(e =>
+    let result = exams.filter(e =>
       e.exam_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (e.subject_name && e.subject_name.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-  }, [exams, searchTerm]);
+
+    if (sortBy === 'start_time') {
+      result = [...result].sort((a, b) => {
+        const aTime = a.start_time ? new Date(a.start_time).getTime() : null;
+        const bTime = b.start_time ? new Date(b.start_time).getTime() : null;
+
+        if (aTime !== null && bTime !== null) return aTime - bTime;
+        if (aTime !== null) return -1;
+        if (bTime !== null) return 1;
+        return (a.exam_name || '').localeCompare(b.exam_name || '');
+      });
+    }
+
+    return result;
+  }, [exams, searchTerm, sortBy]);
 
   // Session check and role fetching logic
   // ...
@@ -1032,6 +1047,18 @@ export default function ExamsPage() {
               className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium shadow-sm"
             />
           </div>
+          <button
+            onClick={() => setSortBy(sortBy === 'start_time' ? 'default' : 'start_time')}
+            className={`flex-shrink-0 inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold rounded-xl transition-all border active:scale-95 ${
+              sortBy === 'start_time'
+                ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-700 shadow-sm'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+            }`}
+            title={sortBy === 'start_time' ? t('exams_btn_sort') : t('exams_btn_sort')}
+          >
+            {sortBy === 'start_time' ? <Icons.ArrowUp /> : <Icons.ArrowUp />}
+            <span className="hidden sm:inline">{t('exams_btn_sort')}</span>
+          </button>
           {!isStudent && (
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
