@@ -241,6 +241,15 @@ export async function GET(request) {
             };
             eventBus.on('force_logout', onForceLogout);
 
+            // Listen for settings updated events
+            const onSettingsUpdated = async (data) => {
+                if (isClosed) return;
+                if (data.examId == examId) {
+                    safeEnqueue(`data: ${JSON.stringify({ settings_updated: true })}\n\n`);
+                }
+            };
+            eventBus.on('settings_updated', onSettingsUpdated);
+
             // Store the cleanup function
             this.cleanup = () => {
                 isClosed = true;
@@ -250,6 +259,7 @@ export async function GET(request) {
                 eventBus.off('force_submit', onForceSubmit);
                 eventBus.off('violation_lock', onViolationLock);
                 eventBus.off('force_logout', onForceLogout);
+                eventBus.off('settings_updated', onSettingsUpdated);
                 try { controller.close(); } catch(e){}
             };
 

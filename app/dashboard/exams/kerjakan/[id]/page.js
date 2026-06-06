@@ -93,6 +93,11 @@ const Icons = {
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5h12M9 5v12m0 0H7m2 0h2M13 12h7m-3.5 0v5m0 0H15m1.5 0H18" />
     </svg>
+  ),
+  Refresh: () => (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
   )
 };
 
@@ -700,6 +705,24 @@ export default function ExamTakingPage() {
     updateAttemptState({ doubtfulQuestions: newDoubtful });
   };
 
+  const [refreshingQuestions, setRefreshingQuestions] = useState(false);
+
+  const handleRefreshQuestions = useCallback(async () => {
+    if (refreshingQuestions) return;
+    setRefreshingQuestions(true);
+    try {
+      const res = await fetch(`/api/exams/questions?exam_id=${examId}`);
+      if (!res.ok) throw new Error((await res.json()).message || 'Gagal memuat soal');
+      const data = await res.json();
+      setQuestions(data);
+      toast.success('Soal berhasil diperbarui');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setRefreshingQuestions(false);
+    }
+  }, [examId, refreshingQuestions]);
+
   const handleNextQuestion = useCallback(() => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
@@ -972,6 +995,18 @@ export default function ExamTakingPage() {
             if (typeof window !== 'undefined') {
               localStorage.removeItem(`exam_instructions_ack_${examId}`);
             }
+            // Notify Rushless Safer to unlock before redirect
+            if (window.RushlessSafer && typeof window.RushlessSafer.finishExam === 'function') {
+              window.RushlessSafer.finishExam();
+            } else if (window.SafeExamBrowser && typeof window.SafeExamBrowser.quit === 'function') {
+              window.SafeExamBrowser.quit();
+            } else if (navigator.userAgent.toLowerCase().includes('seb')) {
+              window.location.href = "/seb-quit-signal";
+              return;
+            } else if (navigator.userAgent.toLowerCase().includes('geschool-secure') || navigator.userAgent.toLowerCase().includes('gsms')) {
+              window.location.href = "geschool://close";
+              return;
+            }
             window.location.href = '/';
             return;
           }
@@ -992,6 +1027,18 @@ export default function ExamTakingPage() {
           // Handle real-time violation lock
           if (data.violation_lock) {
             setIsViolationLocked(true);
+            return;
+          }
+
+          // Handle settings updated by admin
+          if (data.settings_updated) {
+            fetch(`/api/exams/settings?exam_id=${examId}`)
+              .then(res => res.json())
+              .then(settingsData => {
+                setExamDetails(settingsData);
+                toast.success('Pengaturan ujian diperbarui oleh pengawas');
+              })
+              .catch(err => console.error('Failed to refresh settings:', err));
             return;
           }
 
@@ -1590,6 +1637,16 @@ export default function ExamTakingPage() {
             <div className="hidden sm:block">
               <SaveStatusIndicator status={saveStatus} />
             </div>
+
+            {/* Refresh Questions Button */}
+            <button
+              onClick={handleRefreshQuestions}
+              disabled={refreshingQuestions}
+              className="flex p-2.5 rounded-xl transition-all active:scale-95 bg-white text-slate-500 hover:bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 disabled:opacity-50"
+              title="Muat Ulang Soal"
+            >
+              <Icons.Refresh />
+            </button>
 
             {/* Font Size Control */}
             <div className="relative">

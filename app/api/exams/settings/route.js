@@ -5,6 +5,7 @@ import { sessionOptions } from '@/app/lib/session';
 import { query, transaction } from '@/app/lib/db';
 import redis, { isRedisReady } from '@/app/lib/redis';
 import { recalculateExamScores, distributeExamPoints, getExamSettings, invalidateExamCache } from '@/app/lib/exams';
+import { eventBus } from '@/app/lib/event-bus';
 
 async function getSession(request) {
   const cookieStore = await cookies();
@@ -181,6 +182,9 @@ export async function POST(request) {
       await distributeExamPoints(examId);
     }
     await recalculateExamScores(examId);
+
+    // Notify active exam participants via SSE that settings changed
+    eventBus.emit('settings_updated', { examId });
 
     return NextResponse.json({ message: 'Settings saved successfully' });
   } catch (error) {
