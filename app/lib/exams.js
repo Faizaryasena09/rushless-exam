@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 import { getIronSession } from 'iron-session';
 import { sessionOptions } from './session';
 import { validateUserSession } from './auth';
-import { eventBus } from './event-bus';
+import { publish } from './redis-pubsub';
 
 /**
  * Recalculates all scores for a given exam.
@@ -299,7 +299,7 @@ export async function invalidateExamCache(examId) {
         await pipeline.exec();
 
         // Emit change event to trigger SSE streams
-        eventBus.emit('exam_change', { examId });
+        publish('exam_change', { examId });
     } catch (e) {
         console.error(`Redis Invalidation Error [Exam ${examId}]:`, e);
     }

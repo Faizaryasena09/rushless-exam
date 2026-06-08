@@ -48,9 +48,9 @@ export async function POST(request) {
           values: [attemptId]
         });
 
-        // 3. Notify the student via EventBus
-        const { eventBus } = await import('@/app/lib/event-bus');
-        eventBus.emit('violation_lock', { userId: examSettings[0].user_id });
+        // 3. Notify the student via Redis Pub/Sub
+        const { publish } = await import('@/app/lib/redis-pubsub');
+        publish('violation_lock', { userId: examSettings[0].user_id });
         
         return NextResponse.json({ message: 'Log saved and exam LOCKED due to violation', locked: true });
       }

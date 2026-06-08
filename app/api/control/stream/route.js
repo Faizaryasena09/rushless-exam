@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { autoSubmitExpiredAttempts } from '@/app/lib/auto-submit';
-import { eventBus } from '@/app/lib/event-bus';
+import { subscribe, unsubscribe } from '@/app/lib/redis-pubsub';
 import redis, { isRedisReady } from '@/app/lib/redis';
 
 export async function GET(request) {
@@ -172,13 +172,13 @@ export async function GET(request) {
             const onLogAdded = (log) => {
                 safeEnqueue(`data: ${JSON.stringify({ log_update: log })}\n\n`);
             };
-            eventBus.on('log_added', onLogAdded);
+            subscribe('log_added', onLogAdded);
 
             const cleanup = () => {
                 isClosed = true;
                 if (intervalId) clearInterval(intervalId);
                 if (heartbeatId) clearInterval(heartbeatId);
-                eventBus.off('log_added', onLogAdded);
+                unsubscribe('log_added', onLogAdded);
             };
 
             request.signal.addEventListener('abort', cleanup);

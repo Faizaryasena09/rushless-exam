@@ -1,6 +1,6 @@
 import { query } from './db';
 import redis, { isRedisReady } from './redis';
-import { eventBus } from './event-bus';
+import { publish } from './redis-pubsub';
 
 // Ensure table exists (runs once per cold start)
 let tableReady = false;
@@ -141,7 +141,7 @@ export async function logExamActivity({ attemptId, actionType, description }) {
             await multi.exec();
 
             // 3. Emit event for SSE streams (Real-time No Polling)
-            eventBus.emit('log_added', { 
+            publish('log_added', { 
                 ...logEntry, 
                 id: `temp-${Date.now()}-${Math.random()}` 
             });

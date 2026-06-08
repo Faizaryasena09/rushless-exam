@@ -3,7 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query, transaction } from '@/app/lib/db';
-import { eventBus } from '@/app/lib/event-bus';
+import { publish } from '@/app/lib/redis-pubsub';
 import { logActivity } from '@/app/lib/logger';
 import redis, { isRedisReady } from '@/app/lib/redis';
 
@@ -41,7 +41,7 @@ export async function POST(request) {
                 }
 
                 // Emit force_logout event to trigger real-time redirection to /
-                eventBus.emit('force_logout', { userId });
+                publish('force_logout', { userId });
                 
                 return NextResponse.json({ message: 'User logged out.' });
 
@@ -219,7 +219,7 @@ export async function POST(request) {
                     details: `ID Siswa Target: ${userId}`
                 });
 
-                eventBus.emit('refresh', { userId });
+                publish('refresh', { userId });
                 return NextResponse.json({ message: 'Refresh signal sent to student.' });
 
             case 'refresh_exams_all':
@@ -235,14 +235,14 @@ export async function POST(request) {
                     details: 'Target: Semua Siswa'
                 });
 
-                eventBus.emit('refresh', { userId: 'all' });
+                publish('refresh', { userId: 'all' });
                 return NextResponse.json({ message: 'Sinyal refresh dikirim ke semua siswa aktif.' });
 
             case 'force_submit':
                 if (!userId || !attemptId) return NextResponse.json({ message: 'Params required' }, { status: 400 });
                 
                 // 1. Emit SSE signal for real-time submission (best for data integrity)
-                eventBus.emit('force_submit', { userId, attemptId });
+                publish('force_submit', { userId, attemptId });
 
                 // 2. Server-side fallback: check online status
                 const userStatus = await query({
@@ -273,7 +273,7 @@ export async function POST(request) {
                 return NextResponse.json({ message: 'Sinyal kumpul paksa dikirim.' });
 
             case 'force_submit_all':
-                eventBus.emit('force_submit', { userId: 'all' });
+                publish('force_submit', { userId: 'all' });
                 
                 // Server-side fallback for offline students
                 (async () => {
@@ -315,7 +315,7 @@ export async function POST(request) {
                 });
                 
                 // Signal the student to refresh and clear the lock overlay
-                eventBus.emit('refresh', { userId });
+                publish('refresh', { userId });
                 
                 return NextResponse.json({ message: 'Kunci pelanggaran ujian dihapus.' });
 

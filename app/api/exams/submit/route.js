@@ -7,7 +7,7 @@ import { validateUserSession } from '@/app/lib/auth';
 import { logFromRequest } from '@/app/lib/logger';
 import { calculateQuestionScore } from '@/app/lib/scoring';
 import redis, { isRedisReady } from '@/app/lib/redis';
-import { eventBus } from '@/app/lib/event-bus';
+import { publish } from '@/app/lib/redis-pubsub';
 import { invalidateExamCache } from '@/app/lib/exams';
 
 async function getSession() {
@@ -179,7 +179,7 @@ export async function POST(request) {
     
     // Invalidate cache and notify listeners (SSE)
     await invalidateExamCache(examId).catch(() => {});
-    eventBus.emit('exam_change', { type: 'submit', userId: session.user.id, examId });
+    publish('exam_change', { type: 'submit', userId: session.user.id, examId });
 
     const latestShowResult = (settingsRows.length > 0) ? settingsRows[0].show_result : false;
 

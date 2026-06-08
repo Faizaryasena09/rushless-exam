@@ -4,6 +4,7 @@ import { sessionOptions } from '@/app/lib/session';
 import { validateUserSession } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
 import redis, { isRedisReady } from '@/app/lib/redis';
+import { subscribe, unsubscribe } from '@/app/lib/redis-pubsub';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,8 +115,8 @@ export async function GET(request) {
                     if (intervalId) clearInterval(intervalId);
                 }
             };
-            eventBus.on('refresh', onRefresh);
-            eventBus.on('force_logout', onForceLogout);
+            subscribe('refresh', onRefresh);
+            subscribe('force_logout', onForceLogout);
 
             // Poll every 15 seconds as fallback
             intervalId = setInterval(sendUpdate, 15000);
@@ -123,8 +124,8 @@ export async function GET(request) {
             // Function to mark offline (Connection lost/Tab closed)
             const markOffline = async () => {
                 isClosed = true;
-                eventBus.off('refresh', onRefresh);
-                eventBus.off('force_logout', onForceLogout);
+                unsubscribe('refresh', onRefresh);
+                unsubscribe('force_logout', onForceLogout);
                 if (session.user.roleName === 'student') {
                     if (isRedisReady()) {
                         await redis.del(`online:${userId}`).catch(() => {});

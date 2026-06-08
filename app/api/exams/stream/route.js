@@ -3,7 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { validateUserSession } from '@/app/lib/auth';
-import { eventBus } from '@/app/lib/event-bus';
+import { subscribe, unsubscribe } from '@/app/lib/redis-pubsub';
 import { getExamsList, getCategoriesList } from '@/app/lib/exams';
 
 export const dynamic = 'force-dynamic';
@@ -60,7 +60,7 @@ export async function GET(request) {
                 }
             };
 
-            eventBus.on('exam_change', onExamChange);
+            subscribe('exam_change', onExamChange);
 
             // 3. Listen for Admin Signals
             const onRefresh = (data) => {
@@ -76,8 +76,8 @@ export async function GET(request) {
                 }
             };
 
-            eventBus.on('refresh', onRefresh);
-            eventBus.on('force_submit', onForceSubmit);
+            subscribe('refresh', onRefresh);
+            subscribe('force_submit', onForceSubmit);
 
             // 3. Heartbeat to keep connection alive
             const heartbeat = setInterval(() => {
@@ -93,9 +93,9 @@ export async function GET(request) {
             request.signal.addEventListener('abort', () => {
                 isClosed = true;
                 clearInterval(heartbeat);
-                eventBus.off('exam_change', onExamChange);
-                eventBus.off('refresh', onRefresh);
-                eventBus.off('force_submit', onForceSubmit);
+                unsubscribe('exam_change', onExamChange);
+                unsubscribe('refresh', onRefresh);
+                unsubscribe('force_submit', onForceSubmit);
                 try { controller.close(); } catch(e){}
             });
         }

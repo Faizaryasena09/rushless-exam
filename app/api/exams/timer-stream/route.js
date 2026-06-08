@@ -5,7 +5,7 @@ import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { validateUserSession } from '@/app/lib/auth';
 import { autoSubmitAttemptIfExpired } from '@/app/lib/auto-submit';
-import { eventBus } from '@/app/lib/event-bus';
+import { subscribe, unsubscribe } from '@/app/lib/redis-pubsub';
 import { logExamActivity } from '@/app/lib/logger';
 import redis, { isRedisReady } from '@/app/lib/redis';
 import { getExamSettings } from '@/app/lib/exams';
@@ -204,7 +204,7 @@ export async function GET(request) {
                     safeEnqueue(`data: ${JSON.stringify({ refresh: true })}\n\n`);
                 }
             };
-            eventBus.on('refresh', onRefresh);
+            subscribe('refresh', onRefresh);
 
             // Listen for force submit events
             const onForceSubmit = async (data) => {
@@ -221,7 +221,7 @@ export async function GET(request) {
                     safeEnqueue(`data: ${JSON.stringify({ force_submit: true })}\n\n`);
                 }
             };
-            eventBus.on('force_submit', onForceSubmit);
+            subscribe('force_submit', onForceSubmit);
 
             // Listen for violation lock events
             const onViolationLock = async (data) => {
@@ -230,7 +230,7 @@ export async function GET(request) {
                     safeEnqueue(`data: ${JSON.stringify({ violation_lock: true })}\n\n`);
                 }
             };
-            eventBus.on('violation_lock', onViolationLock);
+            subscribe('violation_lock', onViolationLock);
 
             // Listen for force logout events
             const onForceLogout = async (data) => {
@@ -239,7 +239,7 @@ export async function GET(request) {
                     safeEnqueue(`data: ${JSON.stringify({ force_logout: true })}\n\n`);
                 }
             };
-            eventBus.on('force_logout', onForceLogout);
+            subscribe('force_logout', onForceLogout);
 
             // Listen for settings updated events
             const onSettingsUpdated = async (data) => {
@@ -248,18 +248,18 @@ export async function GET(request) {
                     safeEnqueue(`data: ${JSON.stringify({ settings_updated: true })}\n\n`);
                 }
             };
-            eventBus.on('settings_updated', onSettingsUpdated);
+            subscribe('settings_updated', onSettingsUpdated);
 
             // Store the cleanup function
             this.cleanup = () => {
                 isClosed = true;
                 clearInterval(intervalId);
                 markOffline();
-                eventBus.off('refresh', onRefresh);
-                eventBus.off('force_submit', onForceSubmit);
-                eventBus.off('violation_lock', onViolationLock);
-                eventBus.off('force_logout', onForceLogout);
-                eventBus.off('settings_updated', onSettingsUpdated);
+                unsubscribe('refresh', onRefresh);
+                unsubscribe('force_submit', onForceSubmit);
+                unsubscribe('violation_lock', onViolationLock);
+                unsubscribe('force_logout', onForceLogout);
+                unsubscribe('settings_updated', onSettingsUpdated);
                 try { controller.close(); } catch(e){}
             };
 
