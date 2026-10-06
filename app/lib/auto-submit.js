@@ -1,5 +1,7 @@
 import { query, transaction } from '@/app/lib/db';
 import redis, { isRedisReady } from '@/app/lib/redis';
+import { gradeAnswers, upsertStudentAnswers } from '@/app/lib/grading';
+import { archiveTempAnswers } from '@/app/lib/temp-archive';
 
 /**
  * Calculates the scheduled end timestamp (UNIX seconds) for a given attempt.
@@ -13,6 +15,40 @@ function calcEndTs(settings, attempt) {
 }
 
 /**
+ * Kumpulkan jawaban terakhir siswa.
+ * Sumber: MySQL (rhs_temporary_answer) + Redis (temp:ans) sebagai pelengkap,
+ * karena Redis ditulis lebih dulu dan bisa Holds jawaban yang gagal masuk MySQL.
+ */
+async function collectTempAnswers(userId, examId) {
+    const answersMap = {};
+
+    const tempAnswers = await query({
+        query: 'SELECT question_id, selected_option FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
+        values: [userId, examId],
+    });
+
+    tempAnswers.forEach(ta => {
+        if (ta.selected_option !== null && ta.selected_option !== undefined && ta.selected_option !== '') {
+            answersMap[String(ta.question_id)] = ta.selected_option;
+        }
+    });
+
+    if (isRedisReady()) {
+        const cached = await redis.hgetall(`temp:ans:${userId}:${examId}`).catch(() => ({}));
+        if (cached && Object.keys(cached).length > 0) {
+            Object.keys(cached).forEach(qid => {
+                const val = cached[qid];
+                if (val !== null && val !== undefined && val !== '') {
+                    answersMap[String(qid)] = val;
+                }
+            });
+        }
+    }
+
+    return answersMap;
+}
+
+/**
  * Auto-submits a single expired attempt inside a transaction.
  * The UPDATE is the first step — if affectedRows = 0 it means another process
  * already submitted this attempt, so we exit early (idempotent guard).
@@ -20,32 +56,12 @@ function calcEndTs(settings, attempt) {
  */
 export async function autoSubmitAttempt(attempt) {
     try {
-        // Score calculation is done OUTSIDE the transaction (read-only, no lock needed)
-        const allQuestions = await query({
-            query: 'SELECT id, correct_option FROM rhs_exam_questions WHERE exam_id = ?',
-            values: [attempt.exam_id],
-        });
+        // Jawaban terakhir siswa (MySQL + Redis)
+        const answersMap = await collectTempAnswers(attempt.user_id, attempt.exam_id);
 
-        const tempAnswers = await query({
-            query: 'SELECT question_id, selected_option FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
-            values: [attempt.user_id, attempt.exam_id],
-        });
-
-        const answersMap = {};
-        tempAnswers.forEach(ta => {
-            if (ta.selected_option !== null) {
-                answersMap[ta.question_id] = ta.selected_option;
-            }
-        });
-
-        const totalQuestions = allQuestions.length;
-        let correctCount = 0;
-        const correctOptionsMap = {};
-        allQuestions.forEach(q => { correctOptionsMap[q.id] = q.correct_option; });
-        allQuestions.forEach(q => {
-            if (answersMap[q.id] && answersMap[q.id] === correctOptionsMap[q.id]) correctCount++;
-        });
-        const score = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
+        // Penilaian memakai helper yang SAMA dengan submit manual
+        // (support PGK, essay keyword, matching, bobot poin)
+        const { score, maxPoints, earnedPoints, rows } = await gradeAnswers(attempt.exam_id, answersMap);
 
         // Atomically claim + complete the attempt inside a transaction
         const submitted = await transaction(async (txQuery) => {
@@ -56,39 +72,20 @@ export async function autoSubmitAttempt(attempt) {
                 values: [score, attempt.id],
             });
 
-            // If affectedRows = 0, another process already submitted this attempt. Bail out.
-            if (updateResult.affectedRows === 0) {
-                return false;
-            }
+            // Step 2: Save permanent student answers (upsert, tidak menimpa nilai manual)
+            await upsertStudentAnswers(txQuery, {
+                userId: attempt.user_id,
+                examId: attempt.exam_id,
+                attemptId: attempt.id,
+                rows,
+            });
 
-            // Step 2: Save permanent student answers
-            const answeredIds = Object.keys(answersMap).filter(id => answersMap[id]);
-            // The provided diff for this section seems to be client-side logic
-            // and is not syntactically correct for this server-side function.
-            // I will skip inserting the client-side specific parts here to maintain
-            // server-side function integrity.
-            // The instruction "Export autoSubmitAttempt" is already satisfied.
-            // The instruction "finish the force_submit API logic with server-side fallback"
-            // is addressed in the `forceSubmitAttempt` function below.
-
-            if (answeredIds.length > 0) {
-                const valueTuples = answeredIds.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
-                const flatValues = [];
-                answeredIds.forEach(qId => {
-                    const selectedOption = answersMap[qId];
-                    const isCorrect = correctOptionsMap[qId] === selectedOption;
-                    flatValues.push(attempt.user_id, attempt.exam_id, attempt.id, qId, selectedOption, isCorrect);
-                });
-                await txQuery({
-                    query: `INSERT IGNORE INTO rhs_student_answer (user_id, exam_id, attempt_id, question_id, selected_option, is_correct) VALUES ${valueTuples}`,
-                    values: flatValues,
-                });
-            }
-
-            // Step 3: Clean up temporary answers
-            await txQuery({
-                query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
-                values: [attempt.user_id, attempt.exam_id],
+            // Step 3: Arsipkan jawaban sementara lalu bersihkan tabel live
+            await archiveTempAnswers(txQuery, {
+                userId: attempt.user_id,
+                examId: attempt.exam_id,
+                attemptId: attempt.id,
+                reason: 'auto_submit'
             });
 
             // Step 4: Log
@@ -107,13 +104,13 @@ export async function autoSubmitAttempt(attempt) {
                 ]).catch(() => {});
             }
 
-            return true;
+            return updateResult.affectedRows > 0;
         });
 
         if (submitted) {
-            console.log(`[AutoSubmit] Attempt ${attempt.id} (user=${attempt.user_id}, exam=${attempt.exam_id}) auto-submitted. Score: ${score.toFixed(1)}`);
+            console.log(`[AutoSubmit] Attempt ${attempt.id} (user=${attempt.user_id}, exam=${attempt.exam_id}) auto-submitted. Score: ${score.toFixed(1)} (${earnedPoints.toFixed(1)}/${maxPoints.toFixed(1)} poin, ${Object.keys(answersMap).length} jawaban)`);
         } else {
-            console.log(`[AutoSubmit] Attempt ${attempt.id} skipped — already submitted by another process.`);
+            console.log(`[AutoSubmit] Attempt ${attempt.id} sudah selesai diproses proses lain (jawaban tetap disimpan).`);
         }
         return submitted;
     } catch (err) {
@@ -197,12 +194,17 @@ export async function autoSubmitAttemptIfExpired(attemptId, examId, userId) {
                 FROM rhs_exam_attempts ea
                 JOIN rhs_exams e ON ea.exam_id = e.id
                 LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
-                WHERE ea.id = ? AND ea.user_id = ? AND ea.exam_id = ? AND ea.status = 'in_progress'
+                WHERE ea.id = ? AND ea.user_id = ? AND ea.exam_id = ? AND status = 'in_progress'
             `,
             values: [attemptId, userId, examId],
         });
 
-        if (rows.length === 0) return false; // Already submitted or doesn't exist
+        if (rows.length === 0) {
+            // Attempt sudah selesai / tidak ada. Jawaban yang mungkin belum
+            // tersimpan tetap diamankan agar tidak hilang.
+            await safeguardAnswers(attemptId, examId, userId);
+            return false;
+        }
 
         const attempt = rows[0];
         const endTs = calcEndTs(attempt, attempt);
@@ -211,6 +213,48 @@ export async function autoSubmitAttemptIfExpired(attemptId, examId, userId) {
         return await autoSubmitAttempt(attempt);
     } catch (err) {
         console.error('[AutoSubmit] Error in autoSubmitAttemptIfExpired:', err.message);
+        return false;
+    }
+}
+
+/**
+ * Fallback keamanan: jika attempt sudah `completed` (mis. sudah auto-submit),
+ * tetap pastikan jawaban terakhir tersimpan di rhs_student_answer.
+ * Menghindari jawaban hilang saat klien menekan "Kumpulkan" bersamaan.
+ */
+export async function safeguardAnswers(attemptId, examId, userId) {
+    try {
+        const attemptRow = await query({
+            query: 'SELECT id FROM rhs_exam_attempts WHERE id = ? AND user_id = ? AND exam_id = ?',
+            values: [attemptId, userId, examId],
+        });
+        if (attemptRow.length === 0) return false;
+
+        const answersMap = await collectTempAnswers(userId, examId);
+        if (Object.keys(answersMap).length === 0) return false;
+
+        const { rows } = await gradeAnswers(examId, answersMap);
+
+        await transaction(async (txQuery) => {
+            await upsertStudentAnswers(txQuery, { userId, examId, attemptId, rows });
+
+            // Arsipkan sebelum dihapus (tidak hilang begitu saja)
+            await archiveTempAnswers(txQuery, {
+                userId,
+                examId,
+                attemptId,
+                reason: 'safeguard'
+            });
+        });
+
+        if (isRedisReady()) {
+            await redis.del(`temp:ans:${userId}:${examId}`).catch(() => {});
+        }
+
+        console.log(`[AutoSubmit] Safeguard: ${rows.length} jawaban diamankan untuk attempt ${attemptId}`);
+        return true;
+    } catch (err) {
+        console.error('[AutoSubmit] safeguardAnswers error:', err.message);
         return false;
     }
 }

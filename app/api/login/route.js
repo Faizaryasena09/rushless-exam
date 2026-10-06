@@ -168,10 +168,19 @@ export async function POST(request) {
 
     // Update MySQL (Critical: session_id must match for persistence)
     // Non-critical updates like last_activity can be handled here too
-    await query({
-      query: 'UPDATE rhs_users SET session_id = ?, last_activity = NOW(), failed_login_attempts = 0, locked_until = NULL WHERE id = ?',
-      values: [sessionId, user.id]
-    });
+    // last_login hanya tersedia setelah migrasi /api/setup, jadi ada fallback
+    try {
+      await query({
+        query: 'UPDATE rhs_users SET session_id = ?, last_activity = NOW(), last_login = NOW(), failed_login_attempts = 0, locked_until = NULL WHERE id = ?',
+        values: [sessionId, user.id]
+      });
+    } catch (e) {
+      console.warn('last_login column unavailable, retrying without it:', e.message);
+      await query({
+        query: 'UPDATE rhs_users SET session_id = ?, last_activity = NOW(), failed_login_attempts = 0, locked_until = NULL WHERE id = ?',
+        values: [sessionId, user.id]
+      });
+    }
 
     // Update Redis (Session & Safety Cleanups)
     if (redisReady) {

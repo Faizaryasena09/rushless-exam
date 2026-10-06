@@ -6,7 +6,11 @@
     "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "rhsls": "node scripts/rhsls.js"
+  },
+  "bin": {
+    "rhsls": "scripts/rhsls.js"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",

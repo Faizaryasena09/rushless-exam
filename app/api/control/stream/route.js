@@ -5,6 +5,7 @@ import { query } from '@/app/lib/db';
 import { autoSubmitExpiredAttempts } from '@/app/lib/auto-submit';
 import { subscribe, unsubscribe } from '@/app/lib/redis-pubsub';
 import redis, { isRedisReady } from '@/app/lib/redis';
+import '@/app/lib/auto-submit-scheduler'; // ensure background auto-submit scanner runs
 
 export async function GET(request) {
     const cookieStore = await cookies();

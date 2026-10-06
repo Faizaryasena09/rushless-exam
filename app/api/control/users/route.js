@@ -94,9 +94,33 @@ export async function GET(request) {
 
     const now = Math.floor(Date.now() / 1000);
 
+    // Status online & aktivitas realtime diambil dari Redis (sumber kebenaran),
+    // karena saat Redis aktif heartbeat tidak menulis ke MySQL.
+    const redisStatus = {};
+    if (redisReady && students.length > 0) {
+        const ids = students.map(s => s.id);
+        const pipeline = redis.pipeline();
+        ids.forEach(id => pipeline.exists(`online:${id}`));
+        ids.forEach(id => pipeline.get(`last_activity:${id}`));
+        const results = await pipeline.exec().catch(() => null);
+        if (results) {
+            ids.forEach((id, i) => {
+                redisStatus[id] = {
+                    online: results[i * 2]?.[1] === 1,
+                    lastActivity: results[i * 2 + 1]?.[1] ? parseInt(results[i * 2 + 1][1]) : 0
+                };
+            });
+        }
+    }
+
     const processedStudents = students.map(s => {
-      const inactiveSeconds = now - (s.last_activity_ts || 0);
-      const isOnline = !!s.is_online_realtime;
+        const liveStatus = redisStatus[s.id];
+        const isOnline = liveStatus ? liveStatus.online : !!s.is_online_realtime;
+        const lastActivityTs = liveStatus
+            ? (liveStatus.lastActivity || Number(s.last_activity_ts) || 0)
+            : Number(s.last_activity_ts) || 0;
+
+        const inactiveSeconds = lastActivityTs ? (now - lastActivityTs) : 0;
 
       let seconds_left = null;
 

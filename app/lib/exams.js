@@ -1,5 +1,6 @@
 import { query, transaction } from './db';
 import { calculateQuestionScore } from './scoring';
+import { loadExamQuestions, resolveIsCorrect } from './grading';
 import redis, { isRedisReady } from './redis';
 import { cookies } from 'next/headers';
 import { getIronSession } from 'iron-session';
@@ -15,10 +16,9 @@ export async function recalculateExamScores(examId) {
     console.log(`[Recalculation] Starting for exam ${examId}`);
 
     // 1. Get all current questions for this exam
-    const questions = await query({
-        query: 'SELECT id, correct_option, question_type, points, scoring_strategy, scoring_metadata FROM rhs_exam_questions WHERE exam_id = ?',
-        values: [examId]
-    });
+    // (pakai helper yang sama dengan submit/auto-submit agar konsisten;
+    //  ikut mengambil `options` karena soal matching butuh pasangan benar)
+    const { allQuestions: questions, questionInfoMap } = await loadExamQuestions(examId);
 
     if (questions.length === 0) {
         // If no questions, all attempts should ideally be 0? 
@@ -30,19 +30,10 @@ export async function recalculateExamScores(examId) {
         return;
     }
 
-    const questionInfoMap = questions.reduce((acc, q) => {
-        acc[q.id] = {
-            correct: q.correct_option,
-            type: q.question_type,
-            points: (q.points !== undefined && q.points !== null) ? q.points : 1.0,
-            strategy: q.scoring_strategy || 'standard',
-            metadata: typeof q.scoring_metadata === 'string' ? JSON.parse(q.scoring_metadata) : (q.scoring_metadata || {})
-        };
-        return acc;
-    }, {});
+    const questionInfoMapResolved = questionInfoMap;
 
     const totalMaxPoints = questions.reduce((sum, q) => {
-        const p = (q.points !== undefined && q.points !== null) ? q.points : 1.0;
+        const p = questionInfoMapResolved[String(q.id)]?.points ?? 1.0;
         return sum + p;
     }, 0);
 
@@ -65,7 +56,7 @@ export async function recalculateExamScores(examId) {
 
         await transaction(async (txQuery) => {
             for (const ans of answers) {
-                const qInfo = questionInfoMap[ans.question_id];
+                const qInfo = questionInfoMapResolved[String(ans.question_id)];
                 if (!qInfo) {
                     // Question was likely deleted, score earned for it should be 0
                     await txQuery({
@@ -75,16 +66,11 @@ export async function recalculateExamScores(examId) {
                     continue;
                 }
 
-                const earned = calculateQuestionScore(qInfo, ans.selected_option);
+                const earned = calculateQuestionScore(qInfo, ans.selected_option) || 0;
                 earnedTotal += earned;
 
-                // Update individual answer
-                let isCorrect = false;
-                if (qInfo.type === 'essay') {
-                    isCorrect = earned > 0;
-                } else {
-                    isCorrect = qInfo.correct === ans.selected_option;
-                }
+                // Update individual answer (is_correct konsisten dengan submit)
+                const isCorrect = resolveIsCorrect(qInfo, ans.selected_option, earned);
 
                 await txQuery({
                     query: "UPDATE rhs_student_answer SET score_earned = ?, is_correct = ? WHERE attempt_id = ? AND question_id = ?",

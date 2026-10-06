@@ -299,7 +299,7 @@ export default function WebSettingsPage() {
             </div>
 
             {/* Quick Navigation Cards */}
-            <div className="animate-fade-in-up grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
+            <div className="animate-fade-in-up grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                 <Link href="/dashboard/system-overview" className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 dark:from-indigo-500/10 dark:to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="relative flex items-start gap-4">
@@ -349,6 +349,42 @@ export default function WebSettingsPage() {
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('admin_nav_logs_desc')}</p>
                         </div>
                         <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-amber-500 dark:group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </div>
+                </Link>
+
+                <Link href="/dashboard/session-control" className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-rose-300 dark:hover:border-rose-600 transition-all duration-300 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-indigo-500/5 dark:from-rose-500/10 dark:to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative flex items-start gap-4">
+                        <div className="p-2.5 bg-rose-100 dark:bg-rose-900/40 rounded-xl text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                            </svg>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">{t('admin_nav_session')}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('admin_nav_session_desc')}</p>
+                        </div>
+                        <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-rose-500 dark:group-hover:text-rose-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </div>
+                </Link>
+
+                <Link href="/dashboard/archive-answers" className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-sky-300 dark:hover:border-sky-600 transition-all duration-300 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 to-slate-500/5 dark:from-sky-500/10 dark:to-slate-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative flex items-start gap-4">
+                        <div className="p-2.5 bg-sky-100 dark:bg-sky-900/40 rounded-xl text-sky-600 dark:text-sky-400 group-hover:scale-110 transition-transform">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8v13h14a2 2 0 002-2V8M5 8l1.5-4h11L19 8M5 8h14M10 12h4" />
+                            </svg>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">{t('admin_nav_archive')}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('admin_nav_archive_desc')}</p>
+                        </div>
+                        <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-sky-500 dark:group-hover:text-sky-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                     </div>

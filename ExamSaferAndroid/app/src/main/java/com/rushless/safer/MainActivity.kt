@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -111,9 +112,9 @@ class MainActivity : ComponentActivity() {
             if (examMode.value) {
                 enforceLockdown()
             }
-            // Panic Mode: 100ms if violating, 300ms if safe
+            // Panic Mode: 50ms if unpinned during exam, 200ms if safe
             val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-            val delay = if (examMode.value && am.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_NONE) 100 else 300
+            val delay = if (examMode.value && am.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_NONE && !isWaitingForFirstPin) 50 else 200
             lockdownHandler.postDelayed(this, delay.toLong())
         }
     }
@@ -218,6 +219,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        removeStatusBarBlocker()
         try {
             unregisterReceiver(batteryReceiver)
         } catch (e: Exception) {}
@@ -245,7 +247,7 @@ class MainActivity : ComponentActivity() {
 
         val windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         
-        // 1. TOP BLOCKER (Status Bar / Fullscreen Violation)
+        // 1. TOP / FULLSCREEN BLOCKER (Status Bar / Fullscreen Violation)
         val targetHeight = if (isViolation) WindowManager.LayoutParams.MATCH_PARENT else customStatusBarHeight()
         
         overlayView?.let {
@@ -254,13 +256,13 @@ class MainActivity : ComponentActivity() {
                 removeStatusBarBlocker()
             } else {
                 if (!isViolation) it.setBackgroundColor(0x01000000.toInt())
-                // Still need to handle bottom blocker if violation
             }
         } ?: run {
+            // Cara 3: Bila violation, HAPUS FLAG_NOT_FOCUSABLE agar overlay merebut semua kontrol tombol & gestur
             val flags = if (isViolation) {
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR
+                WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR or
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
             } else {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
@@ -277,37 +279,78 @@ class MainActivity : ComponentActivity() {
             )
             params.gravity = Gravity.TOP
 
-            overlayView = FrameLayout(this).apply {
+            overlayView = object : FrameLayout(this) {
+                override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                    if (event.keyCode == KeyEvent.KEYCODE_BACK || event.keyCode == KeyEvent.KEYCODE_HOME) {
+                        return true // Consume back/home completely
+                    }
+                    return super.dispatchKeyEvent(event)
+                }
+            }.apply {
+                isFocusable = isViolation
+                isFocusableInTouchMode = isViolation
+                setOnTouchListener { _, _ -> true } // Consume all touches
                 if (isViolation) {
-                    setBackgroundColor(0xF10F172A.toInt())
+                    setBackgroundColor(0xF80F172A.toInt()) // Solid Dark Shield
                     val container = LinearLayout(this.context).apply {
                         orientation = LinearLayout.VERTICAL
                         gravity = Gravity.CENTER
                         setPadding(60, 60, 60, 60)
                     }
                     container.addView(TextView(this.context).apply {
-                        text = "SYSTEM ALERT: LOCKDOWN BREACH"
+                        text = "🔒 UJIAN DIBEKUKAN"
                         setTextColor(0xFFF43F5E.toInt())
-                        textSize = 22f
+                        textSize = 24f
                         setTypeface(null, android.graphics.Typeface.BOLD)
                         gravity = Gravity.CENTER
                     })
                     container.addView(TextView(this.context).apply {
-                        text = "KONTROL NAVIGASI TERDETEKSI\nPERANGKAT TERKUNCI OTOMATIS"
+                        text = "PELANGGARAN NAVIGASI / UNPIN TERDETEKSI\nPerangkat terkunci otomatis. Hubungi Pengawas untuk membuka kembali ujian Anda."
                         setTextColor(android.graphics.Color.WHITE)
                         textSize = 14f
                         gravity = Gravity.CENTER
-                        setPadding(0, 20, 0, 40)
+                        setPadding(0, 20, 0, 30)
                     })
+
+                    val passwordInput = android.widget.EditText(this.context).apply {
+                        hint = "Masukkan Sandi Pengawas"
+                        inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                        transformationMethod = android.text.method.PasswordTransformationMethod.getInstance()
+                        setPadding(40, 30, 40, 30)
+                        setBackgroundColor(android.graphics.Color.WHITE)
+                        setTextColor(android.graphics.Color.BLACK)
+                        setHintTextColor(android.graphics.Color.GRAY)
+                        gravity = Gravity.CENTER
+                    }
+                    val inputParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        setMargins(0, 0, 0, 30)
+                    }
+                    container.addView(passwordInput, inputParams)
+
                     container.addView(AndroidButton(this.context).apply {
-                        text = "RE-LOCK SYSTEM"
-                        setBackgroundColor(0xFF334155.toInt())
+                        text = "BUKA KUNCI & LANJUTKAN UJIAN"
+                        setBackgroundColor(0xFFE11D48.toInt())
                         setTextColor(android.graphics.Color.WHITE)
-                        setPadding(40, 20, 40, 20)
+                        setPadding(50, 30, 50, 30)
                         setOnClickListener {
-                            removeStatusBarBlocker()
-                            lastLockAttemptTime = 0
-                            enforceLockdown()
+                            val input = passwordInput.text.toString().trim()
+                            if (input.isNotEmpty() && input == emergencyPassword.value) {
+                                removeStatusBarBlocker()
+                                lastLockAttemptTime = 0
+                                forcePullBack()
+                                try {
+                                    startLockTask()
+                                } catch (e: Exception) {
+                                    Log.e("RushlessSafer", "Re-lock failed", e)
+                                }
+                                Toast.makeText(this@MainActivity, "Ujian berhasil dibuka kembali.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(this@MainActivity, "Sandi Pengawas Salah!", Toast.LENGTH_SHORT).show()
+                                passwordInput.setText("")
+                            }
                         }
                     })
                     addView(container, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
@@ -319,11 +362,10 @@ class MainActivity : ComponentActivity() {
         }
 
         // 2. BOTTOM BLOCKER (The Iron Curtain - Prevents Unpinning Gesture)
-        // We only show this when pinned to prevent the user from holding Back + Recents
         if (!isViolation && bottomOverlayView == null) {
             val bottomParams = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
-                customNavigationBarHeight() + 50, // Extra margin to ensure coverage
+                customNavigationBarHeight() + 80, // Extra margin to ensure coverage for gestures
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
@@ -332,6 +374,7 @@ class MainActivity : ComponentActivity() {
             bottomParams.gravity = Gravity.BOTTOM
             
             bottomOverlayView = View(this).apply {
+                setOnTouchListener { _, _ -> true } // Consume touches
                 setBackgroundColor(0x01000000.toInt()) // Invisible but consumes touches
             }
             try { windowManager.addView(bottomOverlayView, bottomParams) } catch (e: Exception) { Log.e("RushlessSafer", "Bottom overlay fail", e) }
@@ -424,6 +467,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (examMode.value) {
+            applyStickyImmersive()
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val isPinned = am.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE
+            if (isPinned) {
+                removeStatusBarBlocker()
+                showLockdownOverlay(isViolation = false)
+            }
+        }
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) {
             val keyCode = event.keyCode
@@ -466,41 +522,31 @@ class MainActivity : ComponentActivity() {
         val am = this.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val lockTaskMode = am.lockTaskModeState
         val isPinned = lockTaskMode != ActivityManager.LOCK_TASK_MODE_NONE
+        val currentTime = System.currentTimeMillis()
         
         if (!isPinned) {
-            val currentTime = System.currentTimeMillis()
-            
-            // Only apply initial dialog cooldown if we haven't been successfully pinned yet
             if (isWaitingForFirstPin) {
-                val inCooldown = currentTime - lastLockAttemptTime < 5000
-                if (inCooldown) {
+                val inInitialWait = currentTime - lastLockAttemptTime < 3500
+                if (inInitialWait) {
                     removeStatusBarBlocker()
                     return
                 }
-            }
-            
-            if (!isWaitingForFirstPin) {
-                violationDetected = true // Mark violation ONLY if not in cooldown/initial
-            }
-            
-            // Not pinned -> Try to lock aggressively and immediately
-            forcePullBack() // Bring to front BEFORE locking
-            
-            // Re-enforce with a safety rate-limit of 1.5 seconds to prevent race conditions & screen flickering
-            if (currentTime - lastLockAttemptTime > 1500) { 
+                lastLockAttemptTime = currentTime
                 try {
-                    lastLockAttemptTime = currentTime
-                    removeStatusBarBlocker()
                     startLockTask()
                 } catch (e: Exception) {
-                    Log.e("RushlessSafer", "Failed to re-enforce lockdown", e)
+                    Log.e("RushlessSafer", "Initial lock attempt failed", e)
                 }
+                return
             }
-            // Keep normal status bar overlay active, no full screen breach alert
-            showLockdownOverlay(isViolation = false)
+
+            // Real unpin breach during exam -> Instant reaction (0 ms cooldown)
+            violationDetected = true
+            forcePullBack()
+            showLockdownOverlay(isViolation = true)
         } else {
-            // Already Pinned -> Active the Iron Curtain (Safety Blocker)
-            isWaitingForFirstPin = false // Confirmed pinned!
+            // Confirmed Pinned -> Activate the Iron Curtain (Safety Blocker)
+            isWaitingForFirstPin = false
             showLockdownOverlay(isViolation = false)
         }
     }
@@ -530,9 +576,15 @@ class MainActivity : ComponentActivity() {
                 val responseCode = connection.responseCode
                 if (responseCode == 200) {
                     val text = connection.inputStream.bufferedReader().readText()
-                    // Simple JSON parse for "app_emergency_password"
-                    val pass = text.split("\"app_emergency_password\":\"")[1].split("\"")[0]
-                    emergencyPassword.value = pass
+                    try {
+                        val json = org.json.JSONObject(text)
+                        val pass = json.optString("app_emergency_password", "")
+                        if (pass.isNotEmpty()) {
+                            emergencyPassword.value = pass
+                        }
+                    } catch (e: Exception) {
+                        Log.e("RushlessSafer", "Failed to parse password JSON: ${e.message}")
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("RushlessSafer", "Failed to fetch password: ${e.message}")
@@ -541,8 +593,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun onEmergencyExit() {
+        removeStatusBarBlocker()
         stopLockTask()
         examMode.value = false
+        targetUrl.value = ""
         Toast.makeText(this, "Emergency Exit Aktif", Toast.LENGTH_LONG).show()
     }
 
@@ -973,78 +1027,134 @@ fun EmergencyExitDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun ExamWebView(url: String, onFinished: () -> Unit) {
-    AndroidView(factory = { context ->
-        WebView(context).apply {
-            layoutParams = android.view.ViewGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT
-            )
+    AndroidView(
+        factory = { context ->
+            object : WebView(context) {
+                override fun startActionMode(callback: android.view.ActionMode.Callback?): android.view.ActionMode? = null
+                override fun startActionMode(callback: android.view.ActionMode.Callback?, type: Int): android.view.ActionMode? = null
+            }.apply {
+                layoutParams = android.view.ViewGroup.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                )
 
-            // Session persistence: Cookie management
-            val cookieManager = CookieManager.getInstance()
-            cookieManager.setAcceptCookie(true)
-            cookieManager.setAcceptThirdPartyCookies(this, true)
+                // Anti-Copy & Anti-Long Press
+                isLongClickable = false
+                setOnLongClickListener { true }
+                isHapticFeedbackEnabled = false
 
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.databaseEnabled = true
-            settings.cacheMode = WebSettings.LOAD_DEFAULT
-            settings.allowFileAccess = true
-            settings.setSupportMultipleWindows(true)
-            settings.javaScriptCanOpenWindowsAutomatically = true
-            
-            // Identification: Append custom string to User-Agent
-            val originalUserAgent = settings.userAgentString
-            settings.userAgentString = "$originalUserAgent RushlessSaferAndroid"
-            
-            // Allow media playback without user gesture
-            settings.mediaPlaybackRequiresUserGesture = false
+                // Session persistence: Cookie management
+                val cookieManager = CookieManager.getInstance()
+                cookieManager.setAcceptCookie(true)
+                cookieManager.setAcceptThirdPartyCookies(this, true)
 
-            // Add Javascript Interface
-            val activity = context as? MainActivity
-            addJavascriptInterface(object {
-                @JavascriptInterface
-                fun finishExam() {
-                    onFinished()
-                }
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.cacheMode = WebSettings.LOAD_DEFAULT
+                settings.allowFileAccess = true
+                settings.setSupportMultipleWindows(true)
+                settings.javaScriptCanOpenWindowsAutomatically = true
+                settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                 
-                @JavascriptInterface
-                fun remoteUnlock() {
-                    activity?.runOnUiThread {
-                        if (activity.examMode.value) {
-                            activity.onExamFinished()
-                            Toast.makeText(activity, "Admin telah melepas penguncian.", Toast.LENGTH_LONG).show()
+                // Identification: Append custom string to User-Agent
+                val originalUserAgent = settings.userAgentString
+                settings.userAgentString = "$originalUserAgent RushlessSaferAndroid"
+                
+                // Allow media playback without user gesture
+                settings.mediaPlaybackRequiresUserGesture = false
+
+                // Add Javascript Interface
+                val activity = context as? MainActivity
+                addJavascriptInterface(object {
+                    @JavascriptInterface
+                    fun finishExam() {
+                        onFinished()
+                    }
+                    
+                    @JavascriptInterface
+                    fun remoteUnlock() {
+                        activity?.runOnUiThread {
+                            if (activity.examMode.value) {
+                                activity.onExamFinished()
+                                Toast.makeText(activity, "Admin telah melepas penguncian.", Toast.LENGTH_LONG).show()
+                            }
                         }
                     }
-                }
-            }, "RushlessSafer")
+                }, "RushlessSafer")
 
-            webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                    // Prevent navigating outside exam host if possible, or just allow all
-                    return false 
-                }
-
-                override fun onFormResubmission(view: WebView?, dontResend: android.os.Message?, resend: android.os.Message?) {
-                    // This is crucial to avoid ERR_CACHE_MISS on form resubmission (back/forward)
-                    resend?.sendToTarget()
-                }
-
-                override fun onPageFinished(view: WebView?, url: String?) {
-                    super.onPageFinished(view, url)
-                    // Persist cookies to disk
-                    cookieManager.flush()
-
-                    // Fetch emergency password early when starting the exam (network is active and cookies are set)
-                    if (activity != null && activity.examMode.value) {
-                        activity.fetchEmergencyPassword()
+                webChromeClient = object : WebChromeClient() {
+                    override fun onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message?): Boolean {
+                        val href = view?.handler?.obtainMessage()
+                        view?.requestFocusNodeHref(href)
+                        val targetUrlStr = href?.data?.getString("url")
+                        if (!targetUrlStr.isNullOrEmpty()) {
+                            view.loadUrl(targetUrlStr)
+                        }
+                        return false
                     }
                 }
+
+                webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                        val reqUri = request?.url ?: return false
+                        val baseUri = Uri.parse(url)
+                        if (reqUri.scheme != "http" && reqUri.scheme != "https") {
+                            return true
+                        }
+                        val reqHost = reqUri.host
+                        val baseHost = baseUri.host
+                        if (baseHost != null && reqHost != null && !reqHost.equals(baseHost, ignoreCase = true) && !reqHost.endsWith(".$baseHost")) {
+                            Toast.makeText(context, "Navigasi keluar dari server ujian diblokir.", Toast.LENGTH_SHORT).show()
+                            return true
+                        }
+                        return false 
+                    }
+
+                    override fun onFormResubmission(view: WebView?, dontResend: android.os.Message?, resend: android.os.Message?) {
+                        // This is crucial to avoid ERR_CACHE_MISS on form resubmission (back/forward)
+                        resend?.sendToTarget()
+                    }
+
+                    override fun onPageFinished(view: WebView?, pageUrl: String?) {
+                        super.onPageFinished(view, pageUrl)
+                        // Persist cookies to disk
+                        cookieManager.flush()
+
+                        // Fetch emergency password early when starting the exam (network is active and cookies are set)
+                        if (activity != null && activity.examMode.value) {
+                            activity.fetchEmergencyPassword()
+                        }
+
+                        // Inject CSS anti-selection & anti-callout
+                        val disableSelectionJs = """
+                            (function() {
+                                var css = '* { -webkit-user-select: none !important; -webkit-touch-callout: none !important; user-select: none !important; } input, textarea { -webkit-user-select: text !important; user-select: text !important; }';
+                                var style = document.createElement('style');
+                                style.type = 'text/css';
+                                style.appendChild(document.createTextNode(css));
+                                document.head.appendChild(style);
+                            })();
+                        """.trimIndent()
+                        view?.evaluateJavascript(disableSelectionJs, null)
+                    }
+
+                    override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                        super.onReceivedError(view, request, error)
+                        Log.e("RushlessSafer", "WebView error: ${error?.description}")
+                    }
+                }
+                
+                if (url.isNotEmpty()) {
+                    loadUrl(url)
+                }
             }
-            
-            loadUrl(url)
+        },
+        update = { webView ->
+            if (url.isNotEmpty() && webView.url != url) {
+                webView.loadUrl(url)
+            }
         }
-    })
+    )
 }
 
 @Composable

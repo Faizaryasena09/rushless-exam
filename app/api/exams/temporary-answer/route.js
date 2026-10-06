@@ -66,6 +66,9 @@ export async function GET(request) {
 }
 
 // POST handler to save (upsert) a temporary answer
+// Mendukung dua format:
+//   { examId, questionId, selectedOption }  -> satu soal (klik biasa)
+//   { examId, answers: { qid: value } }     -> banyak soal (sendBeacon / flush)
 export async function POST(request) {
   const session = await getSession();
 
@@ -74,36 +77,76 @@ export async function POST(request) {
   }
 
   try {
-    const { examId, questionId, selectedOption } = await request.json();
+    let payload;
+    try {
+      payload = await request.json();
+    } catch (e) {
+      return NextResponse.json({ message: 'Invalid JSON body' }, { status: 400 });
+    }
+
+    const { examId, questionId, selectedOption, answers } = payload;
     const userId = session.user.id;
 
-    if (examId === undefined || questionId === undefined) {
+    if (examId === undefined || examId === null) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
-    // 1. Save to Redis IMMEDIATELY (Instant response)
+    // Normalisasi menjadi map { question_id: value }
+    let answerMap = {};
+    if (answers && typeof answers === 'object') {
+      answerMap = answers;
+    } else if (questionId !== undefined && questionId !== null) {
+      answerMap = { [questionId]: selectedOption };
+    } else {
+      return NextResponse.json({ message: 'Missing questionId or answers' }, { status: 400 });
+    }
+
+    const entries = Object.entries(answerMap).filter(([qid]) => qid !== undefined && qid !== null);
+    if (entries.length === 0) {
+      return NextResponse.json({ message: 'Nothing to save' }, { status: 200 });
+    }
+
+// 1. Save to Redis (instant, source of truth saat Redis aktif)
     if (isRedisReady()) {
       const redisKey = `temp:ans:${userId}:${examId}`;
-      // Use HSET to store question_id -> selected_option mapping
-      await redis.hset(redisKey, questionId, selectedOption || '').catch(() => {});
+      // HSET dipecah per 200 pasangan agar tidak melebihi batas argumen perintah
+      const CHUNK = 200;
+      for (let i = 0; i < entries.length; i += CHUNK) {
+        const flat = [];
+        entries.slice(i, i + CHUNK).forEach(([qid, val]) => {
+          flat.push(String(qid), val === null || val === undefined ? '' : String(val));
+        });
+        if (flat.length > 0) {
+          await redis.hset(redisKey, ...flat).catch(() => {});
+        }
+      }
       await redis.expire(redisKey, 7200).catch(() => {}); // Refresh TTL
     }
 
-    // 2. Async Sync to MySQL (Don't await if we want absolute speed, but user asked for "fire-and-forget" correction earlier)
-    // Actually, to balance reliability and speed, we'll await but since it's one INSERT it's fast.
-    // If we truly want "Instant", we'd skip await, but then we lose the "Error 200" fix.
-    // DECISION: Await it for safety, but with Redis it's already redundant for most GETs.
-    await query({
-      query: `
-        INSERT INTO rhs_temporary_answer (user_id, exam_id, question_id, selected_option)
-        VALUES (?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE selected_option = VALUES(selected_option)
-      `,
-      values: [userId, examId, questionId, selectedOption],
-    });
+    // 2. Sync ke MySQL (batch upsert; selected_option sudah TEXT sehingga
+    //    jawaban panjang seperti essay/matching JSON tidak terpotong)
+    const CHUNK = 200;
+    for (let i = 0; i < entries.length; i += CHUNK) {
+      const chunk = entries.slice(i, i + CHUNK);
+      const valueTuples = chunk.map(() => '(?, ?, ?, ?)').join(', ');
+      const flatValues = [];
+      chunk.forEach(([qid, val]) => {
+        flatValues.push(userId, examId, qid, val === undefined ? null : val);
+      });
 
-    return NextResponse.json({ message: 'Answer saved temporarily' }, { status: 200 });
+      await query({
+        query: `
+          INSERT INTO rhs_temporary_answer (user_id, exam_id, question_id, selected_option)
+          VALUES ${valueTuples}
+          ON DUPLICATE KEY UPDATE selected_option = VALUES(selected_option)
+        `,
+        values: flatValues,
+      });
+    }
+
+    return NextResponse.json({ message: 'Answer saved temporarily', saved: entries.length }, { status: 200 });
   } catch (error) {
+    console.error('Temporary answer save error:', error);
     return NextResponse.json({ message: 'Failed to save temporary answer', error: error.message }, { status: 500 });
   }
 }

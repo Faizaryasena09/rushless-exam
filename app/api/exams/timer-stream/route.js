@@ -9,6 +9,7 @@ import { subscribe, unsubscribe } from '@/app/lib/redis-pubsub';
 import { logExamActivity } from '@/app/lib/logger';
 import redis, { isRedisReady } from '@/app/lib/redis';
 import { getExamSettings } from '@/app/lib/exams';
+import '@/app/lib/auto-submit-scheduler'; // ensure background auto-submit scanner runs
 
 // Helper to calculate remaining time
 function calculateRemainingSeconds(settings, attempt, now_ts) {

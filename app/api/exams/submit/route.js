@@ -5,7 +5,8 @@ import { sessionOptions } from '@/app/lib/session';
 import { query, transaction } from '@/app/lib/db';
 import { validateUserSession } from '@/app/lib/auth';
 import { logFromRequest } from '@/app/lib/logger';
-import { calculateQuestionScore } from '@/app/lib/scoring';
+import { gradeAnswers, upsertStudentAnswers } from '@/app/lib/grading';
+import { archiveTempAnswers } from '@/app/lib/temp-archive';
 import redis, { isRedisReady } from '@/app/lib/redis';
 import { publish } from '@/app/lib/redis-pubsub';
 import { invalidateExamCache } from '@/app/lib/exams';
@@ -30,22 +31,35 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Missing examId, answers, or attemptId' }, { status: 400 });
     }
 
-    // 1. Get all questions for the exam to get the total number and correct options
-    const allQuestions = await query({
-      query: 'SELECT id, options, correct_option, question_type, points, scoring_strategy, scoring_metadata FROM rhs_exam_questions WHERE exam_id = ?',
-      values: [examId],
+    // 0. Validasi attempt milik user ini (mencegah submit ngintip attempt orang lain)
+    const attemptRows = await query({
+      query: 'SELECT id, status FROM rhs_exam_attempts WHERE id = ? AND user_id = ? AND exam_id = ?',
+      values: [attemptId, session.user.id, examId],
     });
 
-    // Check require_all_answered setting
+    if (attemptRows.length === 0) {
+      return NextResponse.json({ message: 'Attempt tidak ditemukan' }, { status: 404 });
+    }
+
+    const attemptStatus = attemptRows[0].status;
+
+    // 1. Settings + daftar soal
     const settingsRows = await query({
       query: 'SELECT require_all_answered, show_result FROM rhs_exam_settings WHERE exam_id = ?',
       values: [examId],
     });
     const requireAllAnswered = settingsRows.length > 0 && Boolean(settingsRows[0].require_all_answered);
 
-    if (requireAllAnswered && allQuestions.length > 0 && !isForce) {
-      const answeredQuestionIds = new Set(Object.keys(answers).filter(id => answers[id] !== null && answers[id] !== undefined));
-      const unansweredCount = allQuestions.filter(q => !answeredQuestionIds.has(String(q.id))).length;
+    // 2. Penilaian (SAMA dengan auto-submit server -> app/lib/grading.js)
+    const grading = await gradeAnswers(examId, answers || {});
+    const { score, maxPoints, earnedPoints, questionIds, rows } = grading;
+
+    // 3. Check require_all_answered
+    if (requireAllAnswered && questionIds.length > 0 && !isForce && attemptStatus === 'in_progress') {
+      const answeredQuestionIds = new Set(
+        Object.keys(answers || {}).filter(id => answers[id] !== null && answers[id] !== undefined && answers[id] !== '')
+      );
+      const unansweredCount = questionIds.filter(id => !answeredQuestionIds.has(id)).length;
       if (unansweredCount > 0) {
         return NextResponse.json(
           { message: `Semua soal harus dijawab sebelum mengumpulkan. Masih ada ${unansweredCount} soal yang belum dijawab.` },
@@ -54,139 +68,87 @@ export async function POST(request) {
       }
     }
 
-    if (allQuestions.length === 0) {
-      // No questions in the exam, so score is 0. Use transaction for atomicity.
-      await transaction(async (txQuery) => {
-        await txQuery({
+    let claimed = false;
+
+    // 4. Simpan jawaban SELALU (upsert, idempotent) + selesaikan attempt kalau masih berjalan
+    await transaction(async (txQuery) => {
+      if (attemptStatus === 'in_progress') {
+        const updateResult = await txQuery({
           query: `
             UPDATE rhs_exam_attempts 
-            SET status = 'completed', end_time = NOW(), score = 0 
+            SET status = 'completed', end_time = NOW(), score = ? 
             WHERE id = ? AND user_id = ? AND status = 'in_progress'
           `,
-          values: [attemptId, session.user.id],
-        });
-      });
-      return NextResponse.json({ message: 'Exam submitted. No questions found, score is 0.' });
-    }
-
-    // 2. Calculate score
-    let earnedPointsTotal = 0;
-    let maxPointsTotal = 0;
-    const itemScores = {}; // Map to store earned points per question for DB insertion
-    
-    const questionInfoMap = allQuestions.reduce((acc, q) => {
-      acc[q.id] = { 
-        correct: q.correct_option, 
-        type: q.question_type,
-        options: q.options,
-        points: q.points || 1,
-        strategy: q.scoring_strategy || 'standard',
-        metadata: typeof q.scoring_metadata === 'string' ? JSON.parse(q.scoring_metadata) : (q.scoring_metadata || {})
-      };
-      return acc;
-    }, {});
-
-    for (const q of allQuestions) {
-      const qId = String(q.id);
-      const qInfo = questionInfoMap[qId];
-      if (!qInfo) continue;
-
-      maxPointsTotal += qInfo.points;
-      const studentAnswer = answers[qId];
-      
-      let earnedForThisQuestion = 0;
-      if (studentAnswer !== undefined && studentAnswer !== null && studentAnswer !== '') {
-        earnedForThisQuestion = calculateQuestionScore(qInfo, studentAnswer);
-      }
-       earnedPointsTotal += earnedForThisQuestion;
-       itemScores[qId] = earnedForThisQuestion;
-    }
-
-    const score = maxPointsTotal > 0 ? (earnedPointsTotal / maxPointsTotal) * 100 : 0;
-
-    // 3-5. Atomically: update attempt + save answers + clean up temp answers
-    await transaction(async (txQuery) => {
-      // IDEMPOTENT GATE: Claim the attempt by updating status.
-      // WHERE status = 'in_progress' ensures only one process wins (auto-submit or manual submit).
-      const updateResult = await txQuery({
-        query: `
-          UPDATE rhs_exam_attempts 
-          SET status = 'completed', end_time = NOW(), score = ? 
-          WHERE id = ? AND user_id = ? AND status = 'in_progress'
-        `,
-        values: [score, attemptId, session.user.id],
-      });
-
-      // If affectedRows = 0, auto-submit already completed this attempt. That's fine — just skip.
-      if (updateResult.affectedRows === 0) {
-        return;
-      }
-
-      // 4. Save the answers to the permanent student_answer table
-      const receivedQuestionIds = Object.keys(answers).filter(id => answers[id] !== null);
-      if (receivedQuestionIds.length > 0) {
-        const valueTuples = receivedQuestionIds.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(', ');
-        const flattenedValues = [];
-        receivedQuestionIds.forEach(qId => {
-          const selectedOption = answers[qId];
-          const qInfo = questionInfoMap[qId];
-          let isCorrect = false;
-          const earned = itemScores[qId] || 0;
-          if (qInfo) {
-              if (qInfo.type === 'essay') {
-                  isCorrect = earned > 0; // Better indicator
-              } else if (qInfo.type === 'multiple_choice_complex') {
-                  isCorrect = qInfo.correct === selectedOption;
-              } else if (qInfo.type === 'matching') {
-                  // Mark as correct if all items matched (full points)
-                  isCorrect = earned >= qInfo.points;
-              } else {
-                  isCorrect = qInfo.correct === selectedOption;
-              }
-          }
-          flattenedValues.push(session.user.id, examId, attemptId, qId, selectedOption, isCorrect, earned);
+          values: [score, attemptId, session.user.id],
         });
 
-        // INSERT IGNORE: if auto-submit already saved some answers, skip duplicates
+        claimed = updateResult.affectedRows > 0;
+      }
+
+      // Upsert jawaban: aman baik saat manual submit maupun setelah auto-submit
+      // (mis. student menekan "Kumpulkan" tepat saat timer-stream auto-submit).
+      await upsertStudentAnswers(txQuery, {
+        userId: session.user.id,
+        examId,
+        attemptId,
+        rows,
+      });
+
+      if (claimed) {
+        // Jawaban sementara diarsipkan dulu (tidak hilang begitu saja),
+        // baru dihapus dari tabel live.
+        await archiveTempAnswers(txQuery, {
+          userId: session.user.id,
+          examId,
+          attemptId,
+          reason: 'submit'
+        });
+
         await txQuery({
-          query: `
-            INSERT IGNORE INTO rhs_student_answer (user_id, exam_id, attempt_id, question_id, selected_option, is_correct, score_earned) 
-            VALUES ${valueTuples}
-          `,
-          values: flattenedValues,
+          query: `INSERT INTO rhs_exam_logs (attempt_id, action_type, description) VALUES (?, 'SUBMIT', ?)`,
+          values: [attemptId, isForce ? 'Dikumpulkan otomatis oleh sistem (Waktu habis / dipaksa)' : 'Dikumpulkan oleh siswa'],
         });
-      }
-
-      // 5. Clean up temporary answers
-      await txQuery({
-        query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
-        values: [session.user.id, examId],
-      });
-
-      // 6. Invalidate Redis Caches
-      if (isRedisReady()) {
-        const userId = session.user.id;
-        await Promise.all([
-            redis.del(`exam:active-attempt:${userId}:${examId}`),
-            redis.del(`exam:attempt-meta:${userId}:${examId}`),
-            redis.del(`temp:ans:${userId}:${examId}`),
-            redis.srem(`user:active_exams:${userId}`, examId)
-        ]).catch(() => {});
       }
     });
 
-    logFromRequest(request, session, 'EXAM_SUBMIT', 'info', { examId, score: score.toFixed(1), earned: earnedPointsTotal.toFixed(1), max: maxPointsTotal });
-    
-    // Invalidate cache and notify listeners (SSE)
-    await invalidateExamCache(examId).catch(() => {});
-    publish('exam_change', { type: 'submit', userId: session.user.id, examId });
+    // 5. Invalidate Redis caches
+    if (isRedisReady()) {
+      const userId = session.user.id;
+      await Promise.all([
+        redis.del(`exam:active-attempt:${userId}:${examId}`),
+        redis.del(`exam:attempt-meta:${userId}:${examId}`),
+        redis.del(`temp:ans:${userId}:${examId}`),
+        redis.srem(`user:active_exams:${userId}`, examId)
+      ]).catch(() => {});
+    }
+
+    if (claimed) {
+      logFromRequest(request, session, 'EXAM_SUBMIT', 'info', {
+        examId,
+        attemptId,
+        score: score.toFixed(1),
+        earned: earnedPoints.toFixed(1),
+        max: maxPoints.toFixed(1)
+      });
+      await invalidateExamCache(examId).catch(() => {});
+      publish('exam_change', { type: 'submit', userId: session.user.id, examId });
+    } else {
+      // Attempt sudah selesai lebih dulu (auto-submit): jawaban siswa tetap
+      // disimpan di atas, tapi skor tidak ditimpa.
+      logFromRequest(request, session, 'EXAM_SUBMIT_MERGED', 'warn', {
+        examId,
+        attemptId,
+        details: 'Attempt sudah completed sebelum submit manual; jawaban digabung tanpa menimpa skor'
+      });
+    }
 
     const latestShowResult = (settingsRows.length > 0) ? settingsRows[0].show_result : false;
 
     return NextResponse.json({ 
-        message: 'Exam submitted successfully', 
-        score: score,
-        show_result: latestShowResult 
+      message: 'Exam submitted successfully', 
+      score: score,
+      saved: true,
+      show_result: latestShowResult 
     });
 
   } catch (error) {

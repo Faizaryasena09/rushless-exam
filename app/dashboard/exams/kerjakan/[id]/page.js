@@ -405,6 +405,31 @@ export default function ExamTakingPage() {
   const [instructionsConfirmed, setInstructionsConfirmed] = useState(false);
   const lsConfirmKey = `exam_instructions_ack_${examId}`;
 
+  // Jawaban juga dicerminkan ke localStorage sebagai cadangan terakhir,
+  // supaya tidak hilang saat tab ditutup / koneksi putus.
+  const lsAnswersKey = `exam_answers_backup_${examId}`;
+
+  // Flush semua jawaban ke server (dipakai saat unload / sebelum menutup halaman)
+  const flushAnswersBeacon = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(`exam_answers_backup_${examId}`);
+      if (!raw) return;
+      const payload = JSON.parse(raw);
+      if (!payload || Object.keys(payload).length === 0) return;
+
+      const blob = new Blob(
+        [JSON.stringify({ examId: Number(examId), answers: payload })],
+        { type: 'application/json' }
+      );
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon('/api/exams/temporary-answer', blob);
+      }
+    } catch (e) {
+      // diam-diam saja,Answers tetap ada di state & akan terkirim saat submit
+    }
+  }, [examId]);
+
   const logAction = useCallback(async (actionType, description) => {
     if (!attemptDetails?.id) return;
     try {
@@ -451,9 +476,10 @@ export default function ExamTakingPage() {
       const resultData = await response.json();
       if (!response.ok) throw new Error(resultData.message || 'Failed to submit exam.');
 
-      // Clear instruction confirmation for this exam on successful submit
+      // Clear instruction confirmation + backup jawaban untuk exam ini on successful submit
       if (typeof window !== 'undefined') {
         localStorage.removeItem(`exam_instructions_ack_${examId}`);
+        localStorage.removeItem(`exam_answers_backup_${examId}`);
       }
 
       // Improved check: handles true, 1, or "1" from database response OR falling back to local state
@@ -503,6 +529,35 @@ export default function ExamTakingPage() {
       finishExamHandled.current = false;
     }
   }, [examId, answers, router, attemptDetails, logAction, examDetails?.show_result]);
+
+  // Pengaman jawaban: kirim jawaban yang ada di memory ke server tanpa
+  // langsung berpindah halaman. Aman dipanggil saat attempt sudah completed
+  // karena server memakai upsert dan tidak menimpa skor.
+  const submitAnswersSafeguard = useCallback(() => {
+    if (!attemptDetails?.id) return;
+    try {
+      fetch('/api/exams/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          examId: Number(examId),
+          answers,
+          attemptId: attemptDetails.id,
+          isForce: true
+        }),
+        keepalive: true
+      }).catch(() => {});
+    } catch (e) {
+      // abaikan
+    }
+  }, [examId, answers, attemptDetails?.id]);
+
+  // Disimpan lewat ref supaya handler SSE tidak perlu re-subscribe
+  // setiap kali ada jawaban yang berubah.
+  const safeguardRef = useRef(() => {});
+  useEffect(() => {
+    safeguardRef.current = submitAnswersSafeguard;
+  });
 
   const handleFinishRequest = () => {
     setShowFinishModal(true);
@@ -564,7 +619,44 @@ export default function ExamTakingPage() {
           setDoubtfulAnswers({});
         }
       }
-      if (tempAnswersRes.ok) setAnswers(await tempAnswersRes.json() || {});
+      if (tempAnswersRes.ok) {
+        const serverAnswers = (await tempAnswersRes.json()) || {};
+        // Gabungkan dengan cadangan localStorage (kasinirhaven't terkirim
+        // sebelumnya karena koneksi putus / tab ditutup mendadak)
+        let recovered = {};
+        try {
+          const raw = window.localStorage.getItem(`exam_answers_backup_${examId}`);
+          if (raw) recovered = JSON.parse(raw) || {};
+        } catch (e) {
+          recovered = {};
+        }
+
+        const missing = {};
+        Object.keys(recovered).forEach(qid => {
+          const val = recovered[qid];
+          if (val === null || val === undefined || val === '') return;
+          if (serverAnswers[qid] === undefined || serverAnswers[qid] === null || serverAnswers[qid] === '') {
+            missing[qid] = val;
+          }
+        });
+
+        const merged = { ...recovered, ...serverAnswers };
+        // Buang kunci yang memang dikosongkan siswa
+        Object.keys(merged).forEach(qid => {
+          if (merged[qid] === null || merged[qid] === undefined || merged[qid] === '') delete merged[qid];
+        });
+        setAnswers(merged);
+
+        // Kirim ulang jawaban yang berhasil dipulihkan ke server
+        if (Object.keys(missing).length > 0) {
+          fetch('/api/exams/temporary-answer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ examId: Number(examId), answers: missing }),
+          }).catch(() => {});
+          console.log('[Exam] Memulihkan jawaban dari backup lokal:', Object.keys(missing).length);
+        }
+      }
 
       setShowInstructionsScreen(false); // Hide instructions
       setShowTokenModal(false); // Hide token modal
@@ -640,11 +732,11 @@ export default function ExamTakingPage() {
   }, [examId, questions, answers, logAction]);
 
   const handleEssayChange = async (questionId, text) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: text }));
-    // We'll save this via a separate mechanism or on blur
+    // Guard: jangan buat objek baru bila isinya sama (cekal loop render)
+    setAnswers((prev) => (prev[questionId] === text ? prev : { ...prev, [questionId]: text }));
   };
 
-  const saveEssayAnswer = async (questionId, text) => {
+  const saveEssayAnswer = useCallback(async (questionId, text) => {
     try {
       setSaveStatus('saving');
       const response = await fetch('/api/exams/temporary-answer', {
@@ -662,7 +754,18 @@ export default function ExamTakingPage() {
       console.error('Failed to save essay answer:', error);
       setSaveStatus('error');
     }
-  };
+  }, [examId]);
+
+  // Debounce: jawaban essay disimpan otomatis 1.2 detik setelah berhenti mengetik,
+  // supaya tidak hilang walau tab ditutup / koneksi terputus di tengah mengetik.
+  const essaySaveTimer = useRef(null);
+  const scheduleEssaySave = useCallback((questionId, text) => {
+    handleEssayChange(questionId, text);
+    if (essaySaveTimer.current) clearTimeout(essaySaveTimer.current);
+    essaySaveTimer.current = setTimeout(() => {
+      saveEssayAnswer(questionId, text);
+    }, 1200);
+  }, [saveEssayAnswer]);
 
   const handleClearAnswer = async (questionId) => {
     const qIndex = questions.findIndex(q => q.id === questionId);
@@ -958,6 +1061,38 @@ export default function ExamTakingPage() {
   }, [examDetails, examId]);
 
   // --- Effects (Must be after Handlers) ---
+  // 0. Cadangan jawaban di localStorage + flush saat halaman ditutup
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!attemptDetails?.id) return;
+
+    try {
+      window.localStorage.setItem(lsAnswersKey, JSON.stringify(answers));
+    } catch (e) {
+      // localStorage penuh / tidak tersedia — tidak mengganggu alur ujian
+    }
+  }, [answers, lsAnswersKey, attemptDetails?.id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!attemptDetails?.id) return;
+
+    const handleUnload = () => flushAnswersBeacon();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') flushAnswersBeacon();
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [flushAnswersBeacon, attemptDetails?.id]);
+
   // 1. Logic for 1-second decrement
   useEffect(() => {
     if (timeLeft === null) return;
@@ -1051,6 +1186,10 @@ export default function ExamTakingPage() {
             }
             setTimeLeft(0);
 
+            // Pengaman: kirim jawaban yang masih ada di memory siswa.
+            // Server akan menyimpan (upsert) tanpa menimpa skor yang sudah dihitung.
+            safeguardRef.current();
+
             const shouldShowResult = examDetails?.show_result === true ||
               examDetails?.show_result === 1 ||
               String(examDetails?.show_result) === '1';
@@ -1084,6 +1223,9 @@ export default function ExamTakingPage() {
             if (window.RushlessSafer && typeof window.RushlessSafer.remoteUnlock === 'function') {
               window.RushlessSafer.remoteUnlock();
             }
+
+            // Pengaman: pastikan jawaban terakhir siswa ikut tersimpan
+            safeguardRef.current();
 
             // If the student already submitted manually, let the submit function handle navigation.
             // If we get here because of force-submit or other status change, we handle it here.
@@ -1755,6 +1897,7 @@ export default function ExamTakingPage() {
                               ref={editorRef}
                               value={answers[currentQuestion.id] || ''}
                               config={editorConfig}
+                              onChange={(newContent) => scheduleEssaySave(currentQuestion.id, newContent)}
                               onBlur={(newContent) => {
                                 handleEssayChange(currentQuestion.id, newContent);
                                 saveEssayAnswer(currentQuestion.id, newContent);

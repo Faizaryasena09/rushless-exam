@@ -8,6 +8,38 @@ import { query } from './db';
 
 const LICENSE_FILE = path.join(process.cwd(), 'license_status.json');
 
+// License dibaca pada SETIAP request (lewat middleware) tapi isinya nyaris
+// tidak pernah berubah. Tanpa cache, tiap request menembak MySQL 1-2x hanya
+// untuk cek lisensi - itu_sendiri penyebab pool BeginsPenuh saat traffic tinggi.
+// Cache di-memory per worker dengan TTL pendek; `invalidateLicenseCache()`
+// dipanggil setiap kali lisensi ditulis supaya perubahan tetap langsung terasa.
+const LICENSE_CACHE_TTL_MS = Number.parseInt(process.env.LICENSE_CACHE_TTL_MS, 10) || 15000;
+
+const licenseCache = {
+    entry: null,
+    expiresAt: 0,
+};
+
+function readCache() {
+    if (!licenseCache.entry) return null;
+    if (Date.now() >= licenseCache.expiresAt) {
+        licenseCache.entry = null;
+        licenseCache.expiresAt = 0;
+        return null;
+    }
+    return licenseCache.entry;
+}
+
+function writeCache(value, ttlMs = LICENSE_CACHE_TTL_MS) {
+    licenseCache.entry = value;
+    licenseCache.expiresAt = Date.now() + ttlMs;
+}
+
+export function invalidateLicenseCache() {
+    licenseCache.entry = null;
+    licenseCache.expiresAt = 0;
+}
+
 
 /**
  * Reads the local license status from the database.
@@ -15,11 +47,18 @@ const LICENSE_FILE = path.join(process.cwd(), 'license_status.json');
  */
 export async function getLocalLicense() {
     try {
+        // Data lisensi di-cache supaya query ini tidak jalan tiap request.
+        // Naiknya kondisi `status`/`signature` selalu memanggil
+        // invalidateLicenseCache() lebih dulu, jadi cache tidak pernah basi.
+        const cached = readCache();
+        if (cached) return cached;
+
         const results = await query({
             query: 'SELECT * FROM rhs_license WHERE id = 1'
         });
 
         if (results && results.length > 0) {
+            writeCache(results[0]);
             return results[0];
         }
 
@@ -33,6 +72,8 @@ export async function getLocalLicense() {
                     console.log('[License] Successfully migrated license from file to database.');
                     // Note: We don't delete the file immediately for safety, 
                     // but we will prioritize the DB from now on.
+                    invalidateLicenseCache();
+                    writeCache(legacyData);
                     return legacyData;
                 }
             } catch (err) {
@@ -52,6 +93,7 @@ export async function getLocalLicense() {
  */
 export async function saveLocalLicense(data) {
     try {
+        invalidateLicenseCache();
         await query({
             query: `
                 INSERT INTO rhs_license (

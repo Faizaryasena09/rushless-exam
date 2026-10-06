@@ -3,6 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query, transaction } from '@/app/lib/db';
+import { archiveTempAnswers } from '@/app/lib/temp-archive';
 import { publish } from '@/app/lib/redis-pubsub';
 import { logActivity } from '@/app/lib/logger';
 import redis, { isRedisReady } from '@/app/lib/redis';
@@ -10,6 +11,53 @@ import redis, { isRedisReady } from '@/app/lib/redis';
 async function getSession(request) {
     const cookieStore = await cookies();
     return await getIronSession(cookieStore, sessionOptions);
+}
+
+/**
+ * Cek online status yang konsisten dengan sumber kebenaran.
+ * Saat Redis aktif, heartbeat hanya menulis ke Redis (MySQL last_activity stale),
+ * jadi Redis harus diperiksa lebih dulu.
+ */
+async function checkUserOnline(userId) {
+    if (isRedisReady()) {
+        const online = await redis.exists(`online:${userId}`).catch(() => null);
+        if (online !== null) return online === 1;
+    }
+
+    const rows = await query({
+        query: 'SELECT (last_activity > NOW() - INTERVAL 20 SECOND) as is_online FROM rhs_users WHERE id = ?',
+        values: [userId],
+    });
+
+    return rows.length > 0 && !!rows[0].is_online;
+}
+
+/**
+ * Filter daftar userId → returns Set userId yang ONLINE.
+ * Fallback ke MySQL bila Redis tidak tersedia.
+ */
+async function filterOnlineUsers(userIds) {
+    const online = new Set();
+    if (!userIds || userIds.length === 0) return online;
+
+    if (isRedisReady()) {
+        const pipeline = redis.pipeline();
+        userIds.forEach(id => pipeline.exists(`online:${id}`));
+        const results = await pipeline.exec().catch(() => null);
+        if (results) {
+            userIds.forEach((id, i) => { if (results[i]?.[1] === 1) online.add(id); });
+            return online;
+        }
+    }
+
+    const rows = await query({
+        query: `SELECT id FROM rhs_users
+                WHERE id IN (${userIds.map(() => '?').join(',')})
+                AND last_activity > NOW() - INTERVAL 20 SECOND`,
+        values: userIds,
+    }).catch(() => []);
+    rows.forEach(r => online.add(r.id));
+    return online;
 }
 
 export async function POST(request) {
@@ -83,10 +131,12 @@ export async function POST(request) {
                     if (attemptInfo.length > 0) {
                         const { user_id, exam_id } = attemptInfo[0];
 
-                        // Step 2: Delete temporary answers first (foreign key safe)
-                        await txQuery({
-                            query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
-                            values: [user_id, exam_id]
+                        // Step 2: Arsipkan jawaban sementara (aman), baru hapus dari tabel live
+                        await archiveTempAnswers(txQuery, {
+                            userId: user_id,
+                            examId: exam_id,
+                            attemptId,
+                            reason: 'reset_exam'
                         });
                     }
 
@@ -128,10 +178,12 @@ export async function POST(request) {
                     if (attemptInfo.length > 0) {
                         const { user_id, exam_id } = attemptInfo[0];
 
-                        // 2. Clear Temporary Answers
-                        await txQuery({
-                            query: 'DELETE FROM rhs_temporary_answer WHERE user_id = ? AND exam_id = ?',
-                            values: [user_id, exam_id]
+                        // 2. Arsipkan jawaban sementara (aman), lalu hapus dari tabel live
+                        await archiveTempAnswers(txQuery, {
+                            userId: user_id,
+                            examId: exam_id,
+                            attemptId,
+                            reason: 'delete_attempt'
                         });
 
                         // 3. Delete Attempt (Cascades to answers and logs)
@@ -245,15 +297,13 @@ export async function POST(request) {
                 publish('force_submit', { userId, attemptId });
 
                 // 2. Server-side fallback: check online status
-                const userStatus = await query({
-                    query: 'SELECT (last_activity > NOW() - INTERVAL 15 SECOND) as is_online FROM rhs_users WHERE id = ?',
-                    values: [userId]
-                });
-
-                if (userStatus.length === 0 || !userStatus[0].is_online) {
+                // CATATAN: saat Redis aktif, rhs_users.last_activity tidak di-update
+                // (hanya disimpan di Redis), jadi WAJIB cek Redis dulu.
+                const isUserOnline = await checkUserOnline(userId);
+                if (!isUserOnline) {
                     // Student is offline, trigger auto-submit from server
                     const { autoSubmitAttempt } = await import('@/app/lib/auto-submit');
-                    
+                     
                     const attemptRows = await query({
                         query: `
                             SELECT ea.*, e.timer_mode, e.duration_minutes, UNIX_TIMESTAMP(es.end_time) as end_time_ts
@@ -291,7 +341,11 @@ export async function POST(request) {
                             `
                         });
 
-                        for (const attempt of offlineAttempts) {
+                        // Buang yang ternyata masih online (dicek ke Redis)
+                        const onlineChecked = await filterOnlineUsers(offlineAttempts.map(a => a.user_id));
+                        const trulyOffline = offlineAttempts.filter(a => !onlineChecked.has(a.user_id));
+
+                        for (const attempt of trulyOffline) {
                             await autoSubmitAttempt(attempt);
                         }
                     } catch (e) {

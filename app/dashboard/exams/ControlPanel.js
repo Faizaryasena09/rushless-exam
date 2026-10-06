@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { ChevronUp, ChevronDown, ArrowUpDown, RefreshCcw, Users, Clock, Send, FileSpreadsheet } from 'lucide-react';
+import {
+    ChevronUp, ChevronDown, ArrowUpDown, RefreshCcw, Users, Clock,
+    FileSpreadsheet, PlusCircle, BellRing, CheckCircle2, HelpCircle, X
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 // Format seconds to HH:MM:SS
 function formatTime(seconds) {
@@ -16,7 +20,7 @@ const Icons = {
     Lock: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>,
     Unlock: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg>,
     Logout: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
-    Refresh: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.001 0 01-15.357-2m15.357 2H15" /></svg>,
+    Refresh: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>,
     Clock: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     Stop: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" /></svg>,
     Log: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
@@ -32,7 +36,65 @@ const ACTION_COLORS = {
     SECURITY: 'bg-red-100 text-red-700',
 };
 
-// --- Student Timer ---
+/* ------------------------------------------------------------------
+ * Metadata aksi: dipakai untuk tooltip, label tombol, dan panduan
+ * ------------------------------------------------------------------ */
+const ACTION_META = {
+    toggle_login_lock: {
+        label: 'Kunci Login',
+        hint: 'Memblokir atau membuka ability akun siswa untuk login kembali. Akun yang dikunci otomatis dikeluarkan dari sesinya.'
+    },
+    force_logout: {
+        label: 'Logout Paksa',
+        hint: 'Meng-terminate sesi siswa di perangkatnya dan mengarahkan mereka ke halaman login. Progres jawaban tetap tersimpan.'
+    },
+    view_logs: {
+        label: 'Log Realtime',
+        hint: 'Membuka panel log aktivitas siswa secara real-time: navigasi soal, jawaban, dan kejadian keamanan.'
+    },
+    unlock_violation: {
+        label: 'Buka Kunci Pelanggaran',
+        hint: 'Membuka kunci overclock/pelanggaran sehingga siswa bisa melanjutkan ujian dari soal yang terkunci.'
+    },
+    add_time: {
+        label: 'Tambah Waktu',
+        hint: 'Menambahkan waktu (menit) ke sisa waktu siswa yang sedang mengerjakan ujian.'
+    },
+    force_submit: {
+        label: 'Paksa Kumpul',
+        hint: 'Mengakhiri sesi ujian siswa seketika dan menarik semua jawaban yang tersimpan ke server. Tidak dapat dibatalkan.'
+    },
+    reset_exam: {
+        label: 'Reset Ujian',
+        hint: 'Menghapus seluruh progres pengerjaan siswa yang sedang berjalan dan mengeluarkan mereka dari ujian.'
+    }
+};
+
+const BUTTON_TONES = {
+    slate: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600',
+    indigo: 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50',
+    emerald: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40',
+    amber: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50',
+    rose: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40',
+    red: 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-900/60',
+};
+
+/* Tombol aksi baris: icon + label selalu terlihat (tanpa tooltip hover) */
+function ActionButton({ metaKey, icon: Icon, onClick, tone = 'slate', pulse = false }) {
+    const meta = ACTION_META[metaKey];
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all active:scale-95 ${BUTTON_TONES[tone]} ${pulse ? 'animate-pulse ring-2 ring-amber-400/60' : ''}`}
+        >
+            <Icon size={14} className="shrink-0" />
+            <span className="whitespace-nowrap">{meta.label}</span>
+        </button>
+    );
+}
+
+/* --- Student Timer --- */
 function StudentTimer({ secondsLeft }) {
     const [display, setDisplay] = useState(secondsLeft);
 
@@ -61,7 +123,7 @@ function StudentTimer({ secondsLeft }) {
     );
 }
 
-// --- Log Panel ---
+/* --- Log Panel --- */
 function LogPanel({ student, onClose, sseLog }) {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -109,7 +171,7 @@ function LogPanel({ student, onClose, sseLog }) {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [logs]);
 
-    const formatTime = (ts) => new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const formatLogTime = (ts) => new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -134,7 +196,7 @@ function LogPanel({ student, onClose, sseLog }) {
                     {!loading && logs.length === 0 && <div className="text-center text-slate-400 py-10">Belum ada log untuk sesi ini.</div>}
                     {logs.map((log) => (
                         <div key={log.id} className="flex items-start gap-2">
-                            <span className="text-slate-400 whitespace-nowrap flex-shrink-0 pt-0.5">{formatTime(log.created_at)}</span>
+                            <span className="text-slate-400 whitespace-nowrap flex-shrink-0 pt-0.5">{formatLogTime(log.created_at)}</span>
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap flex-shrink-0 ${ACTION_COLORS[log.action_type] || 'bg-slate-100 text-slate-600'}`}>
                                 {log.action_type}
                             </span>
@@ -151,6 +213,87 @@ function LogPanel({ student, onClose, sseLog }) {
     );
 }
 
+/* --- Panduan Aksi --- */
+function GuideModal({ isOpen, onClose }) {
+    if (!isOpen) return null;
+    const groups = [
+        {
+            title: 'Aksi Per Siswa',
+            color: 'text-indigo-600 dark:text-indigo-400',
+            items: ['toggle_login_lock', 'force_logout', 'view_logs', 'unlock_violation']
+        },
+        {
+            title: 'Aksi Ujian',
+            color: 'text-emerald-600 dark:text-emerald-400',
+            items: ['add_time', 'force_submit', 'reset_exam']
+        }
+    ];
+
+    return (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose} />
+            <div className="relative bg-white dark:bg-slate-800 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="flex items-start justify-between p-6 border-b border-slate-100 dark:border-slate-700">
+                    <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                            <HelpCircle size={20} className="text-indigo-500" />
+                            Panduan Tombol Aksi
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            Arahkan kursor ke tombol mana pun untuk melihat keterangan singkat.
+                        </p>
+                    </div>
+                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 transition-colors">
+                        <Icons.X />
+                    </button>
+                </div>
+
+                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                    {groups.map(group => (
+                        <div key={group.title}>
+                            <h4 className={`text-xs font-black uppercase tracking-wider mb-3 ${group.color}`}>{group.title}</h4>
+                            <ul className="space-y-2">
+                                {group.items.map(key => (
+                                    <li key={key} className="flex gap-3 items-start p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-700">
+                                        <span className="text-[11px] font-bold text-slate-800 dark:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 whitespace-nowrap">
+                                            {ACTION_META[key].label}
+                                        </span>
+                                        <span className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{ACTION_META[key].hint}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
+
+                    <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider mb-3 text-amber-600 dark:text-amber-400">Aksi Massal</h4>
+                        <ul className="space-y-2">
+                            <li className="flex gap-3 items-start p-3 rounded-xl bg-amber-50/60 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/50">
+                                <span className="text-[11px] font-bold text-slate-800 dark:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 whitespace-nowrap">Tambah Waktu</span>
+                                <span className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">Menambah menit ke seluruh siswa yang sedang ujian pada filter aktif (tidak memengaruhi yang offline).</span>
+                            </li>
+                            <li className="flex gap-3 items-start p-3 rounded-xl bg-amber-50/60 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/50">
+                                <span className="text-[11px] font-bold text-slate-800 dark:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 whitespace-nowrap">Refresh Alert</span>
+                                <span className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">Mengirim sinyal refresh ke semua siswa aktif agar layar/alerts mereka diperbarui tanpa reload manual.</span>
+                            </li>
+                            <li className="flex gap-3 items-start p-3 rounded-xl bg-rose-50/60 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800/50">
+                                <span className="text-[11px] font-bold text-slate-800 dark:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 whitespace-nowrap">Paksa Kumpul</span>
+                                <span className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">Mengakhiri sesi ujian semua siswa aktif sekaligus. Tindakan destruktif dan tidak dapat dibatalkan.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="p-4 bg-slate-50/50 dark:bg-slate-900/20 border-t border-slate-100 dark:border-slate-700">
+                    <button onClick={onClose} className="w-full px-4 py-3 rounded-2xl bg-slate-900 dark:bg-slate-700 text-white text-sm font-black hover:bg-slate-800 transition-colors">
+                        Mengerti
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function ControlPanel() {
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -161,7 +304,9 @@ export default function ControlPanel() {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedClass, setSelectedClass] = useState('All');
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+    const [onlineFirst, setOnlineFirst] = useState(false);
     const [sseLog, setSseLog] = useState(null);
+    const [showGuide, setShowGuide] = useState(false);
     const [modalConfig, setModalConfig] = useState({ 
         isOpen: false, 
         type: 'confirm', 
@@ -241,6 +386,11 @@ export default function ControlPanel() {
         return matchesClass && matchesSearch;
     });
 
+    const activeStudents = useMemo(
+        () => filteredStudents.filter(s => s.attempt_id),
+        [filteredStudents]
+    );
+
     const toggleSort = (key) => {
         setSortConfig(prev => ({
             key,
@@ -265,6 +415,17 @@ export default function ControlPanel() {
 
     const sortedStudents = useMemo(() => {
         const data = [...filteredStudents];
+
+        // Mode "Online First": satu klik -> online di paling atas, klik lagi -> normal
+        if (onlineFirst) {
+            return data.sort((a, b) => {
+                if (a.is_online !== b.is_online) return a.is_online ? -1 : 1;
+                const valA = (a.name || a.username).toLowerCase();
+                const valB = (b.name || b.username).toLowerCase();
+                return valA < valB ? -1 : valA > valB ? 1 : 0;
+            });
+        }
+
         const { key, direction } = sortConfig;
         
         data.sort((a, b) => {
@@ -283,9 +444,9 @@ export default function ControlPanel() {
         });
         
         return data;
-    }, [filteredStudents, sortConfig]);
+    }, [filteredStudents, sortConfig, onlineFirst]);
 
-    const handleAction = async (action, payload) => {
+    const handleAction = async (action, payload, successMessage) => {
         const execute = async () => {
             try {
                 const res = await fetch('/api/control/actions', {
@@ -293,10 +454,13 @@ export default function ControlPanel() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action, ...payload })
                 });
-                if (!res.ok) throw new Error((await res.json()).message);
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.message || 'Aksi gagal');
+                toast.success(successMessage || data.message || 'Aksi berhasil dijalankan');
                 fetchStatus();
                 setModalConfig(prev => ({ ...prev, isOpen: false }));
             } catch (e) {
+                toast.error(e.message);
                 setModalConfig({
                     isOpen: true,
                     type: 'alert',
@@ -326,7 +490,7 @@ export default function ControlPanel() {
                 type: 'confirm',
                 title: 'Konfirmasi Logout Paksa',
                 targetName: payload.studentName,
-                message: 'Siswa akan dikeluarkan secara paksa dari sistem. Apakah Anda yakin?',
+                message: 'Siswa akan dikeluarkan secara paksa dari sistem dan harus login kembali. Progres jawaban yang sudah tersimpan tetap aman. Apakah Anda yakin?',
                 isDestructive: true,
                 onConfirm: execute
             });
@@ -359,6 +523,11 @@ export default function ControlPanel() {
             return;
         }
 
+        if (action === 'lock_login') {
+            execute();
+            return;
+        }
+
         execute();
     };
 
@@ -372,19 +541,19 @@ export default function ControlPanel() {
             inputValue: '10',
             onConfirm: (val) => {
                 const mins = parseInt(val);
-                if (!isNaN(mins)) handleAction('add_time', { userId, attemptId, minutes: mins });
+                if (!isNaN(mins) && mins > 0) handleAction('add_time', { userId, attemptId, minutes: mins });
             }
         });
     };
 
     const handleBatchAction = async (action) => {
-        const active = filteredStudents.filter(s => s.attempt_id);
+        const active = activeStudents;
         if (active.length === 0) {
             setModalConfig({
                 isOpen: true,
                 type: 'alert',
                 title: 'Tidak Ada Siswa Aktif',
-                message: 'Tidak ditemukan siswa aktif dalam filter saat ini untuk melakukan aksi ini.',
+                message: 'Tidak ditemukan siswa yang sedang mengerjakan ujian pada filter saat ini, sehingga aksi massal tidak dapat dijalankan.',
                 isDestructive: false
             });
             return;
@@ -395,27 +564,60 @@ export default function ControlPanel() {
                 isOpen: true,
                 type: 'prompt',
                 title: 'Tambah Waktu Massal',
-                targetName: `${active.length} Siswa Terpilih`,
-                message: `Tambah waktu untuk siswa terpilih secara bersamaan.`,
+                targetName: `${active.length} Siswa Aktif`,
+                message: `Menambah waktu untuk ${active.length} siswa yang sedang mengerjakan ujian. Waktu ditambahkan ke sisa waktu masing-masing siswa.`,
                 inputValue: '10',
                 onConfirm: (val) => {
                     const mins = parseInt(val);
-                    if (!isNaN(mins)) handleAction(action, { attemptIds: active.map(s => s.attempt_id), minutes: mins });
+                    if (!isNaN(mins) && mins > 0) handleAction(action, { attemptIds: active.map(s => s.attempt_id), minutes: mins });
                 }
             });
-        } else if (action === 'refresh_exams_all' || action === 'force_submit_all') {
-            const label = action === 'refresh_exams_all' ? 'Segarkan Alert' : 'Paksa Kumpul Massal';
+        } else if (action === 'refresh_exams_all') {
             setModalConfig({
                 isOpen: true,
                 type: 'confirm',
-                title: label,
-                targetName: `${active.length} Siswa Terpilih`,
-                message: `Konfirmasi: Jalankan aksi "${label}" untuk siswa secara massal?`,
-                isDestructive: action === 'force_submit_all',
-                onConfirm: () => handleAction(action, {})
+                title: 'Segarkan Alert Semua Siswa',
+                targetName: `${active.length} Siswa Aktif`,
+                message: `Sinyal refresh dikirim ke ${active.length} siswa aktif agar tampilan dan alert di perangkatnya diperbarui. Progres jawaban tidak berubah.`,
+                isDestructive: false,
+                onConfirm: () => handleAction(action, {}, 'Sinyal refresh dikirim ke semua siswa aktif')
+            });
+        } else if (action === 'force_submit_all') {
+            setModalConfig({
+                isOpen: true,
+                type: 'confirm',
+                title: 'Paksa Kumpulkan Semua Jawaban',
+                targetName: `${active.length} Siswa Aktif`,
+                message: `PERINGATAN: ${active.length} siswa aktif akan langsung menyelesaikan ujian dan jawabannya ditarik ke server. Tindakan ini tidak dapat dibatalkan.`,
+                isDestructive: true,
+                onConfirm: () => handleAction(action, {}, 'Jawaban siswa berhasil dikumpulkan')
             });
         }
     };
+
+    const batchActions = [
+        {
+            key: 'add_time_batch',
+            label: 'Tambah Waktu',
+            desc: 'Tambah menit untuk semua siswa yang sedang ujian',
+            icon: PlusCircle,
+            className: 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200 dark:shadow-none'
+        },
+        {
+            key: 'refresh_exams_all',
+            label: 'Refresh Alert',
+            desc: 'Kirim sinyal refresh tampilan ke siswa aktif',
+            icon: BellRing,
+            className: 'bg-amber-500 hover:bg-amber-600 shadow-amber-200 dark:shadow-none'
+        },
+        {
+            key: 'force_submit_all',
+            label: 'Paksa Kumpul',
+            desc: 'Akhiri sesi ujian semua siswa aktif',
+            icon: CheckCircle2,
+            className: 'bg-rose-600 hover:bg-rose-700 shadow-rose-200 dark:shadow-none'
+        },
+    ];
 
     if (loading && students.length === 0) return <div className="p-10 text-center text-slate-500">Loading Control Panel...</div>;
 
@@ -452,6 +654,7 @@ export default function ControlPanel() {
             ` }} />
 
             {logStudent && <LogPanel student={logStudent} sseLog={sseLog} onClose={() => setLogStudent(null)} />}
+            {showGuide && <GuideModal isOpen={showGuide} onClose={() => setShowGuide(false)} />}
 
             <div className="animate-fade-in-down bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden text-slate-800 dark:text-slate-200">
                 <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-slate-50/30 dark:bg-slate-700/30">
@@ -497,52 +700,92 @@ export default function ControlPanel() {
                             {classes.map(c => <option key={c} value={c}>{c === 'All' ? 'Semua Kelas' : c}</option>)}
                         </select>
                         <button 
-                            onClick={() => toggleSort('is_online')} 
-                            className={`p-2 border rounded-xl transition-all flex items-center gap-2 ${
-                                sortConfig.key === 'is_online' 
-                                ? 'bg-indigo-600 text-white border-indigo-600' 
+                            onClick={() => {
+                                setOnlineFirst(prev => !prev);
+                                // Matikan sort kolom agar langsung kembali normal
+                                if (onlineFirst) setSortConfig({ key: 'name', direction: 'asc' });
+                            }} 
+                            className={`p-2 border rounded-xl transition-all flex items-center gap-2 active:scale-95 ${
+                                onlineFirst 
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-200 dark:shadow-none' 
                                 : 'bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'
                             }`}
-                            title="Urutkan berdasarkan status online"
                         >
                             <Users size={18} />
-                            <span className="text-xs font-bold hidden sm:inline">Online First</span>
+                            <span className="text-xs font-bold hidden sm:inline">
+                                {onlineFirst ? 'Online First: ON' : 'Online First'}
+                            </span>
+                            {onlineFirst && <span className="hidden sm:inline w-1.5 h-1.5 rounded-full bg-white" />}
                         </button>
-                        <button onClick={fetchStatus} className="p-2 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded-xl transition-all">
+                        <button 
+                            onClick={fetchStatus} 
+                            className="p-2 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 rounded-xl transition-all flex items-center gap-2 text-slate-600 dark:text-slate-300"
+                        >
                             <RefreshCcw size={18} />
+                            <span className="text-xs font-bold hidden sm:inline">Refresh</span>
+                        </button>
+                        <button 
+                            onClick={() => setShowGuide(true)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 transition-all"
+                        >
+                            <HelpCircle size={15} />
+                            <span className="hidden sm:inline">Panduan</span>
                         </button>
                     </div>
                 </div>
 
-                <div className="px-5 py-3 bg-indigo-50/50 dark:bg-indigo-900/10 border-b border-slate-100 dark:border-slate-700 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
+                {/* Aksi Massal */}
+                <div className="px-5 py-4 bg-indigo-50/50 dark:bg-indigo-900/10 border-b border-slate-100 dark:border-slate-700 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 flex-wrap">
                         <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
                             {filteredStudents.length} <span className="text-slate-400 font-medium">Siswa Terfilter</span>
                         </div>
                         <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
                             {filteredStudents.filter(s => s.is_online).length} <span className="text-slate-400 font-medium text-emerald-500">Online</span>
                         </div>
+                        <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            {activeStudents.length} <span className="text-slate-400 font-medium">Sedang Ujian</span>
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => handleBatchAction('add_time_batch')} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase">Tambah Waktu</button>
-                        <button onClick={() => handleBatchAction('refresh_exams_all')} className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold uppercase">Refresh Alert</button>
-                        <button onClick={() => handleBatchAction('force_submit_all')} className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold uppercase">Paksa Kumpul</button>
+                    <div className="flex flex-col gap-2 w-full xl:w-auto">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider text-slate-400">Aksi Massal</span>
+                            {batchActions.map(batch => {
+                                const Icon = batch.icon;
+                                const disabled = activeStudents.length === 0;
+                                return (
+                                    <button
+                                        key={batch.key}
+                                        onClick={() => handleBatchAction(batch.key)}
+                                        disabled={disabled}
+                                        className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-white text-xs font-bold shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${batch.className}`}
+                                    >
+                                        <Icon size={15} />
+                                        {batch.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                            Berlaku untuk <span className="font-bold text-slate-700 dark:text-slate-300">{activeStudents.length} siswa</span> yang sedang ujian • Tambah Waktu: menambah menit ke sisa waktu • Refresh Alert: memperbarui tampilan di perangkat siswa • Paksa Kumpul: mengakhiri sesi ujian (tidak dapat dibatalkan)
+                        </p>
                     </div>
                 </div>
             </div>
 
-            <div className="animate-fade-in-up hidden md:block bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
+            {/* Tabel Desktop */}
+            <div className="animate-fade-in-up hidden md:block bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-visible" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                     <thead className="bg-slate-50/80 dark:bg-slate-700/50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase cursor-pointer" onClick={() => toggleSort('name')}>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase cursor-pointer group" onClick={() => toggleSort('name')}>
                                 Student <SortIcon columnKey="name" />
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase cursor-pointer" onClick={() => toggleSort('is_online')}>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase cursor-pointer group" onClick={() => { setOnlineFirst(false); toggleSort('is_online'); }}>
                                 Status <SortIcon columnKey="is_online" />
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Aktivitas & Timer</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Aktivitas &amp; Timer</th>
                             <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Actions</th>
                         </tr>
                     </thead>
@@ -576,32 +819,54 @@ export default function ControlPanel() {
                                     ) : <span className="text-[11px] text-slate-400">Idle</span>}
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <div className="flex items-center justify-end gap-1.5">
-                                        <button onClick={() => handleAction('lock_login', { userId: s.id, studentName: s.name || s.username })} className={`p-2 rounded-lg ${s.is_locked ? 'bg-red-100 text-red-600' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200'}`} title="Lock/Unlock Login">
-                                            {s.is_locked ? <Icons.Lock /> : <Icons.Unlock />}
-                                        </button>
-                                        <button onClick={() => handleAction('force_logout', { userId: s.id, studentName: s.name || s.username })} className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-red-50 hover:text-red-600 rounded-lg" title="Force Logout">
-                                            <Icons.Logout />
-                                        </button>
+                                    <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                        <ActionButton
+                                            metaKey="toggle_login_lock"
+                                            icon={s.is_locked ? Icons.Lock : Icons.Unlock}
+                                            tone={s.is_locked ? 'red' : 'slate'}
+                                            onClick={() => handleAction('lock_login', { userId: s.id, studentName: s.name || s.username })}
+                                        />
+                                        <ActionButton
+                                            metaKey="force_logout"
+                                            icon={Icons.Logout}
+                                            tone="slate"
+                                            onClick={() => handleAction('force_logout', { userId: s.id, studentName: s.name || s.username })}
+                                        />
                                         {s.current_exam && (
                                             <>
-                                                <button onClick={() => setLogStudent(s)} className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded-lg" title="View Logs">
-                                                    <Icons.Log />
-                                                </button>
+                                                <ActionButton
+                                                    metaKey="view_logs"
+                                                    icon={Icons.Log}
+                                                    tone="indigo"
+                                                    onClick={() => setLogStudent(s)}
+                                                />
                                                 {s.is_violation_locked && (
-                                                    <button onClick={() => handleAction('unlock_exam', { userId: s.id, attemptId: s.attempt_id, studentName: s.name || s.username })} className="p-2 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg animate-pulse" title="Unlock Violation">
-                                                        <Icons.Unlock />
-                                                    </button>
+                                                    <ActionButton
+                                                        metaKey="unlock_violation"
+                                                        icon={Icons.Unlock}
+                                                        tone="amber"
+                                                        pulse
+                                                        onClick={() => handleAction('unlock_exam', { userId: s.id, attemptId: s.attempt_id, studentName: s.name || s.username })}
+                                                    />
                                                 )}
-                                                <button onClick={() => handleAddTime(s.id, s.attempt_id, s.name || s.username)} className="p-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded-lg" title="Add Time">
-                                                    <Icons.Clock />
-                                                </button>
-                                                <button onClick={() => handleAction('force_submit', { userId: s.id, attemptId: s.attempt_id, studentName: s.name || s.username })} className="p-2 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-lg" title="Force Submit">
-                                                    <FileSpreadsheet size={16} />
-                                                </button>
-                                                <button onClick={() => handleAction('reset_exam', { userId: s.id, attemptId: s.attempt_id, studentName: s.name || s.username })} className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg" title="Reset Exam">
-                                                    <Icons.Stop />
-                                                </button>
+                                                <ActionButton
+                                                    metaKey="add_time"
+                                                    icon={Icons.Clock}
+                                                    tone="emerald"
+                                                    onClick={() => handleAddTime(s.id, s.attempt_id, s.name || s.username)}
+                                                />
+                                                <ActionButton
+                                                    metaKey="force_submit"
+                                                    icon={FileSpreadsheet}
+                                                    tone="rose"
+                                                    onClick={() => handleAction('force_submit', { userId: s.id, attemptId: s.attempt_id, studentName: s.name || s.username })}
+                                                />
+                                                <ActionButton
+                                                    metaKey="reset_exam"
+                                                    icon={Icons.Stop}
+                                                    tone="red"
+                                                    onClick={() => handleAction('reset_exam', { userId: s.id, attemptId: s.attempt_id, studentName: s.name || s.username })}
+                                                />
                                             </>
                                         )}
                                     </div>
@@ -612,6 +877,91 @@ export default function ControlPanel() {
                 </table>
             </div>
 
+            {/* Kartu Mobile */}
+            <div className="animate-fade-in-up md:hidden space-y-3" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
+                {sortedStudents.map(s => (
+                    <div key={s.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${s.is_online ? 'bg-green-500' : 'bg-slate-300'}`} />
+                                <div className="min-w-0">
+                                    <div className="text-sm font-bold text-slate-900 dark:text-white uppercase truncate">{s.name || s.username}</div>
+                                    <div className="text-[10px] text-slate-500 dark:text-slate-400">{s.class_name}</div>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-1 justify-end shrink-0">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.is_online ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                    {s.is_online ? 'Online' : 'Offline'}
+                                </span>
+                                {s.is_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">Locked</span>}
+                                {s.is_violation_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Violation</span>}
+                            </div>
+                        </div>
+
+                        {s.current_exam ? (
+                            <div className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900/40 rounded-xl px-3 py-2">
+                                <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 truncate">{s.current_exam}</div>
+                                {s.seconds_left !== null && <StudentTimer secondsLeft={s.seconds_left} />}
+                            </div>
+                        ) : (
+                            <div className="text-[11px] text-slate-400 bg-slate-50 dark:bg-slate-900/40 rounded-xl px-3 py-2">Idle — tidak sedang mengerjakan ujian</div>
+                        )}
+
+                        <div className="flex flex-wrap gap-1.5">
+                            <ActionButton
+                                metaKey="toggle_login_lock"
+                                icon={s.is_locked ? Icons.Lock : Icons.Unlock}
+                                tone={s.is_locked ? 'red' : 'slate'}
+                                onClick={() => handleAction('lock_login', { userId: s.id, studentName: s.name || s.username })}
+                            />
+                            <ActionButton
+                                metaKey="force_logout"
+                                icon={Icons.Logout}
+                                tone="slate"
+                                onClick={() => handleAction('force_logout', { userId: s.id, studentName: s.name || s.username })}
+                            />
+                            {s.current_exam && (
+                                <>
+                                    <ActionButton
+                                        metaKey="view_logs"
+                                        icon={Icons.Log}
+                                        tone="indigo"
+                                        onClick={() => setLogStudent(s)}
+                                    />
+                                    {s.is_violation_locked && (
+                                        <ActionButton
+                                            metaKey="unlock_violation"
+                                            icon={Icons.Unlock}
+                                            tone="amber"
+                                            pulse
+                                            onClick={() => handleAction('unlock_exam', { userId: s.id, attemptId: s.attempt_id, studentName: s.name || s.username })}
+                                        />
+                                    )}
+                                    <ActionButton
+                                        metaKey="add_time"
+                                        icon={Icons.Clock}
+                                        tone="emerald"
+                                        onClick={() => handleAddTime(s.id, s.attempt_id, s.name || s.username)}
+                                    />
+                                    <ActionButton
+                                        metaKey="force_submit"
+                                        icon={FileSpreadsheet}
+                                        tone="rose"
+                                        onClick={() => handleAction('force_submit', { userId: s.id, attemptId: s.attempt_id, studentName: s.name || s.username })}
+                                    />
+                                    <ActionButton
+                                        metaKey="reset_exam"
+                                        icon={Icons.Stop}
+                                        tone="red"
+                                        onClick={() => handleAction('reset_exam', { userId: s.id, attemptId: s.attempt_id, studentName: s.name || s.username })}
+                                    />
+                                </>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
             {/* Pagination / Empty State */}
             {sortedStudents.length === 0 && (
                 <div className="animate-fade-in-up bg-white dark:bg-slate-800 p-12 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 text-center" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
@@ -619,10 +969,12 @@ export default function ControlPanel() {
                 </div>
             )}
 
-            <UnifiedModal 
-                config={modalConfig} 
-                onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))} 
-            />
+            {modalConfig.isOpen && (
+                <UnifiedModal
+                    config={modalConfig}
+                    onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+                />
+            )}
         </div>
     );
 }
@@ -633,11 +985,10 @@ function UnifiedModal({ config, onClose }) {
     const inputRef = useRef(null);
 
     useEffect(() => {
-        if (config.isOpen && config.type === 'prompt') {
-            setLocalValue(config.inputValue);
+        if (config.type === 'prompt') {
             setTimeout(() => inputRef.current?.focus(), 100);
         }
-    }, [config.isOpen, config.type, config.inputValue]);
+    }, [config.type]);
 
     if (!config.isOpen) return null;
 
@@ -648,6 +999,9 @@ function UnifiedModal({ config, onClose }) {
             onClose();
         }
     };
+
+    const isPrompt = config.type === 'prompt';
+    const isInvalidPrompt = isPrompt && (!parseInt(localValue) || parseInt(localValue) <= 0);
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -681,20 +1035,22 @@ function UnifiedModal({ config, onClose }) {
                         {config.message}
                     </p>
 
-                    {config.type === 'prompt' && (
+                    {isPrompt && (
                         <div className="mt-6 space-y-4">
                             <div className="relative">
                                 <input
                                     ref={inputRef}
                                     type="number"
+                                    min="1"
                                     value={localValue}
                                     onChange={(e) => setLocalValue(e.target.value)}
-                                    className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-700/50 border-2 border-slate-100 dark:border-slate-600 rounded-2xl text-center text-lg font-black focus:border-indigo-500 focus:ring-0 outline-none transition-all dark:text-white"
+                                    onKeyDown={(e) => { if (e.key === 'Enter' && !isInvalidPrompt) handleConfirm(); }}
+                                    className={`w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-700/50 border-2 rounded-2xl text-center text-lg font-black focus:ring-0 outline-none transition-all dark:text-white ${isInvalidPrompt ? 'border-rose-300 dark:border-rose-800' : 'border-slate-100 dark:border-slate-600 focus:border-indigo-500'}`}
                                     placeholder="0"
                                 />
                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 uppercase">Menit</span>
                             </div>
-                            
+                           
                             <div className="grid grid-cols-3 gap-2">
                                 {[5, 10, 30].map(val => (
                                     <button
@@ -710,6 +1066,10 @@ function UnifiedModal({ config, onClose }) {
                                     </button>
                                 ))}
                             </div>
+
+                            <p className="text-[11px] text-center text-slate-400">
+                                {isInvalidPrompt ? 'Masukkan angka menit yang lebih besar dari 0.' : `Total tambahan waktu: ${parseInt(localValue) || 0} menit`}
+                            </p>
                         </div>
                     )}
                 </div>
@@ -725,7 +1085,8 @@ function UnifiedModal({ config, onClose }) {
                     )}
                     <button
                         onClick={handleConfirm}
-                        className={`flex-1 px-4 py-3 rounded-2xl text-sm font-black transition-all shadow-lg active:scale-95 ${
+                        disabled={isInvalidPrompt}
+                        className={`flex-1 px-4 py-3 rounded-2xl text-sm font-black transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
                             config.isDestructive
                             ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-200 dark:shadow-none'
                             : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200 dark:shadow-none'

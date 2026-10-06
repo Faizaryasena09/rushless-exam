@@ -5,6 +5,7 @@ import { validateUserSession } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
 import redis, { isRedisReady } from '@/app/lib/redis';
 import { subscribe, unsubscribe } from '@/app/lib/redis-pubsub';
+import '@/app/lib/auto-submit-scheduler'; // ensure background auto-submit scanner runs
 
 export const dynamic = 'force-dynamic';
 
@@ -108,7 +109,7 @@ export async function GET(request) {
             };
             const onForceLogout = (data) => {
                 if (isClosed) return;
-                if (data.userId == userId) {
+                if (data.userId === 'all' || data.userId == userId) {
                     isClosed = true;
                     try { controller.enqueue('data: {"status": "force_logout"}\n\n'); } catch (e) {}
                     try { controller.close(); } catch (e) {}

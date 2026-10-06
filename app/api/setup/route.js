@@ -746,6 +746,125 @@ export async function GET(request) {
       messages.push(`Column 'is_online_realtime' already exists in '${usersTableName}'.`);
     }
 
+    // --- Check and add 'last_login' column to users table ---
+    const hasLastLogin = await columnExists(usersTableName, 'last_login');
+    if (!hasLastLogin) {
+      await query({
+        query: `ALTER TABLE \`${usersTableName}\` ADD COLUMN last_login DATETIME NULL DEFAULT NULL;`,
+        values: [],
+      });
+      messages.push(`Column 'last_login' created successfully in '${usersTableName}'.`);
+    } else {
+      messages.push(`Column 'last_login' already exists in '${usersTableName}'.`);
+    }
+
+    // --- Ensure jawaban panjang aman & unik (idempotent) ---
+    const tempAnswersTableName = 'rhs_temporary_answer';
+    try {
+      await query({
+        query: `ALTER TABLE \`${tempAnswersTableName}\` MODIFY COLUMN selected_option TEXT NULL DEFAULT NULL;`,
+        values: [],
+      });
+      messages.push(`Column 'selected_option' widened to TEXT in '${tempAnswersTableName}'.`);
+    } catch (e) {
+      messages.push(`Note: could not widen '${tempAnswersTableName}'.selected_option (${e.message}).`);
+    }
+    try {
+      await query({
+        query: `ALTER TABLE \`${studentAnswerTableName}\` MODIFY COLUMN selected_option TEXT NOT NULL;`,
+        values: [],
+      });
+      messages.push(`Column 'selected_option' widened to TEXT in '${studentAnswerTableName}'.`);
+    } catch (e) {
+      messages.push(`Note: could not widen '${studentAnswerTableName}'.selected_option (${e.message}).`);
+    }
+
+    const hasUniqueAnswer = await indexExists(studentAnswerTableName, 'unique_attempt_question');
+    if (!hasUniqueAnswer) {
+      try {
+        // Bersihkan duplikat lama sebelum menambah unique key
+        await query({
+          query: `DELETE a FROM \`${studentAnswerTableName}\` a
+                  JOIN \`${studentAnswerTableName}\` b
+                    ON a.attempt_id = b.attempt_id
+                   AND a.question_id = b.question_id
+                   AND a.id > b.id;`,
+          values: [],
+        });
+        await query({
+          query: `ALTER TABLE \`${studentAnswerTableName}\` ADD UNIQUE KEY unique_attempt_question (attempt_id, question_id);`,
+          values: [],
+        });
+        messages.push(`Unique key 'unique_attempt_question' created in '${studentAnswerTableName}'.`);
+      } catch (e) {
+        // Gagal tidak boleh menghentikan sisa migrasi
+        messages.push(`Note: unique key 'unique_attempt_question' gagal dibuat (${e.message}). Jalankan ulang Setup setelah membersihkan duplikat.`);
+      }
+    } else {
+      messages.push(`Unique key 'unique_attempt_question' already exists in '${studentAnswerTableName}'.`);
+    }
+
+    // --- Tabel arsip jawaban (aman, retensi 30 hari) ---
+    const archiveTableName = 'rhs_temporary_answer_archive';
+    try {
+      await query({
+        query: `
+          CREATE TABLE IF NOT EXISTS ${archiveTableName} (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            attempt_id INT NOT NULL,
+            user_id INT NOT NULL,
+            exam_id INT NOT NULL,
+            question_id INT NOT NULL,
+            selected_option TEXT,
+            answer_source VARCHAR(32) NOT NULL DEFAULT 'submit',
+            username VARCHAR(255),
+            student_name VARCHAR(255),
+            exam_name VARCHAR(255),
+            class_name VARCHAR(255),
+            created_at DATETIME NULL DEFAULT NULL,
+            archived_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_attempt_question (attempt_id, question_id),
+            INDEX idx_archived_at (archived_at),
+            INDEX idx_user (user_id),
+            INDEX idx_exam (exam_id)
+          )
+        `,
+        values: [],
+      });
+      messages.push(`Table '${archiveTableName}' created or already exists.`);
+    } catch (e) {
+      messages.push(`Note: could not create '${archiveTableName}' (${e.message}).`);
+    }
+
+    // --- Tabel backup pemulihan jawaban ---
+    const restoreBackupTableName = 'rhs_answer_restore_backup';
+    try {
+      await query({
+        query: `
+          CREATE TABLE IF NOT EXISTS ${restoreBackupTableName} (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            attempt_id INT NOT NULL,
+            user_id INT NOT NULL,
+            exam_id INT NOT NULL,
+            question_id INT NOT NULL,
+            selected_option TEXT,
+            is_correct BOOLEAN NOT NULL DEFAULT 0,
+            score_earned FLOAT NOT NULL DEFAULT 0,
+            restored_by VARCHAR(255),
+            restore_mode VARCHAR(20),
+            is_undone TINYINT(1) NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_attempt (attempt_id),
+            INDEX idx_created (created_at)
+          )
+        `,
+        values: [],
+      });
+      messages.push(`Table '${restoreBackupTableName}' created or already exists.`);
+    } catch (e) {
+      messages.push(`Note: could not create '${restoreBackupTableName}' (${e.message}).`);
+    }
+
     // --- Check and add 'time_extension' column to exam attempts table ---
     const hasTimeExtension = await columnExists(attemptsTableName, 'time_extension');
     if (!hasTimeExtension) {
