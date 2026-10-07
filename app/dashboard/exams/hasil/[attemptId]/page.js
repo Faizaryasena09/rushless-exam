@@ -13,6 +13,14 @@ const Icons = {
   Alert: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0l-7 12a2 2 0 001.74 3z" /></svg>
 };
 
+// Warna per status jawaban dipakai bersama oleh kartu ringkasan, tab filter,
+// dan header tiap soal. Hijau = benar, rose = salah, slate = kosong.
+const RESULT_TONE = {
+  correct: { chip: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60', bar: 'from-emerald-500 to-teal-500' },
+  wrong: { chip: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/60', bar: 'from-rose-500 to-pink-500' },
+  unanswered: { chip: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700', bar: 'from-slate-400 to-slate-300' },
+};
+
 export default function AnalysisPage() {
   const { attemptId } = useParams();
   const router = useRouter();
@@ -68,8 +76,8 @@ export default function AnalysisPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-3">
-        <span className="w-8 h-8 rounded-full border-2 border-slate-200 dark:border-slate-700 border-t-slate-900 dark:border-t-white animate-spin" />
-        <p className="text-sm text-slate-500 dark:text-slate-400">Memuat hasil ujian...</p>
+        <span className="w-9 h-9 rounded-full border-[3px] border-slate-200 dark:border-slate-700 border-t-indigo-600 dark:border-t-indigo-400 animate-spin" />
+        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Memuat hasil ujian...</p>
       </div>
     );
   }
@@ -77,19 +85,22 @@ export default function AnalysisPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
-        <div className="w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl shadow-slate-900/5 dark:shadow-black/40 p-6 text-center">
-          <span className="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-900/60 flex items-center justify-center mx-auto mb-4 text-red-600 dark:text-red-400">
-            <Icons.Alert />
-          </span>
-          <h2 className="text-base font-bold text-slate-900 dark:text-white">Data tidak tersedia</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5 break-words">{error}</p>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="w-full mt-5 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity"
-          >
-            <Icons.ArrowLeft />
-            {t('exams_btn_back_dashboard')}
-          </button>
+        <div className="relative w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 shadow-xl shadow-slate-900/5 dark:shadow-black/40 overflow-hidden">
+          <div aria-hidden className="h-1 w-full bg-gradient-to-r from-rose-500 to-pink-500" />
+          <div className="p-6 text-center">
+            <span className="mx-auto grid place-items-center w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 mb-4">
+              <Icons.Alert />
+            </span>
+            <h2 className="text-base font-bold text-rose-700 dark:text-rose-300">Data tidak tersedia</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5 break-words">{error}</p>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="w-full mt-5 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-300/50 dark:shadow-indigo-950/50 transition-all active:scale-95"
+            >
+              <Icons.ArrowLeft />
+              {t('exams_btn_back_dashboard')}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -101,6 +112,17 @@ export default function AnalysisPage() {
 
   const stats = data.stats || { total: 0, correct: 0, wrong: 0, unanswered: 0 };
   const { total, correct, wrong, unanswered } = stats;
+
+  // Nilai punya makna sendiri: makin tinggi makin hijau, makin rendah makin
+  // rose. Skor 0 tidak boleh rose karena itu berarti belum ada penilaian.
+  const totalPoints = total || 1;
+  const scoreRatio = Math.max(0, Math.min(1, correct / totalPoints));
+  const scoreTone = total === 0
+    ? RESULT_TONE.unanswered
+    : scoreRatio >= 0.75 ? RESULT_TONE.correct
+      : scoreRatio >= 0.4
+        ? { chip: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/60', bar: 'from-amber-500 to-orange-500' }
+        : RESULT_TONE.wrong;
 
   const handleExit = () => {
     // Notify Safe Browser or Android app if running inside it
@@ -133,10 +155,15 @@ export default function AnalysisPage() {
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <h1 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">{t('exams_analysis_title')}</h1>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="shrink-0 grid place-items-center w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-500/25">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-2a2 2 0 00-2-2H5a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h2a2 2 0 002-2zm0 0h10a2 2 0 002-2V9a2 2 0 00-2-2H9a2 2 0 00-2 2v8a2 2 0 002 2zm7-8a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+            </span>
+            <h1 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">{t('exams_analysis_title')}</h1>
+          </div>
           <button
             onClick={handleExit}
-            className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
           >
             <Icons.ArrowLeft />
             <span className="hidden sm:inline">{t('exams_btn_back_dashboard')}</span>
@@ -147,35 +174,36 @@ export default function AnalysisPage() {
 
       <div className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         {/* Ringkasan nilai */}
-        <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+        <section className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 shadow-sm">
+          <div aria-hidden className={`h-1 w-full bg-gradient-to-r ${scoreTone.bar}`} />
           <div className="px-6 sm:px-8 py-7 text-center">
-            <p className="text-[11px] uppercase font-semibold tracking-[0.18em] text-slate-400">{t('exams_analysis_score_title')}</p>
+            <p className="text-[11px] uppercase font-bold tracking-[0.18em] text-slate-400">{t('exams_analysis_score_title')}</p>
             <h2 className="mt-1.5 text-lg sm:text-xl font-bold text-slate-900 dark:text-white break-words">{data.exam_name}</h2>
 
             <div className="mt-6 flex items-end justify-center gap-2">
-              <span className="text-7xl sm:text-8xl font-bold text-slate-900 dark:text-white leading-none tracking-tight tabular-nums">{score}</span>
-              <span className="mb-2 px-2 py-1 rounded-md bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-bold uppercase tracking-widest">PTS</span>
+              <span className={`text-7xl sm:text-8xl font-bold leading-none tracking-tight tabular-nums ${scoreTone.value || 'text-slate-900 dark:text-white'}`}>{score}</span>
+              <span className={`mb-2 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest ${scoreTone.chip}`}>PTS</span>
             </div>
 
             <div className="mt-6 grid grid-cols-3 divide-x divide-slate-100 dark:divide-slate-800 border-t border-slate-100 dark:border-slate-800 pt-5">
               <div className="flex flex-col items-center gap-1 px-2">
-                <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-sm font-bold tabular-nums ${RESULT_TONE.correct.chip}`}>
                   <Icons.CheckCircle />
-                  <span className="text-xl font-bold tabular-nums">{correct}</span>
+                  {correct}
                 </span>
                 <span className="text-[11px] text-slate-400">{t('exams_analysis_correct')}</span>
               </div>
               <div className="flex flex-col items-center gap-1 px-2">
-                <span className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-sm font-bold tabular-nums ${RESULT_TONE.wrong.chip}`}>
                   <Icons.XCircle />
-                  <span className="text-xl font-bold tabular-nums">{wrong}</span>
+                  {wrong}
                 </span>
                 <span className="text-[11px] text-slate-400">{t('exams_analysis_wrong')}</span>
               </div>
               <div className="flex flex-col items-center gap-1 px-2">
-                <span className="flex items-center gap-1.5 text-slate-400">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-sm font-bold tabular-nums ${RESULT_TONE.unanswered.chip}`}>
                   <Icons.Dash />
-                  <span className="text-xl font-bold tabular-nums">{unanswered}</span>
+                  {unanswered}
                 </span>
                 <span className="text-[11px] text-slate-400">{t('exams_analysis_empty')}</span>
               </div>
@@ -189,29 +217,44 @@ export default function AnalysisPage() {
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 {t('exams_analysis_details')}
-                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-semibold">{total} {t('exams_label_questions')}</span>
+                <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-bold tabular-nums">{total} {t('exams_label_questions')}</span>
               </h3>
             </div>
 
-            {/* Filter status */}
+            {/* Filter status - tiap tab warna sesuai status jawabannya, sama dengan
+                warna kartu soal di bawah. */}
             <div className="flex flex-wrap gap-1.5">
-              {filterTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setFilter(tab.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${filter === tab.id
-                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white'
-                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                >
-                  {tab.label}
-                  <span className={`tabular-nums ${filter === tab.id ? 'text-white/70 dark:text-slate-900/70' : 'text-slate-400'}`}>{tab.count}</span>
-                </button>
-              ))}
+              {filterTabs.map((tab) => {
+                const tone = tab.id === 'correct' ? RESULT_TONE.correct
+                  : tab.id === 'wrong' ? RESULT_TONE.wrong
+                    : tab.id === 'unanswered' ? RESULT_TONE.unanswered : null;
+                const active = filter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setFilter(tab.id)}
+                    aria-pressed={active}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 active:scale-95 ${
+                      active
+                        ? tone
+                          ? tone.chip
+                          : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white'
+                        : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {tab.label}
+                    <span className={`tabular-nums ${active ? 'opacity-70' : 'text-slate-400'}`}>{tab.count}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {filteredList.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-10 text-center">
-                <p className="text-sm text-slate-500 dark:text-slate-400">Tidak ada soal pada filter ini.</p>
+              <div className="relative overflow-hidden rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/60 dark:bg-slate-900/40 px-6 py-12 text-center">
+                <div className="mx-auto mb-3 grid place-items-center w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400">
+                  <Icons.Dash />
+                </div>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Tidak ada soal pada filter ini.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -221,30 +264,40 @@ export default function AnalysisPage() {
                   const isUnanswered = !q.student_option;
 
                   return (
-                    <article key={q.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+                    <article key={q.id} className={`relative overflow-hidden rounded-2xl border bg-white dark:bg-slate-900 ring-1 transition-all duration-200 hover:shadow-md hover:shadow-slate-200/60 dark:hover:shadow-slate-950/40 ${
+                      isCorrect
+                        ? 'border-emerald-200/80 dark:border-emerald-900/50 ring-emerald-500/10'
+                        : isUnanswered
+                          ? 'border-slate-200 dark:border-slate-800 ring-slate-200/70 dark:ring-slate-800/70'
+                          : 'border-rose-200/80 dark:border-rose-900/50 ring-rose-500/10'
+                    }`}>
+                      {/* Strip status di tepi kiri: soal ini benar / salah / kosong. */}
+                      <span
+                        aria-hidden
+                        className={`absolute inset-y-0 left-0 w-1 bg-gradient-to-b ${
+                          isCorrect ? RESULT_TONE.correct.bar : isUnanswered ? RESULT_TONE.unanswered.bar : RESULT_TONE.wrong.bar
+                        }`}
+                      />
                       {/* Header soal */}
-                      <div className="px-5 sm:px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold">
+                      <div className="pl-5 sm:pl-6 pr-5 sm:pr-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold">
                           {t('exams_analysis_question')} {originalIndex + 1}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md ${isCorrect
-                            ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20'
-                            : isUnanswered
-                              ? 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800'
-                              : 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20'}`}
-                          >
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border ${
+                            isCorrect ? RESULT_TONE.correct.chip : isUnanswered ? RESULT_TONE.unanswered.chip : RESULT_TONE.wrong.chip
+                          }`}>
                             {isCorrect ? <Icons.CheckCircle /> : isUnanswered ? <Icons.Dash /> : <Icons.XCircle />}
                             {isCorrect ? t('exams_analysis_correct') : isUnanswered ? t('exams_analysis_empty') : t('exams_analysis_wrong')}
                           </span>
-                          <span className="text-[11px] font-semibold text-slate-400 tabular-nums">
+                          <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 px-2 py-1 rounded-lg tabular-nums">
                             {Number(q.score_earned) % 1 === 0 ? q.score_earned : Number(q.score_earned).toFixed(2)} / {q.points} {t('exams_analysis_points')}
                           </span>
                         </div>
                       </div>
 
                       {/* Isi soal */}
-                      <div className="px-5 sm:px-6 py-5 space-y-4">
+                      <div className="pl-5 sm:pl-6 pr-5 sm:pr-6 py-5 space-y-4">
                         <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-800 dark:text-slate-200" dangerouslySetInnerHTML={{ __html: q.question_text }} />
 
                         <div className="space-y-2">
@@ -269,16 +322,16 @@ export default function AnalysisPage() {
                                       </div>
                                       <div className="w-full md:w-64">
                                         <div className={`p-2.5 rounded-lg border text-sm font-medium flex items-center justify-between gap-2 ${isPairCorrect
-                                          ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300'
+                                          ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300'
                                           : isUnansweredPair
                                             ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400'
-                                            : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900 text-red-700 dark:text-red-300'}`}
+                                            : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300'}`}
                                         >
                                           <span className="truncate">{studentResp ? studentResp.replace(/<[^>]*>?/gm, '').trim() : '(Kosong)'}</span>
                                           {isPairCorrect ? <Icons.CheckCircle /> : !isUnansweredPair ? <Icons.XCircle /> : <Icons.Dash />}
                                         </div>
                                         {!isPairCorrect && (
-                                          <div className="mt-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/60 rounded-lg px-2.5 py-1.5 flex items-start gap-2">
+                                          <div className="mt-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-lg px-2.5 py-1.5 flex items-start gap-2">
                                             <span className="uppercase tracking-wider shrink-0">Kunci:</span>
                                             <span>{pair.r.replace(/<[^>]*>?/gm, '').trim()}</span>
                                           </div>
@@ -303,15 +356,15 @@ export default function AnalysisPage() {
                                 <div
                                   key={opt.originalKey}
                                   className={`flex items-start gap-3 p-3 rounded-xl border ${isActualCorrect
-                                    ? 'bg-emerald-50/70 dark:bg-emerald-900/15 border-emerald-200 dark:border-emerald-900/70'
+                                    ? 'bg-emerald-50/70 dark:bg-emerald-950/25 border-emerald-200 dark:border-emerald-900/60'
                                     : isSelected
-                                      ? 'bg-red-50/70 dark:bg-red-900/15 border-red-200 dark:border-red-900/70'
+                                      ? 'bg-rose-50/70 dark:bg-rose-950/25 border-rose-200 dark:border-rose-900/60'
                                       : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'}`}
                                 >
                                   <span className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold ${isActualCorrect
                                     ? 'bg-emerald-600 text-white'
                                     : isSelected
-                                      ? 'bg-red-600 text-white'
+                                      ? 'bg-rose-600 text-white'
                                       : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
                                   >
                                     {optionLetter}
@@ -322,7 +375,7 @@ export default function AnalysisPage() {
                                     {isSelected && (
                                       <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md ${isActualCorrect
                                         ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-900/40'
-                                        : 'text-red-700 dark:text-red-300 bg-red-100/70 dark:bg-red-900/40'}`}
+                                        : 'text-red-700 dark:text-red-300 bg-rose-100/70 dark:bg-rose-900/40'}`}
                                       >
                                         {isActualCorrect ? <Icons.CheckCircle /> : <Icons.XCircle />}
                                         Jawabanmu

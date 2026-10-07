@@ -11,19 +11,30 @@ import {
     RotateCcw, History, Download
 } from 'lucide-react';
 
+// Palet warna bersama: dipakai kartu statistik, badge sumber jawaban, dan
+// badge perubahan hasil recovery. Warna selalu berarti hal yang sama - hijau
+// untuk "~berhasil/normal", amber "perlu perhatian", rose "bermasalah".
+const TONE = {
+    slate: { icon: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300', bar: 'from-slate-400 to-slate-300', value: 'text-slate-900 dark:text-white', chip: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700' },
+    emerald: { icon: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400', bar: 'from-emerald-500 to-teal-500', value: 'text-emerald-600 dark:text-emerald-400', chip: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60' },
+    indigo: { icon: 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400', bar: 'from-indigo-500 to-violet-500', value: 'text-indigo-600 dark:text-indigo-400', chip: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/60' },
+    amber: { icon: 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400', bar: 'from-amber-500 to-orange-500', value: 'text-amber-600 dark:text-amber-400', chip: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/60' },
+    rose: { icon: 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400', bar: 'from-rose-500 to-pink-500', value: 'text-rose-600 dark:text-rose-400', chip: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/60' },
+};
+
 const SOURCE_BADGE = {
-    submit: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
-    auto_submit: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300',
-    reset_exam: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
-    delete_attempt: 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300',
-    safeguard: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300',
+    submit: TONE.emerald.chip,
+    auto_submit: TONE.indigo.chip,
+    reset_exam: TONE.amber.chip,
+    delete_attempt: TONE.rose.chip,
+    safeguard: TONE.slate.chip,
 };
 
 const CHANGE_BADGE = {
-    missing: 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300',
-    changed: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
-    same: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
-    removed: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300',
+    missing: TONE.rose.chip,
+    changed: TONE.amber.chip,
+    same: TONE.emerald.chip,
+    removed: TONE.slate.chip,
 };
 
 function formatDateTime(value, timeZone) {
@@ -322,88 +333,94 @@ export default function ArchiveAnswersPage() {
             ` }} />
 
             {/* Header */}
-            <div className="animate-fade-in-down flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
-                <div className="flex items-center gap-3">
-                    <Link href="/dashboard/web-settings" className="text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </Link>
-                    <div className="p-2.5 bg-gradient-to-br from-slate-600 to-slate-800 rounded-xl shadow-lg shadow-slate-500/20">
-                        <Archive className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{t('aa_title')}</h1>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">{t('aa_subtitle')}</p>
-                    </div>
-                </div>
+            <div className="animate-fade-in-down relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-amber-50 via-white to-slate-100 dark:from-amber-950/25 dark:via-slate-900 dark:to-slate-800" />
+                <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-500 via-slate-500 to-slate-700" />
 
-<div className="flex flex-wrap items-center gap-2">
+                <div className="relative flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 px-5 py-5">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <Link
+                            href="/dashboard/web-settings"
+                            aria-label="Kembali ke pengaturan"
+                            className="shrink-0 grid place-items-center w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-800 transition-all"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </Link>
+                        <span className="shrink-0 grid place-items-center w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-800 text-white shadow-lg shadow-slate-500/25">
+                            <Archive className="w-5 h-5" />
+                        </span>
+                        <div className="min-w-0">
+                            <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white">{t('aa_title')}</h1>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{t('aa_subtitle')}</p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
                         <button
                             onClick={() => exportCsv()}
-                            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+                            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl border border-sky-200 dark:border-sky-900/60 bg-sky-50 dark:bg-sky-950/30 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/40 transition-all active:scale-95"
                         >
                             <Download size={14} />
                             {t('aa_export_csv')}
                         </button>
                         <button
                             onClick={() => fetchList()}
-                        disabled={loading}
-                        className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
-                    >
-                        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                        {t('aa_refresh')}
-                    </button>
-                    <button
-                        onClick={openPurge}
-                        className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-200 dark:shadow-rose-900/20 transition-all"
-                    >
-                        <Trash2 size={14} />
-                        {t('aa_purge_now')}
-                    </button>
+                            disabled={loading}
+                            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                            {t('aa_refresh')}
+                        </button>
+                        <button
+                            onClick={openPurge}
+                            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-300/50 dark:shadow-rose-950/50 transition-all active:scale-95"
+                        >
+                            <Trash2 size={14} />
+                            {t('aa_purge_now')}
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {/* Statistik + retensi */}
             <div className="animate-fade-in-up grid grid-cols-1 md:grid-cols-3 gap-3" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
-                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-700/50">
-                        <FileText size={20} className="text-slate-600 dark:text-slate-300" />
-                    </div>
-                    <div>
-                        <p className="text-xl font-bold text-slate-800 dark:text-white">{Number(stats.total || 0).toLocaleString()}</p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{t('aa_total_archived')}</p>
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-indigo-100 dark:bg-indigo-900/30">
-                        <Users size={20} className="text-indigo-600 dark:text-indigo-400" />
-                    </div>
-                    <div>
-                        <p className="text-xl font-bold text-slate-800 dark:text-white">{Number(stats.attempts || 0).toLocaleString()}</p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{t('aa_stat_attempts')}</p>
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/30">
-                        <Clock size={20} className="text-amber-600 dark:text-amber-400" />
-                    </div>
-                    <div>
-                        <p className="text-sm font-bold text-slate-800 dark:text-white">{formatDateTime(stats.oldest, appTimezone)}</p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{t('aa_oldest')}</p>
-                    </div>
-                </div>
+                {[
+                    { tone: 'slate', icon: FileText, value: Number(stats.total || 0).toLocaleString(), label: t('aa_total_archived'), mono: true },
+                    { tone: 'indigo', icon: Users, value: Number(stats.attempts || 0).toLocaleString(), label: t('aa_stat_attempts'), mono: true },
+                    { tone: 'amber', icon: Clock, value: formatDateTime(stats.oldest, appTimezone), label: t('aa_oldest'), mono: false },
+                ].map(s => {
+                    const c = TONE[s.tone] || TONE.slate;
+                    const Icon = s.icon;
+                    return (
+                        <div key={s.label} className={`group relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 p-4 flex items-center gap-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60 dark:hover:shadow-slate-950/40`}>
+                            <div aria-hidden className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${c.bar}`} />
+                            <div className={`shrink-0 grid place-items-center w-10 h-10 rounded-xl transition-transform duration-200 group-hover:scale-105 ${c.icon}`}>
+                                <Icon size={20} />
+                            </div>
+                            <div className="min-w-0">
+                                <p className={`font-bold leading-tight ${s.mono ? 'text-xl tabular-nums' : 'text-sm'} ${c.value}`}>{s.value}</p>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400">{s.label}</p>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
-            <div className="animate-fade-in-up flex items-start gap-2 px-4 py-3 rounded-2xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50" style={{ animationDelay: '120ms', animationFillMode: 'forwards' }}>
-                <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="animate-fade-in-up relative overflow-hidden flex items-start gap-2.5 px-4 py-3 rounded-2xl bg-amber-50 dark:bg-amber-950/25 border border-amber-200 dark:border-amber-900/60" style={{ animationDelay: '120ms', animationFillMode: 'forwards' }}>
+                <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500" />
+                <span className="shrink-0 grid place-items-center w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 mt-0.5">
+                    <AlertTriangle size={14} />
+                </span>
                 <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
                     {t('aa_retention_notice')} <span className="font-bold">({retentionDays} hari)</span>
                 </p>
             </div>
 
             {/* Filter */}
-            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-3" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
+            <div className="animate-fade-in-up relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 p-4 space-y-3" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
+                <div aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-amber-500 to-slate-500 opacity-70" />
                 <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-3">
                     <div className="relative flex-1">
                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -412,13 +429,13 @@ export default function ArchiveAnswersPage() {
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
                             placeholder={t('aa_search_placeholder')}
-                            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40 text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                            className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/20 transition-colors"
                         />
                     </div>
-                    <button type="submit" className="px-4 py-2 text-sm font-semibold rounded-lg bg-slate-800 dark:bg-slate-700 text-white hover:bg-slate-700 transition-colors">
+                    <button type="submit" className="px-4 py-2 text-sm font-bold rounded-xl bg-indigo-600 text-white shadow-sm shadow-indigo-300/50 dark:shadow-indigo-950/40 hover:bg-indigo-700 transition-all active:scale-95">
                         {t('aa_search')}
                     </button>
-                    <button type="button" onClick={clearFilters} className="px-4 py-2 text-sm font-semibold rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    <button type="button" onClick={clearFilters} className="px-4 py-2 text-sm font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95">
                         {t('aa_clear_filters')}
                     </button>
                 </form>
@@ -461,34 +478,34 @@ export default function ArchiveAnswersPage() {
             )}
 
             {/* Tabel */}
-            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
+            <div className="animate-fade-in-up rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 overflow-hidden" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
                 {loading ? (
                     <div className="p-10 flex flex-col items-center justify-center gap-3 text-slate-400">
                         <Loader2 className="animate-spin w-6 h-6" />
                         <p className="text-sm">{t('layout_loading')}</p>
                     </div>
                 ) : groups.length === 0 ? (
-                    <div className="p-10 flex flex-col items-center justify-center gap-2 text-slate-400">
+                    <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-400 bg-white/50 dark:bg-slate-900/40">
                         <Archive className="w-8 h-8 opacity-50" />
                         <p className="text-sm">{hasFilters ? t('aa_no_match') : t('aa_empty')}</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                            <thead className="bg-slate-50 dark:bg-slate-900/40 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            <thead className="bg-gradient-to-r from-amber-50 to-slate-100/70 dark:from-amber-950/25 dark:to-slate-800/40 text-[11px] uppercase tracking-wider font-bold text-amber-800 dark:text-amber-300">
                                 <tr>
-                                    <th className="px-4 py-3 text-left font-semibold">{t('aa_col_student')}</th>
-                                    <th className="px-4 py-3 text-left font-semibold">{t('aa_col_exam')}</th>
-                                    <th className="px-4 py-3 text-left font-semibold">{t('aa_col_answers')}</th>
-                                    <th className="px-4 py-3 text-left font-semibold">{t('aa_col_source')}</th>
-                                    <th className="px-4 py-3 text-left font-semibold">{t('aa_col_archived_at')}</th>
+                                    <th className="px-4 py-3 text-left font-bold">{t('aa_col_student')}</th>
+                                    <th className="px-4 py-3 text-left font-bold">{t('aa_col_exam')}</th>
+                                    <th className="px-4 py-3 text-left font-bold">{t('aa_col_answers')}</th>
+                                    <th className="px-4 py-3 text-left font-bold">{t('aa_col_source')}</th>
+                                    <th className="px-4 py-3 text-left font-bold">{t('aa_col_archived_at')}</th>
                                     <th className="px-4 py-3 text-right font-semibold">{t('aa_col_action')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-700/70">
                                 {groups.map(g => (
                                     <Fragment key={g.attempt_id}>
-                                        <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors align-top">
+                                        <tr className="hover:bg-amber-50/40 dark:hover:bg-amber-950/15 transition-colors align-top">
                                             <td className="px-4 py-3">
                                                 <div className="font-semibold text-slate-800 dark:text-white">{g.student_name || g.username || '-'}</div>
                                                 <div className="text-xs text-slate-500 dark:text-slate-400">
@@ -548,7 +565,7 @@ export default function ArchiveAnswersPage() {
 
                                         {expanded === g.attempt_id && (
                                             <tr>
-                                                <td colSpan={6} className="px-4 pb-4 bg-slate-50/60 dark:bg-slate-900/30">
+                                                <td colSpan={6} className="px-4 pb-4 bg-amber-50/30 dark:bg-amber-950/10">
                                                     {/* Status percobaan + aksi pemulihan */}
                                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pt-3 border-t border-slate-200 dark:border-slate-700">
                                                         <div className="flex items-center gap-2 flex-wrap">
@@ -587,7 +604,7 @@ export default function ArchiveAnswersPage() {
                                                     ) : (
                                                         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
                                                             <table className="w-full text-xs">
-                                                                <thead className="bg-white dark:bg-slate-800 text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                                                <thead className="bg-slate-50/80 dark:bg-slate-800/60 text-[10px] uppercase tracking-wider font-bold text-slate-600 dark:text-slate-300">
                                                                     <tr>
                                                                         <th className="px-3 py-2 text-left font-semibold w-10">#</th>
                                                                         <th className="px-3 py-2 text-left font-semibold">{t('aa_col_question')}</th>
@@ -683,18 +700,19 @@ export default function ArchiveAnswersPage() {
             {restoreTarget && (
                 <div className="fixed inset-0 z-[105] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !restoreBusy && setRestoreTarget(null)} />
-                    <div className="relative bg-white dark:bg-slate-800 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex max-h-[88vh] flex-col">
-                        <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex items-start gap-4">
-                            <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 overflow-hidden flex max-h-[88vh] flex-col">
+                        <div aria-hidden className="h-1 w-full shrink-0 bg-gradient-to-r from-emerald-500 to-teal-500" />
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-start gap-4">
+                            <div className="shrink-0 grid place-items-center w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
                                 <RotateCcw size={22} />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t('aa_restore_title')}</h3>
+                                <h3 className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{t('aa_restore_title')}</h3>
                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
                                     {restoreTarget.student_name || restoreTarget.username} — {restoreTarget.exam_name} ({t('aa_attempt_id')} #{restoreTarget.attempt_id})
                                 </p>
                             </div>
-                            <button onClick={() => !restoreBusy && setRestoreTarget(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 transition-colors">
+                            <button onClick={() => !restoreBusy && setRestoreTarget(null)} className="shrink-0 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 transition-colors">
                                 <XCircle size={18} />
                             </button>
                         </div>
@@ -705,7 +723,7 @@ export default function ArchiveAnswersPage() {
                             </p>
 
                             {restorePreview && !restorePreview.attemptExists ? (
-                                <div className="flex items-start gap-2 px-4 py-3 rounded-2xl bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/60">
+                                <div className="flex items-start gap-2.5 px-4 py-3 rounded-2xl bg-amber-50 dark:bg-amber-950/25 border border-amber-200 dark:border-amber-900/60">
                                     <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                                     <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
                                         {t('aa_recreate_warning')}
@@ -724,19 +742,19 @@ export default function ArchiveAnswersPage() {
                                 <>
                                     {/* Ringkasan */}
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                        <div className="rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-3">
+                                        <div className="rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 p-3">
                                             <p className="text-[10px] uppercase tracking-wider text-slate-400">{t('aa_restore_status')}</p>
                                             <p className="text-sm font-bold text-slate-800 dark:text-white mt-0.5">{restorePreview.status}</p>
                                         </div>
-                                        <div className="rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-3">
+                                        <div className="rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 p-3">
                                             <p className="text-[10px] uppercase tracking-wider text-slate-400">{t('aa_restore_current_score')}</p>
                                             <p className="text-sm font-bold text-slate-800 dark:text-white mt-0.5">{restorePreview.score ?? '-'}</p>
                                         </div>
-                                        <div className="rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-3">
+                                        <div className="rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 p-3">
                                             <p className="text-[10px] uppercase tracking-wider text-slate-400">{t('aa_col_answers')}</p>
                                             <p className="text-sm font-bold text-slate-800 dark:text-white mt-0.5">{restorePreview.archivedCount}</p>
                                         </div>
-                                        <div className="rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-3">
+                                        <div className="rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 p-3">
                                             <p className="text-[10px] uppercase tracking-wider text-slate-400">{t('aa_restore_changed')}</p>
                                             <p className="text-sm font-bold text-amber-600 dark:text-amber-400 mt-0.5">{restorePreview.summary.changed + restorePreview.summary.missing}</p>
                                         </div>
@@ -786,7 +804,7 @@ export default function ArchiveAnswersPage() {
                                         <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wider">{t('aa_restore_preview')}</p>
                                         <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700">
                                             <table className="w-full text-xs">
-                                                <thead className="bg-slate-50 dark:bg-slate-900/40 text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 sticky top-0">
+                                                <thead className="bg-slate-50/90 dark:bg-slate-800/80 text-[10px] uppercase tracking-wider font-bold text-slate-600 dark:text-slate-300 sticky top-0">
                                                     <tr>
                                                         <th className="px-3 py-2 text-left font-semibold w-10">#</th>
                                                         <th className="px-3 py-2 text-left font-semibold">{t('aa_restore_before')}</th>
@@ -805,7 +823,7 @@ export default function ArchiveAnswersPage() {
                                                                 {d.archived ? answerPreview(d.archived, 60) : '—'}
                                                             </td>
                                                             <td className="px-3 py-2">
-                                                                <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full ${CHANGE_BADGE[d.change] || CHANGE_BADGE.same}`}>
+                                                                <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-lg border ${CHANGE_BADGE[d.change] || CHANGE_BADGE.same}`}>
                                                                     {t(`aa_restore_${d.change}`)}
                                                                 </span>
                                                             </td>
@@ -827,7 +845,7 @@ export default function ArchiveAnswersPage() {
                                         ) : (
                                             <div className="space-y-1.5">
                                                 {restoreHistory.map(h => (
-                                                    <div key={h.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-xs">
+                                                    <div key={h.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs">
                                                         <span className="text-slate-600 dark:text-slate-300">
                                                             #{h.id} • {h.restored_by || '-'} • {h.restore_mode} • {formatDateTime(h.created_at, appTimezone)}
                                                         </span>
@@ -837,7 +855,7 @@ export default function ArchiveAnswersPage() {
                                                             <button
                                                                 onClick={() => doUndo(restoreTarget.attempt_id)}
                                                                 disabled={restoreBusy}
-                                                                className="px-2 py-1 rounded-md bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800 font-bold hover:bg-rose-100 dark:hover:bg-rose-900/40 disabled:opacity-50"
+                                                                className="px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 font-bold hover:bg-rose-100 dark:hover:bg-rose-900/40 disabled:opacity-50"
                                                             >
                                                                 {t('aa_undo_restore')}
                                                             </button>
@@ -855,14 +873,14 @@ export default function ArchiveAnswersPage() {
                             <button
                                 onClick={() => setRestoreTarget(null)}
                                 disabled={restoreBusy}
-                                className="flex-1 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
+                                className="flex-1 px-4 py-3 rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-50"
                             >
                                 {t('users_btn_cancel')}
                             </button>
                             <button
                                 onClick={doRestore}
                                 disabled={restoreBusy || restoreLoading || !restorePreview || restorePreview.archivedCount === 0}
-                                className="flex-1 px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-all shadow-lg shadow-emerald-200 dark:shadow-none flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex-1 px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-all active:scale-[0.98] shadow-sm shadow-emerald-300/50 dark:shadow-emerald-950/50 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {restoreBusy ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
                                 {restoreBusy ? t('aa_restoring') : t('aa_restore_confirm')}
@@ -876,12 +894,13 @@ export default function ArchiveAnswersPage() {
             {purgeOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !purgeLoading && setPurgeOpen(false)} />
-                    <div className="relative bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 overflow-hidden">
+                        <div aria-hidden className="h-1 w-full bg-gradient-to-r from-rose-500 to-pink-500" />
                         <div className="p-8 text-center">
-                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 mb-6">
+                            <div className="mx-auto grid place-items-center h-16 w-16 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 mb-6">
                                 <Trash2 size={30} />
                             </div>
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('aa_purge_title')}</h3>
+                            <h3 className="text-xl font-bold text-rose-700 dark:text-rose-300 mb-2">{t('aa_purge_title')}</h3>
                             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed px-2">
                                 {t('aa_purge_desc')}
                             </p>
@@ -907,14 +926,14 @@ export default function ArchiveAnswersPage() {
                                 <button
                                     onClick={() => setPurgeOpen(false)}
                                     disabled={purgeLoading}
-                                    className="flex-1 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
+                                    className="flex-1 px-4 py-3 rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-50"
                                 >
                                     {t('users_btn_cancel')}
                                 </button>
                                 <button
                                     onClick={confirmPurge}
                                     disabled={purgeLoading || !purgePreview || purgePreview.error || purgePreview.wouldDelete === 0}
-                                    className="flex-1 px-4 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold transition-all shadow-lg shadow-rose-200 dark:shadow-none flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex-1 px-4 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold transition-all active:scale-[0.98] shadow-sm shadow-rose-300/50 dark:shadow-rose-950/50 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {purgeLoading ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                                     {purgeLoading ? t('aa_purging') : t('aa_purge_confirm')}

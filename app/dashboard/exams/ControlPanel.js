@@ -191,19 +191,24 @@ function LogPanel({ student, onClose, sseLog }) {
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-md bg-white dark:bg-slate-800 shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300">
-                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 flex-shrink-0">
-                    <div>
+            <div className="relative w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300">
+                <div aria-hidden className="h-1 w-full shrink-0 bg-gradient-to-r from-indigo-500 to-violet-500" />
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 flex-shrink-0">
+                    <div className="min-w-0">
                         <h2 className="font-bold text-slate-800 dark:text-white text-sm">Log Realtime</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                            {student.name || student.username} — <span className="font-medium text-indigo-600">{student.current_exam}</span>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                            {student.name || student.username} — <span className="font-bold text-indigo-600 dark:text-indigo-300">{student.current_exam}</span>
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />Live
+                    <div className="flex items-center gap-2 shrink-0">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-300">
+                            <span className="relative flex h-1.5 w-1.5">
+                                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                            </span>
+                            Live
                         </span>
-                        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors"><Icons.X /></button>
+                        <button onClick={onClose} aria-label="Tutup" className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors"><Icons.X /></button>
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-xs">
@@ -247,18 +252,23 @@ function GuideModal({ isOpen, onClose }) {
     return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose} />
-            <div className="relative bg-white dark:bg-slate-800 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 overflow-hidden animate-in zoom-in-95 duration-200">
+                <div aria-hidden className="h-1 w-full bg-gradient-to-r from-indigo-500 to-violet-500" />
                 <div className="flex items-start justify-between p-6 border-b border-slate-100 dark:border-slate-700">
-                    <div>
-                        <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                            <HelpCircle size={20} className="text-indigo-500" />
-                            Panduan Tombol Aksi
-                        </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                            Arahkan kursor ke tombol mana pun untuk melihat keterangan singkat.
-                        </p>
+                    <div className="flex items-center gap-3">
+                        <span className="shrink-0 grid place-items-center w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                            <HelpCircle size={20} />
+                        </span>
+                        <div>
+                            <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                                Panduan Tombol Aksi
+                            </h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                Arahkan kursor ke tombol mana pun untuk melihat keterangan singkat.
+                            </p>
+                        </div>
                     </div>
-                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 transition-colors">
+                    <button onClick={onClose} aria-label="Tutup" className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 transition-colors">
                         <Icons.X />
                     </button>
                 </div>
@@ -697,30 +707,50 @@ export default function ControlPanel() {
             {logStudent && <LogPanel student={logStudent} sseLog={sseLog} onClose={() => setLogStudent(null)} />}
             {showGuide && <GuideModal isOpen={showGuide} onClose={() => setShowGuide(false)} />}
 
-            <div className="animate-fade-in-down bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden text-slate-800 dark:text-slate-200">
-                <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-slate-50/30 dark:bg-slate-700/30">
-                    <div>
-                        <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                             Exam Control
-                        </h1>
-                        <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5 mt-2 ml-1">
-                            Update: <span className="text-slate-700 dark:text-slate-300 font-bold">{lastUpdated.toLocaleTimeString('id-ID', { timeZone: appTimezone })}</span>
-                            <span className={`flex items-center gap-1 ml-2 font-bold uppercase ${
-                                sseStatus === 'connected' ? 'text-emerald-500' : 
-                                sseStatus === 'connecting' ? 'text-amber-500 animate-pulse' : 
-                                'text-rose-500'
-                            }`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${
-                                    sseStatus === 'connected' ? 'bg-emerald-500' : 
-                                    sseStatus === 'connecting' ? 'bg-amber-500' : 
-                                    'bg-rose-500'
-                                }`}></span>
-                                {sseStatus === 'connected' ? 'Streaming' : sseStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-                            </span>
-                        </p>
+            <div className="animate-fade-in-down relative overflow-hidden rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 text-slate-800 dark:text-slate-200">
+                <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-indigo-50/70 dark:from-slate-800 dark:via-slate-800 dark:to-indigo-950/20" />
+                <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-500" />
+
+                <div className="relative p-5 border-b border-slate-100 dark:border-slate-700 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                    <div className="flex items-start gap-3.5 min-w-0">
+                        <span className="shrink-0 grid place-items-center w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-600 to-indigo-600 text-white shadow-lg shadow-sky-500/25">
+                            <Users size={20} />
+                        </span>
+                        <div>
+                            <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
+                                 Exam Control
+                            </h1>
+                            <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                <span className="tabular-nums">
+                                    Update: <span className="text-slate-700 dark:text-slate-300 font-bold">{lastUpdated.toLocaleTimeString('id-ID', { timeZone: appTimezone })}</span>
+                                </span>
+                                {/* Status koneksi = warna. Hijau streaming, amber
+                                    reconnecting, merah putus - jadi masalahnya
+                                    kelihatan tanpa baca teks. */}
+                                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border font-bold uppercase ${
+                                    sseStatus === 'connected'
+                                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60'
+                                        : sseStatus === 'connecting'
+                                            ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/60 animate-pulse'
+                                            : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/60'
+                                }`}>
+                                    <span className={`relative flex h-1.5 w-1.5 ${
+                                        sseStatus === 'connected' ? '' : sseStatus === 'connecting' ? '' : ''
+                                    }`}>
+                                        <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping ${
+                                            sseStatus === 'connected' ? 'bg-emerald-500' : sseStatus === 'connecting' ? 'bg-amber-500' : 'bg-rose-500'
+                                        }`} />
+                                        <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
+                                            sseStatus === 'connected' ? 'bg-emerald-500' : sseStatus === 'connecting' ? 'bg-amber-500' : 'bg-rose-500'
+                                        }`} />
+                                    </span>
+                                    {sseStatus === 'connected' ? 'Streaming' : sseStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                                </span>
+                            </p>
+                        </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full lg:w-auto">
+                    <div className="relative flex flex-col sm:flex-row items-center gap-2.5 w-full lg:w-auto">
                         <div className="relative w-full sm:w-64 group">
                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                                 <Icons.Refresh />
@@ -730,13 +760,13 @@ export default function ControlPanel() {
                                 placeholder="Cari nama atau username..." 
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-sm w-full outline-none focus:ring-2 focus:ring-indigo-500/20" 
+                                className="pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm w-full outline-none focus:border-indigo-400 dark:focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/20 transition-colors" 
                             />
                         </div>
                         <select 
                             value={selectedClass} 
                             onChange={(e) => setSelectedClass(e.target.value)}
-                            className="px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-sm w-full sm:w-40 outline-none"
+                            className="px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm w-full sm:w-40 outline-none focus:border-indigo-400 dark:focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/20 transition-colors"
                         >
                             {classes.map(c => <option key={c} value={c}>{c === 'All' ? 'Semua Kelas' : c}</option>)}
                         </select>
@@ -767,7 +797,7 @@ export default function ControlPanel() {
                         </button>
                         <button 
                             onClick={() => setShowGuide(true)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 transition-all"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all"
                         >
                             <HelpCircle size={15} />
                             <span className="hidden sm:inline">Panduan</span>
@@ -776,17 +806,19 @@ export default function ControlPanel() {
                 </div>
 
                 {/* Aksi Massal */}
-                <div className="px-5 py-4 bg-indigo-50/50 dark:bg-indigo-900/10 border-b border-slate-100 dark:border-slate-700 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 flex-wrap">
-                        <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                            {filteredStudents.length} <span className="text-slate-400 font-medium">Siswa Terfilter</span>
-                        </div>
-                        <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                            {filteredStudents.filter(s => s.is_online).length} <span className="text-slate-400 font-medium text-emerald-500">Online</span>
-                        </div>
-                        <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                            {activeStudents.length} <span className="text-slate-400 font-medium">Sedang Ujian</span>
-                        </div>
+                <div className="relative px-5 py-4 bg-indigo-50/40 dark:bg-indigo-950/15 border-b border-slate-100 dark:border-slate-700 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+                    {/* Ringkasan angka sebagai chip berwarna: jumlah siswa jadi
+                        informasi, bukan sekadar teks. */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 tabular-nums">
+                            {filteredStudents.length} <span className="font-medium text-slate-500 dark:text-slate-400">Siswa Terfilter</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 text-xs font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">
+                            {filteredStudents.filter(s => s.is_online).length} <span className="font-medium">Online</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/60 text-xs font-bold text-sky-700 dark:text-sky-300 tabular-nums">
+                            {activeStudents.length} <span className="font-medium">Sedang Ujian</span>
+                        </span>
                     </div>
 
                     <div className="flex flex-col gap-2 w-full xl:w-auto">
@@ -816,26 +848,31 @@ export default function ControlPanel() {
             </div>
 
             {/* Tabel Desktop */}
-            <div className="animate-fade-in-up hidden md:block bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-visible" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
-                <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-                    <thead className="bg-slate-50/80 dark:bg-slate-700/50">
+            <div className="animate-fade-in-up hidden md:block rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 overflow-visible" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
+                <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+                    <thead className="bg-gradient-to-r from-sky-50/80 to-indigo-50/80 dark:from-sky-950/30 dark:to-indigo-950/30">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase cursor-pointer group" onClick={() => toggleSort('name')}>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-sky-800 dark:text-sky-300 uppercase cursor-pointer group" onClick={() => toggleSort('name')}>
                                 Student <SortIcon columnKey="name" />
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase cursor-pointer group" onClick={() => { setOnlineFirst(false); toggleSort('is_online'); }}>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-sky-800 dark:text-sky-300 uppercase cursor-pointer group" onClick={() => { setOnlineFirst(false); toggleSort('is_online'); }}>
                                 Status <SortIcon columnKey="is_online" />
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Aktivitas &amp; Timer</th>
-                            <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Actions</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold text-sky-800 dark:text-sky-300 uppercase">Aktivitas &amp; Timer</th>
+                            <th className="px-6 py-3 text-right text-xs font-bold text-sky-800 dark:text-sky-300 uppercase">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+                    <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-800">
                         {sortedStudents.map(s => (
-                            <tr key={s.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${s.is_online ? 'bg-indigo-50/10 dark:bg-indigo-900/5' : ''}`}>
+                            <tr key={s.id} className={`hover:bg-sky-50/60 dark:hover:bg-sky-950/20 transition-colors ${s.is_online ? 'bg-emerald-50/40 dark:bg-emerald-950/10' : ''}`}>
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
-                                        <div className={`h-2.5 w-2.5 rounded-full ${s.is_online ? 'bg-green-500' : 'bg-slate-300'}`}></div>
+                                        {/* Titik online berkedip supaya status koneksi
+                                            langsung terlihat di ujung baris. */}
+                                        <span className="relative flex h-2.5 w-2.5 shrink-0">
+                                            {s.is_online && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />}
+                                            <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${s.is_online ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                                        </span>
                                         <div>
                                             <div className="text-sm font-bold text-slate-900 dark:text-white uppercase truncate max-w-[150px]">{s.name || s.username}</div>
                                             <div className="text-[10px] text-slate-500 dark:text-slate-400">{s.class_name}</div>
@@ -844,28 +881,30 @@ export default function ControlPanel() {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex flex-col gap-1">
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit ${s.is_online ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border w-fit ${s.is_online
+                                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60'
+                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'}`}>
                                             {s.is_online ? 'Online' : 'Offline'}
                                         </span>
-                                        {s.is_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 w-fit uppercase">Locked</span>}
-                                        {s.is_violation_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 w-fit uppercase border border-amber-200">Violation</span>}
+                                        {s.is_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 w-fit uppercase">Locked</span>}
+                                        {s.is_violation_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60 w-fit uppercase">Violation</span>}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
                                     {s.current_exam ? (
-                                        <div className="space-y-1">
+                                        <div className="space-y-1.5">
                                             <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 truncate max-w-[200px]">{s.current_exam}</div>
                                             {s.seconds_left !== null && <StudentTimer secondsLeft={s.seconds_left} />}
                                             {s.in_progress_count > 1 && (
                                                 <div
                                                     title={`Siswa ini sedang mengerjakan ${s.in_progress_count} ujian sekaligus`}
-                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[9px] font-bold uppercase tracking-wide"
+                                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[9px] font-bold uppercase tracking-wide border border-amber-200 dark:border-amber-900/60"
                                                 >
                                                     +{s.in_progress_count - 1} ujian lain
                                                 </div>
                                             )}
                                         </div>
-                                    ) : <span className="text-[11px] text-slate-400">Idle</span>}
+                                    ) : <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">Idle</span>}
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-1.5 flex-wrap">
@@ -929,28 +968,39 @@ export default function ControlPanel() {
             {/* Kartu Mobile */}
             <div className="animate-fade-in-up md:hidden space-y-3" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                 {sortedStudents.map(s => (
-                    <div key={s.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+                    <div key={s.id} className={`relative overflow-hidden rounded-2xl border p-4 space-y-3 ring-1 transition-all duration-200 ${
+                        s.is_online
+                            ? 'bg-emerald-50/40 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-900/50 ring-emerald-500/10'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 ring-slate-200/70 dark:ring-slate-800/70'
+                    }`}>
+                        {/* Strip tipis di tepi kiri menandai siswa yang online. */}
+                        {s.is_online && <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-500 to-teal-500" />}
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-2.5 min-w-0">
-                                <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${s.is_online ? 'bg-green-500' : 'bg-slate-300'}`} />
+                                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                                    {s.is_online && <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />}
+                                    <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${s.is_online ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                                </span>
                                 <div className="min-w-0">
                                     <div className="text-sm font-bold text-slate-900 dark:text-white uppercase truncate">{s.name || s.username}</div>
                                     <div className="text-[10px] text-slate-500 dark:text-slate-400">{s.class_name}</div>
                                 </div>
                             </div>
                             <div className="flex flex-wrap gap-1 justify-end shrink-0">
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.is_online ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${s.is_online
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'}`}>
                                     {s.is_online ? 'Online' : 'Offline'}
                                 </span>
-                                {s.is_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">Locked</span>}
-                                {s.is_violation_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Violation</span>}
+                                {s.is_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60">Locked</span>}
+                                {s.is_violation_locked && <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">Violation</span>}
                             </div>
                         </div>
 
                         {s.current_exam ? (
-                            <div className="space-y-1">
-                                <div className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900/40 rounded-xl px-3 py-2">
-                                    <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 truncate">{s.current_exam}</div>
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-2 bg-indigo-50/60 dark:bg-indigo-950/25 border border-indigo-200 dark:border-indigo-900/50 rounded-xl px-3 py-2">
+                                    <div className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 truncate">{s.current_exam}</div>
                                     {s.seconds_left !== null && <StudentTimer secondsLeft={s.seconds_left} />}
                                 </div>
                                 {s.in_progress_count > 1 && (
@@ -1062,11 +1112,15 @@ function UnifiedModal({ config, onClose }) {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose} />
-            <div className="relative bg-white dark:bg-slate-800 w-full max-w-sm rounded-[32px] shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+            <div className="relative bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+                {/* Strip mengikuti sifat aksi: destruktif = merah, biasa = indigo. */}
+                <div aria-hidden className={`h-1 w-full bg-gradient-to-r ${
+                    config.isDestructive ? 'from-rose-500 to-pink-500' : 'from-indigo-500 to-violet-500'
+                }`} />
                 <div className="p-8">
                     {/* Header Icon */}
                     <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6 ${
-                        config.isDestructive ? 'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+                        config.isDestructive ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400' : 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400'
                     }`}>
                         {config.isDestructive ? (
                              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
@@ -1075,13 +1129,17 @@ function UnifiedModal({ config, onClose }) {
                         )}
                     </div>
                     
-                    <h3 className="text-xl font-black text-slate-900 dark:text-white text-center tracking-tight mb-2">
+                    <h3 className={`text-xl font-black text-center tracking-tight mb-2 ${config.isDestructive ? 'text-rose-700 dark:text-rose-300' : 'text-slate-900 dark:text-white'}`}>
                         {config.title}
                     </h3>
                     
                     {config.targetName && (
                         <div className="flex items-center justify-center mb-4">
-                            <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-bold uppercase tracking-wider border border-indigo-200 dark:border-indigo-800">
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
+                                config.isDestructive
+                                    ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/60'
+                                    : 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/60'
+                            }`}>
                                 {config.targetName}
                             </span>
                         </div>
@@ -1142,10 +1200,10 @@ function UnifiedModal({ config, onClose }) {
                     <button
                         onClick={handleConfirm}
                         disabled={isInvalidPrompt}
-                        className={`flex-1 px-4 py-3 rounded-2xl text-sm font-black transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+                        className={`flex-1 px-4 py-3 rounded-2xl text-sm font-black transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
                             config.isDestructive
-                            ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-200 dark:shadow-none'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200 dark:shadow-none'
+                            ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-300/60 dark:shadow-rose-950/50'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-300/60 dark:shadow-indigo-950/50'
                         }`}
                     >
                         {config.type === 'alert' ? 'Mengerti' : 'Lanjutkan'}

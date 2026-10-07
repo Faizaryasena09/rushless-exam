@@ -1,12 +1,56 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronUp, ChevronDown, ChevronsUpDown, ArrowLeft, Search, Download, Trash2, Settings, X, Check, CheckCircle2, XCircle, MinusCircle, AlertCircle, ShieldAlert, PencilLine, Flag, Send, Navigation, PlayCircle, Circle, ScrollText, Trophy, Clock, ChevronRight, Info } from 'lucide-react';
+import { 
+    ChevronUp, ChevronDown, ChevronsUpDown, ArrowLeft, Search, Download, Trash2, Settings, 
+    X, Check, CheckCircle2, XCircle, MinusCircle, AlertCircle, ShieldAlert, PencilLine, 
+    Flag, Send, Navigation, PlayCircle, Circle, ScrollText, Trophy, Clock, ChevronRight, Info,
+    Users, BarChart3, FileSpreadsheet, UserCheck, UserX, Sparkles
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '@/app/context/LanguageContext';
 import { wallClockToEpochMs } from '@/app/lib/timezone';
+
+// --- Palette Object (Source of Truth untuk Tema & Status) ---
+const TONE = {
+    purple: {
+        bg: 'bg-purple-50 dark:bg-purple-950/30',
+        border: 'border-purple-200 dark:border-purple-900/60',
+        text: 'text-purple-700 dark:text-purple-300',
+        iconBg: 'bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400',
+        accent: 'from-purple-500 to-indigo-500',
+    },
+    emerald: {
+        bg: 'bg-emerald-50 dark:bg-emerald-950/30',
+        border: 'border-emerald-200 dark:border-emerald-900/60',
+        text: 'text-emerald-700 dark:text-emerald-300',
+        iconBg: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400',
+        accent: 'from-emerald-500 to-teal-500',
+    },
+    amber: {
+        bg: 'bg-amber-50 dark:bg-amber-950/30',
+        border: 'border-amber-200 dark:border-amber-900/60',
+        text: 'text-amber-700 dark:text-amber-300',
+        iconBg: 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400',
+        accent: 'from-amber-500 to-orange-500',
+    },
+    rose: {
+        bg: 'bg-rose-50 dark:bg-rose-950/30',
+        border: 'border-rose-200 dark:border-rose-900/60',
+        text: 'text-rose-700 dark:text-rose-300',
+        iconBg: 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400',
+        accent: 'from-rose-500 to-red-500',
+    },
+    slate: {
+        bg: 'bg-slate-50 dark:bg-slate-900/50',
+        border: 'border-slate-200 dark:border-slate-800',
+        text: 'text-slate-700 dark:text-slate-300',
+        iconBg: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
+        accent: 'from-slate-400 to-slate-600',
+    }
+};
 
 export default function ExamResultsPage() {
     const router = useRouter();
@@ -24,7 +68,7 @@ export default function ExamResultsPage() {
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
     const [statusFilter, setStatusFilter] = useState('all');
 
-    const fetchResults = async () => {
+    const fetchResults = useCallback(async () => {
         try {
             setLoading(true);
             const res = await fetch(`/api/exams/results?exam_id=${examId}`);
@@ -39,17 +83,11 @@ export default function ExamResultsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [examId]);
 
     // Export Handler
     const handleExport = (attemptMode) => {
-        // Construct detailed filename date part
-        const dateStr = new Date().toISOString().split('T')[0];
-
-        // Build URL
         const url = `/api/exams/export?exam_id=${examId}&class_id=${classFilter}&attempt_mode=${attemptMode}`;
-
-        // Trigger download
         window.location.href = url;
         setShowExportModal(false);
     };
@@ -57,7 +95,7 @@ export default function ExamResultsPage() {
     useEffect(() => {
         if (!examId) return;
         fetchResults();
-    }, [examId]);
+    }, [examId, fetchResults]);
 
     const classOptions = useMemo(() => {
         if (!resultsData) return [];
@@ -92,8 +130,8 @@ export default function ExamResultsPage() {
             return <ChevronsUpDown size={13} className="text-slate-300 dark:text-slate-600 group-hover:text-slate-500 transition-colors" />;
         }
         return sortConfig.direction === 'asc'
-            ? <ChevronUp size={13} className="text-slate-700 dark:text-slate-200" />
-            : <ChevronDown size={13} className="text-slate-700 dark:text-slate-200" />;
+            ? <ChevronUp size={13} className="text-purple-600 dark:text-purple-400" />
+            : <ChevronDown size={13} className="text-purple-600 dark:text-purple-400" />;
     };
 
     const sortedResults = useMemo(() => {
@@ -103,7 +141,6 @@ export default function ExamResultsPage() {
 
         data.sort((a, b) => {
             if (key === 'score') {
-                // Yang belum mengerjakan selalu di akhir
                 const aDone = a.status === 'Completed';
                 const bDone = b.status === 'Completed';
                 if (aDone !== bDone) return aDone ? -1 : 1;
@@ -151,83 +188,98 @@ export default function ExamResultsPage() {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <div className="w-6 h-6 border-2 border-slate-200 dark:border-slate-700 border-t-slate-600 rounded-full animate-spin" />
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Memuat data hasil ujian...</p>
+                <div className="w-8 h-8 border-3 border-purple-200 dark:border-purple-900 border-t-purple-600 rounded-full animate-spin" />
+                <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">Memuat data hasil ujian...</p>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-                <div className="text-red-400"><AlertCircle size={32} /></div>
-                <p className="text-sm font-semibold text-slate-800 dark:text-white">Gagal memuat hasil ujian</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">{error}</p>
-                <button onClick={fetchResults} className="mt-1 px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+            <div className="relative overflow-hidden rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30 p-8 text-center my-8">
+                <div className="grid place-items-center w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 mx-auto mb-3">
+                    <AlertCircle size={24} />
+                </div>
+                <h3 className="text-base font-extrabold text-rose-900 dark:text-rose-200">Gagal memuat hasil ujian</h3>
+                <p className="text-xs text-rose-700 dark:text-rose-300 max-w-sm mx-auto mt-1">{error}</p>
+                <button 
+                    onClick={fetchResults} 
+                    className="mt-4 px-4 py-2 text-xs font-semibold rounded-xl bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-sm"
+                >
                     Coba lagi
                 </button>
             </div>
         );
     }
 
+    const avgToneKey = summary.average === null ? 'slate' : summary.average >= 75 ? 'emerald' : summary.average >= 60 ? 'amber' : 'rose';
+
     return (
         <div className="space-y-5">
-            {/* Header */}
-            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                <div className="min-w-0">
-                    <Link href="/dashboard/exams" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
-                        <ArrowLeft size={14} />
-                        Kembali ke Daftar Ujian
-                    </Link>
-                    <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1.5 break-words">
-                        {resultsData.examName}
-                    </h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                        Ringkasan nilai dan analisis jawaban siswa. Klik nama siswa untuk melihat riwayat attempt.
-                    </p>
-                </div>
+            {/* Header dengan latar bertema Laporan */}
+            <div className="relative overflow-hidden rounded-2xl border border-purple-200/80 dark:border-purple-900/40 bg-gradient-to-r from-purple-500/10 via-indigo-500/5 to-transparent p-5 sm:p-6 backdrop-blur-sm shadow-sm ring-1 ring-purple-500/10">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-500" />
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
+                    <div className="min-w-0">
+                        <Link 
+                            href="/dashboard/exams" 
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-purple-100 transition-colors mb-2 px-2.5 py-1 rounded-lg bg-purple-100/70 dark:bg-purple-950/50 border border-purple-200/60 dark:border-purple-900/50"
+                        >
+                            <ArrowLeft size={14} />
+                            Kembali ke Daftar Ujian
+                        </Link>
+                        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white break-words tracking-tight">
+                            {resultsData.examName}
+                        </h1>
+                        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
+                            Ringkasan nilai dan analisis jawaban siswa. Klik nama siswa untuk melihat riwayat attempt.
+                        </p>
+                    </div>
 
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    <Link
-                        href={`/dashboard/exams/manage/${examId}`}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                    >
-                        <Settings size={14} />
-                        Kelola Ujian
-                    </Link>
-                    <button
-                        onClick={() => setShowExportModal(true)}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity"
-                    >
-                        <Download size={14} />
-                        Export Data
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                        <Link
+                            href={`/dashboard/exams/manage/${examId}`}
+                            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm"
+                        >
+                            <Settings size={14} className="text-slate-500 dark:text-slate-400" />
+                            Kelola Ujian
+                        </Link>
+                        <button
+                            onClick={() => setShowExportModal(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-purple-600 dark:bg-purple-500 text-white hover:bg-purple-700 dark:hover:bg-purple-600 transition-all shadow-md shadow-purple-500/20"
+                        >
+                            <Download size={14} />
+                            Export Data
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* Ringkasan */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <SummaryCard label="Total Siswa" value={summary.total} />
-                <SummaryCard label="Sudah Mengerjakan" value={summary.done} tone={summary.total ? 'text-emerald-600 dark:text-emerald-400' : ''} />
-                <SummaryCard label="Belum Mengerjakan" value={summary.pending} tone={summary.pending ? 'text-amber-600 dark:text-amber-400' : ''} />
+            {/* Ringkasan (Card Lifted dengan Chip Berwarna & Garis Aksen) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <SummaryCard label="Total Siswa" value={summary.total} icon={Users} toneKey="purple" subtext="Terdaftar di ujian" />
+                <SummaryCard label="Sudah Mengerjakan" value={summary.done} icon={UserCheck} toneKey="emerald" subtext={`${summary.total ? Math.round((summary.done / summary.total) * 100) : 0}% selesai`} />
+                <SummaryCard label="Belum Mengerjakan" value={summary.pending} icon={UserX} toneKey="amber" subtext="Belum mulai/selesai" />
                 <SummaryCard
                     label="Rata-rata Nilai"
                     value={summary.average === null ? '—' : formatNumber(Math.round(summary.average * 100) / 100)}
-                    tone={summary.average === null ? '' : summary.average >= 75 ? 'text-emerald-600 dark:text-emerald-400' : summary.average >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}
+                    icon={BarChart3}
+                    toneKey={avgToneKey}
+                    subtext="Dari peserta selesai"
                 />
             </div>
 
-            {/* Toolbar */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-col lg:flex-row lg:items-center gap-2">
+            {/* Toolbar Filter (Lifted Panel) */}
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-100/5 flex flex-col lg:flex-row lg:items-center gap-3">
                 <div className="relative flex-1 min-w-0">
-                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     <input
                         type="text"
                         placeholder="Cari nama atau username siswa..."
                         value={nameFilter}
                         onChange={(e) => setNameFilter(e.target.value)}
                         aria-label="Cari siswa"
-                        className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 dark:focus:border-slate-500 transition-colors"
+                        className="w-full pl-9 pr-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-purple-400 dark:focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 transition-all"
                     />
                 </div>
 
@@ -272,7 +324,7 @@ export default function ExamResultsPage() {
                 {hasActiveFilter && (
                     <button
                         onClick={resetFilters}
-                        className="inline-flex items-center justify-center gap-1 px-3 py-2 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-950/60 transition-colors"
                     >
                         <X size={14} />
                         Reset
@@ -280,60 +332,65 @@ export default function ExamResultsPage() {
                 )}
             </div>
 
-            {/* Keterangan */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
-                <span className="font-semibold">Keterangan:</span>
-                <LegendItem className="text-emerald-600 dark:text-emerald-400" icon={<Check size={11} />} text="hijau = jawaban benar" />
-                <LegendItem className="text-red-600 dark:text-red-400" icon={<X size={11} />} text="merah = jawaban salah" />
-                <LegendItem className="text-slate-400" icon={<MinusCircle size={11} />} text="abu-abu = tidak dijawab" />
-                <span className="ml-auto">{sortedResults.length} dari {resultsData.results.length} siswa ditampilkan</span>
+            {/* Keterangan Status */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500 dark:text-slate-400 px-1">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">Keterangan:</span>
+                <LegendItem className="text-emerald-600 dark:text-emerald-400" icon={<Check size={12} />} text="jawaban benar" />
+                <LegendItem className="text-rose-600 dark:text-rose-400" icon={<X size={12} />} text="jawaban salah" />
+                <LegendItem className="text-slate-400" icon={<MinusCircle size={12} />} text="tidak dijawab" />
+                <span className="ml-auto font-medium text-slate-600 dark:text-slate-400 tabular-nums">
+                    Menampilkan <strong className="text-slate-900 dark:text-white font-bold">{sortedResults.length}</strong> dari {resultsData.results.length} siswa
+                </span>
             </div>
 
-            {/* Daftar siswa */}
+            {/* Daftar Siswa (Card Lifted Table) */}
             {sortedResults.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center">
-                    <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mx-auto mb-3">
-                        <Search size={20} />
+                <div className="relative overflow-hidden rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center shadow-sm">
+                    <div className="grid place-items-center w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 mx-auto mb-3">
+                        <Search size={22} />
                     </div>
-                    <h3 className="text-sm font-bold text-slate-800 dark:text-white">Tidak ada siswa yang cocok</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Ubah kata kunci atau reset filter yang aktif.</p>
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Tidak ada siswa yang cocok</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">Ubah kata kunci pencarian atau sesuaikan filter yang aktif.</p>
                     {hasActiveFilter && (
-                        <button onClick={resetFilters} className="mt-4 px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                        <button 
+                            onClick={resetFilters} 
+                            className="mt-4 px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm"
+                        >
                             Reset filter
                         </button>
                     )}
                 </div>
             ) : (
                 <>
-                    {/* Desktop */}
-                    <div className="hidden lg:block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-                        <table className="w-full text-left">
-                            <thead className="bg-slate-50 dark:bg-slate-800/60">
+                    {/* Desktop View */}
+                    <div className="hidden lg:block relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-100/5">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
                                 <tr>
-                                    <th className="group px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 cursor-pointer select-none" onClick={() => toggleSort('name')}>
+                                    <th className="group px-4 py-3.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 cursor-pointer select-none" onClick={() => toggleSort('name')}>
                                         <span className="inline-flex items-center gap-1.5">
                                             Siswa
                                             <SortIcon columnKey="name" />
                                         </span>
                                     </th>
-                                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 text-center">Status</th>
-                                    <th className="group px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 text-center cursor-pointer select-none" onClick={() => toggleSort('attempts')}>
+                                    <th className="px-4 py-3.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center">Status</th>
+                                    <th className="group px-4 py-3.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center cursor-pointer select-none" onClick={() => toggleSort('attempts')}>
                                         <span className="inline-flex items-center gap-1.5">
                                             Attempt
                                             <SortIcon columnKey="attempts" />
                                         </span>
                                     </th>
-                                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 text-center">Jawaban</th>
-                                    <th className="group px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 text-right cursor-pointer select-none" onClick={() => toggleSort('score')}>
+                                    <th className="px-4 py-3.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center">Ringkasan Jawaban</th>
+                                    <th className="group px-4 py-3.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-right cursor-pointer select-none" onClick={() => toggleSort('score')}>
                                         <span className="inline-flex items-center gap-1.5">
                                             Nilai Terbaik
                                             <SortIcon columnKey="score" />
                                         </span>
                                     </th>
-                                    <th className="px-4 py-3" />
+                                    <th className="px-4 py-3.5" />
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
                                 {sortedResults.map(student => (
                                     <StudentRow
                                         key={student.studentId}
@@ -345,8 +402,8 @@ export default function ExamResultsPage() {
                         </table>
                     </div>
 
-                    {/* Mobile */}
-                    <div className="lg:hidden space-y-2">
+                    {/* Mobile View */}
+                    <div className="lg:hidden space-y-2.5">
                         {sortedResults.map(student => (
                             <StudentRow
                                 key={student.studentId}
@@ -359,7 +416,7 @@ export default function ExamResultsPage() {
                 </>
             )}
 
-            {/* Detail View */}
+            {/* Detail View / Attempt History Modal */}
             {selectedStudent && (
                 <StudentAnalysisDetail
                     student={selectedStudent}
@@ -381,11 +438,23 @@ export default function ExamResultsPage() {
     );
 }
 
-function SummaryCard({ label, value, tone = '' }) {
+function SummaryCard({ label, value, icon: Icon, toneKey = 'purple', subtext }) {
+    const tone = TONE[toneKey] || TONE.purple;
     return (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
-            <div className={`text-xl font-bold mt-0.5 tabular-nums ${tone || 'text-slate-900 dark:text-white'}`}>{value}</div>
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 ring-1 ring-slate-900/5 dark:ring-slate-100/5 shadow-sm hover:-translate-y-0.5 hover:shadow-lg hover:shadow-purple-500/10 dark:hover:shadow-slate-950/50 transition-all duration-200 group">
+            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${tone.accent} opacity-70 group-hover:opacity-100 transition-opacity`} />
+            <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">{label}</div>
+                    <div className={`text-2xl font-extrabold mt-1 tabular-nums ${tone.text}`}>
+                        {value}
+                    </div>
+                    {subtext && <div className="text-[11px] text-slate-400 mt-0.5">{subtext}</div>}
+                </div>
+                <div className={`grid place-items-center w-11 h-11 rounded-xl shrink-0 ${tone.iconBg}`}>
+                    <Icon size={20} />
+                </div>
+            </div>
         </div>
     );
 }
@@ -397,7 +466,7 @@ function SelectControl({ value, onChange, options, title, ariaLabel }) {
             onChange={(e) => onChange(e.target.value)}
             title={title}
             aria-label={ariaLabel}
-            className="w-full lg:w-auto px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-none focus:border-slate-400 dark:focus:border-slate-500 transition-colors"
+            className="w-full lg:w-auto px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-none focus:border-purple-400 dark:focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 transition-all"
         >
             {options.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -413,35 +482,44 @@ function StudentRow({ student, onOpen, compact = false }) {
     const accuracy = answered > 0 ? Math.round((student.correctCount / answered) * 100) : 0;
 
     const scoreTone = score >= 80
-        ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
+        ? TONE.emerald
         : score >= 60
-            ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20'
-            : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20';
+            ? TONE.amber
+            : TONE.rose;
 
     if (compact) {
         return (
             <button
                 onClick={onOpen}
                 disabled={!isCompleted}
-                className="w-full text-left rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-3 disabled:opacity-60 enabled:hover:border-slate-300 dark:enabled:hover:border-slate-700 transition-colors"
+                className={`w-full text-left relative overflow-hidden rounded-2xl border bg-white dark:bg-slate-900 p-4 ring-1 ring-slate-900/5 dark:ring-slate-100/5 shadow-sm transition-all duration-200 ${
+                    isCompleted 
+                        ? 'border-slate-200/80 dark:border-slate-800 hover:-translate-y-0.5 hover:shadow-md cursor-pointer' 
+                        : 'border-slate-200/60 dark:border-slate-800/60 opacity-60 cursor-not-allowed'
+                }`}
             >
+                {isCompleted && <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${scoreTone.accent}`} />}
                 <div className="flex items-center gap-3">
                     <Avatar name={student.studentName} completed={isCompleted} />
                     <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{student.studentName}</div>
-                        <div className="text-[11px] text-slate-400 truncate">{student.className} · @{student.username || 'user'}</div>
+                        <div className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{student.studentName}</div>
+                        <div className="text-xs text-slate-400 truncate">{student.className} · @{student.username || 'user'}</div>
                     </div>
                     <div className="text-right shrink-0">
                         {isCompleted ? (
                             <>
-                                <div className={`px-2.5 py-1 rounded-lg text-sm font-bold tabular-nums ${scoreTone}`}>{formatNumber(score)}</div>
-                                <div className="text-[10px] text-slate-400 mt-0.5">{student.attempts.length} attempt</div>
+                                <div className={`px-2.5 py-1 rounded-xl text-sm font-extrabold tabular-nums border ${scoreTone.bg} ${scoreTone.text} ${scoreTone.border}`}>
+                                    {formatNumber(score)}
+                                </div>
+                                <div className="text-[10px] font-semibold text-slate-400 mt-1 tabular-nums">{student.attempts.length} attempt</div>
                             </>
                         ) : (
-                            <span className="text-[11px] font-semibold text-slate-400">Belum</span>
+                            <span className="px-2.5 py-1 rounded-lg text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50">
+                                Belum
+                            </span>
                         )}
                     </div>
-                    {isCompleted && <ChevronRight size={15} className="text-slate-300 dark:text-slate-600 shrink-0" />}
+                    {isCompleted && <ChevronRight size={16} className="text-slate-400 shrink-0" />}
                 </div>
             </button>
         );
@@ -451,55 +529,59 @@ function StudentRow({ student, onOpen, compact = false }) {
         <tr
             onClick={onOpen}
             title={isCompleted ? 'Klik untuk melihat riwayat attempt' : 'Siswa belum mengerjakan ujian'}
-            className={`group transition-colors ${isCompleted ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60' : 'opacity-60'}`}
+            className={`group transition-all ${isCompleted ? 'cursor-pointer hover:bg-purple-50/40 dark:hover:bg-purple-950/20' : 'opacity-60'}`}
         >
-            <td className="px-4 py-3">
+            <td className="px-4 py-3.5">
                 <div className="flex items-center gap-3">
                     <Avatar name={student.studentName} completed={isCompleted} />
                     <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{student.studentName}</div>
-                        <div className="text-[11px] text-slate-400 truncate">{student.className} · @{student.username || 'user'}</div>
+                        <div className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                            {student.studentName}
+                        </div>
+                        <div className="text-xs text-slate-400 truncate">{student.className} · @{student.username || 'user'}</div>
                     </div>
                 </div>
             </td>
-            <td className="px-4 py-3 text-center">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ${isCompleted
-                    ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
+            <td className="px-4 py-3.5 text-center">
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                    isCompleted
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50'
+                        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
+                }`}>
                     {isCompleted ? 'Selesai' : 'Belum'}
                 </span>
             </td>
-            <td className="px-4 py-3 text-center text-sm font-semibold text-slate-600 dark:text-slate-300 tabular-nums">
+            <td className="px-4 py-3.5 text-center text-sm font-bold text-slate-700 dark:text-slate-200 tabular-nums">
                 {isCompleted ? student.attempts.length : '—'}
             </td>
-            <td className="px-4 py-3">
+            <td className="px-4 py-3.5">
                 {isCompleted ? (
-                    <div className="flex items-center justify-center gap-2 text-xs tabular-nums">
-                        <span className="text-emerald-600 dark:text-emerald-400">{student.correctCount} benar</span>
-                        <span className="text-slate-300 dark:text-slate-600">·</span>
-                        <span className="text-red-600 dark:text-red-400">{student.incorrectCount} salah</span>
-                        <span className="text-slate-300 dark:text-slate-600">·</span>
-                        <span className="text-slate-500 dark:text-slate-400">{student.notAnsweredCount} kosong</span>
+                    <div className="flex items-center justify-center gap-2 text-xs font-semibold tabular-nums">
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40">{student.correctCount} benar</span>
+                        <span className="px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900/40">{student.incorrectCount} salah</span>
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">{student.notAnsweredCount} kosong</span>
                     </div>
                 ) : (
-                    <span className="block text-center text-slate-300 dark:text-slate-600">—</span>
+                    <span className="block text-center text-slate-400 font-semibold">—</span>
                 )}
             </td>
-            <td className="px-4 py-3">
+            <td className="px-4 py-3.5">
                 {isCompleted ? (
-                    <div className="flex items-center justify-end gap-2.5">
-                        <span className="w-16 h-1 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden" title={`Akurasi jawaban: ${accuracy}%`}>
-                            <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${accuracy}%` }} />
+                    <div className="flex items-center justify-end gap-3">
+                        <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden" title={`Akurasi jawaban: ${accuracy}%`}>
+                            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all" style={{ width: `${accuracy}%` }} />
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-xl text-sm font-extrabold tabular-nums border ${scoreTone.bg} ${scoreTone.text} ${scoreTone.border}`}>
+                            {formatNumber(score)}
                         </span>
-                        <span className={`px-2.5 py-1 rounded-lg text-sm font-bold tabular-nums ${scoreTone}`}>{formatNumber(score)}</span>
                     </div>
                 ) : (
-                    <span className="block text-right text-slate-300 dark:text-slate-600">—</span>
+                    <span className="block text-right text-slate-400 font-semibold">—</span>
                 )}
             </td>
-            <td className="px-4 py-3 text-right">
+            <td className="px-4 py-3.5 text-right">
                 {isCompleted && (
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600 dark:text-purple-400 group-hover:translate-x-0.5 transition-all">
                         Analisis
                         <ChevronRight size={14} />
                     </span>
@@ -511,10 +593,9 @@ function StudentRow({ student, onOpen, compact = false }) {
 
 function Avatar({ name, completed }) {
     const initial = (name || '?').trim().charAt(0).toUpperCase();
+    const tone = completed ? TONE.purple : TONE.slate;
     return (
-        <span className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold ${completed
-            ? 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
-            : 'bg-slate-50 dark:bg-slate-800 text-slate-300 dark:text-slate-600'}`}>
+        <span className={`grid place-items-center w-9 h-9 rounded-xl text-sm font-extrabold shrink-0 ${tone.iconBg}`}>
             {initial}
         </span>
     );
@@ -543,9 +624,8 @@ function StudentAnalysisDetail({ student, scoringMode, totalQuestions, onClose, 
         };
     }, [onClose, confirmId]);
 
-const attempts = useMemo(() => {
+    const attempts = useMemo(() => {
         const list = [...(student.attempts || [])];
-        // Paling baru di atas: berdasarkan waktu mulai, fallback ke waktu selesai
         list.sort((a, b) => {
             const aTime = wallClockToEpochMs(a.startTime || a.endTime, timezone) ?? 0;
             const bTime = wallClockToEpochMs(b.startTime || b.endTime, timezone) ?? 0;
@@ -556,6 +636,7 @@ const attempts = useMemo(() => {
         });
         return list;
     }, [student, timezone]);
+
     const formatScore = (value) => scoringMode === 'raw' ? formatNumber(value) : Math.round(Number(value));
 
     const stats = useMemo(() => {
@@ -601,17 +682,20 @@ const attempts = useMemo(() => {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={onClose}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-3 sm:p-6" onClick={onClose}>
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-label={`Riwayat attempt ${student.studentName}`}
-                className="relative w-full sm:max-w-2xl sm:max-h-[85vh] h-full sm:h-auto bg-white dark:bg-slate-900 sm:rounded-2xl shadow-xl flex flex-col overflow-hidden"
+                className="relative w-full sm:max-w-2xl sm:max-h-[85vh] h-full sm:h-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden ring-1 ring-slate-900/5 dark:ring-slate-100/5"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-500" />
+                
+                {/* Header */}
+                <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-purple-500/5 via-indigo-500/5 to-transparent">
                     <div className="min-w-0">
-                        <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">Riwayat Attempt</h2>
+                        <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white truncate tracking-tight">Riwayat Attempt</h2>
                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
                             {student.studentName} · {student.className} · @{student.username}
                         </p>
@@ -619,7 +703,7 @@ const attempts = useMemo(() => {
                     <button
                         onClick={onClose}
                         aria-label="Tutup"
-                        className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     >
                         <X size={18} />
                     </button>
@@ -627,27 +711,28 @@ const attempts = useMemo(() => {
 
                 {attempts.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
-                        <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-                            <ScrollText size={20} />
+                        <div className="grid place-items-center w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 mb-3">
+                            <ScrollText size={22} />
                         </div>
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-3">Siswa ini belum memiliki attempt yang selesai.</p>
+                        <p className="text-sm font-bold text-slate-800 dark:text-white">Belum ada attempt</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Siswa ini belum memiliki attempt yang selesai.</p>
                     </div>
                 ) : (
                     <>
-                        <div className="grid grid-cols-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
+                        <div className="grid grid-cols-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 divide-x divide-slate-200 dark:divide-slate-800">
                             <StatCell label="Attempt" value={stats.total} />
                             <StatCell label="Tertinggi" value={stats.best} tone="best" />
                             <StatCell label="Rata-rata" value={stats.average} />
                         </div>
 
-<div className="flex-1 overflow-y-auto p-4 space-y-2">
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400 px-1 pb-1">
-                                <span className="font-semibold">Keterangan:</span>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 px-1 pb-1">
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">Keterangan:</span>
                                 <span>klik baris = lihat analisis jawaban</span>
-                                <span className="inline-flex items-center gap-1"><ScrollText size={11} /> log aktivitas</span>
-                                <span className="inline-flex items-center gap-1"><Trash2 size={11} /> hapus attempt</span>
-<span className="w-full">Urut dari yang paling baru (teratas).</span>
+                                <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400 font-medium"><ScrollText size={12} /> log aktivitas</span>
+                                <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-medium"><Trash2 size={12} /> hapus attempt</span>
                             </div>
+
                             {attempts.map((attempt, index) => (
                                 <AttemptRow
                                     key={attempt.attemptId}
@@ -687,26 +772,22 @@ function StatCell({ label, value, tone }) {
         ? 'text-emerald-600 dark:text-emerald-400'
         : 'text-slate-900 dark:text-white';
     return (
-        <div className="px-4 py-3 text-center border-r border-slate-200 dark:border-slate-800 last:border-r-0">
-            <div className={`text-lg font-bold leading-none ${color}`}>{display}</div>
-            <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mt-1">{label}</div>
+        <div className="px-4 py-3 text-center">
+            <div className={`text-xl font-extrabold leading-none tabular-nums ${color}`}>{display}</div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-extrabold mt-1">{label}</div>
         </div>
     );
 }
 
 function AttemptRow({ attempt, number, isBest, formatScore, totalQuestions, isDeleting, isConfirming, onOpen, onShowLogs, onRequestDelete, onCancelDelete, onConfirmDelete }) {
-    const { fmt } = useLanguage();
+    const { fmt, timezone } = useLanguage();
     const score = Number(attempt.score) || 0;
     const scoreTone = score >= 80
-        ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
+        ? TONE.emerald
         : score >= 60
-            ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20'
-            : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20';
+            ? TONE.amber
+            : TONE.rose;
 
-    // startTime/endTime adalah DATETIME naive dari MySQL. new Date() akan
-    // memakainya sebagai waktu lokal browser lalu diformat ulang ke zona
-    // aplikasi, sehingga jamnya bergeser.(fmt.dateTime sudah menangani string
-    // naive sebagai identity, jadi cukup kirim string aslinya.)
     const startMs = attempt.startTime ? wallClockToEpochMs(attempt.startTime, timezone) : null;
     const endMs = attempt.endTime ? wallClockToEpochMs(attempt.endTime, timezone) : null;
     const duration = startMs !== null && endMs !== null && endMs >= startMs ? formatDuration(endMs - startMs) : null;
@@ -715,29 +796,34 @@ function AttemptRow({ attempt, number, isBest, formatScore, totalQuestions, isDe
     const accuracy = answered > 0 ? Math.round((attempt.correctCount / answered) * 100) : 0;
 
     return (
-        <div className={`rounded-xl border transition-colors ${isConfirming ? 'border-red-300 dark:border-red-900 bg-red-50/50 dark:bg-red-900/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'}`}>
-            <div className="flex items-center gap-3 px-3 py-3">
+        <div className={`relative overflow-hidden rounded-xl border transition-all duration-200 ${
+            isConfirming 
+                ? 'border-rose-300 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20' 
+                : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-purple-300 dark:hover:border-purple-800/60 shadow-sm hover:shadow-md'
+        }`}>
+            {isBest && <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-teal-400" />}
+            <div className="flex items-center gap-3 px-4 py-3.5">
                 <button onClick={onOpen} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                    <span className="shrink-0 w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 text-xs font-bold flex items-center justify-center">
+                    <span className="grid place-items-center shrink-0 w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 text-xs font-extrabold tabular-nums">
                         {number}
                     </span>
                     <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                            <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 truncate">
                                 {attempt.startTime ? fmt.dateTime(attempt.startTime) : 'Waktu tidak tersedia'}
                             </span>
                             {isBest && (
-                                <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold uppercase">
-                                    <Trophy size={10} /> Tertinggi
+                                <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50 text-[10px] font-extrabold uppercase">
+                                    <Trophy size={11} /> Tertinggi
                                 </span>
                             )}
                         </span>
-                        <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+                        <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium tabular-nums">
                             {duration && (
-                                <span className="inline-flex items-center gap-1"><Clock size={11} />{duration}</span>
+                                <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300"><Clock size={12} />{duration}</span>
                             )}
                             <span className="text-emerald-600 dark:text-emerald-400">{attempt.correctCount} benar</span>
-                            <span className="text-red-600 dark:text-red-400">{attempt.incorrectCount} salah</span>
+                            <span className="text-rose-600 dark:text-rose-400">{attempt.incorrectCount} salah</span>
                             {attempt.notAnsweredCount !== undefined && (
                                 <span>{attempt.notAnsweredCount} kosong</span>
                             )}
@@ -748,18 +834,22 @@ function AttemptRow({ attempt, number, isBest, formatScore, totalQuestions, isDe
 
                 <div className="shrink-0 flex items-center gap-2">
                     <div className="hidden sm:flex flex-col items-end gap-1">
-                        <span className={`px-2.5 py-1 rounded-lg text-sm font-bold tabular-nums ${scoreTone}`}>{formatScore(score)}</span>
-                        <span className="w-20 h-1 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                            <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${accuracy}%` }} />
+                        <span className={`px-2.5 py-1 rounded-xl text-sm font-extrabold tabular-nums border ${scoreTone.bg} ${scoreTone.text} ${scoreTone.border}`}>
+                            {formatScore(score)}
                         </span>
+                        <div className="w-20 h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${accuracy}%` }} />
+                        </div>
                     </div>
-                    <span className={`sm:hidden px-2.5 py-1 rounded-lg text-sm font-bold tabular-nums ${scoreTone}`}>{formatScore(score)}</span>
+                    <span className={`sm:hidden px-2.5 py-1 rounded-xl text-sm font-extrabold tabular-nums border ${scoreTone.bg} ${scoreTone.text} ${scoreTone.border}`}>
+                        {formatScore(score)}
+                    </span>
 
                     <button
                         onClick={onShowLogs}
                         aria-label="Lihat log aktivitas"
                         title="Log aktivitas"
-                        className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                        className="p-2 rounded-xl text-purple-600 dark:text-purple-400 hover:bg-purple-100/70 dark:hover:bg-purple-950/60 transition-colors"
                     >
                         <ScrollText size={16} />
                     </button>
@@ -768,25 +858,25 @@ function AttemptRow({ attempt, number, isBest, formatScore, totalQuestions, isDe
                         disabled={isDeleting}
                         aria-label="Hapus attempt"
                         title="Hapus attempt"
-                        className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                        className="p-2 rounded-xl text-rose-500 dark:text-rose-400 hover:bg-rose-100/70 dark:hover:bg-rose-950/60 transition-colors disabled:opacity-50"
                     >
                         <Trash2 size={16} />
                     </button>
-                    <ChevronRight size={16} className="text-slate-300 dark:text-slate-600 hidden sm:block" />
+                    <ChevronRight size={16} className="text-slate-400 hidden sm:block" />
                 </div>
             </div>
 
             {isConfirming && (
-                <div className="flex items-center justify-between gap-3 px-3 py-2 border-t border-red-200 dark:border-red-900">
-                    <p className="text-xs text-red-700 dark:text-red-300">Hapus attempt ini? Jawaban & nilai akan hilang permanen.</p>
+                <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-rose-200 dark:border-rose-900/60 bg-rose-100/40 dark:bg-rose-950/40">
+                    <p className="text-xs font-semibold text-rose-800 dark:text-rose-300">Hapus attempt ini? Jawaban & nilai akan hilang permanen.</p>
                     <div className="flex items-center gap-1.5 shrink-0">
-                        <button onClick={onCancelDelete} className="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                        <button onClick={onCancelDelete} className="px-3 py-1 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors">
                             Batal
                         </button>
                         <button
                             onClick={onConfirmDelete}
                             disabled={isDeleting}
-                            className="px-2.5 py-1 rounded-md text-xs font-semibold bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 transition-colors"
+                            className="px-3 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-50 transition-colors shadow-sm"
                         >
                             {isDeleting ? 'Menghapus...' : 'Hapus'}
                         </button>
@@ -800,46 +890,46 @@ function AttemptRow({ attempt, number, isBest, formatScore, totalQuestions, isDe
 const LOG_TYPE_META = {
     START: {
         label: 'Mulai', icon: PlayCircle, hint: 'Siswa membuka dan memulai sesi ujian.',
-        badge: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
-        card: 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/10',
+        badge: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50',
+        card: 'border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20',
         dot: 'bg-emerald-500'
     },
     SUBMIT: {
         label: 'Dikumpulkan', icon: Send, hint: 'Jawaban dikumpulkan, manual oleh siswa atau otomatis karena waktu habis.',
-        badge: 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300',
-        card: 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/10',
-        dot: 'bg-indigo-500'
+        badge: 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-900/50',
+        card: 'border-purple-200 dark:border-purple-900/50 bg-purple-50/40 dark:bg-purple-950/20',
+        dot: 'bg-purple-500'
     },
     ANSWER: {
         label: 'Jawaban', icon: PencilLine, hint: 'Siswa memilih, mengubah, atau menghapus jawaban.',
-        badge: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300',
-        card: 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800',
-        dot: 'bg-slate-400'
+        badge: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
+        card: 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900',
+        dot: 'bg-purple-400'
     },
     NAVIGATE: {
         label: 'Navigasi', icon: Navigation, hint: 'Siswa berpindah halaman soal.',
-        badge: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300',
-        card: 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800',
-        dot: 'bg-slate-300 dark:bg-slate-600'
+        badge: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
+        card: 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900',
+        dot: 'bg-slate-400'
     },
     FLAG: {
         label: 'Tanda ragu', icon: Flag, hint: 'Siswa menandai atau menghapus tanda soal ragu-ragu.',
-        badge: 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
-        card: 'border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10',
+        badge: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50',
+        card: 'border-amber-200 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20',
         dot: 'bg-amber-500'
     },
     SECURITY: {
         label: 'Keamanan', icon: ShieldAlert, hint: 'Pelanggaran: keluar halaman, minimize, kehilangan fokus, copy, atau paste.',
-        badge: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
-        card: 'border-red-200 dark:border-red-900 bg-red-50/60 dark:bg-red-900/10',
-        dot: 'bg-red-500'
+        badge: 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60',
+        card: 'border-rose-200 dark:border-rose-900/60 bg-rose-50/60 dark:bg-rose-950/20',
+        dot: 'bg-rose-500'
     }
 };
 
 const GENERIC_LOG_META = {
     label: 'Lainnya', icon: Circle, hint: 'Jenis aktivitas lain yang belum dikelompokkan.',
-    badge: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300',
-    card: 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800',
+    badge: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
+    card: 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900',
     dot: 'bg-slate-400'
 };
 
@@ -926,23 +1016,24 @@ function LogViewerModal({ attemptId, studentName, onClose }) {
         : null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={onClose}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-3 sm:p-6" onClick={onClose}>
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-label={`Log aktivitas ${studentName}`}
-                className="relative w-full sm:max-w-2xl sm:max-h-[85vh] h-full sm:h-auto bg-white dark:bg-slate-900 sm:rounded-2xl shadow-xl flex flex-col overflow-hidden"
+                className="relative w-full sm:max-w-2xl sm:max-h-[85vh] h-full sm:h-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden ring-1 ring-slate-900/5 dark:ring-slate-100/5"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-500" />
+                <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-purple-500/5 via-indigo-500/5 to-transparent">
                     <div className="min-w-0">
-                        <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Log Aktivitas</h3>
+                        <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">Log Aktivitas</h3>
                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{studentName}</p>
                     </div>
                     <button
                         onClick={onClose}
                         aria-label="Tutup"
-                        className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     >
                         <X size={18} />
                     </button>
@@ -950,31 +1041,36 @@ function LogViewerModal({ attemptId, studentName, onClose }) {
 
                 {loading ? (
                     <div className="flex-1 flex flex-col items-center justify-center py-20 gap-3">
-                        <div className="w-6 h-6 border-2 border-slate-200 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
-                        <p className="text-xs font-medium text-slate-400">Memuat log...</p>
+                        <div className="w-8 h-8 border-3 border-purple-200 dark:border-purple-900 border-t-purple-600 rounded-full animate-spin" />
+                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Memuat log...</p>
                     </div>
                 ) : error ? (
                     <div className="flex-1 flex items-center justify-center p-10 text-center">
                         <div className="max-w-xs">
-                            <div className="text-red-400 mb-3 flex justify-center"><AlertCircle size={32} /></div>
-                            <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Gagal memuat log</h3>
-                            <p className="text-sm text-slate-500">{error}</p>
+                            <div className="grid place-items-center w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 mx-auto mb-3">
+                                <AlertCircle size={24} />
+                            </div>
+                            <h3 className="text-base font-extrabold text-slate-900 dark:text-white mb-1">Gagal memuat log</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{error}</p>
                         </div>
                     </div>
                 ) : logs.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
-                        <ClipboardListIcon />
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-3">Belum ada aktivitas tercatat pada sesi ini.</p>
+                        <div className="grid place-items-center w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 mb-3">
+                            <ScrollText size={22} />
+                        </div>
+                        <p className="text-sm font-bold text-slate-800 dark:text-white">Tidak ada aktivitas</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Belum ada aktivitas tercatat pada sesi ini.</p>
                     </div>
                 ) : (
                     <>
-<div className="px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex flex-wrap items-center gap-2">
-                            <span className="text-xs text-slate-500 dark:text-slate-400 mr-1">
+                        <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 mr-1 tabular-nums">
                                 {logs.length} catatan{durationText ? ` · ${durationText}` : ''}
                             </span>
                             {securityCount > 0 && (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300" title="Aktivitas yang melanggar aturan keamanan saat ujian">
-                                    <ShieldAlert size={12} /> {securityCount} pelanggaran keamanan
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60" title="Aktivitas yang melanggar aturan keamanan saat ujian">
+                                    <ShieldAlert size={13} /> {securityCount} pelanggaran keamanan
                                 </span>
                             )}
                             <span className="flex-1" />
@@ -985,24 +1081,24 @@ function LogViewerModal({ attemptId, studentName, onClose }) {
                             <button
                                 onClick={() => setShowLegend(v => !v)}
                                 aria-expanded={showLegend}
-                                className="w-full flex items-center gap-2 px-5 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                                className="w-full flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors"
                             >
-                                <Info size={13} />
+                                <Info size={14} className="text-purple-600 dark:text-purple-400" />
                                 Apa arti setiap jenis log?
                                 <ChevronDown size={14} className={`ml-auto transition-transform ${showLegend ? 'rotate-180' : ''}`} />
                             </button>
                             {showLegend && (
-                                <ul className="px-5 pb-3 grid gap-1.5">
+                                <ul className="px-5 pb-3.5 grid gap-2 bg-slate-50/50 dark:bg-slate-800/30 pt-2 border-t border-slate-100 dark:border-slate-800">
                                     {types.map(([key, count]) => {
                                         const meta = getLogMeta(key);
                                         const Icon = meta.icon;
                                         return (
                                             <li key={key} className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400">
-                                                <span className={`shrink-0 mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide ${meta.badge}`}>
-                                                    <Icon size={10} /> {meta.label}
+                                                <span className={`shrink-0 mt-0.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide ${meta.badge}`}>
+                                                    <Icon size={11} /> {meta.label}
                                                 </span>
                                                 <span className="flex-1">{meta.hint}</span>
-                                                <span className="shrink-0 tabular-nums text-slate-400">({count})</span>
+                                                <span className="shrink-0 tabular-nums font-bold text-slate-400">({count})</span>
                                             </li>
                                         );
                                     })}
@@ -1010,13 +1106,13 @@ function LogViewerModal({ attemptId, studentName, onClose }) {
                             )}
                         </div>
 
-                        <div className="flex-1 overflow-y-auto px-5 py-4">
+                        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
                             {groupedLogs.map(group => (
-                                <div key={group.key} className="mb-4 last:mb-0">
-                                    <div className="sticky top-0 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur py-1 mb-2">
-                                        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{group.label}</span>
+                                <div key={group.key} className="space-y-2">
+                                    <div className="sticky top-0 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm py-1">
+                                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-purple-600 dark:text-purple-400">{group.label}</span>
                                     </div>
-                                    <ol className="space-y-0">
+                                    <ol className="space-y-2">
                                         {group.items.map((log, i) => (
                                             <LogRow key={log.id ?? `${log.created_at}-${i}`} log={log} isLast={i === group.items.length - 1} />
                                         ))}
@@ -1046,13 +1142,13 @@ function FilterPills({ types, filter, onChange }) {
                         onClick={() => onChange(pill.key)}
                         title={pill.hint}
                         aria-label={pill.hint}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border transition-colors ${isActive
-                            ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent'
-                            : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-400'
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold border transition-all ${isActive
+                            ? 'bg-purple-600 dark:bg-purple-500 text-white border-transparent shadow-sm'
+                            : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-purple-300 dark:hover:border-purple-800'
                         }`}
                     >
                         {pill.label}
-                        {pill.count !== undefined && <span className={isActive ? 'opacity-70' : 'text-slate-400'}>{pill.count}</span>}
+                        {pill.count !== undefined && <span className={`tabular-nums ${isActive ? 'opacity-80' : 'text-slate-400'}`}>{pill.count}</span>}
                     </button>
                 );
             })}
@@ -1068,27 +1164,19 @@ function LogRow({ log, isLast }) {
 
     return (
         <li className="flex items-start gap-3">
-            <span className="shrink-0 w-14 pt-1 text-right text-xs font-semibold tabular-nums text-slate-400">{time}</span>
+            <span className="shrink-0 w-14 pt-2 text-right text-xs font-bold tabular-nums text-slate-400">{time}</span>
             <span className="shrink-0 flex flex-col items-center w-3 self-stretch">
-                <span className={`mt-1.5 w-2.5 h-2.5 rounded-full ${meta.dot}`} />
-                {!isLast && <span className="flex-1 w-px bg-slate-200 dark:bg-slate-700 my-1" />}
+                <span className={`mt-2.5 w-2.5 h-2.5 rounded-full ${meta.dot} ring-2 ring-white dark:ring-slate-900`} />
+                {!isLast && <span className="flex-1 w-0.5 bg-slate-200 dark:bg-slate-800 my-1" />}
             </span>
-<div className={`flex-1 min-w-0 mb-2 rounded-lg border px-3 py-2 ${meta.card}`} title={meta.hint}>
-                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${meta.badge}`}>
-                    <Icon size={11} />
+            <div className={`flex-1 min-w-0 rounded-2xl border p-3.5 ${meta.card} shadow-sm`} title={meta.hint}>
+                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide ${meta.badge}`}>
+                    <Icon size={12} />
                     {meta.label}
                 </span>
-                <p className="mt-1 text-sm text-slate-700 dark:text-slate-200 leading-snug break-words">{log.description}</p>
+                <p className="mt-1.5 text-xs sm:text-sm text-slate-800 dark:text-slate-100 font-medium leading-relaxed break-words">{log.description}</p>
             </div>
         </li>
-    );
-}
-
-function ClipboardListIcon() {
-    return (
-        <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-        </div>
     );
 }
 
@@ -1102,10 +1190,10 @@ function formatDuration(ms) {
 }
 
 const STATUS_META = {
-    correct: { label: 'Benar', text: 'text-emerald-600 dark:text-emerald-400', chip: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300', border: 'border-emerald-200 dark:border-emerald-800', dot: 'bg-emerald-500' },
-    partial: { label: 'Sebagian', text: 'text-amber-600 dark:text-amber-400', chip: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300', border: 'border-amber-200 dark:border-amber-800', dot: 'bg-amber-500' },
-    wrong: { label: 'Salah', text: 'text-red-600 dark:text-red-400', chip: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300', border: 'border-red-200 dark:border-red-800', dot: 'bg-red-500' },
-    empty: { label: 'Kosong', text: 'text-slate-500 dark:text-slate-400', chip: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300', border: 'border-slate-200 dark:border-slate-700', dot: 'bg-slate-400' }
+    correct: { label: 'Benar', text: 'text-emerald-600 dark:text-emerald-400', chip: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50', dot: 'bg-emerald-500' },
+    partial: { label: 'Sebagian', text: 'text-amber-600 dark:text-amber-400', chip: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50', dot: 'bg-amber-500' },
+    wrong: { label: 'Salah', text: 'text-rose-600 dark:text-rose-400', chip: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50', dot: 'bg-rose-500' },
+    empty: { label: 'Kosong', text: 'text-slate-500 dark:text-slate-400', chip: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700', dot: 'bg-slate-400' }
 };
 
 function getAnswerStatus(ans) {
@@ -1185,11 +1273,8 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
     }, [items, filter]);
 
     const score = analysis?.score;
-    const scoreTone = score >= 80
-        ? 'text-emerald-600 dark:text-emerald-400'
-        : score >= 60
-            ? 'text-amber-600 dark:text-amber-400'
-            : 'text-red-600 dark:text-red-400';
+    const scoreToneKey = score >= 80 ? 'emerald' : score >= 60 ? 'amber' : 'rose';
+    const scoreTone = TONE[scoreToneKey];
 
     const filters = [
         { key: 'all', label: 'Semua', count: items.length },
@@ -1207,25 +1292,27 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
     };
 
     return (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={onClose}>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-3 sm:p-6" onClick={onClose}>
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-label={`Analisis jawaban ${studentName}`}
-                className="relative w-full sm:max-w-3xl sm:max-h-[88vh] h-full sm:h-auto bg-white dark:bg-slate-900 sm:rounded-2xl shadow-xl flex flex-col overflow-hidden"
+                className="relative w-full sm:max-w-3xl sm:max-h-[88vh] h-full sm:h-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden ring-1 ring-slate-900/5 dark:ring-slate-100/5"
                 onClick={(e) => e.stopPropagation()}
             >
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-500" />
+                
                 {/* Header */}
-                <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-purple-500/5 via-indigo-500/5 to-transparent">
                     <div className="min-w-0">
-                        <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">Analisis Jawaban</h2>
+                        <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white truncate tracking-tight">Analisis Jawaban</h2>
                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{studentName}</p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                         {score !== undefined && score !== null && (
                             <div className="text-right">
-                                <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Nilai</div>
-                                <div className={`text-xl font-bold leading-none ${scoreTone}`}>
+                                <div className="text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Nilai</div>
+                                <div className={`text-xl font-extrabold leading-none tabular-nums ${scoreTone.text}`}>
                                     {analysis?.scoringMode === 'raw' ? formatNumber(score) : Math.round(score)}
                                 </div>
                             </div>
@@ -1233,7 +1320,7 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
                         <button
                             onClick={onClose}
                             aria-label="Tutup"
-                            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                         >
                             <X size={18} />
                         </button>
@@ -1242,29 +1329,31 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
 
                 {loading ? (
                     <div className="flex-1 flex flex-col items-center justify-center py-20 gap-3">
-                        <div className="w-6 h-6 border-2 border-slate-200 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
-                        <p className="text-xs font-medium text-slate-400">Memuat analisis...</p>
+                        <div className="w-8 h-8 border-3 border-purple-200 dark:border-purple-900 border-t-purple-600 rounded-full animate-spin" />
+                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Memuat analisis...</p>
                     </div>
                 ) : error ? (
                     <div className="flex-1 flex items-center justify-center p-10 text-center">
                         <div className="max-w-xs">
-                            <div className="text-red-400 mb-3 flex justify-center"><AlertCircle size={32} /></div>
-                            <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Gagal memuat analisis</h3>
-                            <p className="text-sm text-slate-500">{error}</p>
+                            <div className="grid place-items-center w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 mx-auto mb-3">
+                                <AlertCircle size={24} />
+                            </div>
+                            <h3 className="text-base font-extrabold text-slate-900 dark:text-white mb-1">Gagal memuat analisis</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{error}</p>
                         </div>
                     </div>
                 ) : (
                     <>
-{/* Summary + Filters */}
-                        <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400 mb-2">
-                                <span className="font-semibold">Ringkasan:</span>
-                                <span>{counts.correct} benar</span>
-                                <span>{counts.wrong} salah</span>
-                                <span>{counts.partial} sebagian</span>
-                                <span>{counts.empty} kosong</span>
+                        {/* Summary & Filters */}
+                        <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-2.5">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300 font-medium tabular-nums">
+                                <span className="font-bold text-slate-800 dark:text-white">Ringkasan:</span>
+                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{counts.correct} benar</span>
+                                <span className="text-rose-600 dark:text-rose-400 font-semibold">{counts.wrong} salah</span>
+                                <span className="text-amber-600 dark:text-amber-400 font-semibold">{counts.partial} sebagian</span>
+                                <span className="text-slate-500 dark:text-slate-400">{counts.empty} kosong</span>
                             </div>
-                            <div className="flex flex-wrap gap-2 mb-3">
+                            <div className="flex flex-wrap gap-1.5">
                                 {filters.map(f => {
                                     const isActive = filter === f.key;
                                     const isZero = f.count === 0 && f.key !== 'all';
@@ -1274,13 +1363,13 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
                                             onClick={() => setFilter(f.key)}
                                             disabled={isZero}
                                             title={`Tampilkan ${f.label.toLowerCase()}`}
-                                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isActive
-                                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent'
-                                                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-400'
+                                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isActive
+                                                ? 'bg-purple-600 dark:bg-purple-500 text-white border-transparent shadow-sm'
+                                                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-purple-300 dark:hover:border-purple-800'
                                             }`}
                                         >
                                             {f.label}
-                                            <span className={isActive ? 'opacity-70' : 'text-slate-400'}>{f.count}</span>
+                                            <span className={`tabular-nums ${isActive ? 'opacity-80' : 'text-slate-400'}`}>{f.count}</span>
                                         </button>
                                     );
                                 })}
@@ -1293,7 +1382,7 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
                                             key={item.questionId}
                                             onClick={() => jumpTo(item.number)}
                                             title={`Soal ${item.number} - ${STATUS_META[item.status].label}`}
-                                            className={`shrink-0 w-7 h-7 rounded-md text-[11px] font-bold text-white ${STATUS_META[item.status].dot} hover:opacity-80 transition-opacity`}
+                                            className={`shrink-0 w-7 h-7 rounded-lg text-xs font-bold text-white ${STATUS_META[item.status].dot} hover:opacity-80 transition-opacity shadow-xs`}
                                         >
                                             {item.number}
                                         </button>
@@ -1302,18 +1391,18 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
                             )}
                         </div>
 
-                        {/* Questions */}
-<div ref={contentRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+                        {/* Questions Review */}
+                        <div ref={contentRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
                             {visibleItems.length === 0 && (
-                                <p className="text-sm text-slate-400 text-center py-12">Tidak ada soal pada filter ini.</p>
+                                <p className="text-xs font-semibold text-slate-400 text-center py-12">Tidak ada soal pada filter ini.</p>
                             )}
 
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
-                                <span className="font-semibold">Keterangan:</span>
-                                <LegendItem className="text-emerald-600 dark:text-emerald-400" icon={<Check size={11} />} text="hijau = kunci jawaban / jawaban benar" />
-                                <LegendItem className="text-red-600 dark:text-red-400" icon={<X size={11} />} text="merah = jawaban siswa yang salah" />
-                                <LegendItem className="text-slate-400" icon={<MinusCircle size={11} />} text="abu-abu = tidak dijawab" />
-                                <LegendItem className="text-amber-600 dark:text-amber-400" icon={<AlertCircle size={11} />} text="kuning = sebagian benar (pola penilaian sebagian)" />
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">Keterangan:</span>
+                                <LegendItem className="text-emerald-600 dark:text-emerald-400" icon={<Check size={12} />} text="hijau = kunci jawaban / jawaban benar" />
+                                <LegendItem className="text-rose-600 dark:text-rose-400" icon={<X size={12} />} text="merah = jawaban siswa yang salah" />
+                                <LegendItem className="text-slate-400" icon={<MinusCircle size={12} />} text="abu-abu = tidak dijawab" />
+                                <LegendItem className="text-amber-600 dark:text-amber-400" icon={<AlertCircle size={12} />} text="kuning = sebagian benar" />
                             </div>
 
                             {visibleItems.map(item => (
@@ -1351,7 +1440,7 @@ function AttemptAnalysisDetail({ attemptId, onClose, studentName }) {
 
 function LegendItem({ icon, text, className }) {
     return (
-        <span className={`inline-flex items-center gap-1 ${className}`}>
+        <span className={`inline-flex items-center gap-1 font-medium ${className}`}>
             <span className="shrink-0">{icon}</span>
             {text}
         </span>
@@ -1375,46 +1464,46 @@ function QuestionReviewCard({ item, innerRef }) {
     return (
         <article
             ref={innerRef}
-            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden scroll-mt-2"
+            className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm scroll-mt-2"
         >
-            <div className="flex items-start gap-3 px-4 py-3 border-b border-slate-100 dark:border-slate-700/60">
-                <div className="shrink-0 w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 text-xs font-bold flex items-center justify-center">
+            <div className="flex items-start gap-3 px-4 py-3.5 border-b border-slate-200/80 dark:border-slate-800">
+                <div className="shrink-0 w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 text-xs font-extrabold flex items-center justify-center tabular-nums">
                     {item.number}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="prose dark:prose-invert prose-sm max-w-none text-sm font-medium text-slate-800 dark:text-slate-100 custom-content-wrapper" dangerouslySetInnerHTML={{ __html: item.questionText }} />
-                    <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-400">
-                        <span className="uppercase tracking-wide">{(item.questionType || 'multiple choice').replace(/_/g, ' ')}</span>
+                    <div className="prose dark:prose-invert prose-sm max-w-none text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-100 custom-content-wrapper" dangerouslySetInnerHTML={{ __html: item.questionText }} />
+                    <div className="mt-1.5 flex items-center gap-2 text-[11px] font-semibold text-slate-400">
+                        <span className="uppercase tracking-wider">{(item.questionType || 'multiple choice').replace(/_/g, ' ')}</span>
                         <span>·</span>
-                        <span>{formatNumber(item.scoreEarned)} / {formatNumber(item.points)} poin</span>
+                        <span className="tabular-nums">{formatNumber(item.scoreEarned)} / {formatNumber(item.points)} poin</span>
                     </div>
                 </div>
-                <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold ${meta.chip}`}>
-                    {item.status === 'correct' && <Check size={12} />}
-                    {item.status === 'wrong' && <X size={12} />}
-                    {item.status === 'empty' && <MinusCircle size={12} />}
-                    {item.status === 'partial' && <AlertCircle size={12} />}
+                <span className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold ${meta.chip}`}>
+                    {item.status === 'correct' && <Check size={13} />}
+                    {item.status === 'wrong' && <X size={13} />}
+                    {item.status === 'empty' && <MinusCircle size={13} />}
+                    {item.status === 'partial' && <AlertCircle size={13} />}
                     {meta.label}
                 </span>
             </div>
 
-            <div className="px-4 py-3 space-y-2 bg-slate-50/60 dark:bg-slate-900/40">
+            <div className="px-4 py-3.5 space-y-2.5 bg-slate-50/50 dark:bg-slate-900/40">
                 {isMatching ? (
                     <MatchingReview item={item} />
                 ) : isEssay ? (
-                    <div className="space-y-2">
-                        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Jawaban siswa</div>
+                    <div className="space-y-2.5">
+                        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-xs">
+                            <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Jawaban siswa</div>
                             {item.studentAnswer ? (
-                                <div className="prose dark:prose-invert prose-sm max-w-none text-sm text-slate-700 dark:text-slate-200 custom-content-wrapper" dangerouslySetInnerHTML={{ __html: item.studentAnswer }} />
+                                <div className="prose dark:prose-invert prose-sm max-w-none text-xs sm:text-sm text-slate-700 dark:text-slate-200 custom-content-wrapper" dangerouslySetInnerHTML={{ __html: item.studentAnswer }} />
                             ) : (
-                                <p className="text-sm text-slate-400 italic">Tidak dijawab</p>
+                                <p className="text-xs text-slate-400 italic">Tidak dijawab</p>
                             )}
                         </div>
                         {item.correctAnswer && (
-                            <div className="rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-900/10 p-3">
-                                <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400 mb-1">Kunci jawaban</div>
-                                <div className="prose dark:prose-invert prose-sm max-w-none text-sm text-emerald-800 dark:text-emerald-200 custom-content-wrapper" dangerouslySetInnerHTML={{ __html: item.correctAnswer }} />
+                            <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/30 p-3.5 shadow-xs">
+                                <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">Kunci jawaban</div>
+                                <div className="prose dark:prose-invert prose-sm max-w-none text-xs sm:text-sm text-emerald-800 dark:text-emerald-200 custom-content-wrapper" dangerouslySetInnerHTML={{ __html: item.correctAnswer }} />
                             </div>
                         )}
                     </div>
@@ -1423,35 +1512,35 @@ function QuestionReviewCard({ item, innerRef }) {
                         const isCorrectOption = correctChoices.includes(key);
                         const isSelected = studentChoices.includes(key);
 
-                        let tone = 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300';
-                        let badge = 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300';
+                        let tone = 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300';
+                        let badge = 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400';
                         let mark = null;
 
                         if (isCorrectOption) {
-                            tone = 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-900/15 text-emerald-900 dark:text-emerald-200';
-                            badge = 'bg-emerald-500 text-white';
+                            tone = 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200 font-medium';
+                            badge = 'bg-emerald-600 text-white';
                             mark = <CheckCircle2 size={16} className="text-emerald-500" />;
                         } else if (isSelected) {
-                            tone = 'border-red-300 dark:border-red-900 bg-red-50/70 dark:bg-red-900/15 text-red-900 dark:text-red-200';
-                            badge = 'bg-red-500 text-white';
-                            mark = <XCircle size={16} className="text-red-500" />;
+                            tone = 'border-rose-300 dark:border-rose-900 bg-rose-50/70 dark:bg-rose-950/30 text-rose-900 dark:text-rose-200';
+                            badge = 'bg-rose-600 text-white';
+                            mark = <XCircle size={16} className="text-rose-500" />;
                         }
 
                         return (
-                            <div key={key} className={`flex items-start gap-2.5 rounded-lg border px-3 py-2 ${tone}`}>
-                                <span className={`mt-0.5 shrink-0 w-5 h-5 rounded text-[11px] font-bold flex items-center justify-center ${badge}`}>{key}</span>
-                                <div className="flex-1 min-w-0 prose dark:prose-invert prose-sm max-w-none text-sm custom-content-wrapper" dangerouslySetInnerHTML={{ __html: value }} />
+                            <div key={key} className={`flex items-start gap-3 rounded-xl border px-3.5 py-2.5 transition-colors ${tone}`}>
+                                <span className={`mt-0.5 shrink-0 w-5 h-5 rounded-lg text-xs font-bold flex items-center justify-center ${badge}`}>{key}</span>
+                                <div className="flex-1 min-w-0 prose dark:prose-invert prose-sm max-w-none text-xs sm:text-sm custom-content-wrapper" dangerouslySetInnerHTML={{ __html: value }} />
                                 <span className="shrink-0 mt-0.5">{mark}</span>
                             </div>
                         );
                     })
                 ) : (
-                    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm">
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 text-xs sm:text-sm">
                         <p className={item.studentAnswer ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 italic'}>
                             {item.studentAnswer || 'Tidak dijawab'}
                         </p>
                         {item.correctAnswer && (
-                            <p className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700 text-emerald-700 dark:text-emerald-300">
+                            <p className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-emerald-700 dark:text-emerald-300 font-semibold">
                                 Kunci: {item.correctAnswer}
                             </p>
                         )}
@@ -1473,7 +1562,7 @@ function MatchingReview({ item }) {
     const pairs = item.options?.pairs || [];
 
     if (pairs.length === 0) {
-        return <p className="text-sm text-slate-400">Tidak ada pasangan yang tersedia.</p>;
+        return <p className="text-xs text-slate-400 italic">Tidak ada pasangan yang tersedia.</p>;
     }
 
     return (
@@ -1483,26 +1572,26 @@ function MatchingReview({ item }) {
                 const isPairCorrect = studentMatch === pair.r;
 
                 return (
-                    <div key={pair.id} className={`rounded-lg border px-3 py-2 ${isPairCorrect
-                        ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10'
-                        : 'border-red-200 dark:border-red-900 bg-red-50/60 dark:bg-red-900/10'}`}>
-                        <div className="flex items-start gap-2.5">
+                    <div key={pair.id} className={`rounded-xl border px-3.5 py-2.5 ${isPairCorrect
+                        ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20'
+                        : 'border-rose-200 dark:border-rose-900/60 bg-rose-50/60 dark:bg-rose-950/20'}`}>
+                        <div className="flex items-start gap-3">
                             <span className="shrink-0 mt-0.5">
                                 {isPairCorrect
                                     ? <CheckCircle2 size={16} className="text-emerald-500" />
-                                    : <XCircle size={16} className="text-red-500" />}
+                                    : <XCircle size={16} className="text-rose-500" />}
                             </span>
                             <div className="flex-1 min-w-0 space-y-1">
-                                <div className="text-sm text-slate-700 dark:text-slate-200 prose dark:prose-invert prose-sm max-w-none custom-content-wrapper" dangerouslySetInnerHTML={{ __html: pair.p }} />
-                                <div className="text-sm prose dark:prose-invert prose-sm max-w-none custom-content-wrapper">
-                                    <span className="text-slate-400">Dijawab: </span>
-                                    <span className={isPairCorrect ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}>
-                                        {studentMatch ? <span dangerouslySetInnerHTML={{ __html: studentMatch }} /> : <em className="text-slate-400">tidak diisi</em>}
+                                <div className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-100 prose dark:prose-invert prose-sm max-w-none custom-content-wrapper" dangerouslySetInnerHTML={{ __html: pair.p }} />
+                                <div className="text-xs prose dark:prose-invert prose-sm max-w-none custom-content-wrapper">
+                                    <span className="text-slate-400 font-medium">Dijawab: </span>
+                                    <span className={isPairCorrect ? 'text-emerald-700 dark:text-emerald-300 font-bold' : 'text-rose-700 dark:text-rose-300 font-bold'}>
+                                        {studentMatch ? <span dangerouslySetInnerHTML={{ __html: studentMatch }} /> : <em className="text-slate-400 font-normal">tidak diisi</em>}
                                     </span>
                                 </div>
                                 {!isPairCorrect && (
-                                    <div className="text-sm text-emerald-700 dark:text-emerald-300 prose dark:prose-invert prose-sm max-w-none custom-content-wrapper">
-                                        <span className="text-slate-400">Kunci: </span>
+                                    <div className="text-xs text-emerald-700 dark:text-emerald-300 font-semibold prose dark:prose-invert prose-sm max-w-none custom-content-wrapper">
+                                        <span className="text-slate-400 font-medium">Kunci: </span>
                                         <span dangerouslySetInnerHTML={{ __html: pair.r }} />
                                     </div>
                                 )}
@@ -1519,38 +1608,84 @@ function ExportOptionsModal({ onClose, onExport }) {
     const [mode, setMode] = useState('all');
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex justify-center items-center p-4" onClick={onClose}>
-            <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-4">Export Results</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Select how you want to export the exam data to Excel.</p>
-
-                <div className="space-y-3 mb-8">
-                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${mode === 'all' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-600'}`}>
-                        <input type="radio" name="exportMode" value="all" checked={mode === 'all'} onChange={() => setMode('all')} className="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
-                        <div className="ml-3">
-                            <div className="font-semibold text-slate-800 dark:text-slate-100">All Attempts</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">Export every single attempt made by users</div>
-                        </div>
-                    </label>
-                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${mode === 'best' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-600'}`}>
-                        <input type="radio" name="exportMode" value="best" checked={mode === 'best'} onChange={() => setMode('best')} className="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
-                        <div className="ml-3">
-                            <div className="font-semibold text-slate-800 dark:text-slate-100">Best Attempt Only</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">Export only the highest score per user</div>
-                        </div>
-                    </label>
-                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${mode === 'latest' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-600'}`}>
-                        <input type="radio" name="exportMode" value="latest" checked={mode === 'latest'} onChange={() => setMode('latest')} className="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
-                        <div className="ml-3">
-                            <div className="font-semibold text-slate-800 dark:text-slate-100">Latest Attempt Only</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">Export only the most recent submission</div>
-                        </div>
-                    </label>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] flex justify-center items-center p-3 sm:p-6" onClick={onClose}>
+            <div 
+                role="dialog"
+                aria-modal="true"
+                aria-label="Export Data Ujian"
+                className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xl overflow-hidden ring-1 ring-slate-900/5 dark:ring-slate-100/5"
+                onClick={e => e.stopPropagation()}
+            >
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-500" />
+                <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-purple-500/5 via-indigo-500/5 to-transparent">
+                    <div>
+                        <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">Export Data Ujian</h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Pilih format pengelompokan data untuk di-download dalam Excel (.xlsx)</p>
+                    </div>
+                    <button 
+                        onClick={onClose}
+                        aria-label="Tutup"
+                        className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                        <X size={18} />
+                    </button>
                 </div>
 
-                <div className="flex justify-end gap-3">
-                    <button onClick={onClose} className="px-4 py-2 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors">Cancel</button>
-                    <button onClick={() => onExport(mode)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 text-white font-medium rounded-lg shadow-sm transition-colors">
+                <div className="p-5 sm:p-6 space-y-3">
+                    {[
+                        { id: 'all', title: 'Semua Attempt', desc: 'Ekspor seluruh riwayat percobaan yang dilakukan oleh semua siswa', icon: FileSpreadsheet, tone: 'purple' },
+                        { id: 'best', title: 'Attempt Nilai Tertinggi', desc: 'Hanya mengambil 1 nilai tertinggi dari tiap siswa', icon: Trophy, tone: 'emerald' },
+                        { id: 'latest', title: 'Attempt Terakhir', desc: 'Hanya mengambil percobaan yang paling baru dikumpulkan', icon: Clock, tone: 'amber' }
+                    ].map((opt) => {
+                        const isSelected = mode === opt.id;
+                        const tone = TONE[opt.tone];
+                        const Icon = opt.icon;
+                        return (
+                            <label
+                                key={opt.id}
+                                className={`flex items-start p-4 rounded-xl border cursor-pointer transition-all duration-200 ${
+                                    isSelected 
+                                        ? `${tone.border} ${tone.bg} ring-2 ring-purple-500/30 shadow-md` 
+                                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-purple-300 dark:hover:border-purple-800/60'
+                                }`}
+                            >
+                                <input
+                                    type="radio"
+                                    name="exportMode"
+                                    value={opt.id}
+                                    checked={isSelected}
+                                    onChange={() => setMode(opt.id)}
+                                    className="sr-only"
+                                />
+                                <div className={`grid place-items-center w-9 h-9 rounded-xl shrink-0 mt-0.5 mr-3 ${tone.iconBg}`}>
+                                    <Icon size={18} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-sm text-slate-900 dark:text-white">{opt.title}</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{opt.desc}</div>
+                                </div>
+                                <div className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-1 ${
+                                    isSelected ? 'border-purple-600 bg-purple-600 dark:border-purple-500 dark:bg-purple-500' : 'border-slate-300 dark:border-slate-600'
+                                }`}>
+                                    {isSelected && <span className="w-2 h-2 rounded-full bg-white" />}
+                                </div>
+                            </label>
+                        );
+                    })}
+                </div>
+
+                <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-end gap-2.5">
+                    <button 
+                        onClick={onClose} 
+                        className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                    >
+                        Batal
+                    </button>
+                    <button 
+                        onClick={() => onExport(mode)} 
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 text-white text-xs font-semibold rounded-xl shadow-md shadow-purple-500/20 transition-all"
+                    >
+                        <Download size={14} />
                         Download Excel
                     </button>
                 </div>

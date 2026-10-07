@@ -37,8 +37,57 @@ const Icons = {
   Spinner: (props) => <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" {...props}><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
 };
 
+// --- Design tokens ---
+// Satu sumber warna untuk seluruh kartu ujian: aksen kiri card, warna chip
+// schedule, dan tombol aksi semuanya diturunkan dari status yang sama, jadi
+// kartu tidak terlihat flat dan warna selalu punya arti (bukan hiasan).
+const STATUS_ACCENT = {
+  notStarted: {
+    bar: 'from-slate-400 to-slate-300 dark:from-slate-600 dark:to-slate-700',
+    ring: 'ring-slate-200 dark:ring-slate-800',
+    chip: 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+    iconWrap: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
+  },
+  inProgress: {
+    bar: 'from-amber-400 to-orange-400 dark:from-amber-500 dark:to-orange-600',
+    ring: 'ring-amber-200 dark:ring-amber-900/50',
+    chip: 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/60',
+    iconWrap: 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400',
+  },
+  available: {
+    bar: 'from-emerald-500 to-teal-500 dark:from-emerald-600 dark:to-teal-600',
+    ring: 'ring-emerald-200 dark:ring-emerald-900/50',
+    chip: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60',
+    iconWrap: 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400',
+  },
+  ended: {
+    bar: 'from-slate-300 to-slate-200 dark:from-slate-700 dark:to-slate-800',
+    ring: 'ring-slate-200 dark:ring-slate-800',
+    chip: 'bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700',
+    iconWrap: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500',
+  },
+};
+
+/**
+ * Status visual satu kartu, dipakai ExamCard (untuk warna) dan
+ * StudentExamActions (untuk isi tombol) supaya keduanya tidak pernah
+ * berbeda pendapat soal warna kartu.
+ */
+function getExamStatusKey(exam, timezone, now) {
+  const startTime = wallClockToEpochMs(exam.start_time, timezone);
+  const endTime = wallClockToEpochMs(exam.end_time, timezone);
+  const maxAttempts = exam.max_attempts ? Number(exam.max_attempts) : null;
+  const userAttempts = exam.user_attempts || 0;
+  const maxReached = maxAttempts !== null && userAttempts >= maxAttempts;
+
+  if (startTime !== null && now > 0 && now < startTime) return 'notStarted';
+  if (exam.has_in_progress && !(endTime !== null && now > 0 && now > endTime)) return 'inProgress';
+  if (maxReached || (endTime !== null && now > 0 && now > endTime)) return 'ended';
+  return 'available';
+}
+
 // --- Student Action Button Component ---
-const StudentExamActions = ({ exam }) => {
+const StudentExamActions = ({ exam, accent, nowMs }) => {
   const { t, timezone } = useLanguage();
 
   // Jadwal MySQL bersifat naive, jadi harus dikonversi ke epoch lewat zona
@@ -52,15 +101,8 @@ const StudentExamActions = ({ exam }) => {
   const latestAttemptId = exam.latest_attempt_id;
   const latestScore = exam.latest_score;
 
-  // Countdown harus benar-benar berjalan, jadi jam lokal di-tick tiap detik.
-  // Nilai awal null supaya render SSR dan hydration sama-sama pakai null
-  // (tidak ada hydration mismatch), lalu diisi setelah mount.
-  const [nowMs, setNowMs] = useState(null);
-  useEffect(() => {
-    setNowMs(Date.now());
-    const id = setInterval(() => setNowMs(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  // Jam lokal dikirim dari atas (satu interval untuk semua kartu, bukan satu
+  // per kartu) supaya countdown benar-benar jalan tanpa boros timer.
   const now = nowMs ?? 0;
 
   // Determine exam window status
@@ -85,30 +127,31 @@ const StudentExamActions = ({ exam }) => {
     return `${secs}s ${t('exams_countdown_prefix')}`;
   };
 
-  // Badge status
+  // Badge status. Warna diambil dari palet status yang sama dengan aksen card,
+  // jadi badge dan card selalu satu bahasa visual.
   let badge = null;
   if (examNotStarted) {
     badge = (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-        ðŸ”’ {t('exams_badge_not_started')}
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${accent.chip}`}>
+        {t('exams_badge_not_started')}
       </span>
     );
   } else if (hasInProgress && !examEnded) {
     badge = (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400">
-        âš¡ {t('exams_badge_in_progress')}
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${accent.chip}`}>
+        {t('exams_badge_in_progress')}
       </span>
     );
   } else if (examEnded || maxAttemptsReached) {
     badge = (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
-        âœ… {examEnded ? t('exams_badge_ended') : t('exams_badge_finished')}
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${accent.chip}`}>
+        {examEnded ? t('exams_badge_ended') : t('exams_badge_finished')}
       </span>
     );
   } else if (canTakeExam) {
     badge = (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400">
-        ðŸŸ¢ {t('exams_badge_available')}
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${accent.chip}`}>
+        {t('exams_badge_available')}
       </span>
     );
   }
@@ -249,9 +292,9 @@ const StudentExamActions = ({ exam }) => {
 
   if (examNotStarted) {
     actions.push(
-      <div key="status" className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-not-allowed select-none">
-        <Icons.Clock />
-        <span>{t('exams_status_not_started')} {formatCountdown(startTime)}</span>
+      <div key="status" className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border ${accent.chip} select-none`}>
+        <Icons.Clock className="w-4 h-4 shrink-0" />
+        <span>{t('exams_status_not_started')} · {formatCountdown(startTime)}</span>
       </div>
     );
   } else if (hasInProgress && !examEnded) {
@@ -261,14 +304,14 @@ const StudentExamActions = ({ exam }) => {
       <div key="in_progress" className="flex flex-col gap-2">
         {isSecure ? (
           showMethods && enabledMethods.length > 1 ? (
-             <div className="flex flex-col gap-1.5 p-2 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+             <div className="flex flex-col gap-1.5 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 px-1">Pilih Aplikasi:</p>
                 {enabledMethods.map(m => (
                   <button
                     key={m.id}
                     onClick={m.handler}
                     disabled={isLaunching}
-                    className={`w-full flex items-center justify-between px-3 py-2 ${m.color} text-white rounded-lg text-xs font-bold transition-all ${isLaunching ? 'opacity-70 cursor-wait' : 'active:scale-95'}`}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 ${m.color} text-white rounded-lg text-xs font-bold transition-all shadow-sm ${isLaunching ? 'opacity-70 cursor-wait' : 'active:scale-[0.98]'}`}
                   >
                     <div className="flex items-center gap-2">
                       {m.icon}
@@ -277,25 +320,26 @@ const StudentExamActions = ({ exam }) => {
                     <Icons.ChevronRight className="w-3 h-3" />
                   </button>
                 ))}
-                <button onClick={() => setShowMethods(false)} className="text-[10px] text-slate-400 hover:text-slate-600 text-center mt-1 py-1 font-bold">Batal</button>
+                <button onClick={() => setShowMethods(false)} className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-center mt-1 py-1 font-bold">Batal</button>
              </div>
           ) : (
             <button
               onClick={enabledMethods.length > 1 ? () => setShowMethods(true) : enabledMethods[0]?.handler}
               disabled={isLaunching}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-yellow-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
+              className={`w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-amber-200/60 dark:shadow-amber-950/40 ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
             >
                <Icons.Play className="w-4 h-4" />
                <span>{isLaunching ? t('layout_loading') : enabledMethods.length > 1 ? 'Lanjutkan (Pilih Aplikasi)' : t('exams_action_continue')}</span>
             </button>
           )
         ) : (
-          <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors">
-            <div className="flex items-center gap-2">
-              <Icons.Play />
-              <span>{t('exams_action_continue')}</span>
-            </div>
-            <Icons.ChevronRight />
+          <Link
+            href={`/dashboard/exams/kerjakan/${exam.id}`}
+            className="group w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-amber-200/60 dark:shadow-amber-950/40"
+          >
+            <Icons.Play className="w-4 h-4" />
+            <span>{t('exams_action_continue')}</span>
+            <Icons.ChevronRight className="w-3 h-3 opacity-70 transition-transform group-hover:translate-x-0.5" />
           </Link>
         )}
       </div>
@@ -305,17 +349,19 @@ const StudentExamActions = ({ exam }) => {
     if (latestAttemptId && latestFinished) {
       if (showResultsSetting) {
         actions.push(
-          <Link key="results" href={`/dashboard/exams/hasil/${latestAttemptId}`} className="group w-full flex items-center justify-between text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors py-1">
-            <div className="flex items-center gap-2">
-              <Icons.ChartBar />
-              <span>{t('exams_btn_results')} {latestScore !== null && latestScore !== undefined ? `(${Number(latestScore) % 1 === 0 ? latestScore : Number(latestScore).toFixed(2)})` : ''}</span>
-            </div>
-            <Icons.ChevronRight />
+          <Link
+            key="results"
+            href={`/dashboard/exams/hasil/${latestAttemptId}`}
+            className="group w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200/60 dark:shadow-indigo-950/40"
+          >
+            <Icons.ChartBar className="w-4 h-4" />
+            <span>{t('exams_btn_results')} {latestScore !== null && latestScore !== undefined ? `(${Number(latestScore) % 1 === 0 ? latestScore : Number(latestScore).toFixed(2)})` : ''}</span>
+            <Icons.ChevronRight className="w-3 h-3 opacity-70 transition-transform group-hover:translate-x-0.5" />
           </Link>
         );
       } else if (examEnded || maxAttemptsReached) {
         actions.push(
-          <div key="results_hidden" className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-default select-none py-1">
+          <div key="results_hidden" className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 select-none">
             <Icons.Shield className="w-4 h-4" />
             <span>{t('exams_status_hidden')}</span>
           </div>
@@ -332,14 +378,14 @@ const StudentExamActions = ({ exam }) => {
         <div key="take" className="flex flex-col gap-2 mt-1">
           {isSecure ? (
              showMethods && enabledMethods.length > 1 ? (
-                <div className="flex flex-col gap-1.5 p-2 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                <div className="flex flex-col gap-1.5 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 px-1">Pilih Aplikasi:</p>
                    {enabledMethods.map(m => (
                      <button
                        key={m.id}
                        onClick={m.handler}
                        disabled={isLaunching}
-                       className={`w-full flex items-center justify-between px-3 py-2 ${m.color} text-white rounded-lg text-xs font-bold transition-all ${isLaunching ? 'opacity-70 cursor-wait' : 'active:scale-95'}`}
+                       className={`w-full flex items-center justify-between px-3 py-2.5 ${m.color} text-white rounded-lg text-xs font-bold transition-all shadow-sm ${isLaunching ? 'opacity-70 cursor-wait' : 'active:scale-[0.98]'}`}
                      >
                        <div className="flex items-center gap-2">
                          {m.icon}
@@ -348,33 +394,34 @@ const StudentExamActions = ({ exam }) => {
                        <Icons.ChevronRight className="w-3 h-3" />
                      </button>
                    ))}
-                   <button onClick={() => setShowMethods(false)} className="text-[10px] text-slate-400 hover:text-slate-600 text-center mt-1 py-1 font-bold">Batal</button>
+                   <button onClick={() => setShowMethods(false)} className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-center mt-1 py-1 font-bold">Batal</button>
                 </div>
              ) : (
               <button
                 onClick={enabledMethods.length > 1 ? () => setShowMethods(true) : enabledMethods[0]?.handler}
                 disabled={isLaunching}
-                className={`w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 dark:shadow-none ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
+                className={`w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-emerald-200/60 dark:shadow-emerald-950/40 ${isLaunching ? 'opacity-70 cursor-wait' : ''}`}
               >
                  <Icons.Play className="w-4 h-4" />
                  <span>{isLaunching ? t('layout_loading') : enabledMethods.length > 1 ? (userAttempts > 0 ? 'Ulangi (Pilih Aplikasi)' : 'Mulai (Pilih Aplikasi)') : btnLabel}</span>
               </button>
              )
           ) : (
-            <Link href={`/dashboard/exams/kerjakan/${exam.id}`} className="group w-full flex items-center justify-between text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
-              <div className="flex items-center gap-2">
-                <Icons.Play />
-                <span>{btnLabel}</span>
-              </div>
-              <Icons.ChevronRight />
+            <Link
+              href={`/dashboard/exams/kerjakan/${exam.id}`}
+              className="group w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-emerald-200/60 dark:shadow-emerald-950/40"
+            >
+              <Icons.Play className="w-4 h-4" />
+              <span>{btnLabel}</span>
+              <Icons.ChevronRight className="w-3 h-3 opacity-70 transition-transform group-hover:translate-x-0.5" />
             </Link>
           )}
         </div>
       );
     } else if (examEnded && !latestAttemptId) {
       actions.push(
-        <div key="ended" className="flex items-center gap-2 text-sm font-medium text-slate-400 dark:text-slate-500 cursor-not-allowed select-none">
-          <Icons.Clock />
+        <div key="ended" className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold border ${accent.chip} select-none`}>
+          <Icons.Clock className="w-4 h-4" />
           <span>{t('exams_badge_ended')}</span>
         </div>
       );
@@ -382,12 +429,12 @@ const StudentExamActions = ({ exam }) => {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-center justify-between gap-2">
         {badge}
         {attemptInfo}
       </div>
-      <div className="pt-1">
+      <div className="space-y-2">
         {actions}
       </div>
     </div>
@@ -395,11 +442,17 @@ const StudentExamActions = ({ exam }) => {
 };
 
 // --- Exam Card Component ---
-const ExamCard = ({ exam, isStudent, formatDate, fmt, openModal, categories, onToggleVisibility, onToggleArchive }) => {
-    const { t } = useLanguage();
+const ExamCard = ({ exam, isStudent, formatDate, fmt, openModal, categories, onToggleVisibility, onToggleArchive, nowMs }) => {
+    const { t, timezone } = useLanguage();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const isArchived = !!exam.is_archived;
+
+  // Kartu siswa mengikuti status|jadwal, kartu admin/guru tidak (keduanya cuma
+  // soal konfigurasi), jadi admin tetap dapat palet emerald yang netral.
+  const accent = isStudent
+    ? STATUS_ACCENT[getExamStatusKey(exam, timezone, nowMs ?? 0)]
+    : STATUS_ACCENT.available;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -416,9 +469,15 @@ const ExamCard = ({ exam, isStudent, formatDate, fmt, openModal, categories, onT
   }, [isMenuOpen]);
 
   return (
-    <div className={`flex flex-col rounded-xl border bg-white dark:bg-slate-900 transition-colors ${isArchived
-      ? 'border-slate-200 dark:border-slate-800 opacity-80'
-      : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}>
+    <div className={`group relative flex flex-col rounded-2xl border bg-white dark:bg-slate-900 overflow-hidden ring-1 ${accent.ring} transition-all duration-200 ${
+      isArchived
+        ? 'opacity-75 hover:opacity-90'
+        : 'hover:shadow-lg hover:shadow-slate-200/60 dark:hover:shadow-slate-950/50 hover:-translate-y-0.5'
+    } ${isArchived ? 'border-slate-200 dark:border-slate-800' : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}>
+      {/* Aksen status: garis gradien tipis di atas card. Warna = status, jadi
+         _admin bisa sekilas tahu ujian mana yang aktif tanpa membaca teks. */}
+      <div className={`h-1 w-full bg-gradient-to-r ${accent.bar}`} aria-hidden="true" />
+
       {/* Body */}
       <div className="p-4 flex-1 space-y-3">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -461,18 +520,20 @@ const ExamCard = ({ exam, isStudent, formatDate, fmt, openModal, categories, onT
         </div>
 
         {(exam.start_time || exam.end_time) && (
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 px-3 py-2 space-y-1">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-slate-400">Jadwal</p>
+          <div className={`rounded-xl border px-3 py-2.5 space-y-1.5 ${accent.chip}`}>
+            <p className="text-[10px] uppercase tracking-wide font-bold opacity-70">Jadwal</p>
             {exam.start_time && (
-              <p className="text-xs text-slate-600 dark:text-slate-300">
-                <span className="text-slate-400">Mulai </span>
-                {fmt.dateTime(exam.start_time)}
+              <p className="text-xs font-medium flex items-center gap-1.5">
+                <Icons.Clock className="w-3 h-3 shrink-0 opacity-70" />
+                <span className="opacity-70 font-normal">Mulai</span>
+                <span className="ml-auto tabular-nums font-bold">{fmt.dateTime(exam.start_time)}</span>
               </p>
             )}
             {exam.end_time && (
-              <p className="text-xs text-slate-600 dark:text-slate-300">
-                <span className="text-slate-400">Selesai </span>
-                {fmt.dateTime(exam.end_time)}
+              <p className="text-xs font-medium flex items-center gap-1.5">
+                <Icons.Clock className="w-3 h-3 shrink-0 opacity-70" />
+                <span className="opacity-70 font-normal">Selesai</span>
+                <span className="ml-auto tabular-nums font-bold">{fmt.dateTime(exam.end_time)}</span>
               </p>
             )}
           </div>
@@ -480,16 +541,16 @@ const ExamCard = ({ exam, isStudent, formatDate, fmt, openModal, categories, onT
       </div>
 
       {/* Footer */}
-      <div className="border-t border-slate-200 dark:border-slate-800 px-3 py-2.5 bg-slate-50/60 dark:bg-slate-800/30 rounded-b-xl">
+      <div className="border-t border-slate-200 dark:border-slate-800 px-3 py-3 bg-slate-50/70 dark:bg-slate-800/40">
         {isStudent ? (
-          <StudentExamActions exam={exam} />
+          <StudentExamActions exam={exam} accent={accent} nowMs={nowMs} />
         ) : (
           <div className="flex items-center gap-1.5">
             <Link
               href={`/dashboard/exams/manage/${exam.id}`}
               title={t('exams_btn_manage')}
               aria-label={t('exams_btn_manage')}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded-lg border border-sky-200 dark:border-sky-900/60 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:border-sky-300 dark:bg-sky-950/30 dark:text-sky-300 dark:hover:bg-sky-900/40 transition-colors"
             >
               <Icons.Cog className="w-4 h-4" />
               {t('exams_btn_manage')}
@@ -498,7 +559,7 @@ const ExamCard = ({ exam, isStudent, formatDate, fmt, openModal, categories, onT
               href={`/dashboard/exams/results/${exam.id}`}
               title={t('exams_btn_results')}
               aria-label={t('exams_btn_results')}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded-lg border border-violet-200 dark:border-violet-900/60 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:border-violet-300 dark:bg-violet-950/30 dark:text-violet-300 dark:hover:bg-violet-900/40 transition-colors"
             >
               <Icons.ChartBar className="w-4 h-4" />
               {t('exams_btn_results')}
@@ -509,7 +570,7 @@ const ExamCard = ({ exam, isStudent, formatDate, fmt, openModal, categories, onT
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 aria-label={t('exams_btn_others')}
                 title={t('exams_btn_others')}
-                className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-600 bg-white text-slate-600 hover:bg-slate-100 hover:border-slate-400 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
               >
                 <Icons.DotsVertical className="w-4 h-4" />
                 Lainnya
@@ -586,7 +647,7 @@ const ExamCard = ({ exam, isStudent, formatDate, fmt, openModal, categories, onT
 };
 
 // --- Category Accordion Component ---
-const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, formatDate, fmt, openModal, categories, onEdit, onDelete, onToggleVisibility, isHidden, isAdminHidden, onToggleExamVisibility, onToggleExamArchive, onToggleArchive, onOpenManage, isArchived, userRole, userId, categoryCreatedBy, onMove, onDragStart, onDragOver, onDrop, onDragEnd, isDragging }) => {
+const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, formatDate, fmt, openModal, categories, onEdit, onDelete, onToggleVisibility, isHidden, isAdminHidden, onToggleExamVisibility, onToggleExamArchive, onToggleArchive, onOpenManage, isArchived, userRole, userId, categoryCreatedBy, onMove, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, nowMs }) => {
   const { t } = useLanguage();
 
   // Hide empty categories for students, and hide empty 'Tanpa Nama' if categories exist
@@ -609,7 +670,7 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
 
   return (
     <div
-      className={`relative rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ${isOpen ? 'overflow-visible' : 'overflow-hidden'} ${isDragging ? 'opacity-40 border-dashed border-slate-400' : ''} ${isArchived ? 'bg-slate-50/60 dark:bg-slate-900/60' : ''}`}
+      className={`relative rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-shadow ${isOpen ? 'overflow-visible shadow-md shadow-slate-200/50 dark:shadow-slate-950/40' : 'overflow-hidden'} ${isDragging ? 'opacity-40 border-dashed border-slate-400' : ''} ${isArchived ? 'bg-slate-50/60 dark:bg-slate-900/60' : ''}`}
       draggable={canReorder}
       onDragStart={(e) => canReorder && onDragStart && onDragStart(e, id)}
       onDragOver={(e) => canReorder && onDragOver && onDragOver(e, id)}
@@ -618,7 +679,10 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
     >
       {/* Accordion Header */}
       <div
-        className="w-full flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors select-none"
+        className={`w-full flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-3.5 cursor-pointer select-none transition-colors ${isOpen
+          ? 'bg-slate-50/80 dark:bg-slate-800/40'
+          : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/30'
+        }`}
         onClick={toggleOpen}
       >
         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -628,12 +692,24 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
             </span>
           )}
 
-          <Icons.ChevronDown className={`shrink-0 w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          {/* Chevron diletakkan di dalam kotak berwarna supaya header terasa
+              punya "bentuk", bukan cuma baris teks. */}
+          <span className={`shrink-0 grid place-items-center w-7 h-7 rounded-lg border transition-all duration-200 ${
+            isOpen
+              ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-300/50 dark:shadow-indigo-950/50'
+              : 'bg-slate-100 border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-500'
+          }`}>
+            <Icons.ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          </span>
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white break-words">{name}</h2>
-              <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-semibold tabular-nums">
+              <h2 className={`text-sm font-bold break-words transition-colors ${isOpen ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200'}`}>{name}</h2>
+              <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold tabular-nums border transition-colors ${
+                isOpen
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-900/60 dark:text-indigo-300'
+                  : 'bg-slate-100 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300'
+              }`}>
                 {exams.length} ujian
               </span>
               {!isStudent && !!isArchived && (
@@ -662,7 +738,7 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
         {canManage && (
           <button
             onClick={(e) => { e.stopPropagation(); onOpenManage && onOpenManage(); }}
-            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-600 bg-white text-slate-600 hover:bg-slate-100 hover:border-slate-400 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white transition-colors"
           >
             <Icons.Cog className="w-3.5 h-3.5" />
             Kelola
@@ -679,7 +755,7 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
             {exams.length === 0 ? (
               <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-6">{t('exams_no_exams')}</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {exams.map((exam) => (
                   <ExamCard
                     key={exam.id}
@@ -692,6 +768,7 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
                     categories={categories}
                     onToggleVisibility={() => onToggleExamVisibility(exam.id, exam.exam_is_hidden)}
                     onToggleArchive={onToggleExamArchive ? () => onToggleExamArchive(exam) : null}
+                    nowMs={nowMs}
                   />
                 ))}
               </div>
@@ -724,6 +801,16 @@ export default function ExamsPage() {
 
   // Accordion state
   const [openCategories, setOpenCategories] = useState({});
+
+  // Satu jam untuk seluruh halaman, bukan satu per kartu: countdown di tiap
+  // kartu tetap jalan tanpa puluhan interval yang jalan bersamaan.
+  // Nilai awal null supaya render SSR dan hydration sama-sama null.
+  const [nowMs, setNowMs] = useState(null);
+  useEffect(() => {
+    setNowMs(Date.now());
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Modal State
   const [modalState, setModalState] = useState({
@@ -1444,6 +1531,7 @@ return (
               isDragging={draggedCategoryId === 'uncategorized'}
               userRole={userRole}
               userId={userId}
+              nowMs={nowMs}
             />
           )}
 
@@ -1492,21 +1580,24 @@ return (
               userRole={userRole}
               userId={userId}
               categoryCreatedBy={cat.created_by}
+              nowMs={nowMs}
             />
           ))}
 
           {/* Ujian terarsip yang kategorinya belum terarsip: tampil tanpa accordion */}
           {looseArchivedExams.length > 0 && (
             <div>
-              <div className="flex items-center gap-2 px-1 pb-2">
-                <Icons.Archive className="w-4 h-4 text-slate-400" />
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white">Ujian Arsip (tanpa kategori)</h2>
-                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-semibold tabular-nums">
+              <div className="flex items-center gap-2.5 px-1 pb-2">
+                <span className="grid place-items-center w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 text-slate-400">
+                  <Icons.Archive className="w-4 h-4" />
+                </span>
+                <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200">Ujian Arsip (tanpa kategori)</h2>
+                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-bold tabular-nums border border-slate-200 dark:border-slate-700">
                   {looseArchivedExams.length} ujian
                 </span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                {looseArchivedExams.map(exam => (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {looseArchivedExams.map((exam) => (
                   <ExamCard
                     key={exam.id}
                     exam={exam}
@@ -1518,6 +1609,7 @@ return (
                     categories={categories}
                     onToggleVisibility={() => handleToggleVisibility('exam', exam.id, exam.exam_is_hidden)}
                     onToggleArchive={handleToggleExamArchive}
+                    nowMs={nowMs}
                   />
                 ))}
               </div>
@@ -1574,15 +1666,18 @@ return (
       {/* Modals */}
       {/* Kategori Ujian: buat / ubah nama */}
       {modalState.isOpen && modalState.type === 'categoryManage' && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={closeModal}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-6" onClick={closeModal}>
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl overflow-hidden"
+            className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 shadow-xl overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
+            {/* Strip amber saat mengubah, indigo saat membuat. */}
+            <div aria-hidden className={`h-1 w-full bg-gradient-to-r ${modalState.categoryId ? 'from-amber-500 to-orange-500' : 'from-indigo-500 to-violet-500'}`} />
+
             <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              <h3 className={`text-base font-bold ${modalState.categoryId ? 'text-amber-700 dark:text-amber-300' : 'text-indigo-700 dark:text-indigo-300'}`}>
                 {modalState.categoryId ? 'Ubah Nama Kategori' : 'Kategori Ujian'}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -1601,16 +1696,18 @@ return (
                 onChange={(e) => setModalState(prev => ({ ...prev, categoryName: e.target.value }))}
                 onKeyDown={(e) => { if (e.key === 'Enter' && modalState.categoryName.trim()) executeAction(); }}
                 placeholder="Contoh: Matematika"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/20 transition-colors"
                 autoFocus
               />
             </div>
 
-            <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
-              <button onClick={closeModal} disabled={isExecuting} className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50">
+            <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-end gap-2">
+              <button onClick={closeModal} disabled={isExecuting} className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50">
                 {t('users_btn_cancel')}
               </button>
-              <button onClick={executeAction} disabled={!modalState.categoryName.trim() || isExecuting} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
+              <button onClick={executeAction} disabled={!modalState.categoryName.trim() || isExecuting} className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${modalState.categoryId
+                ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm shadow-amber-300/50 dark:shadow-amber-950/40'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-300/50 dark:shadow-indigo-950/40'}`}>
                 {isExecuting && <Icons.Spinner className="w-4 h-4" />}
                 <span>{isExecuting ? t('layout_loading') : t('users_btn_save')}</span>
               </button>
@@ -1621,15 +1718,17 @@ return (
 
       {/* Pindahkan Ujian ke Kategori Lain */}
       {modalState.isOpen && modalState.type === 'moveExam' && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={closeModal}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-6" onClick={closeModal}>
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl overflow-hidden"
+            className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 shadow-xl overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
+            <div aria-hidden className="h-1 w-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
+
             <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Pindahkan Ujian</h3>
+              <h3 className="text-base font-bold text-violet-700 dark:text-violet-300">Pindahkan Ujian</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Ujian akan dipindah ke kategori yang dipilih.</p>
             </div>
 
@@ -1641,7 +1740,7 @@ return (
                 id="moveCategorySelect"
                 value={modalState.categoryId || ''}
                 onChange={(e) => setModalState(prev => ({ ...prev, categoryId: e.target.value }))}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-none focus:border-slate-400 transition-colors"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-none focus:border-violet-400 dark:focus:border-violet-600 focus:ring-4 focus:ring-violet-500/20 transition-colors"
               >
                 <option value="">{t('exams_category_none')}</option>
                 {categories.map(cat => (
@@ -1650,11 +1749,11 @@ return (
               </select>
             </div>
 
-            <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
-              <button onClick={closeModal} disabled={isExecuting} className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50">
+            <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-end gap-2">
+              <button onClick={closeModal} disabled={isExecuting} className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50">
                 {t('users_btn_cancel')}
               </button>
-              <button onClick={executeAction} disabled={isExecuting} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
+              <button onClick={executeAction} disabled={isExecuting} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl bg-violet-600 hover:bg-violet-700 text-white shadow-sm shadow-violet-300/50 dark:shadow-violet-950/40 transition-all disabled:opacity-50">
                 {isExecuting && <Icons.Spinner className="w-4 h-4" />}
                 <span>{isExecuting ? t('layout_loading') : t('exams_modal_move_title')}</span>
               </button>
@@ -1670,7 +1769,6 @@ return (
         title={t('exams_modal_category_delete_title')}
         message={t('exams_modal_delete_msg')}
         confirmText={t('users_btn_delete')}
-        confirmColor="bg-red-600 hover:bg-red-700"
         tone="danger"
         icon={() => <Icons.Trash className="w-5 h-5" />}
         isExecuting={isExecuting}
@@ -1682,7 +1780,6 @@ return (
         title={t('exams_modal_duplicate_title')}
         message={t('exams_modal_duplicate_msg')}
         confirmText={t('exams_btn_duplicate')}
-        confirmColor="bg-slate-900 hover:bg-black dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
         tone="amber"
         icon={() => <Icons.Duplicate className="w-5 h-5" />}
         isExecuting={isExecuting}
@@ -1695,7 +1792,6 @@ return (
         title={t('exams_modal_delete_title')}
         message={t('exams_modal_delete_msg')}
         confirmText={t('users_btn_delete')}
-        confirmColor="bg-red-600 hover:bg-red-700"
         tone="danger"
         icon={() => <Icons.Trash className="w-5 h-5" />}
         isExecuting={isExecuting}
@@ -1713,7 +1809,6 @@ return (
             : `Kategori "${archiveTarget.name}" beserta ${archiveTarget.examCount} ujian di dalamnya akan dipindahkan ke arsip. Siswa tidak akan melihatnya lagi, dan data tetap tersimpan.`)
           : ''}
         confirmText={archiveTarget?.isArchived ? 'Pulihkan' : 'Arsipkan'}
-        confirmColor={archiveTarget?.isArchived ? 'bg-slate-700 hover:bg-slate-800' : 'bg-slate-900 hover:bg-black'}
         icon={() => archiveTarget?.isArchived
           ? <Icons.Unarchive className="w-5 h-5" />
           : <Icons.Archive className="w-5 h-5" />}
@@ -1815,25 +1910,32 @@ function CreateExamModal({ isTeacher, onClose, onCreated }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-6" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Buat ujian baru"
-        className="relative w-full sm:max-w-2xl h-full sm:h-auto sm:max-h-[90vh] sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl flex flex-col overflow-hidden"
+        className="relative w-full sm:max-w-2xl h-full sm:h-auto sm:max-h-[90vh] sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 shadow-xl flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
+        <div aria-hidden className="h-1 w-full shrink-0 bg-gradient-to-r from-emerald-500 to-teal-500" />
+
         <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-          <div className="min-w-0">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Buat Ujian Baru</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Isi data dasar dulu. Soal, jadwal, dan pengaturan lain bisa dilengkapi setelah ujian dibuat.
-            </p>
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="shrink-0 grid place-items-center w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+              <Icons.Plus className="w-5 h-5" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-emerald-700 dark:text-emerald-300">Buat Ujian Baru</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Isi data dasar dulu. Soal, jadwal, dan pengaturan lain bisa dilengkapi setelah ujian dibuat.
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
             aria-label="Tutup"
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+            className="shrink-0 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
           >
             <Icons.Close className="w-5 h-5" />
           </button>
@@ -1841,15 +1943,15 @@ function CreateExamModal({ isTeacher, onClose, onCreated }) {
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
           {error && (
-            <div className="flex items-start gap-2 px-3.5 py-2.5 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/60">
-              <Icons.Alert className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-              <p className="text-xs text-red-700 dark:text-red-300">{error}</p>
+            <div className="flex items-start gap-2 px-3.5 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60">
+              <Icons.Alert className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
+              <p className="text-xs text-rose-700 dark:text-rose-300">{error}</p>
             </div>
           )}
 
           <div>
             <label htmlFor="createExamName" className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
-              Nama ujian <span className="text-red-500">*</span>
+              Nama ujian <span className="text-rose-500">*</span>
             </label>
             <input
               id="createExamName"
@@ -1857,7 +1959,7 @@ function CreateExamModal({ isTeacher, onClose, onCreated }) {
               value={examName}
               onChange={(e) => setExamName(e.target.value)}
               placeholder="Contoh: Ujian Akhir Semester Matematika"
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-emerald-400 dark:focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20 transition-colors"
             />
           </div>
 
@@ -1871,7 +1973,7 @@ function CreateExamModal({ isTeacher, onClose, onCreated }) {
                 value={subjectId}
                 onChange={(e) => setSubjectId(e.target.value)}
                 disabled={loadingData}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-none focus:border-slate-400 transition-colors"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-none focus:border-emerald-400 dark:focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20 transition-colors"
               >
                 <option value="">Tanpa mata pelajaran</option>
                 {subjects.map(s => (
@@ -1882,12 +1984,14 @@ function CreateExamModal({ isTeacher, onClose, onCreated }) {
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
-                Kelas peserta <span className="text-red-500">*</span>
+                Kelas peserta <span className="text-rose-500">*</span>
               </label>
               {loadingData ? (
-                <div className="h-[38px] rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                <div className="h-[38px] rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
               ) : classes.length === 0 ? (
-                <p className="text-xs text-slate-400 py-2">Belum ada kelas. Buat kelas terlebih dahulu.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 px-3 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60">
+                  Belum ada kelas. Buat kelas terlebih dahulu.
+                </p>
               ) : (
                 <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
                   {classes.map(cls => {
@@ -1898,9 +2002,9 @@ function CreateExamModal({ isTeacher, onClose, onCreated }) {
                         type="button"
                         onClick={() => toggleClass(cls.id)}
                         aria-pressed={isSelected}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${isSelected
-                          ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent'
-                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-400'}`}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 ${isSelected
+                          ? 'bg-violet-600 border-violet-600 text-white shadow-sm shadow-violet-300/50 dark:shadow-violet-950/40'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-violet-300 dark:hover:border-violet-800 hover:text-violet-700 dark:hover:text-violet-300'}`}
                       >
                         {isSelected && <Icons.Check className="w-3 h-3" />}
                         {cls.class_name}
@@ -1925,7 +2029,7 @@ function CreateExamModal({ isTeacher, onClose, onCreated }) {
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="Penjelasan singkat tentang ujian ini."
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors resize-none"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-emerald-400 dark:focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20 transition-colors resize-none"
             />
           </div>
 
@@ -1947,7 +2051,7 @@ function CreateExamModal({ isTeacher, onClose, onCreated }) {
           </div>
         </form>
 
-        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-between gap-3">
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
             Setelah dibuat, ujian muncul di daftar. Klik Kelola untuk menambah soal.
           </p>
@@ -1956,7 +2060,7 @@ function CreateExamModal({ isTeacher, onClose, onCreated }) {
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50"
             >
               Batal
             </button>
@@ -1964,7 +2068,7 @@ function CreateExamModal({ isTeacher, onClose, onCreated }) {
               type="button"
               onClick={handleSubmit}
               disabled={saving || loadingData}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-300/50 dark:shadow-emerald-950/40 transition-all disabled:opacity-50"
             >
               {saving && <Icons.Spinner className="w-4 h-4" />}
               {saving ? 'Menyimpan...' : 'Buat Ujian'}
@@ -1978,14 +2082,16 @@ function CreateExamModal({ isTeacher, onClose, onCreated }) {
 
 function ToggleCard({ id, checked, onChange, title, description }) {
   return (
-    <label htmlFor={id} className="flex items-start justify-between gap-3 px-3.5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-400 transition-colors cursor-pointer">
+    <label htmlFor={id} className={`flex items-start justify-between gap-3 px-3.5 py-3 rounded-xl border transition-colors cursor-pointer ${checked
+      ? 'border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/20'
+      : 'border-slate-200 dark:border-slate-700 hover:border-rose-300 dark:hover:border-rose-800'}`}>
       <span className="min-w-0">
-        <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</span>
+        <span className={`block text-sm font-bold ${checked ? 'text-rose-700 dark:text-rose-300' : 'text-slate-800 dark:text-slate-100'}`}>{title}</span>
         <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{description}</span>
       </span>
       <span className="relative shrink-0 mt-0.5">
         <input id={id} type="checkbox" className="peer sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-        <span className="block w-10 h-5 rounded-full bg-slate-200 dark:bg-slate-700 transition-colors peer-checked:bg-slate-900 dark:peer-checked:bg-white" />
+        <span className="block w-10 h-5 rounded-full bg-slate-200 dark:bg-slate-700 transition-colors peer-checked:bg-rose-500 peer-focus-visible:ring-2 peer-focus-visible:ring-rose-400 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-slate-900" />
         <span className="absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
       </span>
     </label>
@@ -2019,7 +2125,7 @@ function CategoryManageModal({ category, onClose, onArchive, onToggleVisibility,
         : 'Siswa tidak bisa melihat ujian di kategori ini. Guru tetap bisa.',
       onClick: () => onToggleVisibility('hidden'),
       badge: isHidden ? 'Tersembunyi' : 'Terlihat',
-      badgeTone: isHidden ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+      badgeTone: isHidden ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60' : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60'
     },
     ...(isAdmin ? [{
       key: 'admin',
@@ -2030,7 +2136,7 @@ function CategoryManageModal({ category, onClose, onArchive, onToggleVisibility,
         : 'Sembunyikan kategori ini dari seluruh pengguna, termasuk guru.',
       onClick: () => onToggleVisibility('admin_hidden'),
       badge: isAdminHidden ? 'Disembunyikan total' : 'Terlihat semua',
-      badgeTone: isAdminHidden ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+      badgeTone: isAdminHidden ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60' : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60'
     }] : []),
     {
       key: 'rename',
@@ -2051,25 +2157,32 @@ function CategoryManageModal({ category, onClose, onArchive, onToggleVisibility,
   ];
 
   return (
-    <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-6" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={`Pengaturan kategori ${name}`}
-        className="w-full sm:max-w-lg h-full sm:h-auto sm:max-h-[88vh] sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl flex flex-col overflow-hidden"
+        className="w-full sm:max-w-lg h-full sm:h-auto sm:max-h-[88vh] sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 shadow-xl flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
+        <div aria-hidden className="h-1 w-full shrink-0 bg-gradient-to-r from-sky-500 to-cyan-500" />
+
         <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-          <div className="min-w-0">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">Kelola Kategori</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-              {name} - berlaku untuk {examCount} ujian di dalamnya.
-            </p>
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="shrink-0 grid place-items-center w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
+              <Icons.Folder className="w-5 h-5" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-sky-700 dark:text-sky-300 truncate">Kelola Kategori</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                {name} - berlaku untuk {examCount} ujian di dalamnya.
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
             aria-label="Tutup"
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+            className="shrink-0 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
           >
             <Icons.Close className="w-5 h-5" />
           </button>
@@ -2081,19 +2194,21 @@ function CategoryManageModal({ category, onClose, onArchive, onToggleVisibility,
               {row.separator && <div className="h-px bg-slate-200 dark:bg-slate-700 my-2" />}
               <button
                 onClick={row.onClick}
-                className={`w-full flex items-start gap-3 px-3 py-3 rounded-xl text-left transition-colors ${row.danger
-                  ? 'hover:bg-red-50 dark:hover:bg-red-900/20'
-                  : 'hover:bg-slate-100 dark:hover:bg-slate-800'} ${i === rows.length - 1 ? '' : ''}`}
+                className={`w-full flex items-start gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200 ${row.danger
+                  ? 'hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                  : 'hover:bg-sky-50 dark:hover:bg-sky-950/20'} ${i === rows.length - 1 ? '' : ''}`}
               >
-                <span className={`shrink-0 mt-0.5 ${row.danger ? 'text-red-500' : 'text-slate-400'}`}>{row.icon}</span>
+                <span className={`shrink-0 grid place-items-center w-8 h-8 rounded-lg ${row.danger
+                  ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
+                  : 'bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400'}`}>{row.icon}</span>
                 <span className="flex-1 min-w-0">
-                  <span className={`block text-sm font-semibold ${row.danger ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-100'}`}>
+                  <span className={`block text-sm font-bold ${row.danger ? 'text-rose-700 dark:text-rose-300' : 'text-slate-800 dark:text-slate-100'}`}>
                     {row.title}
                   </span>
                   <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">{row.desc}</span>
                 </span>
                 {row.badge && (
-                  <span className={`shrink-0 px-2 py-0.5 rounded-md text-[11px] font-semibold ${row.badgeTone}`}>
+                  <span className={`shrink-0 px-2 py-0.5 rounded-lg text-[11px] font-bold border ${row.badgeTone}`}>
                     {row.badge}
                   </span>
                 )}
@@ -2102,11 +2217,11 @@ function CategoryManageModal({ category, onClose, onArchive, onToggleVisibility,
           ))}
         </div>
 
-        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-between gap-3">
           <p className="text-[11px] text-slate-500 dark:text-slate-400">Perubahan berlaku langsung ke semua ujian di kategori ini.</p>
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-opacity"
+            className="px-4 py-2 text-sm font-bold rounded-xl bg-sky-600 hover:bg-sky-700 text-white shadow-sm shadow-sky-300/50 dark:shadow-sky-950/40 transition-all"
           >
             Selesai
           </button>
@@ -2115,50 +2230,71 @@ function CategoryManageModal({ category, onClose, onArchive, onToggleVisibility,
     </div>
   );
 }
-function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', confirmColor = 'bg-slate-900 hover:bg-black', icon: Icon, isExecuting = false, tone = 'slate' }) {
+function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', icon: Icon, isExecuting = false, tone = 'slate' }) {
   const { t } = useLanguage();
   if (!isOpen) return null;
 
   const toneCls = tone === 'danger'
-    ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+    ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
     : tone === 'amber'
-      ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'
+      ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300';
 
+  // Strip atas + warna tombol + warna judul semua diturunkan dari `tone`, bukan
+  // dari confirmColor terpisah, jadi tidak mungkin warna tombol beda dengan
+  // warna ikon di header modal.
+  const stripCls = tone === 'danger'
+    ? 'from-rose-500 to-pink-500'
+    : tone === 'amber'
+      ? 'from-amber-500 to-orange-500'
+      : 'from-slate-400 to-slate-300';
+  const btnCls = tone === 'danger'
+    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-300/50 dark:shadow-rose-950/40'
+    : tone === 'amber'
+      ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-300/50 dark:shadow-amber-950/40'
+      : 'bg-slate-600 hover:bg-slate-700 shadow-slate-300/50 dark:shadow-slate-950/40';
+  const titleCls = tone === 'danger'
+    ? 'text-rose-700 dark:text-rose-300'
+    : tone === 'amber'
+      ? 'text-amber-700 dark:text-amber-300'
+      : 'text-slate-900 dark:text-white';
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-6" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
-        className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl overflow-hidden"
+        className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 shadow-xl overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
+        <div aria-hidden className={`h-1 w-full bg-gradient-to-r ${stripCls}`} />
+
         <div className="p-5">
           <div className="flex items-start gap-3">
             {Icon && (
-              <span className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${toneCls}`}>
+              <span className={`shrink-0 grid place-items-center w-10 h-10 rounded-xl ${toneCls}`}>
                 <Icon className="w-5 h-5" />
               </span>
             )}
             <div className="min-w-0">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>
+              <h3 className={`text-base font-bold ${titleCls}`}>{title}</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{message}</p>
             </div>
           </div>
         </div>
 
-        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
+        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-end gap-2">
           <button
             onClick={onClose}
             disabled={isExecuting}
-            className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50"
           >
             {t('users_btn_cancel')}
           </button>
           <button
             onClick={onConfirm}
             disabled={isExecuting}
-            className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg transition-all active:scale-[0.98] disabled:opacity-50 ${confirmColor}`}
+            className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-white rounded-xl shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 ${btnCls}`}
           >
             {isExecuting && <Icons.Spinner className="w-4 h-4" />}
             <span>{isExecuting ? t('layout_loading') : confirmText}</span>

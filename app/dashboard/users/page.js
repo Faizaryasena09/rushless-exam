@@ -22,15 +22,26 @@ import {
   ChevronDown,
   ArrowUpDown,
   X,
-  CheckCircle2,
   AlertCircle,
   BookOpen,
   ShieldCheck,
   Users,
-  FileSpreadsheet
+  FileSpreadsheet,
+  GraduationCap
 } from 'lucide-react';
 
 // --- COMPONENTS ---
+
+/**
+ * Warna destruktif untuk modal & tombol hapus. Dipisah supaya merah tua tetap
+ * berarti "hapus" di mana saja, bukan jadi dekorasi.
+ */
+const DANGER = {
+  chip: 'border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30',
+  icon: 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400',
+  text: 'text-rose-700 dark:text-rose-300',
+  btn: 'bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-300/50 dark:shadow-rose-950/40',
+};
 
 // Modal Konfirmasi Hapus
 function ConfirmDeleteModal({ isOpen, onClose, onConfirm, title, message, itemName, loading }) {
@@ -38,23 +49,30 @@ function ConfirmDeleteModal({ isOpen, onClose, onConfirm, title, message, itemNa
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-6" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
-        className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl overflow-hidden"
+        className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl shadow-rose-500/10 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Strip penanda destruktif di atas modal. */}
+        <div aria-hidden="true" className="h-1 w-full bg-gradient-to-r from-rose-500 to-pink-500" />
+
         <div className="p-5">
           <div className="flex items-start gap-3">
-            <span className="shrink-0 w-9 h-9 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-600 dark:text-red-400">
+            <span className={`shrink-0 grid place-items-center w-10 h-10 rounded-xl ${DANGER.icon}`}>
               <AlertTriangle size={18} />
             </span>
             <div className="min-w-0">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>
+              <h3 className={`text-base font-bold ${DANGER.text}`}>{title}</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                 {message}
-                {itemName && <span className="block mt-1 font-semibold text-slate-800 dark:text-white">{itemName}</span>}
+                {itemName && (
+                  <span className={`block mt-2 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border ${DANGER.chip} ${DANGER.text}`}>
+                    {itemName}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -64,14 +82,14 @@ function ConfirmDeleteModal({ isOpen, onClose, onConfirm, title, message, itemNa
           <button
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50"
           >
             {t('users_btn_cancel')}
           </button>
           <button
             onClick={onConfirm}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
+            className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl transition-all disabled:opacity-50 ${DANGER.btn}`}
           >
             {loading ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
             {loading ? t('layout_loading') : t('users_confirm_yes')}
@@ -87,24 +105,32 @@ function ImportResultsModal({ isOpen, onClose, results }) {
   if (!isOpen || !results) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-6" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         className="w-full sm:max-w-lg sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[85vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">{t('users_import_modal_title')}</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              {t('users_import_modal_success')}: {results.successCount} &middot; {t('users_import_modal_failed')}: {results.failedCount}
-            </p>
+        {/* Strip emerald: import yang sukses adalah hasil baik, bukan error. */}
+        <div aria-hidden="true" className="h-1 w-full bg-gradient-to-r from-emerald-500 to-teal-500 shrink-0" />
+
+        <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="shrink-0 grid place-items-center w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+              <FileSpreadsheet size={18} />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">{t('users_import_modal_title')}</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {t('users_import_modal_success')}: {results.successCount} &middot; {t('users_import_modal_failed')}: {results.failedCount}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
             aria-label="Tutup"
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
           >
             <X size={18} />
           </button>
@@ -112,28 +138,28 @@ function ImportResultsModal({ isOpen, onClose, results }) {
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-900/10 px-4 py-3 text-center">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/30 px-4 py-3 text-center">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
                 {t('users_import_modal_success')}
               </p>
               <p className="text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300 mt-0.5">{results.successCount}</p>
             </div>
-            <div className="rounded-xl border border-red-200 dark:border-red-800/60 bg-red-50/50 dark:bg-red-900/10 px-4 py-3 text-center">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
+            <div className={`relative overflow-hidden rounded-2xl border px-4 py-3 text-center ${results.failedCount > 0 ? DANGER.chip : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30'}`}>
+              <p className={`text-[11px] font-bold uppercase tracking-wide ${results.failedCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>
                 {t('users_import_modal_failed')}
               </p>
-              <p className="text-2xl font-bold tabular-nums text-red-700 dark:text-red-300 mt-0.5">{results.failedCount}</p>
+              <p className={`text-2xl font-bold tabular-nums mt-0.5 ${results.failedCount > 0 ? DANGER.text : 'text-slate-400 dark:text-slate-500'}`}>{results.failedCount}</p>
             </div>
           </div>
 
           {results.createdClasses && results.createdClasses.length > 0 && (
-            <div className="rounded-xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/50 dark:bg-indigo-900/10 px-4 py-3">
-              <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-200">
+            <div className="rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/60 dark:bg-indigo-950/30 px-4 py-3">
+              <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
                 {results.createdClasses.length} kelas baru dibuat otomatis
               </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {results.createdClasses.map((c, i) => (
-                  <span key={`${c.name}-${i}`} className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 text-[11px] font-medium text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                  <span key={`${c.name}-${i}`} className="px-2 py-0.5 rounded-lg bg-white dark:bg-slate-900 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                     {c.name}
                   </span>
                 ))}
@@ -146,12 +172,12 @@ function ImportResultsModal({ isOpen, onClose, results }) {
 
           {results.errors && results.errors.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">
                 {t('users_import_modal_errors_title')}
               </p>
               <ul className="space-y-1.5">
                 {results.errors.map((err, i) => (
-                  <li key={i} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/10 text-xs text-red-700 dark:text-red-300">
+                  <li key={i} className={`flex items-start gap-2 px-3 py-2 rounded-xl text-xs border ${DANGER.chip} ${DANGER.text}`}>
                     <AlertCircle size={13} className="shrink-0 mt-0.5" />
                     <span className="break-words">{typeof err === 'string' ? err : err.message || JSON.stringify(err)}</span>
                   </li>
@@ -161,10 +187,10 @@ function ImportResultsModal({ isOpen, onClose, results }) {
           )}
         </div>
 
-        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end">
+        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-opacity"
+            className="px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl hover:opacity-90 transition-opacity"
           >
             {t('users_btn_cancel')}
           </button>
@@ -242,11 +268,11 @@ const ManageUsersPage = () => {
 
   const SortIcon = ({ columnKey }) => {
     if (sortConfig.key !== columnKey) {
-      return <ArrowUpDown size={13} className="text-slate-300 dark:text-slate-600 group-hover:text-slate-500 transition-colors" />;
+      return <ArrowUpDown size={13} className="text-sky-300 dark:text-sky-700/60 group-hover:text-sky-600 dark:group-hover:text-sky-300 transition-colors" />;
     }
     return sortConfig.direction === 'asc'
-      ? <ChevronUp size={13} className="text-slate-700 dark:text-slate-200" />
-      : <ChevronDown size={13} className="text-slate-700 dark:text-slate-200" />;
+      ? <ChevronUp size={13} className="text-sky-600 dark:text-sky-400" />
+      : <ChevronDown size={13} className="text-sky-600 dark:text-sky-400" />;
   };
 
   const sortedUsers = useMemo(() => {
@@ -487,70 +513,83 @@ const ManageUsersPage = () => {
 return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{t('users_title')}</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            {t('users_subtitle_count').replace('{count}', users.length)}
-          </p>
-        </div>
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-sky-50 via-white to-violet-50 dark:from-sky-950/30 dark:via-slate-900 dark:to-violet-950/30" />
+        <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-500" />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept=".xlsx, .xls"
-            className="hidden"
-          />
+        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-5 py-5">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <span className="shrink-0 grid place-items-center w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-600 to-indigo-600 text-white shadow-lg shadow-sky-500/25">
+              <Users size={20} />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{t('users_title')}</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                {t('users_subtitle_count').replace('{count}', users.length)}
+              </p>
+            </div>
+          </div>
 
-          <button
-            onClick={handleExport}
-            disabled={users.length === 0}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
-          >
-            <Download size={15} />
-            {t('users_btn_export')}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".xlsx, .xls"
+              className="hidden"
+            />
 
-<button
-            onClick={() => fileInputRef.current.click()}
-            title="Unggah file .xlsx berisi data pengguna"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-          >
-            <Upload size={15} />
-            {t('users_btn_import')}
-          </button>
+            {/* Tiap tombol punya warna sesuai fungsinya: export = sky,
+                import = indigo, template = slate, tambah = emerald. */}
+            <button
+              onClick={handleExport}
+              disabled={users.length === 0}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-sky-200 dark:border-sky-900/60 bg-sky-50 text-sky-700 hover:bg-sky-100 hover:border-sky-300 dark:bg-sky-950/30 dark:text-sky-300 dark:hover:bg-sky-900/40 transition-all disabled:opacity-50"
+            >
+              <Download size={15} />
+              {t('users_btn_export')}
+            </button>
 
-          <button
-            onClick={handleDownloadTemplate}
-            title="Unduh template Excel untuk import pengguna"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
-          >
-            <FileSpreadsheet size={15} />
-            Template
-          </button>
+            <button
+              onClick={() => fileInputRef.current.click()}
+              title="Unggah file .xlsx berisi data pengguna"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 dark:bg-indigo-950/30 dark:text-indigo-300 dark:hover:bg-indigo-900/40 transition-all"
+            >
+              <Upload size={15} />
+              {t('users_btn_import')}
+            </button>
 
-          <button
-            onClick={handleAddUser}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity"
-          >
-            <UserPlus size={15} />
-            {t('users_btn_add')}
-          </button>
+            <button
+              onClick={handleDownloadTemplate}
+              title="Unduh template Excel untuk import pengguna"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white text-slate-600 hover:bg-slate-100 hover:border-slate-300 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 transition-all"
+            >
+              <FileSpreadsheet size={15} />
+              Template
+            </button>
+
+            <button
+              onClick={handleAddUser}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-300/50 dark:shadow-emerald-950/40 transition-all"
+            >
+              <UserPlus size={15} />
+              {t('users_btn_add')}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Ringkasan */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <SummaryCard label={t('users_filter_all_roles')} value={roleCounts.all} icon={<User size={15} />} />
-        <SummaryCard label={t('users_role_student')} value={roleCounts.student} icon={<User size={15} />} tone="indigo" />
-        <SummaryCard label={t('users_role_teacher')} value={roleCounts.teacher} icon={<BookOpen size={15} />} tone="amber" />
-        <SummaryCard label={t('users_role_admin')} value={roleCounts.admin} icon={<ShieldCheck size={15} />} tone="rose" />
+        <SummaryCard label={t('users_filter_all_roles')} value={roleCounts.all} icon={<Users size={13} />} tone="slate" />
+        <SummaryCard label={t('users_role_student')} value={roleCounts.student} icon={<GraduationCap size={13} />} tone="indigo" />
+        <SummaryCard label={t('users_role_teacher')} value={roleCounts.teacher} icon={<BookOpen size={13} />} tone="amber" />
+        <SummaryCard label={t('users_role_admin')} value={roleCounts.admin} icon={<ShieldCheck size={13} />} tone="rose" />
       </div>
 
       {/* Toolbar */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-col lg:flex-row lg:items-center gap-2">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 p-3 flex flex-col lg:flex-row lg:items-center gap-2">
+        <div aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-sky-500 to-indigo-500 opacity-70" />
         <div className="relative flex-1 min-w-0">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
@@ -559,7 +598,7 @@ return (
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             aria-label={t('users_search_placeholder')}
-            className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
+            className="w-full pl-9 pr-8 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-sky-400 dark:focus:border-sky-600 transition-colors"
           />
           {searchTerm && (
             <button
@@ -572,12 +611,16 @@ return (
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex flex-wrap items-center gap-2">
+          <span className="shrink-0 grid place-items-center w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+            <Filter size={14} />
+          </span>
+
           <select
             value={selectedRole}
             onChange={(e) => setSelectedRole(e.target.value)}
             aria-label={t('users_table_header_role')}
-            className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-none focus:border-slate-400 transition-colors"
+            className="px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-none focus:border-sky-400 dark:focus:border-sky-600 transition-colors"
           >
             <option value="">{t('users_filter_all_roles')}</option>
             <option value="student">{t('users_role_student')}</option>
@@ -589,7 +632,7 @@ return (
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
             aria-label={t('users_table_header_class')}
-            className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-none focus:border-slate-400 transition-colors"
+            className="px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-none focus:border-sky-400 dark:focus:border-sky-600 transition-colors"
           >
             <option value="">{t('users_filter_all_classes')}</option>
             {allClasses.map(c => (
@@ -604,7 +647,7 @@ return (
                 setSelectedRole('');
                 setSelectedClass('');
               }}
-              className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
+              className="inline-flex items-center gap-1 px-3 py-2 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
             >
               <X size={13} />
               Reset
@@ -615,21 +658,23 @@ return (
 
       {/* Aksi Based on filter kelas */}
       {selectedClass && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50/50 dark:bg-red-950/20 px-4 py-3">
+        <div className={`relative overflow-hidden rounded-2xl border px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${DANGER.chip}`}>
           <div className="flex items-start gap-2.5">
-            <AlertTriangle size={16} className="shrink-0 mt-0.5 text-red-500" />
+            <span className="shrink-0 grid place-items-center w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+              <AlertTriangle size={16} />
+            </span>
             <div>
-              <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+              <p className={`text-sm font-bold ${DANGER.text}`}>
                 Menampilkan pengguna kelas {selectedClassObj?.class_name || '-'}
               </p>
-              <p className="text-xs text-red-600/80 dark:text-red-300/70">
+              <p className="text-xs text-rose-600/80 dark:text-rose-300/70">
                 Hapus per kelas akan menghapus seluruh akun di kelas ini sekaligus.
               </p>
             </div>
           </div>
           <button
             onClick={() => setDeleteClassModal({ open: true, loading: false })}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors shrink-0"
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl transition-all shrink-0 ${DANGER.btn}`}
           >
             <UserMinus size={15} />
             {t('users_btn_delete_class')}
@@ -651,9 +696,9 @@ return (
           ))}
         </div>
       ) : sortedUsers.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center">
-          <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mx-auto mb-3">
-            <User size={18} />
+        <div className="relative overflow-hidden rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/50 dark:bg-slate-900/40 p-12 text-center">
+          <div className="mx-auto mb-3 grid place-items-center w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400">
+            <User size={20} />
           </div>
           <h3 className="text-sm font-bold text-slate-800 dark:text-white">{t('users_no_users')}</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
@@ -665,7 +710,7 @@ return (
             {(selectedRole || selectedClass || searchTerm) ? (
               <button
                 onClick={() => { setSearchTerm(''); setSelectedRole(''); setSelectedClass(''); }}
-                className="px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                className="px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
               >
                 Reset filter
               </button>
@@ -673,14 +718,14 @@ return (
               <>
                 <button
                   onClick={handleAddUser}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-300/50 dark:shadow-emerald-950/40 transition-all"
                 >
                   <UserPlus size={14} />
                   {t('users_btn_add')}
                 </button>
                 <button
                   onClick={() => fileInputRef.current.click()}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 dark:bg-indigo-950/30 dark:text-indigo-300 dark:hover:bg-indigo-900/40 transition-all"
                 >
                   <Upload size={14} />
                   {t('users_btn_import')}
@@ -692,13 +737,13 @@ return (
       ) : (
         <>
           {/* Desktop */}
-          <div className="hidden lg:block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+          <div className="hidden lg:block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden ring-1 ring-slate-200/70 dark:ring-slate-800/70">
             <table className="w-full text-left">
-              <thead className="bg-slate-50 dark:bg-slate-800/60">
+              <thead className="bg-gradient-to-r from-sky-50/70 to-indigo-50/70 dark:from-sky-950/30 dark:to-indigo-950/30">
                 <tr>
                   <th
                     onClick={() => toggleSort('name')}
-                    className="group px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 cursor-pointer select-none"
+                    className="group px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-sky-800 dark:text-sky-300 cursor-pointer select-none"
                   >
                     <span className="inline-flex items-center gap-1.5">
                       {t('users_table_header_name')}
@@ -707,7 +752,7 @@ return (
                   </th>
                   <th
                     onClick={() => toggleSort('role')}
-                    className="group px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 cursor-pointer select-none"
+                    className="group px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-sky-800 dark:text-sky-300 cursor-pointer select-none"
                   >
                     <span className="inline-flex items-center gap-1.5">
                       {t('users_table_header_role')}
@@ -716,14 +761,14 @@ return (
                   </th>
                   <th
                     onClick={() => toggleSort('class')}
-                    className="group px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 cursor-pointer select-none"
+                    className="group px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-sky-800 dark:text-sky-300 cursor-pointer select-none"
                   >
                     <span className="inline-flex items-center gap-1.5">
                       {t('users_table_header_class')}
                       <SortIcon columnKey="class" />
                     </span>
                   </th>
-                  <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 text-right">
+                  <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-sky-800 dark:text-sky-300 text-right">
                     {t('users_table_header_action')}
                   </th>
                 </tr>
@@ -733,13 +778,11 @@ return (
                   <tr
                     key={user.id}
                     onClick={() => handleEditUser(user)}
-                    className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                    className="cursor-pointer hover:bg-sky-50/60 dark:hover:bg-sky-950/20 transition-colors"
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <span className="shrink-0 w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 text-xs font-bold uppercase">
-                          {(user.name || user.username).charAt(0)}
-                        </span>
+                        <UserAvatar user={user} />
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{user.name || user.username}</p>
                           <p className="text-[11px] text-slate-400 truncate">@{user.username}</p>
@@ -752,7 +795,9 @@ return (
                     <td className="px-4 py-3">
                       {user.class_name ? (
                         <span className="inline-flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300">
-                          <Building2 size={13} className="text-slate-400" />
+                          <span className="grid place-items-center w-5 h-5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                            <Building2 size={11} />
+                          </span>
                           {user.class_name}
                         </span>
                       ) : (
@@ -765,7 +810,7 @@ return (
                           onClick={() => handleEditUser(user)}
                           aria-label={t('users_btn_edit')}
                           title={t('users_btn_edit')}
-                          className="p-2 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
+                          className="p-2 rounded-xl text-slate-400 hover:text-sky-700 hover:bg-sky-50 dark:hover:text-sky-300 dark:hover:bg-sky-950/40 transition-colors"
                         >
                           <Edit3 size={16} />
                         </button>
@@ -773,7 +818,7 @@ return (
                           onClick={() => triggerDeleteUser(user)}
                           aria-label={t('users_btn_delete')}
                           title={t('users_btn_delete')}
-                          className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -791,11 +836,10 @@ return (
               <div
                 key={user.id}
                 onClick={() => handleEditUser(user)}
-                className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-3 active:scale-[0.99] transition-colors"
+                className="relative overflow-hidden flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 px-3.5 py-3 active:scale-[0.99] transition-all"
               >
-                <span className="shrink-0 w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 text-xs font-bold uppercase">
-                  {(user.name || user.username).charAt(0)}
-                </span>
+                <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${user.role === 'admin' ? 'bg-rose-500' : user.role === 'teacher' ? 'bg-amber-500' : user.role === 'student' ? 'bg-sky-500' : 'bg-slate-400'}`} />
+                <UserAvatar user={user} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{user.name || user.username}</p>
                   <p className="text-[11px] text-slate-400 truncate">
@@ -808,7 +852,7 @@ return (
                   <button
                     onClick={() => triggerDeleteUser(user)}
                     aria-label={t('users_btn_delete')}
-                    className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -852,35 +896,80 @@ return (
   );
 };
 
-function SummaryCard({ label, value, icon, tone = 'default' }) {
+function SummaryCard({ label, value, icon, tone = 'slate' }) {
+  // Warna kartu diturunkan dari peran yang dihitungnya: total = slate,
+  // siswa = indigo, guru = amber, admin = rose. Jadi warnanya berarti.
   const toneCls = {
-    default: 'text-slate-900 dark:text-white',
+    slate: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600',
+    indigo: 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900/60 hover:border-indigo-300 dark:hover:border-indigo-800',
+    amber: 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900/60 hover:border-amber-300 dark:hover:border-amber-800',
+    rose: 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/60 hover:border-rose-300 dark:hover:border-rose-800',
+  }[tone];
+
+  const valueCls = {
+    slate: 'text-slate-900 dark:text-white',
     indigo: 'text-indigo-600 dark:text-indigo-400',
     amber: 'text-amber-600 dark:text-amber-400',
-    rose: 'text-rose-600 dark:text-rose-400'
+    rose: 'text-rose-600 dark:text-rose-400',
   }[tone];
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3.5">
+    <div className={`group relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 px-4 py-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60 dark:hover:shadow-slate-950/40 ${toneCls}`}>
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-        <span className="shrink-0 text-slate-400">{icon}</span>
+        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
+        <span className={`shrink-0 grid place-items-center w-6 h-6 rounded-lg ${toneCls}`}>
+          {icon}
+        </span>
       </div>
-      <p className={`mt-1 text-2xl font-bold tabular-nums ${toneCls}`}>{value}</p>
+      <p className={`mt-1 text-2xl font-bold tabular-nums ${valueCls}`}>{value}</p>
     </div>
   );
 }
 
-function RoleChip({ role, t }) {
-  const map = {
-    admin: { label: t('users_role_admin'), cls: 'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300' },
-    teacher: { label: t('users_role_teacher'), cls: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300' },
-    student: { label: t('users_role_student'), cls: 'bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-300' }
-  };
-  const item = map[role] || { label: role, cls: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300' };
+function UserAvatar({ user }) {
+  // Avatar memakai warna yang sama dengan chip peran, jadi peran pengguna
+  // terbaca sekilas dari daftar tanpa harus fokus ke kolom Role.
+  const cls = {
+    admin: 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300',
+    teacher: 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300',
+    student: 'bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300',
+  }[user.role] || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200';
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ${item.cls}`}>
+    <span className={`shrink-0 grid place-items-center w-9 h-9 rounded-xl text-xs font-bold uppercase ${cls}`}>
+      {(user.name || user.username).charAt(0)}
+    </span>
+  );
+}
+
+function RoleChip({ role, t }) {
+  // Satu warna per peran, dipakai juga untuk avatar di tabel & kartu mobile
+  // supaya peran pengguna bisa dibaca dari warna saja.
+  const map = {
+    admin: {
+      label: t('users_role_admin'),
+      cls: 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300',
+      avatar: 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300',
+    },
+    teacher: {
+      label: t('users_role_teacher'),
+      cls: 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300',
+      avatar: 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300',
+    },
+    student: {
+      label: t('users_role_student'),
+      cls: 'bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300',
+      avatar: 'bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300',
+    },
+  };
+  const item = map[role] || {
+    label: role,
+    cls: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
+    avatar: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200',
+  };
+
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-bold ${item.cls}`}>
       {item.label}
     </span>
   );

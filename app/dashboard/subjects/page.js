@@ -4,9 +4,17 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/app/context/LanguageContext';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, BookOpen, X, Search, Save, TriangleAlert, Info } from 'lucide-react';
+import { Plus, Pencil, Trash2, BookOpen, X, Search, Save, TriangleAlert, Info, Layers } from 'lucide-react';
 
-const inputCls = 'w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors';
+const inputCls = 'w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-600 transition-colors';
+
+// Warna destruktif: merah selalu berarti "hapus", bukan dekorasi.
+const DANGER = {
+  chip: 'border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30',
+  icon: 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400',
+  text: 'text-rose-700 dark:text-rose-300',
+  btn: 'bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-300/50 dark:shadow-rose-950/40',
+};
 
 const SubjectsPage = () => {
   const router = useRouter();
@@ -140,14 +148,14 @@ const SubjectsPage = () => {
   if (error && subjects.length === 0 && !loading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500">
-          <TriangleAlert size={18} />
-        </div>
+        <span className={`grid place-items-center w-12 h-12 rounded-2xl ${DANGER.icon}`}>
+          <TriangleAlert size={20} />
+        </span>
         <p className="text-sm font-bold text-slate-800 dark:text-white">{t('master_error_generic')}</p>
         <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">{error}</p>
         <button
           onClick={fetchSubjects}
-          className="mt-1 px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+          className="mt-1 inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
         >
           Coba lagi
         </button>
@@ -158,23 +166,65 @@ const SubjectsPage = () => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{t('nav_manage_subjects')}</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{t('master_subtitle')}</p>
-        </div>
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-sky-50 dark:from-indigo-950/30 dark:via-slate-900 dark:to-sky-950/30" />
+        <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 to-sky-500" />
 
-        <button
-          onClick={handleAddItem}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity shrink-0"
-        >
-          <Plus size={15} />
-          {t('master_btn_add').replace('{item}', curItemName)}
-        </button>
+        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-5 py-5">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <span className="shrink-0 grid place-items-center w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-sky-600 text-white shadow-lg shadow-indigo-500/25">
+              <BookOpen size={20} />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{t('nav_manage_subjects')}</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{t('master_subtitle')}</p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleAddItem}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-300/50 dark:shadow-emerald-950/40 transition-all shrink-0"
+          >
+            <Plus size={15} />
+            {t('master_btn_add').replace('{item}', curItemName)}
+          </button>
+        </div>
+      </div>
+
+      {/* Ringkasan */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 px-4 py-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60 dark:hover:shadow-slate-950/40">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Total Mata Pelajaran</p>
+            <span className="shrink-0 grid place-items-center w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+              <Layers size={13} />
+            </span>
+          </div>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-indigo-600 dark:text-indigo-400">{subjects.length}</p>
+        </div>
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 px-4 py-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/60 dark:hover:shadow-slate-950/40">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Sedang Ditampilkan</p>
+            <span className="shrink-0 grid place-items-center w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+              <Search size={13} />
+            </span>
+          </div>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{filteredData.length}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 px-4 py-3.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dipakai Untuk</p>
+            <span className="shrink-0 grid place-items-center w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+              <Info size={13} />
+            </span>
+          </div>
+          <p className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">Mengelompokkan soal &amp; ujian</p>
+        </div>
       </div>
 
       {/* Toolbar */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-col lg:flex-row lg:items-center gap-3">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 p-3 flex flex-col lg:flex-row lg:items-center gap-3">
+        <div aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-sky-500 opacity-70" />
         <div className="relative flex-1 min-w-0">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
@@ -183,7 +233,7 @@ const SubjectsPage = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             aria-label={t('master_search_placeholder').replace('{item}', curItemName)}
-            className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
+            className="w-full pl-9 pr-8 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-600 transition-colors"
           />
           {searchTerm && (
             <button
@@ -195,27 +245,22 @@ const SubjectsPage = () => {
             </button>
           )}
         </div>
-        <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">
+        <span className="text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 tabular-nums">
           {filteredData.length} dari {subjects.length} mata pelajaran
         </span>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400 px-1">
-        <span className="font-semibold">Keterangan:</span>
-        <span className="inline-flex items-center gap-1"><Info size={12} /> mata pelajaran dipakai untuk mengelompokkan soal dan ujian</span>
       </div>
 
       {/* Daftar */}
       {loading ? (
         <div className="space-y-2">
           {[0, 1, 2, 3, 4].map(i => (
-            <div key={i} className="h-14 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 animate-pulse" />
+            <div key={i} className="h-14 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 animate-pulse" />
           ))}
         </div>
       ) : filteredData.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center">
-          <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mx-auto mb-3">
-            <BookOpen size={18} />
+        <div className="relative overflow-hidden rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/50 dark:bg-slate-900/40 p-12 text-center">
+          <div className="mx-auto mb-3 grid place-items-center w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-500 dark:text-indigo-400">
+            <BookOpen size={20} />
           </div>
           <h3 className="text-sm font-bold text-slate-800 dark:text-white">
             {searchTerm
@@ -231,14 +276,14 @@ const SubjectsPage = () => {
             {searchTerm ? (
               <button
                 onClick={() => setSearchTerm('')}
-                className="px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                className="px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
               >
                 Reset pencarian
               </button>
             ) : (
               <button
                 onClick={handleAddItem}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-300/50 dark:shadow-emerald-950/40 transition-all"
               >
                 <Plus size={14} />
                 {t('master_btn_add').replace('{item}', curItemName)}
@@ -247,13 +292,13 @@ const SubjectsPage = () => {
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70">
           {filteredData.map(item => (
             <div
               key={item.id}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+              className="group flex items-center gap-3 px-4 py-3 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/20 transition-colors"
             >
-              <span className="shrink-0 w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 text-xs font-bold uppercase">
+              <span className="shrink-0 grid place-items-center w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase">
                 {(item.name || '?').charAt(0)}
               </span>
 
@@ -266,7 +311,7 @@ const SubjectsPage = () => {
                   onClick={() => handleEditItem(item)}
                   aria-label={`Ubah ${item.name}`}
                   title={t('questions_btn_edit')}
-                  className="p-2 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
+                  className="p-2 rounded-xl text-slate-400 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:text-indigo-300 dark:hover:bg-indigo-950/40 transition-colors"
                 >
                   <Pencil size={15} />
                 </button>
@@ -274,7 +319,7 @@ const SubjectsPage = () => {
                   onClick={() => setDeleteTarget(item)}
                   aria-label={`Hapus ${item.name}`}
                   title={t('questions_btn_delete')}
-                  className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
                 >
                   <Trash2 size={15} />
                 </button>
@@ -286,28 +331,39 @@ const SubjectsPage = () => {
 
       {/* Modal tambah / ubah */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={() => setIsModalOpen(false)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-6" onClick={() => setIsModalOpen(false)}>
           <div
             role="dialog"
             aria-modal="true"
             className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Hijau saat menambah, amber saat mengubah - tombol submit di bawah
+                memakai warna yang sama persis. */}
+            <div aria-hidden="true" className={`h-1 w-full bg-gradient-to-r ${selectedItem ? 'from-amber-500 to-orange-500' : 'from-emerald-500 to-teal-500'}`} />
+
             <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-              <div className="min-w-0">
-                <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                  {selectedItem
-                    ? t('master_modal_title_edit').replace('{item}', curItemName)
-                    : t('master_modal_title_new').replace('{item}', curItemName)}
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  {selectedItem ? 'Perbaiki nama mata pelajaran lalu simpan.' : 'Nama harus unik dan tidak boleh sama dengan yang sudah ada.'}
-                </p>
+              <div className="flex items-start gap-3 min-w-0">
+                <span className={`shrink-0 grid place-items-center w-10 h-10 rounded-xl ${selectedItem
+                  ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
+                  : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'}`}>
+                  {selectedItem ? <Pencil size={18} /> : <Plus size={18} />}
+                </span>
+                <div className="min-w-0">
+                  <h2 className={`text-base font-bold ${selectedItem ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
+                    {selectedItem
+                      ? t('master_modal_title_edit').replace('{item}', curItemName)
+                      : t('master_modal_title_new').replace('{item}', curItemName)}
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    {selectedItem ? 'Perbaiki nama mata pelajaran lalu simpan.' : 'Nama harus unik dan tidak boleh sama dengan yang sudah ada.'}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
                 aria-label="Tutup"
-                className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
               >
                 <X size={18} />
               </button>
@@ -316,7 +372,7 @@ const SubjectsPage = () => {
             <form onSubmit={handleSaveItem} className="p-5 space-y-3">
               <div>
                 <label htmlFor="subjectName" className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
-                  {t('master_label_name')} <span className="text-red-500">*</span>
+                  {t('master_label_name')} <span className="text-rose-500">*</span>
                 </label>
                 <input
                   id="subjectName"
@@ -328,7 +384,7 @@ const SubjectsPage = () => {
                   autoFocus
                 />
                 {duplicateName && (
-                  <p className="mt-1.5 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+                  <p className="mt-1.5 flex items-start gap-1.5 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-700 dark:text-amber-300">
                     <TriangleAlert size={13} className="shrink-0 mt-0.5" />
                     Nama sudah dipakai oleh mata pelajaran lain. Gunakan nama yang berbeda.
                   </p>
@@ -340,14 +396,16 @@ const SubjectsPage = () => {
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   disabled={saving}
-                  className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50"
                 >
                   {t('master_btn_cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={!inputValue.trim() || saving || !!duplicateName}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${selectedItem
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm shadow-amber-300/50 dark:shadow-amber-950/40'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-300/50 dark:shadow-emerald-950/40'}`}
                 >
                   <Save size={15} />
                   {saving
@@ -362,24 +420,29 @@ const SubjectsPage = () => {
 
       {/* Modal konfirmasi hapus */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={() => setDeleteTarget(null)}>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-6" onClick={() => setDeleteTarget(null)}>
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl overflow-hidden"
+            className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl shadow-rose-500/10 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
+            <div aria-hidden="true" className="h-1 w-full bg-gradient-to-r from-rose-500 to-pink-500" />
+
             <div className="p-5">
               <div className="flex items-start gap-3">
-                <span className="shrink-0 w-9 h-9 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-600 dark:text-red-400">
+                <span className={`shrink-0 grid place-items-center w-10 h-10 rounded-xl ${DANGER.icon}`}>
                   <Trash2 size={18} />
                 </span>
                 <div className="min-w-0">
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  <h3 className={`text-base font-bold ${DANGER.text}`}>
                     {t('master_delete_confirm').replace('{item}', curItemName)}
                   </h3>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    <span className="font-semibold text-slate-800 dark:text-white">{deleteTarget.name}</span> akan dihapus dan tidak bisa dibatalkan.
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border mt-1 ${DANGER.chip} ${DANGER.text}`}>
+                      {deleteTarget.name}
+                    </span>{' '}
+                    akan dihapus dan tidak bisa dibatalkan.
                   </p>
                 </div>
               </div>
@@ -389,14 +452,14 @@ const SubjectsPage = () => {
               <button
                 onClick={() => setDeleteTarget(null)}
                 disabled={deleting}
-                className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50"
               >
                 {t('master_btn_cancel')}
               </button>
               <button
                 onClick={confirmDelete}
                 disabled={deleting}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
+                className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${DANGER.btn}`}
               >
                 {deleting && <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
                 {deleting ? t('layout_loading') : t('questions_btn_delete')}

@@ -3,6 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/app/context/LanguageContext';
 
+// Palet warna untuk kartu info & form. Satu sumber supaya tiap kartu punya
+// warna sendiri tapi tetap satu bahasa visual dengan halaman lain.
+const TONE = {
+    indigo: { panel: 'bg-indigo-50/60 dark:bg-indigo-950/25 border-indigo-200 dark:border-indigo-900/60', icon: 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400', value: 'text-indigo-700 dark:text-indigo-300', bar: 'from-indigo-500 to-violet-500' },
+    violet: { panel: 'bg-violet-50/60 dark:bg-violet-950/25 border-violet-200 dark:border-violet-900/60', icon: 'bg-violet-100 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400', value: 'text-violet-700 dark:text-violet-300', bar: 'from-violet-500 to-fuchsia-500' },
+    fuchsia: { panel: 'bg-fuchsia-50/60 dark:bg-fuchsia-950/25 border-fuchsia-200 dark:border-fuchsia-900/60', icon: 'bg-fuchsia-100 dark:bg-fuchsia-950/60 text-fuchsia-600 dark:text-fuchsia-400', value: 'text-fuchsia-700 dark:text-fuchsia-300', bar: 'from-fuchsia-500 to-pink-500' },
+    amber: { panel: 'bg-amber-50/60 dark:bg-amber-950/25 border-amber-200 dark:border-amber-900/60', icon: 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400', value: 'text-amber-700 dark:text-amber-300', bar: 'from-amber-500 to-orange-500' },
+};
+
+const inputCls = 'w-full px-4 py-2.5 pr-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-sm text-slate-900 dark:text-slate-100 focus:ring-4 outline-none transition-all';
+const disabledInputCls = 'w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-800/40 text-sm text-slate-500 dark:text-slate-400 cursor-not-allowed';
+const labelCls = 'block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5';
+
 export default function ProfilePage() {
     const { fmt } = useLanguage();
     const [profile, setProfile] = useState(null);
@@ -126,14 +139,14 @@ export default function ProfilePage() {
 
     const getInitials = (name) => name ? name.charAt(0).toUpperCase() : 'U';
 
-    const getRoleBadge = (role) => {
-        const styles = {
-            admin: 'bg-rose-100 text-rose-700 ring-rose-200',
-            teacher: 'bg-amber-100 text-amber-700 ring-amber-200',
-            student: 'bg-sky-100 text-sky-700 ring-sky-200',
-        };
-        return styles[role] || 'bg-gray-100 text-gray-700 ring-gray-200';
+    // Warna per peran: sama dengan chip peran di halaman Pengguna, jadi
+    // "peran apa saya" terbaca konsisten di seluruh aplikasi.
+    const ROLE_TONE = {
+        admin: 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/60',
+        teacher: 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/60',
+        student: 'bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-900/60',
     };
+    const getRoleBadge = (role) => ROLE_TONE[role] || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
 
     const EyeIcon = () => (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -194,21 +207,21 @@ export default function ProfilePage() {
                 }
             ` }} />
             {/* Page Title */}
-            <div className="animate-fade-in-down flex items-center gap-3">
-                <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20">
-                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="animate-fade-in-down flex items-center gap-3.5">
+                <span className="shrink-0 grid place-items-center w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/25">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                </div>
+                </span>
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Profil Saya</h1>
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Profil Saya</h1>
                     <p className="text-sm text-slate-500 dark:text-slate-400">Kelola informasi akun Anda</p>
                 </div>
             </div>
 
             {/* Profile Card */}
-            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
-                <div className="h-24 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+            <div className="animate-fade-in-up relative overflow-hidden bg-white dark:bg-slate-900 rounded-2xl ring-1 ring-slate-200/70 dark:ring-slate-800/70 shadow-sm transition-all duration-200 hover:shadow-md hover:shadow-slate-200/60 dark:hover:shadow-slate-950/40" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
+                <div className="h-24 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500"></div>
                 <div className="px-6 pb-6 -mt-12">
                     <div className="flex flex-col sm:flex-row sm:items-end gap-4">
                         <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-[3px] shadow-xl shadow-purple-500/20">
@@ -222,12 +235,12 @@ export default function ProfilePage() {
                             <h2 className="text-xl font-bold text-slate-900 dark:text-white">{profile?.name || profile?.username}</h2>
                             <p className="text-sm text-slate-500 dark:text-slate-400">@{profile?.username}</p>
                         </div>
-                        <div className="flex items-center gap-2 pb-1">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${getRoleBadge(profile?.role)}`}>
+                        <div className="flex items-center gap-2 pb-1 flex-wrap">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold border ${getRoleBadge(profile?.role)}`}>
                                 {profile?.role?.charAt(0).toUpperCase() + profile?.role?.slice(1)}
                             </span>
                             {profile?.class_name && (
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 ring-1 ring-inset ring-slate-200 dark:ring-slate-600">
+                                <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                     {profile.class_name}
                                 </span>
                             )}
@@ -235,42 +248,40 @@ export default function ProfilePage() {
                     </div>
 
                     {/* Info Grid */}
-                    <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                            <div className="p-2 bg-indigo-100 rounded-lg">
-                                <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <p className="text-[10px] uppercase tracking-wider font-medium text-slate-400">Username</p>
-                                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{profile?.username}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                            <div className="p-2 bg-purple-100 rounded-lg">
-                                <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <p className="text-[10px] uppercase tracking-wider font-medium text-slate-400">Role</p>
-                                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 capitalize">{profile?.role}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                            <div className="p-2 bg-pink-100 rounded-lg">
-                                <svg className="w-4 h-4 text-pink-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <p className="text-[10px] uppercase tracking-wider font-medium text-slate-400">Bergabung</p>
-                                <p className="text-sm font-semibold text-slate-700">
-                                    {profile?.createdAt ? fmt.date(profile.createdAt) : '-'}
-                                </p>
-                            </div>
-                        </div>
+                    <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {[
+                            {
+                                tone: 'indigo',
+                                label: 'Username',
+                                value: profile?.username,
+                                icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
+                            },
+                            {
+                                tone: 'violet',
+                                label: 'Role',
+                                value: profile?.role?.charAt(0).toUpperCase() + profile?.role?.slice(1),
+                                icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
+                            },
+                            {
+                                tone: 'fuchsia',
+                                label: 'Bergabung',
+                                value: profile?.createdAt ? fmt.date(profile.createdAt) : '-',
+                                icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
+                            },
+                        ].map(item => {
+                            const c = TONE[item.tone] || TONE.indigo;
+                            return (
+                                <div key={item.label} className={`group flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 hover:-translate-y-0.5 ${c.panel}`}>
+                                    <div className={`shrink-0 grid place-items-center w-8 h-8 rounded-lg transition-transform duration-200 group-hover:scale-105 ${c.icon}`}>
+                                        {item.icon}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">{item.label}</p>
+                                        <p className={`text-sm font-bold truncate ${c.value}`}>{item.value}</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
@@ -278,34 +289,35 @@ export default function ProfilePage() {
             {/* Forms Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Change Password */}
-                <div className="animate-fade-in-up relative bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 p-6" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
+                <div className="animate-fade-in-up relative overflow-hidden bg-white dark:bg-slate-900 rounded-2xl ring-1 ring-slate-200/70 dark:ring-slate-800/70 shadow-sm p-6" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
+                    <div aria-hidden className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${TONE.amber.bar}`} />
                     {!permissions.can_change_password && (
-                        <div className="absolute inset-0 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-6">
-                            <div className="p-3 bg-slate-100 rounded-full mb-3">
-                                <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="absolute inset-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-6">
+                            <div className="grid place-items-center w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 mb-3">
+                                <svg className="w-7 h-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                 </svg>
                             </div>
-                            <p className="text-sm font-semibold text-slate-600 text-center">Fitur Dinonaktifkan</p>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200 text-center">Fitur Dinonaktifkan</p>
                             <p className="text-xs text-slate-400 text-center mt-1">Ganti password telah dinonaktifkan oleh administrator.</p>
                         </div>
                     )}
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-amber-100 rounded-xl">
-                            <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="flex items-center gap-3 mb-6 mt-1">
+                        <div className={`shrink-0 grid place-items-center w-10 h-10 rounded-xl ${TONE.amber.icon}`}>
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Ganti Password</h3>
+                            <h3 className={`text-lg font-bold ${TONE.amber.value}`}>Ganti Password</h3>
                             <p className="text-xs text-slate-500 dark:text-slate-400">Pastikan password baru kuat dan mudah diingat</p>
                         </div>
                     </div>
 
                     {pwMessage && (
-                        <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2 ${pwMessage.type === 'success'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-semibold flex items-center gap-2 border ${pwMessage.type === 'success'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60'
+                            : 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/60'
                             }`}>
                             {pwMessage.type === 'success' ? (
                                 <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -318,49 +330,49 @@ export default function ProfilePage() {
 
                     <form onSubmit={handleChangePassword} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Password Saat Ini</label>
+                            <label className={labelCls}>Password Saat Ini</label>
                             <div className="relative">
                                 <input
                                     type={showCurrentPw ? 'text' : 'password'}
                                     value={currentPasswordPw}
                                     onChange={(e) => setCurrentPasswordPw(e.target.value)}
-                                    className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                    className={`${inputCls} focus:border-amber-400 dark:focus:border-amber-600 focus:ring-amber-500/20`}
                                     placeholder="Masukkan password saat ini"
                                     required
                                 />
-                                <button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                                <button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors">
                                     {showCurrentPw ? <EyeOffIcon /> : <EyeIcon />}
                                 </button>
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Password Baru</label>
+                            <label className={labelCls}>Password Baru</label>
                             <div className="relative">
                                 <input
                                     type={showNewPw ? 'text' : 'password'}
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
-                                    className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                    className={`${inputCls} focus:border-amber-400 dark:focus:border-amber-600 focus:ring-amber-500/20`}
                                     placeholder="Masukkan password baru"
                                     required
                                 />
-                                <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                                <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors">
                                     {showNewPw ? <EyeOffIcon /> : <EyeIcon />}
                                 </button>
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Konfirmasi Password Baru</label>
+                            <label className={labelCls}>Konfirmasi Password Baru</label>
                             <div className="relative">
                                 <input
                                     type={showConfirmPw ? 'text' : 'password'}
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                    className={`${inputCls} focus:border-amber-400 dark:focus:border-amber-600 focus:ring-amber-500/20`}
                                     placeholder="Ulangi password baru"
                                     required
                                 />
-                                <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                                <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors">
                                     {showConfirmPw ? <EyeOffIcon /> : <EyeIcon />}
                                 </button>
                             </div>
@@ -368,7 +380,7 @@ export default function ProfilePage() {
                         <button
                             type="submit"
                             disabled={pwLoading}
-                            className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold text-sm rounded-xl shadow-sm shadow-amber-500/20 hover:shadow-md hover:shadow-amber-500/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm rounded-xl shadow-sm shadow-amber-300/50 dark:shadow-amber-950/40 transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {pwLoading ? (
                                 <>
@@ -386,34 +398,35 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Change Username */}
-                <div className="animate-fade-in-up relative bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 p-6" style={{ animationDelay: '300ms', animationFillMode: 'forwards' }}>
+                <div className="animate-fade-in-up relative overflow-hidden bg-white dark:bg-slate-900 rounded-2xl ring-1 ring-slate-200/70 dark:ring-slate-800/70 shadow-sm p-6" style={{ animationDelay: '300ms', animationFillMode: 'forwards' }}>
+                    <div aria-hidden className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${TONE.indigo.bar}`} />
                     {!permissions.can_change_username && (
-                        <div className="absolute inset-0 z-10 bg-white/80 dark:bg-slate-800/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-6">
-                            <div className="p-3 bg-slate-100 rounded-full mb-3">
-                                <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="absolute inset-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-6">
+                            <div className="grid place-items-center w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 mb-3">
+                                <svg className="w-7 h-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                 </svg>
                             </div>
-                            <p className="text-sm font-semibold text-slate-600 text-center">Fitur Dinonaktifkan</p>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200 text-center">Fitur Dinonaktifkan</p>
                             <p className="text-xs text-slate-400 text-center mt-1">Ganti username telah dinonaktifkan oleh administrator.</p>
                         </div>
                     )}
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-indigo-100 rounded-xl">
-                            <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="flex items-center gap-3 mb-6 mt-1">
+                        <div className={`shrink-0 grid place-items-center w-10 h-10 rounded-xl ${TONE.indigo.icon}`}>
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                             </svg>
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Ganti Username</h3>
+                            <h3 className={`text-lg font-bold ${TONE.indigo.value}`}>Ganti Username</h3>
                             <p className="text-xs text-slate-500 dark:text-slate-400">Username digunakan untuk login ke akun Anda</p>
                         </div>
                     </div>
 
                     {unMessage && (
-                        <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2 ${unMessage.type === 'success'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-semibold flex items-center gap-2 border ${unMessage.type === 'success'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60'
+                            : 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/60'
                             }`}>
                             {unMessage.type === 'success' ? (
                                 <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -426,38 +439,38 @@ export default function ProfilePage() {
 
                     <form onSubmit={handleChangeUsername} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Username Saat Ini</label>
+                            <label className={labelCls}>Username Saat Ini</label>
                             <input
                                 type="text"
                                 value={profile?.username || ''}
                                 disabled
-                                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                                className={disabledInputCls}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Username Baru</label>
+                            <label className={labelCls}>Username Baru</label>
                             <input
                                 type="text"
                                 value={newUsername}
                                 onChange={(e) => setNewUsername(e.target.value)}
-                                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                className={`${inputCls} focus:border-indigo-400 dark:focus:border-indigo-600 focus:ring-indigo-500/20`}
                                 placeholder="Masukkan username baru"
                                 required
                                 minLength={3}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Password (Konfirmasi)</label>
+                            <label className={labelCls}>Password (Konfirmasi)</label>
                             <div className="relative">
                                 <input
                                     type={showCurrentPwUn ? 'text' : 'password'}
                                     value={currentPasswordUn}
                                     onChange={(e) => setCurrentPasswordUn(e.target.value)}
-                                    className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                                    placeholder="Masukkan password untuk konfirmasi"
+className={`${inputCls} focus:border-indigo-400 dark:focus:border-indigo-600 focus:ring-indigo-500/20`}
+                                placeholder="Masukkan password untuk konfirmasi"
                                     required
                                 />
-                                <button type="button" onClick={() => setShowCurrentPwUn(!showCurrentPwUn)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                                <button type="button" onClick={() => setShowCurrentPwUn(!showCurrentPwUn)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors">
                                     {showCurrentPwUn ? <EyeOffIcon /> : <EyeIcon />}
                                 </button>
                             </div>
@@ -465,7 +478,7 @@ export default function ProfilePage() {
                         <button
                             type="submit"
                             disabled={unLoading}
-                            className="w-full py-2.5 px-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold text-sm rounded-xl shadow-sm shadow-indigo-500/20 hover:shadow-md hover:shadow-indigo-500/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-sm shadow-indigo-300/50 dark:shadow-indigo-950/40 transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {unLoading ? (
                                 <>

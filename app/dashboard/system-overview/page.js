@@ -18,6 +18,7 @@ const Icons = {
     Clock: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     Refresh: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>,
     Users: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
+    Clipboard: () => <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>,
     Shield: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
     Play: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /></svg>,
     Activity: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
@@ -203,14 +204,32 @@ function CoreBar({ index, value }) {
 }
 
 // --- Card Components ---
-function InfoCard({ icon: Icon, title, children, className = '', live = false }) {
+// Warna per jenis metrik: CPU = indigo, Memory = violet, Jaringan = sky,
+// Database = emerald, Redis = rose, Server = slate. Strip atas, ikon, dan
+// judul satu kartu ikut warna yang sama supaya tidak perlu baca teks.
+const CARD_TONE = {
+    indigo: { icon: 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400', bar: 'from-indigo-500 to-violet-500', text: 'text-indigo-700 dark:text-indigo-300', head: 'bg-indigo-50/50 dark:bg-indigo-950/20' },
+    violet: { icon: 'bg-violet-100 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400', bar: 'from-violet-500 to-fuchsia-500', text: 'text-violet-700 dark:text-violet-300', head: 'bg-violet-50/50 dark:bg-violet-950/20' },
+    sky: { icon: 'bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400', bar: 'from-sky-500 to-cyan-500', text: 'text-sky-700 dark:text-sky-300', head: 'bg-sky-50/50 dark:bg-sky-950/20' },
+    emerald: { icon: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400', bar: 'from-emerald-500 to-teal-500', text: 'text-emerald-700 dark:text-emerald-300', head: 'bg-emerald-50/50 dark:bg-emerald-950/20' },
+    rose: { icon: 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400', bar: 'from-rose-500 to-pink-500', text: 'text-rose-700 dark:text-rose-300', head: 'bg-rose-50/50 dark:bg-rose-950/20' },
+    slate: { icon: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300', bar: 'from-slate-400 to-slate-300', text: 'text-slate-700 dark:text-slate-200', head: 'bg-slate-50/70 dark:bg-slate-800/40' },
+    amber: { icon: 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400', bar: 'from-amber-500 to-orange-500', text: 'text-amber-700 dark:text-amber-300', head: 'bg-amber-50/50 dark:bg-amber-950/20' },
+};
+
+function InfoCard({ icon: Icon, title, children, className = '', live = false, tone = 'indigo' }) {
+    const c = CARD_TONE[tone] || CARD_TONE.indigo;
+
     return (
-        <div className={`bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden ${className}`}>
-            <div className="flex items-center gap-2 px-5 py-3 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
-                <span className="text-indigo-600 dark:text-indigo-400"><Icon /></span>
-                <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{title}</h3>
+        <div className={`relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md hover:shadow-slate-200/60 dark:hover:shadow-slate-950/40 ${className}`}>
+            <div aria-hidden className={`h-1 w-full bg-gradient-to-r ${c.bar}`} />
+            <div className={`flex items-center gap-2.5 px-5 py-3 border-b border-slate-100 dark:border-slate-800 transition-colors ${c.head}`}>
+                <span className={`shrink-0 grid place-items-center w-7 h-7 rounded-lg ${c.icon}`}>
+                    <Icon />
+                </span>
+                <h3 className={`font-bold text-sm truncate ${c.text}`}>{title}</h3>
                 {live && (
-                    <span className="ml-auto inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                    <span className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-300 shrink-0">
                         <Icons.Pulse /> LIVE
                     </span>
                 )}
@@ -229,18 +248,22 @@ function InfoRow({ label, value, mono = false }) {
     );
 }
 
-function StatBadge({ label, value, color = 'indigo' }) {
+// Catatan: prop `icon` di sini sudah berupa elemen JSX (dipanggil sebagai
+// <Icons.X /> dari luar), jadi harus langsung dirender. Kalau dirender sebagai
+// <Icon />, React akan complained "Element type is invalid".
+function StatBadge({ label, value, color = 'indigo', icon }) {
     const colorMap = {
-        indigo: 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800',
-        green: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
-        amber: 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800',
-        violet: 'bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-800',
-        sky: 'bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-800',
+        indigo: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/60',
+        green: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60',
+        amber: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/60',
+        violet: 'bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-900/60',
+        sky: 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-900/60',
     };
     return (
-        <div className={`flex flex-col items-center p-4 rounded-xl border ${colorMap[color] || colorMap.indigo}`}>
-            <span className="text-2xl font-bold">{value}</span>
-            <span className="text-xs font-medium mt-1">{label}</span>
+        <div className={`group relative overflow-hidden flex flex-col items-center p-4 rounded-2xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${colorMap[color] || colorMap.indigo}`}>
+            {icon && <span className="grid place-items-center w-6 h-6 rounded-lg bg-white/70 dark:bg-slate-900/40 text-current transition-transform duration-200 group-hover:scale-110 mb-1">{icon}</span>}
+            <span className="text-2xl font-bold tabular-nums">{value}</span>
+            <span className="text-[11px] font-semibold mt-1 opacity-80">{label}</span>
         </div>
     );
 }
@@ -460,41 +483,57 @@ export default function WebSettingsPage() {
                 }
             ` }} />
             {/* Header */}
-            <div className="animate-fade-in-down flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        System Overview
-                        {isLive && <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full"><Icons.Pulse /> LIVE</span>}
-                    </h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        Real-time system monitoring &amp; server overview
-                    </p>
-                </div>
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => setIsLive(!isLive)}
-                        className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg border transition-colors ${isLive
-                            ? 'text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
-                            : 'text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
-                            }`}
-                    >
-                        <Icons.Activity />
-                        {isLive ? 'Live: ON' : 'Live: OFF'}
-                    </button>
-                    <button
-                        onClick={fetchFullData}
-                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg transition-colors"
-                    >
-                        <Icons.Refresh />
-                        Refresh All
-                    </button>
+            <div className="animate-fade-in-down relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-sky-50 dark:from-indigo-950/30 dark:via-slate-900 dark:to-sky-950/30" />
+                <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-500" />
+
+                <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-5 py-5">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                        <span className="shrink-0 grid place-items-center w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-sky-600 text-white shadow-lg shadow-indigo-500/25">
+                            <Icons.Server />
+                        </span>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white">
+                                    System Overview
+                                </h1>
+                                {isLive && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-300">
+                                        <Icons.Pulse /> LIVE
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                                Real-time system monitoring &amp; server overview
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setIsLive(!isLive)}
+                            className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl border transition-all active:scale-95 ${isLive
+                                ? 'text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
+                                : 'text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                }`}
+                        >
+                            <Icons.Activity />
+                            {isLive ? 'Live: ON' : 'Live: OFF'}
+                        </button>
+                        <button
+                            onClick={fetchFullData}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 border border-transparent shadow-sm shadow-indigo-300/50 dark:shadow-indigo-950/40 transition-all active:scale-95"
+                        >
+                            <Icons.Refresh />
+                            Refresh All
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {/* Realtime Overview: Big gauges */}
             <div className="animate-fade-in-up grid grid-cols-1 md:grid-cols-2 gap-6" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
                 {/* CPU Usage Graph */}
-                <InfoCard icon={Icons.Cpu} title="CPU Usage" live={isLive}>
+                <InfoCard icon={Icons.Cpu} title="CPU Usage" live={isLive} tone="indigo">
                     <div className="flex items-center gap-6 mb-4">
                         <GaugeChart value={cpuUsage} label="Overall" color="#6366f1" size={130} />
                         <div className="flex-1 text-center">
@@ -513,7 +552,7 @@ export default function WebSettingsPage() {
                 </InfoCard>
 
                 {/* Memory Usage Graph */}
-                <InfoCard icon={Icons.Memory} title="Memory Usage" live={isLive}>
+                <InfoCard icon={Icons.Memory} title="Memory Usage" live={isLive} tone="violet">
                     <div className="flex items-center gap-6 mb-4">
                         <GaugeChart value={memUsage} label="RAM" color="#10b981" size={130} />
                         <div className="flex-1 space-y-1">
@@ -535,7 +574,7 @@ export default function WebSettingsPage() {
             {/* Per-Core CPU usage */}
             {perCore.length > 0 && (
                 <div className="animate-fade-in-up" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
-                    <InfoCard icon={Icons.Cpu} title={`CPU Cores (${perCore.length} cores)`} live={isLive}>
+                    <InfoCard icon={Icons.Cpu} title={`CPU Cores (${perCore.length} cores)`} live={isLive} tone="indigo">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
                         {perCore.map((usage, i) => (
                             <CoreBar key={i} index={i} value={usage} />
@@ -547,7 +586,7 @@ export default function WebSettingsPage() {
 
             {/* Process Memory Graphs */}
             <div className="animate-fade-in-up grid grid-cols-1 md:grid-cols-2 gap-6" style={{ animationDelay: '250ms', animationFillMode: 'forwards' }}>
-                <InfoCard icon={Icons.Chart} title="Node.js Heap Memory" live={isLive}>
+                <InfoCard icon={Icons.Chart} title="Node.js Heap Memory" live={isLive} tone="sky">
                     <div className="flex items-center justify-between mb-3">
                         <div>
                             <span className="text-2xl font-bold font-mono text-slate-800 dark:text-white">{formatBytes(currentProcess.heapUsed)}</span>
@@ -566,7 +605,7 @@ export default function WebSettingsPage() {
                     />
                 </InfoCard>
 
-                <InfoCard icon={Icons.Chart} title="Process RSS Memory" live={isLive}>
+                <InfoCard icon={Icons.Chart} title="Process RSS Memory" live={isLive} tone="amber">
                     <div className="flex items-center justify-between mb-3">
                         <div>
                             <span className="text-2xl font-bold font-mono text-slate-800 dark:text-white">{formatBytes(currentProcess.rss)}</span>
@@ -589,7 +628,7 @@ export default function WebSettingsPage() {
             {/* Network Bandwidth */}
             {currentBw && (
                 <div className="animate-fade-in-up" style={{ animationDelay: '300ms', animationFillMode: 'forwards' }}>
-                    <InfoCard icon={Icons.Network} title="Network Bandwidth" live={isLive}>
+                    <InfoCard icon={Icons.Network} title="Network Bandwidth" live={isLive} tone="sky">
                     <div className="grid grid-cols-2 gap-6 mb-4">
                         <div className="text-center">
                             <div className="text-xs text-slate-400 mb-1">↓ Download</div>
@@ -635,11 +674,11 @@ export default function WebSettingsPage() {
             {/* App Stats */}
             {app && (
                 <div className="animate-fade-in-up grid grid-cols-2 sm:grid-cols-5 gap-3" style={{ animationDelay: '350ms', animationFillMode: 'forwards' }}>
-                    <StatBadge label="Total Users" value={app.totalUsers} color="indigo" />
-                    <StatBadge label="Admin" value={app.userCounts?.admin || 0} color="violet" />
-                    <StatBadge label="Teacher" value={app.userCounts?.teacher || 0} color="sky" />
-                    <StatBadge label="Total Exams" value={app.totalExams} color="green" />
-                    <StatBadge label="Questions" value={app.totalQuestions} color="amber" />
+                    <StatBadge label="Total Users" value={app.totalUsers} color="indigo" icon={<Icons.Users />} />
+                    <StatBadge label="Admin" value={app.userCounts?.admin || 0} color="violet" icon={<Icons.Shield />} />
+                    <StatBadge label="Teacher" value={app.userCounts?.teacher || 0} color="sky" icon={<Icons.Users />} />
+                    <StatBadge label="Total Exams" value={app.totalExams} color="green" icon={<Icons.Clipboard />} />
+                    <StatBadge label="Questions" value={app.totalQuestions} color="amber" icon={<Icons.Clipboard />} />
                 </div>
             )}
 
@@ -647,7 +686,7 @@ export default function WebSettingsPage() {
             <div className="animate-fade-in-up grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style={{ animationDelay: '400ms', animationFillMode: 'forwards' }}>
                 {/* System Info */}
                 {system && (
-                    <InfoCard icon={Icons.Server} title="System Information">
+                    <InfoCard icon={Icons.Server} title="System Information" tone="slate">
                         <div className="space-y-0.5">
                             <InfoRow label="Hostname" value={system.hostname} mono />
                             <InfoRow label="Platform" value={`${system.platform} (${system.arch})`} />
@@ -659,7 +698,7 @@ export default function WebSettingsPage() {
                 )}
 
                 {/* Uptime */}
-                <InfoCard icon={Icons.Clock} title="Server Uptime" live={isLive}>
+                <InfoCard icon={Icons.Clock} title="Server Uptime" live={isLive} tone="slate">
                     <div className="text-center py-4">
                         <div className="text-3xl font-black text-slate-800 dark:text-white font-mono tracking-tighter">
                             {formatUptime(currentUptime)}
@@ -687,7 +726,7 @@ export default function WebSettingsPage() {
 
                 {/* Database Info */}
                 {database && (
-                    <InfoCard icon={Icons.Database} title="Database Status">
+                    <InfoCard icon={Icons.Database} title="Database Status" tone="emerald">
                         <div className="space-y-0.5">
                             <InfoRow label="MySQL Version" value={database.version} mono />
                             <InfoRow label="Connections" value={database.connections} />
@@ -700,7 +739,7 @@ export default function WebSettingsPage() {
 
                 {/* Redis Info */}
                 {(redis || realtime?.redis) && (
-                    <InfoCard icon={Icons.Redis} title="Redis Status" live={isLive}>
+                    <InfoCard icon={Icons.Redis} title="Redis Status" live={isLive} tone="rose">
                         <div className="space-y-0.5">
                             <InfoRow 
                                 label="Status" 
@@ -740,7 +779,7 @@ export default function WebSettingsPage() {
             {/* Network Interfaces */}
             {system?.network && system.network.length > 0 && (
                 <div className="animate-fade-in-up" style={{ animationDelay: '450ms', animationFillMode: 'forwards' }}>
-                    <InfoCard icon={Icons.Network} title={`Network Interfaces (${[...new Set(system.network.map(n => n.adapter))].length} adapters)`}>
+                    <InfoCard icon={Icons.Network} tone="sky" title={`Network Interfaces (${[...new Set(system.network.map(n => n.adapter))].length} adapters)`}>
                     {/* Desktop View */}
                     <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-xs">
@@ -810,7 +849,7 @@ export default function WebSettingsPage() {
             {/* Database Tables */}
             {database?.tables && database.tables.length > 0 && (
                 <div className="animate-fade-in-up" style={{ animationDelay: '500ms', animationFillMode: 'forwards' }}>
-                    <InfoCard icon={Icons.Database} title={`Database Tables (${database.tables.length})`}>
+                    <InfoCard icon={Icons.Database} tone="emerald" title={`Database Tables (${database.tables.length})`}>
                     {/* Desktop View */}
                     <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-xs">

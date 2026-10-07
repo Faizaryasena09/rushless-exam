@@ -31,6 +31,19 @@ import dynamic from 'next/dynamic';
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 import BankQuestionForm from '@/app/components/bank/BankQuestionForm';
 
+/**
+ * Warna per tipe soal. Bank soal bisa berisi ratusan butir, jadi jenis soal
+ * dibedakan dari warnanya supaya mudah dipindai tanpa membaca tiap kartu.
+ * Pilihan ganda = biru (paling sering), isian = violet, essays = amber.
+ */
+const QUESTION_TYPE_TONE = {
+  multiple_choice: 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-900/60',
+  multiple_choice_complex: 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-900/60',
+  short_answer: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-900/60',
+  essay: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/60',
+  _default: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+};
+
 export default function BankSoalPage() {
   const router = useRouter();
   const { t, fmt } = useLanguage();
@@ -251,13 +264,16 @@ export default function BankSoalPage() {
       ` }} />
 
       {/* 1. Bagian Judul & Tombol */}
-      <div className="bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
-        <div className="animate-fade-in-down max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+      <div className="relative overflow-hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-emerald-50 dark:from-indigo-950/30 dark:via-slate-900 dark:to-emerald-950/25" />
+        <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-500" />
+
+        <div className="animate-fade-in-down relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-200 dark:shadow-none shrink-0">
+              <span className="shrink-0 grid place-items-center w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/25">
                 <Folder className="w-5 h-5" />
-              </div>
+              </span>
               <div>
                 <h1 className="text-lg sm:text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight leading-none">
                   Bank Soal
@@ -271,7 +287,7 @@ export default function BankSoalPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm hover:shadow-md active:scale-95"
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm shadow-emerald-300/50 dark:shadow-emerald-950/40 active:scale-95"
               >
                 <Upload className="w-4 h-4" />
                 <span className="hidden sm:inline">Impor Soal</span>
@@ -282,7 +298,7 @@ export default function BankSoalPage() {
                   setExportScope(currentFolderId ? 'folder' : 'all');
                   setIsExportModalOpen(true);
                 }}
-                className="inline-flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-[11px] font-bold hover:bg-slate-50 dark:hover:bg-slate-600 transition-all active:scale-95"
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900/60 text-sky-700 dark:text-sky-300 rounded-xl text-[11px] font-bold hover:bg-sky-100 dark:hover:bg-sky-900/40 transition-all active:scale-95"
               >
                 <Download className="w-4 h-4" />
                 Ekspor
@@ -293,7 +309,7 @@ export default function BankSoalPage() {
                    setFolderName('');
                    setIsFolderModalOpen(true);
                 }}
-                className="inline-flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm hover:shadow-md active:scale-95"
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm shadow-indigo-300/50 dark:shadow-indigo-950/40 active:scale-95"
               >
                 <Plus className="w-4 h-4" />
                 Folder Baru
@@ -389,10 +405,10 @@ export default function BankSoalPage() {
             {/* Folders Grid */}
             {currentFolders.length > 0 && (
               <section className="animate-fade-in-up" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
-                <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <span className="w-1 h-3 bg-indigo-500 rounded-full" />
+                <h2 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span className="w-1 h-3.5 bg-indigo-500 rounded-full" />
                   Folders
-                  <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] tabular-nums">
+                  <span className="px-1.5 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold tabular-nums border border-indigo-200 dark:border-indigo-900/60">
                     {currentFolders.length}
                   </span>
                 </h2>
@@ -409,16 +425,19 @@ export default function BankSoalPage() {
                         }
                       }}
                       aria-label={`Buka folder ${folder.name}`}
-                      className="group bg-white dark:bg-slate-800 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500/60 hover:shadow-lg hover:shadow-indigo-100/60 dark:hover:shadow-none transition-all cursor-pointer relative focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      className="group relative overflow-hidden bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 hover:-translate-y-0.5 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-lg hover:shadow-indigo-100/60 dark:hover:shadow-indigo-950/30 transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                       onClick={() => setCurrentFolderId(folder.id)}
                     >
+                      {/* Strip gradien muncul saat hover - penanda "bisa dibuka". */}
+                      <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+
                       <div className="flex items-center gap-3">
-                        <span className="shrink-0 p-2.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl text-indigo-600 dark:text-indigo-400 transition-colors group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20">
-                          <Folder className="w-5 h-5 fill-current" />
+                        <span className="shrink-0 grid place-items-center w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 transition-all duration-200 group-hover:scale-105">
+                          <Folder className="w-4.5 h-4.5 fill-current" />
                         </span>
                         <span className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-sm text-slate-800 dark:text-white truncate">{folder.name}</h3>
-                          <p className="text-[10px] text-slate-400 font-medium truncate">
+                          <h3 className="font-bold text-sm text-slate-800 dark:text-white truncate">{folder.name}</h3>
+                          <p className="text-[10px] text-slate-400 font-semibold truncate">
                             {folder.question_count !== undefined ? `${folder.question_count} soal` : 'Klik untuk buka'}
                           </p>
                         </span>
@@ -434,7 +453,7 @@ export default function BankSoalPage() {
                             }}
                             aria-label={`Ubah folder ${folder.name}`}
                             title="Ubah Folder"
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-lg transition-colors"
                          >
                             <Edit className="w-3.5 h-3.5" />
                          </button>
@@ -445,7 +464,7 @@ export default function BankSoalPage() {
                             }}
                             aria-label={`Hapus folder ${folder.name}`}
                             title="Hapus Folder"
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"
                          >
                             <Trash className="w-3.5 h-3.5" />
                          </button>
@@ -461,10 +480,10 @@ export default function BankSoalPage() {
               <section className="animate-fade-in-up mt-8" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <span className="w-1 h-3 bg-emerald-500 rounded-full" />
+                    <h2 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <span className="w-1 h-3.5 bg-emerald-500 rounded-full" />
                       Butir Soal
-                      <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] tabular-nums">
+                      <span className="px-1.5 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold tabular-nums border border-emerald-200 dark:border-emerald-900/60">
                         {filteredQuestions.length}
                       </span>
                     </h2>
@@ -485,10 +504,10 @@ export default function BankSoalPage() {
                         {selectedQuestionIds.length > 0 && (
                           <button
                             onClick={() => setSelectedQuestionIds([])}
-                            className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-slate-400 hover:text-rose-600 transition-colors"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-[10px] font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors"
                           >
                             <X className="w-3 h-3" />
-                            Batal pilih
+                            Batal pilih ({selectedQuestionIds.length})
                           </button>
                         )}
                       </>
@@ -508,15 +527,17 @@ export default function BankSoalPage() {
                 </div>
 
                 {filteredQuestions.length === 0 ? (
-                  <div className="bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl p-12 flex flex-col items-center justify-center text-center">
-                    <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-full mb-4">
+<div className="relative overflow-hidden bg-white/60 dark:bg-slate-900/40 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-3xl p-12 flex flex-col items-center justify-center text-center">
+                    <div className={`grid place-items-center w-14 h-14 rounded-2xl mb-4 ${searchTerm
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                      : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'}`}>
                       {searchTerm ? (
-                        <Search className="w-8 h-8 text-slate-300" />
+                        <Search className="w-6 h-6" />
                       ) : (
-                        <FileText className="w-8 h-8 text-slate-300" />
+                        <FileText className="w-6 h-6" />
                       )}
                     </div>
-                    <h3 className="text-slate-800 dark:text-white font-bold">
+                  <h3 className="text-slate-800 dark:text-white font-bold">
                       {searchTerm ? 'Tidak ada soal yang cocok' : 'Folder Kosong'}
                     </h3>
                     <p className="text-sm text-slate-400 max-w-xs mt-1">
@@ -524,12 +545,23 @@ export default function BankSoalPage() {
                         ? `Tidak ditemukan soal dengan kata kunci "${searchTerm}".`
                         : 'Belum ada soal di folder ini. Kamu bisa tambah manual atau impor dari ujian yang sudah ada.'}
                     </p>
-                    {searchTerm && (
+                    {searchTerm ? (
                       <button
                         onClick={() => setSearchTerm('')}
-                        className="mt-5 px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+                        className="mt-5 px-4 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
                       >
                         Bersihkan pencarian
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingQuestion(null);
+                          setIsQuestionModalOpen(true);
+                        }}
+                        className="mt-5 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-300/50 dark:shadow-emerald-950/40 transition-all active:scale-95"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Tambah Soal Pertama
                       </button>
                     )}
                   </div>
@@ -549,11 +581,16 @@ export default function BankSoalPage() {
                             }
                           }}
                           onClick={() => setPreviewQuestion(question)}
-                          className={`group relative bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${isSelected
-                            ? 'border-indigo-500 ring-1 ring-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-500/5'
-                            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md'
+                          className={`group relative overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border ring-1 transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${isSelected
+                            ? 'border-indigo-400 dark:border-indigo-600 ring-indigo-500/25 bg-indigo-50/50 dark:bg-indigo-950/20'
+                            : 'border-slate-200 dark:border-slate-800 ring-slate-200/70 dark:ring-slate-800/70 hover:-translate-y-0.5 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md hover:shadow-slate-200/60 dark:hover:shadow-slate-950/40'
                             }`}
                         >
+                          {/* Strip indigo ketika soal sedang dipilih. */}
+                          {isSelected && (
+                            <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-indigo-500 to-violet-500" />
+                          )}
+
                           <div className="flex items-start gap-3.5">
                             {/* Checkbox */}
                             <span
@@ -582,12 +619,16 @@ export default function BankSoalPage() {
 
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                                <span className="px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 rounded text-[9px] font-bold uppercase tracking-wider leading-tight">
+                                {/* Tipe soal punya warna sendiri supaya bank soal yang
+                                    panjang masih bisa dibaca sekilas. */}
+                                <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-bold uppercase tracking-wider leading-tight ${QUESTION_TYPE_TONE[question.question_type] || QUESTION_TYPE_TONE._default}`}>
                                   {question.question_type?.replace(/_/g, ' ')}
                                 </span>
                                 <span className="text-[10px] font-semibold text-slate-400 tabular-nums">#{idx + 1}</span>
                                 <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                                <span className="text-[10px] font-semibold text-slate-400">{question.points} poin</span>
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-700 dark:text-amber-300 text-[10px] font-bold tabular-nums">
+                                  {question.points} poin
+                                </span>
                                 <span className="ml-auto hidden sm:flex items-center gap-1 text-[10px] font-semibold text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <Eye className="w-3.5 h-3.5" />
                                   Pratinjau
@@ -670,7 +711,10 @@ export default function BankSoalPage() {
         onClose={() => setIsFolderModalOpen(false)}
         size="sm"
         icon={editingFolder ? Edit : Folder}
-        iconClass="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+        accent={editingFolder ? 'amber' : 'indigo'}
+        iconClass={editingFolder
+          ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
+          : 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400'}
         title={editingFolder ? 'Ubah Folder' : 'Buat Folder Baru'}
         subtitle={editingFolder ? 'Perbarui nama folder ini' : `Berisi di dalam ${currentFolderId ? 'folder ini' : 'Bank Soal'}`}
         footer={
@@ -680,7 +724,7 @@ export default function BankSoalPage() {
             </ModalButton>
             <ModalButton
               type="submit"
-              variant="primary"
+              variant={editingFolder ? 'success' : 'primary'}
               form="bank-folder-form"
               disabled={!folderName.trim()}
             >
@@ -700,7 +744,7 @@ export default function BankSoalPage() {
             value={folderName}
             onChange={(e) => setFolderName(e.target.value)}
             placeholder="Contoh: Matematika Kelas 10"
-            className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-slate-900/5 dark:focus:ring-white/5 transition-colors"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-indigo-400 dark:focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500/20 transition-colors"
           />
           <p className="mt-2 text-[11px] text-slate-400">
             Folder bisa berisi folder lain (sub-folder) dan butir soal.
@@ -727,7 +771,10 @@ export default function BankSoalPage() {
         onClose={() => setIsQuestionModalOpen(false)}
         size="xl"
         icon={editingQuestion ? Edit : Plus}
-        iconClass="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+        accent={editingQuestion ? 'amber' : 'emerald'}
+        iconClass={editingQuestion
+          ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
+          : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'}
         title={editingQuestion ? 'Sunting Butir Soal' : 'Tambah Soal ke Bank'}
         subtitle={path.length > 0 ? path.map(f => f.name).join(' / ') : 'Bank Soal'}
         bodyClassName="custom-scrollbar"
@@ -760,16 +807,17 @@ export default function BankSoalPage() {
         onClose={() => setPreviewQuestion(null)}
         size="lg"
         icon={Eye}
-        iconClass="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+        accent="indigo"
+        iconClass="bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400"
         title="Pratinjau Butir Soal"
         subtitle={path.length > 0 ? path.map(f => f.name).join(' / ') : 'Bank Soal'}
         badge={
           previewQuestion ? (
             <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-              <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 rounded text-[10px] font-semibold uppercase tracking-wide">
+              <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase tracking-wide ${QUESTION_TYPE_TONE[previewQuestion.question_type] || QUESTION_TYPE_TONE._default}`}>
                 {previewQuestion.question_type?.replace(/_/g, ' ')}
               </span>
-              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded text-[10px] font-semibold tabular-nums">
+              <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-700 dark:text-amber-300 text-[10px] font-bold tabular-nums">
                 {previewQuestion.points} poin
               </span>
             </div>
@@ -798,8 +846,9 @@ export default function BankSoalPage() {
         {previewQuestion && (
           <div className="space-y-5">
             {/* Question Text */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Pertanyaan</p>
+            <div className="relative overflow-hidden rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/20 p-5">
+              <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-violet-500" />
+              <p className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-widest mb-3">Pertanyaan</p>
               <div
                 className="text-base text-slate-800 dark:text-slate-200 font-medium leading-relaxed prose prose-sm max-w-none dark:prose-invert"
                 dangerouslySetInnerHTML={{ __html: previewQuestion.question_text }}
@@ -984,7 +1033,7 @@ export default function BankSoalPage() {
 
 /* ============================================================
    MODAL SHELL — tema konsisten dengan halaman dashboard lain
-   (rounded-2xl, border slate, tombol slate-900/white)
+   (rounded-2xl, ring, strip gradien sesuai jenis aksi)
    ============================================================ */
 const MODAL_SIZES = {
   sm: 'sm:max-w-md',
@@ -993,7 +1042,16 @@ const MODAL_SIZES = {
   xl: 'sm:max-w-5xl',
 };
 
-function Modal({ open, onClose, size = 'md', icon: Icon, iconClass = '', title, subtitle, badge, children, footer, bodyClassName = '' }) {
+// Strip atas modal mengikuti jenis aksi, jadi "hapus" selalu merah, "buat"
+// hijau, "ubah" amber - sebelum user membaca teksnya.
+const MODAL_ACCENT = {
+  indigo: 'from-indigo-500 to-violet-500',
+  emerald: 'from-emerald-500 to-teal-500',
+  amber: 'from-amber-500 to-orange-500',
+  rose: 'from-rose-500 to-pink-500',
+};
+
+function Modal({ open, onClose, size = 'md', icon: Icon, iconClass = '', accent = 'indigo', title, subtitle, badge, children, footer, bodyClassName = '' }) {
   useEffect(() => {
     if (!open) return;
     const handleKey = (e) => {
@@ -1024,8 +1082,14 @@ function Modal({ open, onClose, size = 'md', icon: Icon, iconClass = '', title, 
       />
 
       <div
-        className={`relative w-full sm:${MODAL_SIZES[size] || MODAL_SIZES.md} bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-900/10 dark:shadow-black/40 overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in zoom-in-95 duration-200`}
+        className={`relative w-full sm:${MODAL_SIZES[size] || MODAL_SIZES.md} bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 shadow-2xl shadow-slate-900/10 dark:shadow-black/40 overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in zoom-in-95 duration-200`}
       >
+        {/* Strip penanda aksi */}
+        <div
+          aria-hidden
+          className={`h-1 w-full shrink-0 bg-gradient-to-r ${MODAL_ACCENT[accent] || MODAL_ACCENT.indigo}`}
+        />
+
         {/* Grip untuk mobile */}
         <div className="sm:hidden flex justify-center pt-2.5 pb-1 shrink-0">
           <span className="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
@@ -1035,7 +1099,7 @@ function Modal({ open, onClose, size = 'md', icon: Icon, iconClass = '', title, 
         <div className="flex-shrink-0 flex items-start justify-between gap-4 px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3 min-w-0">
             {Icon && (
-              <span className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${iconClass || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300'}`}>
+              <span className={`shrink-0 w-10 h-10 rounded-xl grid place-items-center ${iconClass || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300'}`}>
                 <Icon size={17} />
               </span>
             )}
@@ -1049,7 +1113,7 @@ function Modal({ open, onClose, size = 'md', icon: Icon, iconClass = '', title, 
           <button
             onClick={onClose}
             aria-label="Tutup"
-            className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+            className="shrink-0 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
           >
             <X size={18} />
           </button>
@@ -1060,7 +1124,7 @@ function Modal({ open, onClose, size = 'md', icon: Icon, iconClass = '', title, 
 
         {/* Footer */}
         {footer && (
-          <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 rounded-b-2xl">
+          <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40">
             {footer}
           </div>
         )}
@@ -1071,11 +1135,11 @@ function Modal({ open, onClose, size = 'md', icon: Icon, iconClass = '', title, 
 
 function ModalButton({ variant = 'ghost', loading = false, className = '', children, ...props }) {
   const styles = {
-    primary: 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90',
-    accent: 'bg-indigo-600 text-white hover:bg-indigo-700',
-    success: 'bg-emerald-600 text-white hover:bg-emerald-700',
-    danger: 'bg-rose-600 text-white hover:bg-rose-700',
-    secondary: 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700',
+    primary: 'bg-indigo-600 text-white shadow-sm shadow-indigo-300/50 dark:shadow-indigo-950/40 hover:bg-indigo-700',
+    accent: 'bg-violet-600 text-white shadow-sm shadow-violet-300/50 dark:shadow-violet-950/40 hover:bg-violet-700',
+    success: 'bg-emerald-600 text-white shadow-sm shadow-emerald-300/50 dark:shadow-emerald-950/40 hover:bg-emerald-700',
+    danger: 'bg-rose-600 text-white shadow-sm shadow-rose-300/50 dark:shadow-rose-950/40 hover:bg-rose-700',
+    secondary: 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700',
     ghost: 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
   };
 
@@ -1083,7 +1147,7 @@ function ModalButton({ variant = 'ghost', loading = false, className = '', child
     <button
       {...props}
       disabled={props.disabled || loading}
-      className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none ${styles[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none ${styles[variant] || styles.ghost} ${className}`}
     >
       {loading && (
         <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin opacity-70" />

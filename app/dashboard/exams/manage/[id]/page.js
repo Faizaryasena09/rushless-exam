@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, ClipboardList, ChevronDown, ChevronRight, Check, Plus, CheckCircle2, AlertCircle, AlertTriangle, Info, Clock } from 'lucide-react';
+import { ArrowLeft, ClipboardList, ChevronDown, ChevronRight, Check, Plus, CheckCircle2, AlertCircle, AlertTriangle, Info, Clock, Users, ShieldCheck, KeyRound } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { mysqlToDatetimeLocal, datetimeLocalToMysql, formatDateTime } from '@/app/lib/timezone';
 import { useLanguage } from '@/app/context/LanguageContext';
@@ -20,6 +20,8 @@ const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 const toDateTimeLocal = (dateString) => mysqlToDatetimeLocal(dateString);
 
 // --- Reusable Switch Component ---
+// Toggle hidup memakai emerald: "sudah aktif" harus terbaca sekilas, bukan
+// putih-hitam yang mudah terlewat di antara banyak baris pengaturan.
 const Switch = ({ id, label, description, checked, onChange, disabled, standalone }) => (
   <label
     htmlFor={id}
@@ -38,7 +40,7 @@ const Switch = ({ id, label, description, checked, onChange, disabled, standalon
         onChange={onChange}
         disabled={disabled}
       />
-      <span className={`block w-11 h-6 rounded-full transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-slate-400 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-slate-900 ${checked ? (disabled ? 'bg-slate-400' : 'bg-slate-900 dark:bg-white') : 'bg-slate-200 dark:bg-slate-700'}`} />
+      <span className={`block w-11 h-6 rounded-full transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-400 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-slate-900 ${checked ? (disabled ? 'bg-slate-400' : 'bg-emerald-500') : 'bg-slate-200 dark:bg-slate-700'}`} />
       <span className={`absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
     </span>
   </label>
@@ -46,7 +48,7 @@ const Switch = ({ id, label, description, checked, onChange, disabled, standalon
 
 // --- Reusable Segmented Control ---
 const SegmentedControl = ({ name, options, value, onChange }) => (
-  <div role="radiogroup" aria-label={name} className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg gap-1">
+  <div role="radiogroup" aria-label={name} className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl gap-1">
     {options.map(option => (
       <label key={option.value} className={`flex-1 text-center relative ${option.disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
         <input
@@ -58,7 +60,7 @@ const SegmentedControl = ({ name, options, value, onChange }) => (
           className="peer sr-only"
           disabled={option.disabled}
         />
-        <span className={`block w-full py-1.5 px-2 text-sm font-semibold rounded-md transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-slate-400 ${option.disabled ? 'text-slate-400 dark:text-slate-500' : (value === option.value ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-50 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100')}`}>
+        <span className={`block w-full py-1.5 px-2 text-sm font-semibold rounded-lg transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-400 ${option.disabled ? 'text-slate-400 dark:text-slate-500' : (value === option.value ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-300/50 dark:shadow-emerald-950/40' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100')}`}>
           {option.label}
         </span>
       </label>
@@ -339,14 +341,14 @@ if (loading) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="lg:col-span-2 space-y-4">
             {[0, 1, 2].map(i => (
-              <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">
+              <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">
                 <div className="h-4 w-48 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
                 <div className="h-10 w-full bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
                 <div className="h-10 w-2/3 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
               </div>
             ))}
           </div>
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 h-40 animate-pulse" />
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 h-40 animate-pulse" />
         </div>
       </div>
     );
@@ -355,29 +357,37 @@ if (loading) {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            href="/dashboard/exams"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-          >
-            <ArrowLeft size={14} />
-            Kembali ke Daftar Ujian
-          </Link>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1.5 break-words">
-            {examName || 'Kelola Ujian'}
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Semua perubahan tersimpan otomatis 1 detik setelah kamu berhenti mengetik.
-          </p>
-        </div>
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-sky-50 via-white to-indigo-50 dark:from-sky-950/30 dark:via-slate-900 dark:to-indigo-950/30" />
+        <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-500" />
 
-        <SaveIndicator state={saveState} saving={saving} />
+        <div className="relative flex flex-col lg:flex-row lg:items-start justify-between gap-3 px-5 py-5">
+          <div className="min-w-0">
+            <Link
+              href="/dashboard/exams"
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/60 transition-colors hover:bg-sky-100 dark:hover:bg-sky-900/40"
+            >
+              <ArrowLeft size={14} />
+              Kembali ke Daftar Ujian
+            </Link>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-2.5 break-words">
+              {examName || 'Kelola Ujian'}
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Semua perubahan tersimpan otomatis 1 detik setelah kamu berhenti mengetik.
+            </p>
+          </div>
+
+          <SaveIndicator state={saveState} saving={saving} />
+        </div>
       </div>
 
       {warnings.length > 0 && (
-        <div className="rounded-xl border border-amber-300 dark:border-amber-800/70 bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
-          <p className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-1">Perlu diperhatikan</p>
+        <div className="rounded-2xl border border-amber-300 dark:border-amber-800/70 bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
+          <p className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-1 flex items-center gap-1.5">
+            <AlertTriangle size={13} />
+            Perlu diperhatikan
+          </p>
           <ul className="space-y-1">
             {warnings.map(w => (
               <li key={w} className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1.5">
@@ -389,18 +399,28 @@ if (loading) {
         </div>
       )}
 
-      {/* Navigasi section */}
-      <nav className="sticky top-0 z-20 -mx-1 px-1 py-2 bg-slate-50 dark:bg-slate-950/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800">
+      {/* Navigasi section - tiap tab punya warna sendiri yang sama dengan card
+          section di bawahnya, jadi letak Navigasi jelas tanpa perlu klik. */}
+      <nav className="sticky top-0 z-20 -mx-1 px-1 py-2.5 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800">
         <div className="flex gap-1.5 overflow-x-auto">
-          {SECTIONS.map(s => (
-            <a
-              key={s.id}
-              href={`#${s.id}`}
-              className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors"
-            >
-              {s.label}
-            </a>
-          ))}
+          {SECTIONS.map(s => {
+            const c = TONE[s.tone] || TONE.indigo;
+            const active = openSections[s.id];
+            return (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                className={`group shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 ${
+                  active
+                    ? `${c.icon} border-transparent shadow-sm`
+                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700 hover:text-slate-800 dark:hover:text-slate-100'
+                }`}
+              >
+                <span className={active ? '' : 'opacity-70 group-hover:opacity-100'}>{s.icon}</span>
+                {s.label}
+              </a>
+            );
+          })}
         </div>
       </nav>
 
@@ -558,9 +578,9 @@ if (loading) {
                       type="button"
                       onClick={() => handleToggleClass(cls.id)}
                       aria-pressed={isSelected}
-                      className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${isSelected
-                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent'
-                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-400'
+                      className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold border transition-all duration-200 ${isSelected
+                        ? 'bg-violet-600 text-white border-transparent shadow-sm shadow-violet-300/50 dark:shadow-violet-950/40'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-violet-300 dark:hover:border-violet-800 hover:text-violet-700 dark:hover:text-violet-300'
                       }`}
                     >
                       {isSelected ? <Check size={14} /> : <Plus size={14} className="text-slate-400" />}
@@ -691,7 +711,7 @@ if (loading) {
             )}
 
             {requireToken && (
-              <div className="space-y-3 pl-3 border-l-2 border-slate-200 dark:border-slate-700">
+              <div className="space-y-3 pl-3 border-l-2 border-amber-200 dark:border-amber-900/60">
                 <SegmentedControl
                   name="token-type"
                   options={[
@@ -718,12 +738,12 @@ if (loading) {
                     />
                   </Field>
                 ) : (
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4">
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Token aktif saat ini</p>
-                    <p className="text-3xl font-mono font-bold tracking-[0.3em] text-slate-900 dark:text-white mt-1.5">
+                  <div className="rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 p-4">
+                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">Token aktif saat ini</p>
+                    <p className="text-3xl font-mono font-bold tracking-[0.3em] text-amber-800 dark:text-amber-200 mt-1.5">
                       {liveAutoToken || '••••••'}
                     </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                    <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 mt-2">
                       Di-generate server dan <strong>berubah otomatis setiap 15 menit</strong>. Diperbarui otomatis di layar ini.
                     </p>
                   </div>
@@ -750,7 +770,7 @@ if (loading) {
             />
 
             {showInstructions && (
-              <div className="space-y-3 pl-3 border-l-2 border-slate-200 dark:border-slate-700">
+              <div className="space-y-3 pl-3 border-l-2 border-emerald-200 dark:border-emerald-900/60">
                 <SegmentedControl
                   name="instruction-type"
                   options={[
@@ -762,9 +782,9 @@ if (loading) {
                 />
 
                 {instructionType === 'template' ? (
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4">
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">Preview Petunjuk Default</p>
-                    <ul className="list-disc list-inside space-y-1 text-xs text-slate-600 dark:text-slate-400">
+                  <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/30 p-4">
+                    <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 mb-2">Preview Petunjuk Default</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs text-emerald-800/90 dark:text-emerald-200/90">
                       <li>Berdoalah sebelum mengerjakan ujian.</li>
                       <li>Periksa daftar soal untuk melihat ragam pertanyaan yang tersedia.</li>
                       <li>Silakan gunakan fitur <strong>Tandai Ragu</strong> jika belum yakin dengan jawaban.</li>
@@ -800,7 +820,7 @@ if (loading) {
             open={openSections.hasil}
             onToggle={() => setOpenSections(p => ({ ...p, hasil: !p.hasil }))}
           >
-            <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
               <Switch
                 id="show-result"
                 label="Tampilkan Hasil"
@@ -814,7 +834,7 @@ if (loading) {
                 standalone
               />
               {showResult && (
-                <div className="p-3 bg-slate-50 dark:bg-slate-800/40">
+                <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/20">
                   <Switch
                     id="show-analysis"
                     label="Tampilkan Analisis Jawaban"
@@ -834,8 +854,9 @@ if (loading) {
         {/* Kolom samping */}
         <div className="lg:col-span-1">
           <div className="space-y-4 lg:sticky lg:top-14">
-            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Ringkasan</h3>
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 p-4">
+              <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
+              <h3 className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Ringkasan</h3>
               <dl className="mt-3 space-y-2.5 text-sm">
                 <SummaryRow label="Jadwal" value={isScheduled ? 'Terjadwal' : 'Tanpa jadwal'} tone={isScheduled ? 'emerald' : 'amber'} />
                 <SummaryRow
@@ -856,33 +877,33 @@ if (loading) {
 
             <Link
               href={`/dashboard/exams/questions/${examId}`}
-              className="block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+              className="group block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/60 dark:hover:shadow-slate-950/50"
             >
               <div className="flex items-start gap-3">
-                <span className="shrink-0 w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                <span className={`shrink-0 grid place-items-center w-9 h-9 rounded-xl transition-transform duration-200 group-hover:scale-105 ${TONE.violet.icon}`}>
                   <ClipboardList size={17} />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Kelola Soal</p>
+                  <p className={`text-sm font-semibold transition-colors ${TONE.violet.text}`}>Kelola Soal</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tambah, edit, atau import soal ujian ini.</p>
                 </div>
-                <ChevronRight size={16} className="shrink-0 text-slate-300 dark:text-slate-600 mt-1" />
+                <ChevronRight size={16} className="shrink-0 text-slate-300 dark:text-slate-600 mt-1 transition-transform duration-200 group-hover:translate-x-0.5" />
               </div>
             </Link>
 
             <Link
               href={`/dashboard/exams/results/${examId}`}
-              className="block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+              className="group block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/60 dark:hover:shadow-slate-950/50"
             >
               <div className="flex items-start gap-3">
-                <span className="shrink-0 w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                <span className={`shrink-0 grid place-items-center w-9 h-9 rounded-xl transition-transform duration-200 group-hover:scale-105 ${TONE.emerald.icon}`}>
                   <BarChart3Icon />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Hasil Ujian</p>
+                  <p className={`text-sm font-semibold transition-colors ${TONE.emerald.text}`}>Hasil Ujian</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Lihat skor, analisis jawaban, dan ekspor data.</p>
                 </div>
-                <ChevronRight size={16} className="shrink-0 text-slate-300 dark:text-slate-600 mt-1" />
+                <ChevronRight size={16} className="shrink-0 text-slate-300 dark:text-slate-600 mt-1 transition-transform duration-200 group-hover:translate-x-0.5" />
               </div>
             </Link>
           </div>
@@ -892,35 +913,61 @@ if (loading) {
   );
 }
 
-const inputCls = 'w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 dark:focus:border-slate-500 transition-colors';
+const inputCls = 'w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-500 transition-colors';
+
+/**
+ * Palet warna per section. Warna ini dipakai bersama oleh navigasi sticky di
+ * atas dan card section di bawah, jadi tab yang sedang dibuka dan card-nya
+ * selalu warna yang sama. Warna selalu berarti: biru = identitas/jadwal,
+ * ungu = kelas, rose = keamanan, amber = token, emerald = hasil.
+ */
+const TONE = {
+  indigo: { icon: 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400', text: 'text-indigo-700 dark:text-indigo-300', value: 'text-indigo-600 dark:text-indigo-400', bar: 'from-indigo-500 to-violet-500' },
+  sky: { icon: 'bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400', text: 'text-sky-700 dark:text-sky-300', value: 'text-sky-600 dark:text-sky-400', bar: 'from-sky-500 to-cyan-500' },
+  violet: { icon: 'bg-violet-100 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400', text: 'text-violet-700 dark:text-violet-300', value: 'text-violet-600 dark:text-violet-400', bar: 'from-violet-500 to-fuchsia-500' },
+  emerald: { icon: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400', text: 'text-emerald-700 dark:text-emerald-300', value: 'text-emerald-600 dark:text-emerald-400', bar: 'from-emerald-500 to-teal-500' },
+  amber: { icon: 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400', text: 'text-amber-700 dark:text-amber-300', value: 'text-amber-600 dark:text-amber-400', bar: 'from-amber-500 to-orange-500' },
+  rose: { icon: 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400', text: 'text-rose-700 dark:text-rose-300', value: 'text-rose-600 dark:text-rose-400', bar: 'from-rose-500 to-pink-500' },
+  slate: { icon: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300', text: 'text-slate-700 dark:text-slate-300', value: 'text-slate-700 dark:text-slate-200', bar: 'from-slate-400 to-slate-300' },
+};
 
 const SECTIONS = [
-  { id: 'detail', label: 'Detail' },
-  { id: 'jadwal', label: 'Jadwal & Waktu' },
-  { id: 'kelas', label: 'Kelas' },
-  { id: 'keamanan', label: 'Keamanan' },
-  { id: 'token', label: 'Token' },
-  { id: 'petunjuk', label: 'Petunjuk' },
-  { id: 'hasil', label: 'Hasil' }
+  { id: 'detail', label: 'Detail', tone: 'indigo', icon: <ClipboardList size={13} /> },
+  { id: 'jadwal', label: 'Jadwal & Waktu', tone: 'sky', icon: <Clock size={13} /> },
+  { id: 'kelas', label: 'Kelas', tone: 'violet', icon: <Users size={13} /> },
+  { id: 'keamanan', label: 'Keamanan', tone: 'rose', icon: <ShieldCheck size={13} /> },
+  { id: 'token', label: 'Token', tone: 'amber', icon: <KeyRound size={13} /> },
+  { id: 'petunjuk', label: 'Petunjuk', tone: 'emerald', icon: <Info size={13} /> },
+  { id: 'hasil', label: 'Hasil', tone: 'emerald', icon: <BarChart3Icon /> },
 ];
 
-function Section({ id, title, description, children, open, onToggle, badge }) {
+function Section({ id, title, description, children, open, onToggle, badge, tone, icon }) {
+  // Tone & ikon diambil dari SECTIONS berdasarkan id, jadi setiap section
+  // otomatis sama warna dengan tab navigasinya di atas tanpa perlu diulang
+  // di setiap call site.
+  const meta = SECTIONS.find(s => s.id === id) || {};
+  const c = TONE[tone || meta.tone] || TONE.indigo;
+  const sectionIcon = icon || meta.icon;
   return (
-    <section id={id} className="scroll-mt-16 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+    <section id={id} className={`scroll-mt-16 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 transition-all duration-200 ${open ? 'shadow-md shadow-slate-200/50 dark:shadow-slate-950/40' : 'hover:shadow-md hover:shadow-slate-200/60 dark:hover:shadow-slate-950/40'}`}>
+      <div aria-hidden="true" className={`h-1 w-full bg-gradient-to-r ${c.bar} transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-60'}`} />
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+        className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors ${open ? 'bg-slate-50/80 dark:bg-slate-800/40' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
       >
-        <ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className={`shrink-0 grid place-items-center w-8 h-8 rounded-xl border transition-all duration-200 ${c.icon} ${open ? 'border-transparent' : 'border-slate-200 dark:border-slate-700'}`}>
+          {sectionIcon}
+        </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold text-slate-800 dark:text-slate-100">{title}</span>
+          <span className={`block text-sm font-bold transition-colors ${open ? c.text : 'text-slate-800 dark:text-slate-100'}`}>{title}</span>
           {description && <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">{description}</span>}
         </span>
         {badge && (
-          <span className="shrink-0 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300">{badge}</span>
+          <span className={`shrink-0 px-2 py-0.5 rounded-md text-[11px] font-bold ${c.icon}`}>{badge}</span>
         )}
+        <ChevronDown size={16} className={`shrink-0 text-slate-300 dark:text-slate-600 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && <div className="px-4 pb-4 pt-1 space-y-4">{children}</div>}
     </section>
@@ -940,9 +987,9 @@ function Field({ label, htmlFor, hint, children }) {
 function InlineNote({ tone = 'info', title, children }) {
   const toneCls = tone === 'warning'
     ? 'border-amber-300 dark:border-amber-800/70 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300'
-    : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300';
+    : 'border-sky-200 dark:border-sky-900/60 bg-sky-50 dark:bg-sky-950/30 text-sky-800 dark:text-sky-300';
   return (
-    <div className={`rounded-lg border px-3.5 py-3 ${toneCls}`}>
+    <div className={`rounded-xl border px-3.5 py-3 ${toneCls}`}>
       {title && <p className="text-xs font-bold mb-1">{title}</p>}
       <p className="text-xs leading-relaxed">{children}</p>
     </div>
@@ -965,14 +1012,14 @@ function SummaryRow({ label, value, tone = 'default' }) {
 
 function SaveIndicator({ state, saving }) {
   const map = {
-    saving: { text: 'Menyimpan...', cls: 'text-slate-500 dark:text-slate-400', icon: <span className="w-3 h-3 border-2 border-slate-300 dark:border-slate-600 border-t-slate-600 dark:border-t-slate-300 rounded-full animate-spin" /> },
-    saved: { text: 'Semua perubahan tersimpan', cls: 'text-emerald-600 dark:text-emerald-400', icon: <CheckCircle2 size={14} /> },
-    error: { text: 'Gagal menyimpan', cls: 'text-red-600 dark:text-red-400', icon: <AlertCircle size={14} /> },
-    idle: { text: 'Perubahan tersimpan otomatis', cls: 'text-slate-400 dark:text-slate-500', icon: <Info size={14} /> }
+    saving: { text: 'Menyimpan...', chip: 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400', icon: <span className="w-3 h-3 border-2 border-slate-300 dark:border-slate-600 border-t-slate-600 dark:border-t-slate-300 rounded-full animate-spin" /> },
+    saved: { text: 'Semua perubahan tersimpan', chip: 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300', icon: <CheckCircle2 size={14} /> },
+    error: { text: 'Gagal menyimpan', chip: 'border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300', icon: <AlertCircle size={14} /> },
+    idle: { text: 'Perubahan tersimpan otomatis', chip: 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400', icon: <Info size={14} /> }
   };
   const item = map[state] || map.idle;
   return (
-    <div className={`shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold ${item.cls}`}>
+    <div className={`shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold self-start lg:self-auto ${item.chip}`}>
       {saving ? map.saving.icon : item.icon}
       {saving ? map.saving.text : item.text}
     </div>

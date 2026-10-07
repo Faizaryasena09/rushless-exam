@@ -7,7 +7,7 @@ import Link from 'next/link';
 import Cropper from 'react-easy-crop';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
-import { Palette, Languages, Smartphone, UserCog, ShieldAlert, RotateCcw, Monitor, FileText, Users, FolderArchive, Save, LoaderCircle, ChevronRight, X, Info, Lock, LockOpen, TriangleAlert, KeyRound, ImagePlus, RefreshCw, Clock } from 'lucide-react';
+import { Palette, Languages, Smartphone, UserCog, ShieldAlert, RotateCcw, Monitor, FileText, Users, FolderArchive, Save, LoaderCircle, ChevronRight, X, Info, Lock, LockOpen, TriangleAlert, KeyRound, ImagePlus, RefreshCw, Clock, Settings } from 'lucide-react';
 import { getSupportedTimezones, DEFAULT_TIMEZONE, formatClock } from '@/app/lib/timezone';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
@@ -292,34 +292,49 @@ export default function WebSettingsPage() {
 return (
         <div className="space-y-5">
             {/* Header */}
-            <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{t('admin_title')}</h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                    {t('admin_subtitle')} Setiap bagian punya tombol simpan sendiri.
-                </p>
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-sky-50 dark:from-indigo-950/30 dark:via-slate-900 dark:to-sky-950/30" />
+                <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-500" />
+
+                <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 px-5 py-5">
+                    <span className="shrink-0 grid place-items-center w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-sky-600 text-white shadow-lg shadow-indigo-500/25">
+                        <Settings size={20} />
+                    </span>
+                    <div className="min-w-0">
+                        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{t('admin_title')}</h1>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                            {t('admin_subtitle')} Setiap bagian punya tombol simpan sendiri.
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            {/* Navigasi section */}
-            <nav className="sticky top-0 z-20 -mx-1 px-1 py-2 bg-slate-50 dark:bg-slate-950/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800">
+            {/* Navigasi section - tiap tab warna sendiri, sama dengan card
+                section yang dituju. */}
+            <nav className="sticky top-0 z-20 -mx-1 px-1 py-2.5 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800">
                 <div className="flex gap-1.5 overflow-x-auto">
-                    {SETTINGS_SECTIONS.map(s => (
-                        <a
-                            key={s.id}
-                            href={`#${s.id}`}
-                            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors"
-                        >
-                            {s.label}
-                        </a>
-                    ))}
+                    {SETTINGS_SECTIONS.map(s => {
+                        const c = SECTION_TONE[s.tone] || SECTION_TONE.slate;
+                        return (
+                            <a
+                                key={s.id}
+                                href={`#${s.id}`}
+                                className={`group shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 ${c.navActive} hover:brightness-95 dark:hover:brightness-110`}
+                            >
+                                <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
+                                {s.label}
+                            </a>
+                        );
+                    })}
                 </div>
             </nav>
 
             {/* Shortcut ke halaman admin lain */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                <QuickLink href="/dashboard/system-overview" icon={<Monitor size={16} />} title={t('admin_nav_overview')} desc={t('admin_nav_overview_desc')} />
-                <QuickLink href="/dashboard/activity-logs" icon={<FileText size={16} />} title={t('admin_nav_logs')} desc={t('admin_nav_logs_desc')} />
-                <QuickLink href="/dashboard/session-control" icon={<Users size={16} />} title={t('admin_nav_session')} desc={t('admin_nav_session_desc')} />
-                <QuickLink href="/dashboard/archive-answers" icon={<FolderArchive size={16} />} title={t('admin_nav_archive')} desc={t('admin_nav_archive_desc')} />
+                <QuickLink href="/dashboard/system-overview" icon={<Monitor size={16} />} title={t('admin_nav_overview')} desc={t('admin_nav_overview_desc')} tone="sky" />
+                <QuickLink href="/dashboard/activity-logs" icon={<FileText size={16} />} title={t('admin_nav_logs')} desc={t('admin_nav_logs_desc')} tone="violet" />
+                <QuickLink href="/dashboard/session-control" icon={<Users size={16} />} title={t('admin_nav_session')} desc={t('admin_nav_session_desc')} tone="emerald" />
+                <QuickLink href="/dashboard/archive-answers" icon={<FolderArchive size={16} />} title={t('admin_nav_archive')} desc={t('admin_nav_archive_desc')} tone="amber" />
             </div>
 
             {/* Identitas Website */}
@@ -461,7 +476,7 @@ return (
                             value={selectedTimezone}
                             onChange={(e) => setSelectedTimezone(e.target.value)}
                             aria-label={t('admin_tz_label')}
-                            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors"
+                            className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-sky-400 dark:focus:border-sky-600 focus:ring-4 focus:ring-sky-500/20 transition-colors"
                         >
                             {TIMEZONE_OPTIONS.map(tz => (
                                 <option key={tz.value} value={tz.value}>
@@ -830,18 +845,21 @@ return (
                     />}
                 />
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3">
+                <div className="relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-950/25 px-4 py-3">
+                    <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500" />
                     <div className="flex items-start gap-2.5">
-                        <KeyRound size={16} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                        <span className="shrink-0 grid place-items-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+                            <KeyRound size={15} />
+                        </span>
                         <div>
-                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">{t('admin_session_reset_unlock_title')}</p>
+                            <p className="text-sm font-bold text-amber-800 dark:text-amber-200">{t('admin_session_reset_unlock_title')}</p>
                             <p className="text-xs text-amber-700/80 dark:text-amber-300/70">{t('admin_session_reset_unlock_desc')}</p>
                         </div>
                     </div>
                     <button
                         onClick={handleUnlockReset}
                         disabled={resetUnlocking}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-colors disabled:opacity-50 shrink-0"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-600 text-white shadow-sm shadow-amber-300/50 dark:shadow-amber-950/40 transition-all active:scale-95 disabled:opacity-50 shrink-0"
                     >
                         {resetUnlocking ? <LoaderCircle size={14} className="animate-spin" /> : <LockOpen size={14} />}
                         {resetUnlocking ? 'Membuka...' : t('admin_btn_unlock')}
@@ -856,22 +874,28 @@ return (
 
             {/* Modal crop logo */}
             {cropImage && (
-                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 p-0 sm:p-6" onClick={() => setCropImage(null)}>
+                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-6" onClick={() => setCropImage(null)}>
                     <div
                         role="dialog"
                         aria-modal="true"
-                        className="w-full sm:max-w-lg h-full sm:h-auto bg-white dark:bg-slate-900 sm:rounded-2xl shadow-xl overflow-hidden flex flex-col"
+                        className="w-full sm:max-w-lg h-full sm:h-auto bg-white dark:bg-slate-900 sm:rounded-2xl border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 shadow-xl overflow-hidden flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                     >
+                        <div aria-hidden className="h-1 w-full shrink-0 bg-gradient-to-r from-indigo-500 to-violet-500" />
                         <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-                            <div>
-                                <h3 className="text-base font-bold text-slate-900 dark:text-white">{t('admin_modal_crop_title')}</h3>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Logo akan dipotong otomatis menjadi rasio 1:1.</p>
+                            <div className="flex items-center gap-3 min-w-0">
+                                <span className="shrink-0 grid place-items-center w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                                    <ImagePlus size={17} />
+                                </span>
+                                <div className="min-w-0">
+                                    <h3 className="text-base font-bold text-indigo-700 dark:text-indigo-300">{t('admin_modal_crop_title')}</h3>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Logo akan dipotong otomatis menjadi rasio 1:1.</p>
+                                </div>
                             </div>
                             <button
                                 onClick={() => setCropImage(null)}
                                 aria-label="Tutup"
-                                className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                                className="shrink-0 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
                             >
                                 <X size={18} />
                             </button>
@@ -927,26 +951,48 @@ return (
     );
 }
 
+/**
+ * Warna per bagian pengaturan. Satu sumber untuk navigasi sticky di atas dan
+ * card section di bawah, jadi tab yang sedang aktif dan card-nya selalu warna
+ * yang sama. indigo = identitas, sky = bahasa/waktu, violet = android,
+ * emerald = hak akses, rose = keamanan, amber = reset sesi.
+ */
+const SECTION_TONE = {
+    indigo: { icon: 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400', bar: 'from-indigo-500 to-violet-500', text: 'text-indigo-700 dark:text-indigo-300', navActive: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/60' },
+    sky: { icon: 'bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400', bar: 'from-sky-500 to-cyan-500', text: 'text-sky-700 dark:text-sky-300', navActive: 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-900/60' },
+    violet: { icon: 'bg-violet-100 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400', bar: 'from-violet-500 to-fuchsia-500', text: 'text-violet-700 dark:text-violet-300', navActive: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-900/60' },
+    emerald: { icon: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400', bar: 'from-emerald-500 to-teal-500', text: 'text-emerald-700 dark:text-emerald-300', navActive: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60' },
+    rose: { icon: 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400', bar: 'from-rose-500 to-pink-500', text: 'text-rose-700 dark:text-rose-300', navActive: 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/60' },
+    amber: { icon: 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400', bar: 'from-amber-500 to-orange-500', text: 'text-amber-700 dark:text-amber-300', navActive: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/60' },
+    slate: { icon: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300', bar: 'from-slate-400 to-slate-300', text: 'text-slate-700 dark:text-slate-300', navActive: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' },
+};
+
 const SETTINGS_SECTIONS = [
-    { id: 'branding', label: 'Identitas Website' },
-    { id: 'language', label: 'Bahasa' },
-    { id: 'timezone', label: 'Zona Waktu' },
-    { id: 'android', label: 'Android' },
-    { id: 'permissions', label: 'Hak Akses' },
-    { id: 'security', label: 'Keamanan Login' },
-    { id: 'session-reset', label: 'Reset Sesi' }
+    { id: 'branding', label: 'Identitas Website', tone: 'indigo' },
+    { id: 'language', label: 'Bahasa', tone: 'sky' },
+    { id: 'timezone', label: 'Zona Waktu', tone: 'sky' },
+    { id: 'android', label: 'Android', tone: 'violet' },
+    { id: 'permissions', label: 'Hak Akses', tone: 'emerald' },
+    { id: 'security', label: 'Keamanan Login', tone: 'rose' },
+    { id: 'session-reset', label: 'Reset Sesi', tone: 'amber' }
 ];
 
-function SettingsSection({ id, icon, title, desc, children, action }) {
+function SettingsSection({ id, icon, title, desc, children, action, tone, open = true }) {
+    // Tone diambil dari SETTINGS_SECTIONS berdasarkan id, jadi tiap call site
+    // tidak perlu menyebutkannya lagi dan tidak bisa lupa.
+    const meta = SETTINGS_SECTIONS.find(s => s.id === id);
+    const c = SECTION_TONE[tone || meta?.tone] || SECTION_TONE.slate;
+
     return (
-        <section id={id} className="scroll-mt-16 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+        <section id={id} className="scroll-mt-16 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 transition-all duration-200 hover:shadow-md hover:shadow-slate-200/60 dark:hover:shadow-slate-950/40">
+            <div aria-hidden className={`h-1 w-full bg-gradient-to-r ${c.bar}`} />
+            <div className={`px-4 py-3.5 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 transition-colors ${open ? 'bg-slate-50/70 dark:bg-slate-800/40' : ''}`}>
                 <div className="flex items-center gap-3 min-w-0">
-                    <span className="shrink-0 w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                    <span className={`shrink-0 grid place-items-center w-9 h-9 rounded-xl border border-transparent ${c.icon}`}>
                         {icon}
                     </span>
                     <div className="min-w-0">
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h2>
+                        <h2 className={`text-sm font-bold transition-colors ${open ? c.text : 'text-slate-900 dark:text-white'}`}>{title}</h2>
                         <p className="text-xs text-slate-500 dark:text-slate-400">{desc}</p>
                     </div>
                 </div>
@@ -972,12 +1018,18 @@ function SettingRow({ label, desc, control, children }) {
     );
 }
 
-function SaveButton({ onClick, saving, label }) {
+function SaveButton({ onClick, saving, label, variant = 'primary' }) {
+    const styles = {
+        primary: 'bg-indigo-600 text-white shadow-sm shadow-indigo-300/50 dark:shadow-indigo-950/40 hover:bg-indigo-700',
+        danger: 'bg-rose-600 text-white shadow-sm shadow-rose-300/50 dark:shadow-rose-950/40 hover:bg-rose-700',
+        warning: 'bg-amber-500 text-white shadow-sm shadow-amber-300/50 dark:shadow-amber-950/40 hover:bg-amber-600',
+    };
+
     return (
         <button
             onClick={onClick}
             disabled={saving}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 shrink-0 ${styles[variant] || styles.primary}`}
         >
             {saving ? <LoaderCircle size={13} className="animate-spin" /> : <Save size={13} />}
             {saving ? 'Menyimpan' : label}
@@ -1014,27 +1066,36 @@ function ToggleSwitch({ checked, onChange, disabled, label }) {
             aria-label={label}
             onClick={onChange}
             disabled={disabled}
-            className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50 ${checked ? 'bg-slate-900 dark:bg-white' : 'bg-slate-200 dark:bg-slate-700'}`}
+            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+                checked
+                    ? 'bg-emerald-500'
+                    : 'bg-slate-200 dark:bg-slate-700'
+            }`}
         >
-            <span className={`pointer-events-none absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-4' : ''}`} />
+            <span className={`pointer-events-none absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : ''}`} />
         </button>
     );
 }
 
-function QuickLink({ href, icon, title, desc }) {
+function QuickLink({ href, icon, title, desc, tone = 'slate' }) {
+    const c = SECTION_TONE[tone] || SECTION_TONE.slate;
+
     return (
         <Link
             href={href}
-            className="group flex items-start gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-3 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+            className="group relative overflow-hidden flex items-start gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-slate-800/70 px-3.5 py-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/60 dark:hover:shadow-slate-950/50"
         >
-            <span className="shrink-0 w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+            {/* Strip gradien muncul saat hover - penanda bisa diklik. */}
+            <span aria-hidden className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${c.bar} opacity-0 group-hover:opacity-100 transition-opacity duration-200`} />
+
+            <span className={`shrink-0 grid place-items-center w-9 h-9 rounded-xl transition-transform duration-200 group-hover:scale-105 ${c.icon}`}>
                 {icon}
             </span>
             <span className="min-w-0 flex-1">
-                <span className="block text-xs font-bold text-slate-800 dark:text-white">{title}</span>
+                <span className={`block text-xs font-bold transition-colors ${c.text}`}>{title}</span>
                 <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{desc}</span>
             </span>
-            <ChevronRight size={14} className="shrink-0 text-slate-300 dark:text-slate-600 mt-1 group-hover:text-slate-500" />
+            <ChevronRight size={14} className="shrink-0 text-slate-300 dark:text-slate-600 mt-1 transition-transform duration-200 group-hover:translate-x-0.5" />
         </Link>
     );
 }

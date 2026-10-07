@@ -175,7 +175,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         {/* Header Sidebar */}
         <div className="flex-shrink-0 flex items-center justify-between gap-2 h-16 px-5 border-b border-slate-100 dark:border-slate-800">
           <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0 group">
-            <span className="shrink-0 w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden ring-1 ring-slate-200 dark:ring-slate-700">
+            <span className="shrink-0 grid place-items-center w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/60 dark:to-violet-950/60 border border-indigo-200 dark:border-indigo-900/60 overflow-hidden transition-transform duration-200 group-hover:scale-105">
               <img
                 src={branding?.site_logo || '/favicon.ico'}
                 alt="Logo"
@@ -183,14 +183,14 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
               />
             </span>
             <span
-              className="min-w-0 text-sm font-bold tracking-tight text-slate-800 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors prose prose-sm prose-slate dark:prose-invert"
+              className="min-w-0 text-sm font-bold tracking-tight text-slate-800 dark:text-white truncate group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors prose prose-sm prose-slate dark:prose-invert"
               dangerouslySetInnerHTML={{ __html: branding?.site_name || 'Rushless Exam' }}
             />
           </Link>
 
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden shrink-0 p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+            className="lg:hidden shrink-0 p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
             aria-label="Tutup menu"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -242,8 +242,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         <div className="flex-shrink-0 mt-auto">
           {adminLinks.length > 0 && (
             <div className="px-3 pb-3">
-              <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 ring-1 ring-slate-200 dark:ring-slate-700/70 p-2 space-y-1">
-                <p className="px-2 pt-1 pb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              <div className="relative overflow-hidden rounded-2xl bg-rose-50/60 dark:bg-rose-950/20 ring-1 ring-rose-200/70 dark:ring-rose-900/50 p-2 space-y-1">
+                <div aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-rose-500 to-pink-500" />
+                <p className="px-2 pt-1.5 pb-2 text-[10px] font-bold uppercase tracking-widest text-rose-700/80 dark:text-rose-300/80">
                   {t('nav_group_admin')}
                 </p>
                 {adminLinks.map((link) => (
@@ -286,7 +287,8 @@ const ACCENTS = {
 function NavGroup({ label, children }) {
   return (
     <div>
-      <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+      <p className="flex items-center gap-2 px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+        <span aria-hidden className="h-3 w-1 rounded-full bg-gradient-to-b from-indigo-400 to-violet-500" />
         {label}
       </p>
       <ul className="space-y-0.5">{children}</ul>
@@ -303,7 +305,7 @@ function NavItem({ link, active, nested = false, accent = 'indigo' }) {
       <Link
         href={link.href}
         aria-current={active ? 'page' : undefined}
-        className={`group relative flex items-center gap-3 rounded-xl transition-all duration-200 ${nested ? 'px-3 py-2 text-[13px]' : 'px-3 py-2.5 text-sm'} font-medium ${active
+        className={`group relative flex items-center gap-3 rounded-xl transition-all duration-200 ${nested ? 'px-3 py-2 text-[13px]' : 'px-3 py-2.5 text-sm'} font-semibold ${active
           ? c.active
           : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-slate-100'
           }`}
@@ -339,21 +341,21 @@ function NavSection({ label, icon, open, onToggle, hasActiveChild, children }) {
       <button
         onClick={onToggle}
         aria-expanded={open}
-        className={`w-full group flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${open || hasActiveChild
-          ? 'text-slate-900 dark:text-slate-100 bg-slate-100/70 dark:bg-slate-800/70'
+        className={`w-full group flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200 ${open || hasActiveChild
+          ? 'text-indigo-800 dark:text-indigo-200 bg-indigo-50 dark:bg-indigo-950/40'
           : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-slate-100'
           }`}
       >
-        <span className={`shrink-0 flex items-center justify-center rounded-lg transition-colors duration-200 ${open || hasActiveChild
-          ? 'text-slate-700 dark:text-slate-200 bg-slate-200/70 dark:bg-slate-700/70'
-          : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'
+        <span className={`shrink-0 grid place-items-center w-7 h-7 rounded-lg transition-colors duration-200 ${open || hasActiveChild
+          ? 'text-white bg-gradient-to-br from-indigo-500 to-violet-600 shadow-sm shadow-indigo-500/25'
+          : 'text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 group-hover:text-slate-700 dark:group-hover:text-slate-200'
           }`}>
           {icon}
         </span>
         <span className="truncate">{label}</span>
         <ChevronDown
           size={15}
-          className={`ml-auto shrink-0 text-slate-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={`ml-auto shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''} ${open || hasActiveChild ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}
         />
       </button>
 
