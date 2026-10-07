@@ -6,15 +6,20 @@ services:
     container_name: rushless-app
     restart: always
     # Tambahkan privileged agar bisa membaca HWID (/sys/class/dmi/id/product_uuid)
-    privileged: true 
+    privileged: true
     ports:
       - "8085:3000"
     env_file:
       - .env
+    environment:
+      # Default bila .env tidak menyetelnya. Dockerfile juga punya default yang sama,
+      # jadi mengubah ke zona lain cukup lewat .env atau env var Coolify - tanpa rebuild.
+      TZ: ${TZ:-Asia/Jakarta}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Jakarta}
     volumes:
       # Mapping folder upload
       - /var/lib/rushless-data/uploads:/app/public/uploads
-      # Opsi tambahan: Jika privileged: true masih belum cukup di beberapa OS, 
+      # Opsi tambahan: Jika privileged: true masih belum cukup di beberapa OS,
       # mount file HWID secara spesifik (read-only)
       - /sys/class/dmi/id/product_uuid:/sys/class/dmi/id/product_uuid:ro
     extra_hosts:

@@ -3,7 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
-import { logExamActivity } from '@/app/lib/logger';
+import { logExamActivity, logSystemError } from '@/app/lib/logger';
 import redis, { isRedisReady } from '@/app/lib/redis';
 
 async function getSession() {
@@ -26,26 +26,34 @@ export async function POST(request) {
     }
 
     // Use Redis-buffered logging (Ultra Fast)
-    logExamActivity({ attemptId, actionType, description });
+    await logExamActivity({ attemptId, actionType, description });
 
     // --- Violation Handling Logic ---
-    if (actionType === 'SECURITY' && description.includes('left the exam page')) {
-      // 1. Get the violation setting for this exam
+    // Catatan: server TIDAK boleh mencocokkan string deskripsi dari client,
+    // karena lebih rapuh. Pola string dulu ('left the exam page') tidak pernah
+    // cocok karena client mengirim deskripsi berbahasa Indonesia.
+    // Pola ini hanya menerima event "siswa meninggalkan halaman ujian".
+    const LEFT_EXAM_EVENTS = ['meninggalkan halaman ujian'];
+
+    if (actionType === 'SECURITY' && typeof description === 'string' && LEFT_EXAM_EVENTS.some(p => description.includes(p))) {
+      // 1. Get the violation setting for this exam.
+      //    WAJIB difilter user_id: tanpa ini, siapa pun bisa mengirim
+      //    attemptId orang lain dan mengunci ujiannya.
       const examSettings = await query({
         query: `
-          SELECT s.violation_action, ea.user_id, ea.exam_id 
+          SELECT s.violation_action, ea.user_id, ea.exam_id
           FROM rhs_exam_attempts ea
           JOIN rhs_exam_settings s ON ea.exam_id = s.exam_id
-          WHERE ea.id = ?
+          WHERE ea.id = ? AND ea.user_id = ?
         `,
-        values: [attemptId]
+        values: [attemptId, session.user.id]
       });
 
       if (examSettings.length > 0 && examSettings[0].violation_action === 'kunci') {
         // 2. Lock the attempt
         await query({
-          query: 'UPDATE rhs_exam_attempts SET is_violation_locked = 1 WHERE id = ?',
-          values: [attemptId]
+          query: 'UPDATE rhs_exam_attempts SET is_violation_locked = 1 WHERE id = ? AND user_id = ?',
+          values: [attemptId, session.user.id]
         });
 
         // 3. Notify the student via Redis Pub/Sub
@@ -58,8 +66,8 @@ export async function POST(request) {
 
     return NextResponse.json({ message: 'Log saved' });
   } catch (error) {
-    console.error('Log Error:', error);
-    return NextResponse.json({ message: 'Failed to save log', error: error.message }, { status: 500 });
+    await logSystemError(error, { action: 'SYSTEM_EXAM_LOG_WRITE_FAILED', request, context: { endpoint: '/api/exams/logs' } });
+    return NextResponse.json({ message: 'Failed to save log' }, { status: 500 });
   }
 }
 
@@ -122,6 +130,7 @@ export async function GET(request) {
 
     return NextResponse.json({ logs: mergedLogs });
   } catch (error) {
-    return NextResponse.json({ message: 'Failed to fetch logs', error: error.message }, { status: 500 });
+    await logSystemError(error, { action: 'SYSTEM_EXAM_LOG_READ_FAILED', request, session, context: { endpoint: '/api/exams/logs' } });
+    return NextResponse.json({ message: 'Failed to fetch logs' }, { status: 500 });
   }
 }

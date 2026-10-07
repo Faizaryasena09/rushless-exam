@@ -1,4 +1,5 @@
 import mysql from "mysql2/promise";
+import { recordInfraError } from "./log-fallback";
 
 function toPositiveInt(value, fallback) {
   const parsed = Number.parseInt(value, 10);
@@ -121,6 +122,22 @@ const RETRYABLE_CODES = new Set([
 
 const OVERLOAD_CODES = new Set(["ER_CON_COUNT_ERROR", "ER_TOO_MANY_USER_CONNECTIONS"]);
 
+// Error yang berarti "server tidak bisa menerima koneksi saat ini" —
+// dicatat sebagai error infrastruktur (bukan error aplikasi biasa).
+function reportDbFailure(normalized, original) {
+    const code = original?.code;
+    const errno = original?.errno;
+    const isOverload = OVERLOAD_CODES.has(code) || errno === 1040 || errno === 1203;
+    const isConnection = isRetryable(original) || code === "ECONNREFUSED" || code === "DB_POOL_BUSY" || code === "DB_POOL_CLOSED";
+    if (!isOverload && !isConnection) return;
+
+    recordInfraError(isOverload ? 'mysql-connection-overloaded' : 'mysql-connection-failed', original, {
+        errno: errno ?? null,
+        code: code ?? null,
+        poolQueueLimit: getPoolStats().queueLimit ?? null
+    });
+}
+
 function isRetryable(error) {
   if (!error) return false;
   if (OVERLOAD_CODES.has(error.code)) return false;
@@ -191,11 +208,47 @@ export async function query({ query, values = [], one = false }) {
         continue;
       }
       // Re-throw the error to be caught by the calling function
+      reportDbFailure(normalized, error);
       throw normalized;
     } finally {
       if (connection) connection.release();
     }
   }
+}
+
+/**
+ * Memastikan kolom/tabel untuk fitur Arsip & preferensi UI sudah ada.
+ * Dipanggil otomatis agar tidak harus menjalankan /api/setup manual.
+ * Hasilnya di-cache per proses supaya tidak menambah query di setiap request.
+ */
+let archiveSchemaPromise = null;
+
+export async function ensureArchiveSchema() {
+  if (!archiveSchemaPromise) {
+    archiveSchemaPromise = (async () => {
+      try {
+        await query({ query: `ALTER TABLE rhs_exams ADD COLUMN IF NOT EXISTS is_archived TINYINT(1) NOT NULL DEFAULT 0` });
+        await query({ query: `ALTER TABLE rhs_exams ADD COLUMN IF NOT EXISTS archived_at DATETIME NULL DEFAULT NULL` });
+        await query({ query: `ALTER TABLE rhs_exam_categories ADD COLUMN IF NOT EXISTS is_archived TINYINT(1) NOT NULL DEFAULT 0` });
+        await query({
+          query: `CREATE TABLE IF NOT EXISTS rhs_user_ui_prefs (
+            user_id INT NOT NULL,
+            pref_key VARCHAR(100) NOT NULL,
+            pref_value TEXT NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, pref_key),
+            INDEX idx_user_prefs (user_id)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+        });
+        return true;
+      } catch (error) {
+        // Feature ini bersifat non-kritis: biarkan query berikutnya yang decides
+        console.error('[ensureArchiveSchema] Gagal menyiapkan skema arsip:', error.message);
+        return false;
+      }
+    })();
+  }
+  return archiveSchemaPromise;
 }
 
 // Function to execute a transaction with automatic deadlock retry
@@ -341,6 +394,8 @@ export async function setupDatabase() {
                 timer_mode ENUM('sync', 'async') NOT NULL DEFAULT 'sync',
                 duration_minutes INT DEFAULT 60,
                 max_attempts INT DEFAULT 1,
+                is_archived TINYINT(1) NOT NULL DEFAULT 0,
+                archived_at DATETIME NULL DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
               )
           `);
@@ -564,11 +619,20 @@ export async function setupDatabase() {
                 action VARCHAR(100) NOT NULL,
                 level ENUM('info', 'warn', 'error') NOT NULL DEFAULT 'info',
                 details TEXT,
+                request_id VARCHAR(64),
+                method VARCHAR(10),
+                path VARCHAR(255),
+                status_code SMALLINT,
+                user_agent VARCHAR(512),
+                error_name VARCHAR(255),
+                stack_trace MEDIUMTEXT,
+                duration_ms INT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_created_at (created_at),
                 INDEX idx_level (level),
                 INDEX idx_user_id (user_id),
-                INDEX idx_action (action)
+                INDEX idx_action (action),
+                INDEX idx_request_id (request_id)
             )
         `);
     console.log('Table "rhs_activity_logs" created or already exists.');
@@ -726,6 +790,49 @@ export async function setupDatabase() {
       console.log("Columns 'require_geschool' and 'geschool_exit_password' added to rhs_exam_settings");
     } catch (err) {
       if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
+    }
+
+    // Migration: Fitur Arsip (exam & kategori bisa diarsipkan)
+    try {
+      await connection.query(
+        `ALTER TABLE rhs_exams ADD COLUMN is_archived TINYINT(1) NOT NULL DEFAULT 0`,
+      );
+      console.log("Column 'is_archived' added to rhs_exams");
+    } catch (err) {
+      if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
+    }
+    try {
+      await connection.query(
+        `ALTER TABLE rhs_exams ADD COLUMN archived_at DATETIME NULL DEFAULT NULL`,
+      );
+      console.log("Column 'archived_at' added to rhs_exams");
+    } catch (err) {
+      if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
+    }
+    try {
+      await connection.query(
+        `ALTER TABLE rhs_exam_categories ADD COLUMN is_archived TINYINT(1) NOT NULL DEFAULT 0`,
+      );
+      console.log("Column 'is_archived' added to rhs_exam_categories");
+    } catch (err) {
+      if (err.code !== "ER_DUP_FIELDNAME") console.log("Note: " + err.message);
+    }
+
+    // Migration: Tabel preferensi UI per user (mis. accordion kategori yang terbuka)
+    try {
+      await connection.query(
+        `CREATE TABLE IF NOT EXISTS rhs_user_ui_prefs (
+            user_id INT NOT NULL,
+            pref_key VARCHAR(100) NOT NULL,
+            pref_value TEXT NULL,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, pref_key),
+            INDEX idx_user_prefs (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+      );
+      console.log("Table 'rhs_user_ui_prefs' ensured");
+    } catch (err) {
+      console.log("Note: " + err.message);
     }
 
     } finally {

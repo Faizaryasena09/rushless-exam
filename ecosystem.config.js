@@ -20,6 +20,33 @@ const DB_POOL_SIZE = process.env.DB_POOL_SIZE || "15";
 // membunuhnya, supaya tidak ada koneksi yang terpotong di tengah jalan.
 const KILL_TIMEOUT = Number.parseInt(process.env.KILL_TIMEOUT, 10) || 15000;
 
+// ─── Zona waktu ───────────────────────────────────────────────────────────
+// Nilai di sini HANYA default. Sumber kebenaran untuk tampilan di aplikasi
+// adalah setting "Zona Waktu" di Admin Tools (app_timezone).
+// Kalau env di-set, env yang menang; kalau tidak, default di bawah dipakai
+// sehingga perilaku lama tidak berubah sama sekali.
+const DEFAULT_TZ = "Asia/Jakarta";
+
+function pickTimezone(value) {
+  const tz = typeof value === "string" ? value.trim() : "";
+  if (!tz) return DEFAULT_TZ;
+  try {
+    // Validasi cheaply: runtime harus mengenali nama IANA ini.
+    new Intl.DateTimeFormat("en-US", { timeZone: tz }).format(new Date(0));
+    return tz;
+  } catch (e) {
+    console.warn(
+      `[ecosystem] Zona waktu "${tz}" tidak dikenali, memakai ${DEFAULT_TZ}`,
+    );
+    return DEFAULT_TZ;
+  }
+}
+
+const TZ = pickTimezone(process.env.TZ);
+// Default untuk tampilan; APP_TIMEZONE hanya dipakai sebagai nilai awal,
+// dan bisa ditimpa lewat setting app_timezone di Admin Tools.
+const APP_TIMEZONE = pickTimezone(process.env.APP_TIMEZONE || TZ);
+
 module.exports = {
   apps: [
     {
@@ -34,7 +61,8 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         PORT: 3000,
-        TZ: "Asia/Jakarta",
+        TZ: TZ,
+        APP_TIMEZONE: APP_TIMEZONE,
         DB_POOL_SIZE: DB_POOL_SIZE,
         DB_QUEUE_LIMIT: process.env.DB_QUEUE_LIMIT || "5000",
         DB_MAX_IDLE: process.env.DB_MAX_IDLE || DB_POOL_SIZE,

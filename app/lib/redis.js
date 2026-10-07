@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import { recordInfraError } from './log-fallback';
 
 const redisConfig = {
     host: process.env.REDIS_HOST || '127.0.0.1',
@@ -18,9 +19,15 @@ const setupListeners = (client) => {
     client.on('error', (err) => {
         const now = Date.now();
         if (now - lastErrorTime > 30000) {
-            console.warn('Redis is currently offline - system running in MySQL fallback mode.');
+            // Redis mati = sistem berjalan tanpa buffer. Semua log masuk ke MySQL
+            // secara langsung; jika MySQL juga mati, logger.js memindahkannya ke file.
+            recordInfraError('redis-unavailable', err, { note: 'Sistem berjalan tanpa buffer Redis' });
             lastErrorTime = now;
         }
+    });
+
+    client.on('close', () => {
+        recordInfraError('redis-connection-closed', new Error('Redis connection closed'), { host: redisConfig.host, port: redisConfig.port });
     });
 
     client.on('connect', () => {

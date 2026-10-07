@@ -31,6 +31,45 @@ export async function POST(request) {
         let successCount = 0;
         let failedCount = 0;
         let errors = [];
+        const createdClasses = [];
+
+        /**
+         * Memastikan kelas ada. Kalau belum, kelas dibuat otomatis lalu dipakai.
+         * Pencocokan nama kelas bersifat case-insensitive (XII IPA 1 = xii ipa 1).
+         * @returns {Promise<number|null>} class_id
+         */
+        const resolveClassId = async (rawName, rowNum) => {
+            const original = rawName.toString().trim();
+            if (!original) return null;
+            const normalized = original.toLowerCase();
+
+            if (classMap.has(normalized)) {
+                return classMap.get(normalized);
+            }
+
+            try {
+                const result = await query({
+                    query: 'INSERT INTO rhs_classes (class_name) VALUES (?)',
+                    values: [original]
+                });
+                classMap.set(normalized, result.insertId);
+                createdClasses.push({ name: original, row: rowNum });
+                return result.insertId;
+            } catch (err) {
+                // Race condition: kelas dibuat proses lain / beda kapitalisasi (UNIQUE di MySQL)
+                // Cari ulang dengan pembanding case-insensitive.
+                const refreshed = await query({
+                    query: 'SELECT id, class_name FROM rhs_classes WHERE LOWER(class_name) = ?',
+                    values: [normalized]
+                });
+                if (refreshed.length > 0) {
+                    classMap.set(normalized, refreshed[0].id);
+                    return refreshed[0].id;
+                }
+                console.error('Gagal membuat kelas:', original, err.message);
+                return null;
+            }
+        };
 
         // 2. Process each user
         for (const [index, user] of users.entries()) {
@@ -43,13 +82,25 @@ export async function POST(request) {
                 continue;
             }
 
+            const normalizedRole = String(role).toLowerCase().trim();
+            if (!['student', 'teacher', 'admin'].includes(normalizedRole)) {
+                errors.push({ type: 'INVALID_ROLE', row: rowNum, value: role });
+                failedCount++;
+                continue;
+            }
+
+            // Siswa wajib punya kelas (kelas akan dibuat otomatis bila belum ada)
+            if (normalizedRole === 'student' && !class_name) {
+                errors.push({ type: 'MISSING_CLASS', row: rowNum, value: username });
+                failedCount++;
+                continue;
+            }
+
             let class_id = null;
             if (class_name) {
-                const normalizedClassName = class_name.toString().toLowerCase().trim();
-                if (classMap.has(normalizedClassName)) {
-                    class_id = classMap.get(normalizedClassName);
-                } else {
-                    errors.push({ type: 'CLASS_NOT_FOUND', row: rowNum, value: class_name });
+                class_id = await resolveClassId(class_name, rowNum);
+                if (!class_id) {
+                    errors.push({ type: 'CLASS_CREATE_FAILED', row: rowNum, value: class_name });
                     failedCount++;
                     continue;
                 }
@@ -59,7 +110,7 @@ export async function POST(request) {
                 const hashedPassword = await bcrypt.hash(String(password), 10);
                 await query({
                     query: 'INSERT INTO rhs_users (username, name, password, role, class_id) VALUES (?, ?, ?, ?, ?)',
-                    values: [username, name || null, hashedPassword, role, class_id]
+                    values: [username, name || null, hashedPassword, normalizedRole, class_id]
                 });
                 successCount++;
             } catch (err) {
@@ -76,6 +127,7 @@ export async function POST(request) {
             message: `Import processed. Success: ${successCount}, Failed: ${failedCount}`,
             successCount,
             failedCount,
+            createdClasses,
             errors
         }, { status: 200 });
 

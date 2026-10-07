@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -11,7 +11,6 @@ import { toast } from 'sonner';
 const Icons = {
   Plus: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>,
   ChevronRight: (props) => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>,
-  Calendar: (props) => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
   FileText: (props) => <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
   Play: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
   ChartBar: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
@@ -28,7 +27,13 @@ const Icons = {
   ArrowDown: (props) => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>,
   Grip: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>,
   Shield: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
-  Search: (props) => <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+  Search: (props) => <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>,
+  Archive: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 9v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9m16 0V7a2 2 0 00-2-2H4a2 2 0 00-2 2v2m18 0H2m8 4v4m-2-2h4" /></svg>,
+  Unarchive: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 9v10a2 2 0 002 2h12a2 2 0 002-2V9m-16 0V7a2 2 0 012-2h12a2 2 0 012 2v2M4 9h16M9 14h6" /></svg>,
+  Alert: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>,
+  Close: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>,
+  Check: (props) => <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>,
+  Spinner: (props) => <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" {...props}><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
 };
 
 // --- Student Action Button Component ---
@@ -69,25 +74,25 @@ const StudentExamActions = ({ exam }) => {
   if (examNotStarted) {
     badge = (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-        🔒 {t('exams_badge_not_started')}
+        ðŸ”’ {t('exams_badge_not_started')}
       </span>
     );
   } else if (hasInProgress && !examEnded) {
     badge = (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400">
-        ⚡ {t('exams_badge_in_progress')}
+        âš¡ {t('exams_badge_in_progress')}
       </span>
     );
   } else if (examEnded || maxAttemptsReached) {
     badge = (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
-        ✅ {examEnded ? t('exams_badge_ended') : t('exams_badge_finished')}
+        âœ… {examEnded ? t('exams_badge_ended') : t('exams_badge_finished')}
       </span>
     );
   } else if (canTakeExam) {
     badge = (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400">
-        🟢 {t('exams_badge_available')}
+        ðŸŸ¢ {t('exams_badge_available')}
       </span>
     );
   }
@@ -374,10 +379,11 @@ const StudentExamActions = ({ exam }) => {
 };
 
 // --- Exam Card Component ---
-const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggleVisibility }) => {
-  const { t } = useLanguage();
+const ExamCard = ({ exam, isStudent, formatDate, fmt, openModal, categories, onToggleVisibility, onToggleArchive }) => {
+    const { t } = useLanguage();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const isArchived = !!exam.is_archived;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -394,98 +400,165 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
   }, [isMenuOpen]);
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 flex flex-col overflow-hidden">
-      <div className="p-4 sm:p-6">
-        <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white flex items-start gap-2" title={exam.exam_name}>
-          <span className="break-words">{exam.exam_name}</span>
-          {exam.exam_is_hidden && <span className="flex-shrink-0 px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider text-slate-500 bg-slate-100 dark:text-slate-400 dark:bg-slate-700 rounded-full">{t('exams_status_hidden')}</span>}
-        </h2>
-        {exam.subject_name && (
-          <div className="mt-1">
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+    <div className={`flex flex-col rounded-xl border bg-white dark:bg-slate-900 transition-colors ${isArchived
+      ? 'border-slate-200 dark:border-slate-800 opacity-80'
+      : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}>
+      {/* Body */}
+      <div className="p-4 flex-1 space-y-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {isArchived && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-semibold">
+              <Icons.Archive className="w-3 h-3" /> Diarsipkan
+            </span>
+          )}
+          {!isArchived && exam.exam_is_hidden && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-semibold">
+              {t('exams_status_hidden')}
+            </span>
+          )}
+          {exam.subject_name && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-semibold">
               {exam.subject_name}
             </span>
-          </div>
-        )}
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 min-h-[2.5rem] overflow-hidden line-clamp-2">{exam.description || t('exams_desc_none')}</p>
-        <div className="mt-4 flex flex-col gap-2">
-          {(exam.start_time || exam.end_time) && (
-            <div className="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-              <Icons.Clock />
-              <div className="flex flex-col">
-                {exam.start_time && <span>{t('exams_label_start')}: {formatDate(exam.start_time)} {new Date(exam.start_time).toLocaleTimeString(t('dash_date_locale'), { hour: '2-digit', minute: '2-digit' })}</span>}
-                {exam.end_time && <span>{t('exams_label_end')}: {formatDate(exam.end_time)} {new Date(exam.end_time).toLocaleTimeString(t('dash_date_locale'), { hour: '2-digit', minute: '2-digit' })}</span>}
-              </div>
-            </div>
+          )}
+          {(exam.require_safe_browser || exam.require_seb || exam.require_geschool) && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-semibold"
+              title={[
+                exam.require_safe_browser && 'Rushless Safer',
+                exam.require_seb && 'SEB',
+                exam.require_geschool && 'Geschool'
+              ].filter(Boolean).join(', ')}
+            >
+              <Icons.Shield className="w-3 h-3" /> Mode Aman
+            </span>
           )}
         </div>
+
+        <div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white break-words" title={exam.exam_name}>
+            {exam.exam_name}
+          </h3>
+          {exam.description && (
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{exam.description}</p>
+          )}
+        </div>
+
+        {(exam.start_time || exam.end_time) && (
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 px-3 py-2 space-y-1">
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-slate-400">Jadwal</p>
+            {exam.start_time && (
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                <span className="text-slate-400">Mulai </span>
+                {fmt.dateTime(exam.start_time)}
+              </p>
+            )}
+            {exam.end_time && (
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                <span className="text-slate-400">Selesai </span>
+                {fmt.dateTime(exam.end_time)}
+              </p>
+            )}
+          </div>
+        )}
       </div>
-      <div className="mt-auto border-t border-slate-200 dark:border-slate-700 p-4 bg-slate-50/50 dark:bg-slate-700/30 rounded-b-2xl">
+
+      {/* Footer */}
+      <div className="border-t border-slate-200 dark:border-slate-800 px-3 py-2.5 bg-slate-50/60 dark:bg-slate-800/30 rounded-b-xl">
         {isStudent ? (
           <StudentExamActions exam={exam} />
         ) : (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <Link href={`/dashboard/exams/manage/${exam.id}`} className="group flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 py-2 px-3 rounded-lg transition-colors">
-                <Icons.Cog />
-                <span>{t('exams_btn_manage')}</span>
-              </Link>
-              <Link href={`/dashboard/exams/results/${exam.id}`} className="group flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 py-2 px-3 rounded-lg transition-colors">
-                <Icons.ChartBar />
-                <span>{t('exams_btn_results')}</span>
-              </Link>
-            </div>
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/50 dark:border-slate-600/50 relative group/menu">
-              <button onClick={() => openModal('duplicate', exam.id)} className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 py-1.5 px-2 rounded-lg transition-colors">
-                <Icons.Duplicate />
-                <span>{t('exams_btn_duplicate')}</span>
+          <div className="flex items-center gap-1.5">
+            <Link
+              href={`/dashboard/exams/manage/${exam.id}`}
+              title={t('exams_btn_manage')}
+              aria-label={t('exams_btn_manage')}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            >
+              <Icons.Cog className="w-4 h-4" />
+              {t('exams_btn_manage')}
+            </Link>
+            <Link
+              href={`/dashboard/exams/results/${exam.id}`}
+              title={t('exams_btn_results')}
+              aria-label={t('exams_btn_results')}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            >
+              <Icons.ChartBar className="w-4 h-4" />
+              {t('exams_btn_results')}
+            </Link>
+
+            <div className="relative flex-1" ref={menuRef}>
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                aria-label={t('exams_btn_others')}
+                title={t('exams_btn_others')}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              >
+                <Icons.DotsVertical className="w-4 h-4" />
+                Lainnya
               </button>
 
-              {/* Exam Actions Dropdown Trigger (Moves & Delete) */}
-              <div className="flex-1 relative" ref={menuRef}>
-                <button
-                  onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="w-full flex items-center justify-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 py-1.5 px-2 rounded-lg transition-colors"
-                >
-                  <Icons.DotsVertical />
-                  <span>{t('exams_btn_others')}</span>
-                </button>
+              <div className={`absolute bottom-full right-0 mb-2 w-56 max-h-[60vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 transition-all origin-bottom-right z-30 ${isMenuOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95'}`}>
+                <div className="p-1">
+                  <button
+                    onClick={() => {
+                      openModal('duplicate', exam.id);
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
+                  >
+                    <Icons.Duplicate className="w-4 h-4" />
+                    <span>{t('exams_btn_duplicate')}</span>
+                  </button>
 
-                {/* Dropdown Menu */}
-                <div className={`absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 transition-all origin-bottom-right z-10 ${isMenuOpen ? 'opacity-100 visible scale-100' : 'opacity-0 invisible scale-95'}`}>
-                  <div className="p-1">
+                  {onToggleArchive && (
                     <button
                       onClick={() => {
-                        if (onToggleVisibility) onToggleVisibility();
+                        onToggleArchive();
                         setIsMenuOpen(false);
                       }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
                     >
-                      {exam.exam_is_hidden ? <><Icons.Eye /><span>{t('exams_btn_show')}</span></> : <><Icons.EyeOff /><span>{t('exams_btn_hide')}</span></>}
+                      {isArchived ? <Icons.Unarchive className="w-4 h-4" /> : <Icons.Archive className="w-4 h-4" />}
+                      <span>{isArchived ? 'Pulihkan dari Arsip' : 'Arsipkan Ujian'}</span>
                     </button>
-                    <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2"></div>
-                    <button
-                      onClick={() => {
-                        openModal('moveExam', exam.id, exam.category_id || '');
-                        setIsMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
-                    >
-                      <Icons.Folder />
-                      <span>{t('exams_btn_move_category')}</span>
-                    </button>
-                    <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2"></div>
-                    <button
-                      onClick={() => {
-                        openModal('delete', exam.id);
-                        setIsMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
-                    >
-                      <Icons.Trash />
-                      <span>{t('exams_btn_delete_exam')}</span>
-                    </button>
-                  </div>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      if (onToggleVisibility) onToggleVisibility();
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
+                  >
+                    {exam.exam_is_hidden ? <Icons.Eye className="w-4 h-4" /> : <Icons.EyeOff className="w-4 h-4" />}
+                    <span>{exam.exam_is_hidden ? t('exams_btn_show') : t('exams_btn_hide')}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      openModal('moveExam', exam.id, exam.category_id || '');
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-left"
+                  >
+                    <Icons.Folder className="w-4 h-4" />
+                    <span>{t('exams_btn_move_category')}</span>
+                  </button>
+
+                  <div className="h-px bg-slate-200 dark:bg-slate-700 my-1 mx-2" />
+
+                  <button
+                    onClick={() => {
+                      openModal('delete', exam.id);
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
+                  >
+                    <Icons.Trash className="w-4 h-4" />
+                    <span>{t('exams_btn_delete_exam')}</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -497,17 +570,30 @@ const ExamCard = ({ exam, isStudent, formatDate, openModal, categories, onToggle
 };
 
 // --- Category Accordion Component ---
-const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, formatDate, openModal, categories, onEdit, onDelete, onToggleVisibility, isHidden, isAdminHidden, onToggleExamVisibility, userRole, userId, categoryCreatedBy, onMove, onDragStart, onDragOver, onDrop, onDragEnd, isDragging }) => {
+const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, formatDate, fmt, openModal, categories, onEdit, onDelete, onToggleVisibility, isHidden, isAdminHidden, onToggleExamVisibility, onToggleExamArchive, onToggleArchive, onOpenManage, isArchived, userRole, userId, categoryCreatedBy, onMove, onDragStart, onDragOver, onDrop, onDragEnd, isDragging }) => {
   const { t } = useLanguage();
+
   // Hide empty categories for students, and hide empty 'Tanpa Nama' if categories exist
   if (isStudent && exams.length === 0) return null;
   if (id === 'uncategorized' && exams.length === 0 && categories.length > 0) return null;
 
   const canReorder = !isStudent && (userRole === 'admin' || userId === categoryCreatedBy);
+  const canManage = id !== 'uncategorized' && !isStudent && (userRole === 'admin' || userId === categoryCreatedBy);
+
+  // Ringkasan status kategori untuk ditampilkan di header
+  const visibilitySummary = isArchived
+    ? 'Diarsipkan - tidak muncul di daftar utama dan tidak terlihat siswa.'
+    : isAdminHidden
+      ? 'Disembunyikan untuk semua orang (guru & siswa).'
+      : isHidden
+        ? 'Disembunyikan dari siswa, guru masih bisa melihat.'
+        : 'Terlihat oleh siswa.';
+
+
 
   return (
     <div
-      className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300 ${isDragging ? 'opacity-40 scale-[0.98] border-indigo-400 border-dashed' : ''}`}
+      className={`relative rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ${isOpen ? 'overflow-visible' : 'overflow-hidden'} ${isDragging ? 'opacity-40 border-dashed border-slate-400' : ''} ${isArchived ? 'bg-slate-50/60 dark:bg-slate-900/60' : ''}`}
       draggable={canReorder}
       onDragStart={(e) => canReorder && onDragStart && onDragStart(e, id)}
       onDragOver={(e) => canReorder && onDragOver && onDragOver(e, id)}
@@ -516,97 +602,80 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
     >
       {/* Accordion Header */}
       <div
-        className="w-full flex items-start sm:items-center justify-between p-3 sm:p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors select-none"
+        className="w-full flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors select-none"
         onClick={toggleOpen}
       >
-        <div className="flex items-center gap-3">
-          {/* Move Handle - Only for authorized users */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           {canReorder && id !== 'uncategorized' && (
-            <div className="p-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing transition-colors" title="Tahan dan Tarik untuk Mengubah Urutan">
-              <Icons.Grip />
-            </div>
+            <span className="shrink-0 text-slate-300 dark:text-slate-600 cursor-grab active:cursor-grabbing" title="Tahan dan tarik untuk mengubah urutan">
+              <Icons.Grip className="w-4 h-4" />
+            </span>
           )}
-          <div className={`p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
-            <Icons.ChevronDown />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white flex flex-wrap items-center gap-2">
-              <span className="break-words">{name}</span>
-              <span className="flex-shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-                {exams.length}
+
+          <Icons.ChevronDown className={`shrink-0 w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white break-words">{name}</h2>
+              <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-semibold tabular-nums">
+                {exams.length} ujian
               </span>
-              {id !== 'uncategorized' && !isStudent && !!isHidden && (
-                <span className="flex-shrink-0 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full">
-                  {t('exams_badge_student_hidden')}
+              {!isStudent && !!isArchived && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-semibold">
+                  <Icons.Archive className="w-3 h-3" /> Diarsipkan
                 </span>
               )}
               {id !== 'uncategorized' && !isStudent && !!isAdminHidden && (
-                <span className="flex-shrink-0 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full">
+                <span className="px-2 py-0.5 rounded-md bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[11px] font-semibold">
                   {t('exams_badge_admin_hidden')}
                 </span>
               )}
-            </h2>
+              {id !== 'uncategorized' && !isStudent && !!isHidden && (
+                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[11px] font-semibold">
+                  {t('exams_badge_student_hidden')}
+                </span>
+              )}
+            </div>
+            {!isStudent && (
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{visibilitySummary}</p>
+            )}
           </div>
         </div>
 
-        {/* Category Actions (Only show for custom categories, not 'Tanpa Nama', and enforce permissions) */}
-        {id !== 'uncategorized' && !isStudent && (userRole === 'admin' || userId === categoryCreatedBy) && (
-          <div className="flex flex-shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation() /* Prevent accordion toggle */}>
-            {/* Admin Only: Global Hide */}
-            {userRole === 'admin' && (
-              <button
-                onClick={() => onToggleVisibility('admin_hidden')}
-                className={`p-2 rounded-lg transition-colors ${isAdminHidden ? 'text-red-600 bg-red-50 dark:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'}`}
-                title={isAdminHidden ? "Tampilkan untuk Guru & Siswa" : "Sembunyikan dari Guru & Siswa"}
-              >
-                <Icons.Shield />
-              </button>
-            )}
-
-            <button
-              onClick={() => onToggleVisibility('hidden')}
-              className={`p-2 rounded-lg transition-colors ${isHidden ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'}`}
-              title={isHidden ? "Tampilkan untuk Siswa" : "Sembunyikan dari Siswa"}
-            >
-              {isHidden ? <Icons.EyeOff /> : <Icons.Eye />}
-            </button>
-            <button
-              onClick={onEdit}
-              className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
-              title="Ubah Nama"
-            >
-              <Icons.Cog />
-            </button>
-            <button
-              onClick={onDelete}
-              className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-              title="Hapus Kategori"
-            >
-              <Icons.Trash />
-            </button>
-          </div>
+{/* Category Actions */}
+        {canManage && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenManage && onOpenManage(); }}
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            <Icons.Cog className="w-3.5 h-3.5" />
+            Kelola
+          </button>
         )}
       </div>
 
       {/* Accordion Body */}
-      <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-        <div className="overflow-hidden">
-          <div className="p-4 sm:p-6 pt-2 border-t border-slate-100 dark:border-slate-700/50 bg-slate-50/30 dark:bg-slate-900/20">
+      <div className={`grid transition-all duration-200 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+        {/* overflow disembunyikan saat tertutup (untuk animasi), tetapi dibuka saat
+            accordion aktif supaya dropdown tidak terpotong */}
+        <div className={isOpen ? 'overflow-visible' : 'overflow-hidden'}>
+          <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
             {exams.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-sm text-slate-500 dark:text-slate-400">{t('exams_no_exams')}</p>
-              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-6">{t('exams_no_exams')}</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 {exams.map((exam) => (
                   <ExamCard
                     key={exam.id}
                     exam={exam}
                     isStudent={isStudent}
                     formatDate={formatDate}
+
+                    fmt={fmt}
                     openModal={openModal}
                     categories={categories}
                     onToggleVisibility={() => onToggleExamVisibility(exam.id, exam.exam_is_hidden)}
+                    onToggleArchive={onToggleExamArchive ? () => onToggleExamArchive(exam) : null}
                   />
                 ))}
               </div>
@@ -619,8 +688,8 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
 };
 
 export default function ExamsPage() {
-  const router = useRouter();
-  const { t } = useLanguage();
+    const router = useRouter();
+    const { t, fmt } = useLanguage();
   const { user, loading: loadingSession } = useUser();
 
   const userRole = user?.roleName;
@@ -634,6 +703,8 @@ export default function ExamsPage() {
   const [isExecuting, setIsExecuting] = useState(false); // To show loading state on buttons
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('start_time');
+  const [archiveFilter, setArchiveFilter] = useState('active'); // 'active' | 'archived' | 'all'
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Accordion state
   const [openCategories, setOpenCategories] = useState({});
@@ -649,10 +720,16 @@ export default function ExamsPage() {
 
   const filteredExams = useMemo(() => {
     if (!exams) return [];
-    let result = exams.filter(e =>
-      e.exam_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (e.subject_name && e.subject_name.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    let result = exams.filter(e => {
+      const matchesSearch =
+        (e.exam_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (e.subject_name && e.subject_name.toLowerCase().includes(searchTerm.toLowerCase()));
+      if (!matchesSearch) return false;
+
+      // Filter arsip: siswa tidak pernah melihat ujian yang diarsipkan
+      if (e.is_archived) return archiveFilter !== 'active';
+      return archiveFilter !== 'archived';
+    });
 
     if (sortBy === 'start_time') {
       result = [...result].sort((a, b) => {
@@ -667,17 +744,172 @@ export default function ExamsPage() {
     }
 
     return result;
-  }, [exams, searchTerm, sortBy]);
+  }, [exams, searchTerm, sortBy, archiveFilter]);
+
+  const archiveCounts = useMemo(() => {
+    const list = exams || [];
+    return {
+      active: list.filter(e => !e.is_archived).length,
+      archived: list.filter(e => !!e.is_archived).length
+    };
+  }, [exams]);
+
+  // Kategori yang perlu ditampilkan sesuai filter arsip.
+  // - Aktif  : hanya kategori yang masih punya ujian aktif (accordion kosong disembunyikan)
+  // - Arsip  : hanya kategori yang sudah diarsipkan
+  // - Semua  : seluruh kategori
+  const visibleCategories = useMemo(() => {
+    const hasVisibleExam = new Set();
+    filteredExams.forEach(e => hasVisibleExam.add(e.category_id ?? 'uncategorized'));
+
+    if (archiveFilter === 'archived') {
+      return categories.filter(c => !!c.is_archived);
+    }
+
+    if (archiveFilter === 'all') return categories;
+
+    return categories.filter(c => hasVisibleExam.has(c.id));
+  }, [filteredExams, categories, archiveFilter]);
+
+  const hasVisibleUncategorized = useMemo(
+    () => filteredExams.some(e => (e.category_id ?? null) === null),
+    [filteredExams]
+  );
+
+  // Di tab Arsip: ujian terarsip yang kategorinya belum ikut terarsip (atau tanpa kategori)
+  // ditampilkan langsung tanpa accordion supaya tetap mudah ditemukan.
+  const looseArchivedExams = useMemo(() => {
+    if (archiveFilter !== 'archived') return [];
+    const archivedCategoryIds = new Set(categories.filter(c => !!c.is_archived).map(c => c.id));
+    return filteredExams.filter(e => {
+      if (!e.is_archived) return false;
+      const catId = e.category_id ?? null;
+      if (catId === null) return false; // sudah ditangani accordion "Tanpa Nama"
+      return !archivedCategoryIds.has(catId);
+    });
+  }, [filteredExams, categories, archiveFilter]);
 
   // Session check and role fetching logic
   // ...
   // [Lines 154-169 unchanged logic, we just need to place new methods above useEffect]
   // ...
   const toggleCategory = (categoryId) => {
-    setOpenCategories(prev => ({
-      ...prev,
-      [categoryId]: !prev[categoryId]
-    }));
+    setOpenCategories(prev => {
+      const next = { ...prev, [categoryId]: !prev[categoryId] };
+      persistOpenCategories(next);
+      return next;
+    });
+  };
+
+  // --- Preferensi UI (disimpan di DB, bukan di browser) ---
+
+  const OPEN_CATEGORIES_KEY = 'exams_open_categories';
+
+  const persistOpenCategories = (state) => {
+    const openIds = Object.keys(state).filter(id => state[id]);
+    fetch('/api/exams/ui-prefs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: OPEN_CATEGORIES_KEY,
+        value: openIds.length ? JSON.stringify(openIds) : null
+      })
+    }).catch(() => { });
+  };
+
+  const loadOpenCategories = async () => {
+    try {
+      const res = await fetch(`/api/exams/ui-prefs?key=${OPEN_CATEGORIES_KEY}`);
+      if (!res.ok) return null;
+      const { prefs } = await res.json();
+      const raw = prefs?.[OPEN_CATEGORIES_KEY];
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  };
+
+  // --- Arsip ---
+
+  const [archiveTarget, setArchiveTarget] = useState(null); // { scope: 'exam'|'category', ... }
+  const [manageCategory, setManageCategory] = useState(null); // kategori yang modal"Kelola" buka
+
+  const handleToggleExamArchive = async (exam) => {
+    const nextArchived = !exam.is_archived;
+    try {
+      const res = await fetch('/api/exams/archive', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: exam.id, archived: nextArchived })
+      });
+      if (!res.ok) throw new Error((await res.json()).message);
+
+      setExams(prev => prev.map(e => e.id === exam.id ? { ...e, is_archived: nextArchived ? 1 : 0 } : e));
+
+      // Kategori ikut terarsip otomatis bila ujian terakhir di dalamnya diarsipkan
+      let categoryArchivedName = null;
+      if (nextArchived && exam.category_id != null) {
+        const remaining = (exams || []).filter(e =>
+          e.category_id === exam.category_id && e.id !== exam.id && !e.is_archived
+        );
+        if (remaining.length === 0) {
+          const cat = categories.find(c => c.id === exam.category_id);
+          if (cat && !cat.is_archived) {
+            const catRes = await fetch('/api/exams/categories/archive', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: cat.id, archived: true })
+            });
+            if (catRes.ok) {
+              categoryArchivedName = cat.name;
+              setCategories(prevCats => prevCats.map(c => c.id === cat.id ? { ...c, is_archived: 1 } : c));
+            }
+          }
+        }
+      }
+
+      toast.success(
+        categoryArchivedName
+          ? `"${exam.exam_name}" diarsipkan. Kategori "${categoryArchivedName}" ikut diarsipkan karena tidak ada ujian aktif lagi.`
+          : (nextArchived ? `"${exam.exam_name}" diarsipkan.` : `"${exam.exam_name}" dipulihkan.`)
+      );
+    } catch (e) {
+      toast.error(e.message || 'Gagal mengubah status arsip');
+    }
+  };
+
+  const confirmToggleCategoryArchive = async () => {
+    if (!archiveTarget) return;
+    const nextArchived = !archiveTarget.isArchived;
+    setIsExecuting(true);
+    try {
+      const res = await fetch('/api/exams/categories/archive', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: archiveTarget.id, archived: nextArchived })
+      });
+      if (!res.ok) throw new Error((await res.json()).message);
+
+      setExams(prev => prev.map(e => (
+        (e.category_id ?? null) === archiveTarget.id ? { ...e, is_archived: nextArchived ? 1 : 0 } : e
+      )));
+      setCategories(prev => prev.map(c => (
+        c.id === archiveTarget.id ? { ...c, is_archived: nextArchived ? 1 : 0 } : c
+      )));
+
+      toast.success(nextArchived
+        ? `"${archiveTarget.name}" beserta ${archiveTarget.examCount} ujian diarsipkan.`
+        : `"${archiveTarget.name}" beserta ${archiveTarget.examCount} ujian dipulihkan.`);
+
+      setArchiveTarget(null);
+      refreshData();
+    } catch (e) {
+      toast.error(e.message || 'Gagal mengubah status arsip');
+    } finally {
+      setIsExecuting(false);
+    }
   };
 
   const openModal = (type, examId = null, categoryId = null, categoryName = '') => {
@@ -784,6 +1016,27 @@ export default function ExamsPage() {
   };
 
 
+  // Muat status accordion yang tersimpan di DB (hanya sekali per sesi)
+  const savedOpenRef = useRef(undefined);
+
+  useEffect(() => {
+    if (loadingSession) return;
+    let cancelled = false;
+    loadOpenCategories().then(saved => {
+      if (cancelled) return;
+      savedOpenRef.current = saved || [];
+      setOpenCategories(prev => {
+        if (Object.keys(prev).length > 0) return prev;
+        if (saved && saved.length > 0) {
+          return saved.reduce((acc, id) => { acc[id] = true; return acc; }, {});
+        }
+        // Belum pernah ada preferensi: buka "Tanpa Nama" + kategori pertama
+        return { 'uncategorized': true };
+      });
+    });
+    return () => { cancelled = true; };
+  }, [loadingSession]);
+
   // Fetch exams logic with SSE
   useEffect(() => {
     if (loadingSession) return;
@@ -806,14 +1059,21 @@ export default function ExamsPage() {
       setCategories(fetchedCategories);
 
       setOpenCategories(prev => {
-        if (Object.keys(prev).length === 0) {
-          const initialOpen = { 'uncategorized': true };
+        if (Object.keys(prev).length > 0) return prev;
+        // Preferensi belum selesai dimuat: tunggu dulu supaya tidak menimpa
+        if (savedOpenRef.current === undefined) return prev;
+
+        const saved = savedOpenRef.current;
+        const initialOpen = {};
+        if (saved.length > 0) {
+          saved.forEach(id => { initialOpen[id] = true; });
+        } else {
+          initialOpen['uncategorized'] = true;
           if (fetchedCategories.length > 0) {
             initialOpen[fetchedCategories[0].id] = true;
           }
-          return initialOpen;
         }
-        return prev;
+        return initialOpen;
       });
 
       setLoadingExams(false);
@@ -945,178 +1205,234 @@ export default function ExamsPage() {
   };
 
   const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString(t('dash_date_locale'), options);
+    return fmt.date(dateString);
   };
 
   const isStudent = userRole === 'student';
 
   if (loadingSession || loadingExams) {
     return (
-      <div className="animate-pulse space-y-8 p-4">
-        {/* Header Skeleton */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-3">
-            <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded-lg w-48"></div>
-            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-64"></div>
-          </div>
-          <div className="flex gap-3">
-            <div className="h-12 bg-slate-200 dark:bg-slate-700 rounded-xl w-32 hidden md:block"></div>
-            <div className="h-12 bg-slate-200 dark:bg-slate-700 rounded-xl w-32"></div>
-          </div>
+      <div className="space-y-5">
+        <div className="space-y-2">
+          <div className="h-7 w-56 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+          <div className="h-4 w-80 max-w-full bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
         </div>
-
-        {/* Content Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-64">
-              <div className="flex items-center justify-between mb-4">
-                <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
-              </div>
-              <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/4 mb-4"></div>
-              <div className="space-y-2 mt-2">
-                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-full"></div>
-                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-5/6"></div>
-              </div>
-              <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-700/50 flex gap-2">
-                <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg w-1/2"></div>
-                <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg w-1/2"></div>
-              </div>
+        <div className="h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl animate-pulse" />
+        {[0, 1, 2].map(i => (
+          <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+            <div className="h-12 bg-slate-100 dark:bg-slate-800 animate-pulse" />
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {[0, 1, 2].map(j => (
+                <div key={j} className="h-44 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     );
   }
 
   if (errorExams) {
-    return <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 font-medium text-center">Error: {errorExams}</div>;
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+        <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500">
+          <Icons.Alert className="w-5 h-5" />
+        </div>
+        <p className="text-sm font-bold text-slate-800 dark:text-white">Gagal memuat daftar ujian</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">{errorExams}</p>
+        <button
+          onClick={refreshData}
+          className="mt-1 px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+        >
+          Coba lagi
+        </button>
+      </div>
+    );
   }
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8 pb-10">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(15px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes fadeInDown {
-          from {
-            opacity: 0;
-            transform: translateY(-15px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in-down {
-          animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        .animate-fade-in-up {
-          animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          opacity: 0;
-        }
-      ` }} />
-
-      <div className="animate-fade-in-down flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
-        <div className="space-y-1 text-left">
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase leading-tight">
+return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
             {isStudent ? t('exams_title_student') : t('exams_title_admin')}
           </h1>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-            {t('exams_subtitle_count').replace('{count}', filteredExams.length)}
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            {isStudent
+              ? 'Daftar ujian yang tersedia untuk kelas kamu. Klik ujian untuk mulai mengerjakan.'
+              : 'Kelola seluruh ujian: atur soal, jadwal, dan lihat hasil siswa.'}
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 flex-1 max-w-2xl">
-          <div className="relative w-full">
-            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-              <Icons.Search />
-            </div>
-            <input
-              type="text"
-              placeholder={t('exams_search_placeholder')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium shadow-sm"
-            />
+
+        {!isStudent && (
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              onClick={() => openModal('categoryManage')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              <Icons.Folder className="w-4 h-4" />
+              {t('exams_btn_categories')}
+            </button>
+<button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity"
+            >
+              <Icons.Plus className="w-4 h-4" />
+              {t('exams_btn_create')}
+            </button>
           </div>
-          <button
-            onClick={() => setSortBy(sortBy === 'start_time' ? 'default' : 'start_time')}
-            className={`flex-shrink-0 inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold rounded-xl transition-all border active:scale-95 ${
-              sortBy === 'start_time'
-                ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-700 shadow-sm'
-                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
-            }`}
-            title={sortBy === 'start_time' ? t('exams_btn_sort') : t('exams_btn_sort')}
-          >
-            {sortBy === 'start_time' ? <Icons.ArrowUp /> : <Icons.ArrowUp />}
-            <span className="hidden sm:inline">{t('exams_btn_sort')}</span>
-          </button>
+        )}
+      </div>
+
+      {/* Toolbar */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-col lg:flex-row lg:items-center gap-2">
+        <div className="relative flex-1 min-w-0">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+            <Icons.Search className="w-4 h-4" />
+          </span>
+          <input
+            type="text"
+            placeholder={t('exams_search_placeholder')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label={t('exams_search_placeholder')}
+            className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              aria-label="Bersihkan pencarian"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <Icons.Close className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Filter Arsip (admin & guru) */}
           {!isStudent && (
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <button
-                onClick={() => openModal('categoryManage')}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-xl transition-all border border-slate-200 dark:border-slate-700"
-              >
-                <Icons.Folder />
-                <span className="hidden sm:inline">{t('exams_btn_categories')}</span>
-              </button>
-              <Link
-                href="/dashboard/exams/baru"
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/30 whitespace-nowrap"
-              >
-                <Icons.Plus />
-                <span className="hidden sm:inline">{t('exams_btn_create')}</span>
-              </Link>
+            <div className="flex items-center gap-1 p-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+              {[
+                { key: 'active', label: 'Aktif', count: archiveCounts.active },
+                { key: 'archived', label: 'Arsip', count: archiveCounts.archived },
+                { key: 'all', label: 'Semua', count: archiveCounts.active + archiveCounts.archived }
+              ].map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => setArchiveFilter(f.key)}
+                  aria-pressed={archiveFilter === f.key}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${archiveFilter === f.key
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                >
+                  {f.key === 'archived' && <Icons.Archive className="w-3.5 h-3.5" />}
+                  {f.label}
+                  <span className={archiveFilter === f.key ? 'opacity-70' : 'text-slate-400'}>{f.count}</span>
+                </button>
+              ))}
             </div>
           )}
+
+          <button
+            onClick={() => setSortBy(sortBy === 'start_time' ? 'default' : 'start_time')}
+            aria-pressed={sortBy === 'start_time'}
+            title={sortBy === 'start_time' ? 'Urutkan berdasarkan jadwal, klik untuk kembali ke urutan bawaan' : 'Urutkan berdasarkan jadwal'}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border transition-colors ${sortBy === 'start_time'
+              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent'
+              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+          >
+            {sortBy === 'start_time' ? <Icons.ArrowUp className="w-4 h-4" /> : <Icons.ArrowDown className="w-4 h-4" />}
+            {t('exams_btn_sort')}
+          </button>
         </div>
       </div>
 
-      {filteredExams.length === 0 ? (
-        <div className="animate-fade-in-up text-center py-20 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
-          <Icons.FileText className="block mx-auto w-12 h-12 text-slate-400" />
-          <h3 className="mt-4 text-lg font-semibold text-slate-800 dark:text-white">
-            {searchTerm ? t('exams_empty_match') : t('exams_empty_found')}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+<span className="font-semibold">Keterangan:</span>
+        <span>{filteredExams.length} dari {exams.length} ujian ditampilkan</span>
+        {!isStudent && archiveFilter === 'archived' && looseArchivedExams.length > 0 && (
+          <span>· ujian tanpa kategori terarsip ditampilkan langsung, tanpa accordion</span>
+        )}
+        {!isStudent && (
+          <>
+            <span>· arsip hanya disembunyikan dari siswa, datanya tetap utuh</span>
+            <span>· status buka/tutup tiap kategori diingat otomatis</span>
+          </>
+        )}
+      </div>
+
+          {filteredExams.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center">
+          <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mx-auto mb-3">
+            {archiveFilter === 'archived' ? <Icons.Archive className="w-5 h-5" /> : <Icons.FileText className="w-5 h-5" />}
+          </div>
+          <h3 className="text-sm font-bold text-slate-800 dark:text-white">
+            {archiveFilter === 'archived'
+              ? 'Belum ada ujian di arsip'
+              : archiveFilter === 'active' && archiveCounts.archived > 0 && !searchTerm
+                ? 'Semua ujian sudah diarsipkan'
+                : (searchTerm ? t('exams_empty_match') : t('exams_empty_found'))}
           </h3>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {searchTerm ? t('exams_empty_adjust') : (isStudent ? t('exams_empty_student') : t('exams_empty_admin'))}
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+            {archiveFilter === 'archived'
+              ? 'Ujian yang diarsipkan akan muncul di sini. Arsip tidak menghapus data.'
+              : archiveFilter === 'active' && archiveCounts.archived > 0 && !searchTerm
+                ? `Ada ${archiveCounts.archived} ujian di arsip. Pilih tab Arsip untuk melihat atau memulihkannya.`
+                : (searchTerm
+                  ? t('exams_empty_adjust')
+                  : (isStudent ? t('exams_empty_student') : t('exams_empty_admin')))}
           </p>
+          {(searchTerm || (!isStudent && archiveFilter !== 'active')) && (
+            <button
+              onClick={() => { setSearchTerm(''); if (!isStudent) setArchiveFilter('active'); }}
+              className="mt-4 px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              {archiveFilter === 'archived' ? 'Kembali ke ujian aktif' : 'Tampilkan semua ujian'}
+            </button>
+          )}
+          {!isStudent && archiveFilter === 'active' && archiveCounts.archived > 0 && !searchTerm && (
+            <button
+              onClick={() => setArchiveFilter('archived')}
+              className="mt-2 ml-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity"
+            >
+              Buka Arsip ({archiveCounts.archived})
+            </button>
+          )}
         </div>
       ) : (
-        <div className="animate-fade-in-up space-y-6" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
-          {/* Tanpa Nama Category (Uncategorized) */}
-          <CategoryAccordion
-            id="uncategorized"
-            name={t('exams_category_none')}
-            exams={filteredExams.filter(e => e.category_id == null)}
-            isOpen={openCategories['uncategorized']}
-            toggleOpen={() => toggleCategory('uncategorized')}
-            isStudent={isStudent}
-            formatDate={formatDate}
-            openModal={openModal}
-            categories={categories}
-            isHidden={false}
-            isAdminHidden={false}
-            onToggleExamVisibility={(id, current) => handleToggleVisibility('exam', id, current)}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            onDragEnd={handleDragEnd}
-            isDragging={draggedCategoryId === 'uncategorized'}
-            userRole={userRole}
-            userId={userId}
-          />
+        <div className="space-y-4">
+          {/* Tanpa Nama Category (Uncategorized) â€” disembunyikan bila tidak ada isinya */}
+          {hasVisibleUncategorized && (
+            <CategoryAccordion
+              id="uncategorized"
+              name={t('exams_category_none')}
+              exams={filteredExams.filter(e => e.category_id == null)}
+              isOpen={openCategories['uncategorized']}
+              toggleOpen={() => toggleCategory('uncategorized')}
+              isStudent={isStudent}
+              formatDate={formatDate}
+
+              fmt={fmt}
+              openModal={openModal}
+              categories={categories}
+              isHidden={false}
+              isAdminHidden={false}
+              onToggleExamVisibility={(id, current) => handleToggleVisibility('exam', id, current)}
+              onToggleExamArchive={handleToggleExamArchive}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+              isDragging={draggedCategoryId === 'uncategorized'}
+              userRole={userRole}
+              userId={userId}
+            />
+          )}
 
           {/* User Created Categories */}
-          {categories.map(cat => (
+{visibleCategories.map(cat => (
             <CategoryAccordion
               key={cat.id}
               id={cat.id}
@@ -1126,12 +1442,30 @@ export default function ExamsPage() {
               toggleOpen={() => toggleCategory(cat.id)}
               isStudent={isStudent}
               formatDate={formatDate}
+
+              fmt={fmt}
               openModal={openModal}
               categories={categories}
               isHidden={cat.is_hidden}
               isAdminHidden={cat.is_admin_hidden}
               onToggleVisibility={(mode) => handleToggleVisibility('category', cat.id, mode === 'admin_hidden' ? cat.is_admin_hidden : cat.is_hidden, mode)}
               onToggleExamVisibility={(id, current) => handleToggleVisibility('exam', id, current)}
+              onToggleExamArchive={handleToggleExamArchive}
+              isArchived={!!cat.is_archived}
+              onToggleArchive={() => setArchiveTarget({
+                id: cat.id,
+                name: cat.name,
+                isArchived: !!cat.is_archived,
+                examCount: (exams || []).filter(e => (e.category_id ?? null) === cat.id).length
+              })}
+              onOpenManage={() => setManageCategory({
+                id: cat.id,
+                name: cat.name,
+                examCount: (exams || []).filter(e => (e.category_id ?? null) === cat.id).length,
+                isHidden: !!cat.is_hidden,
+                isAdminHidden: !!cat.is_admin_hidden,
+                isArchived: !!cat.is_archived
+              })}
               onEdit={(e) => { e.stopPropagation(); openModal('categoryManage', null, cat.id, cat.name); }}
               onDelete={(e) => { e.stopPropagation(); openModal('categoryDelete', null, cat.id); }}
               onDragStart={handleDragStart}
@@ -1144,85 +1478,170 @@ export default function ExamsPage() {
               categoryCreatedBy={cat.created_by}
             />
           ))}
+
+          {/* Ujian terarsip yang kategorinya belum terarsip: tampil tanpa accordion */}
+          {looseArchivedExams.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 px-1 pb-2">
+                <Icons.Archive className="w-4 h-4 text-slate-400" />
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white">Ujian Arsip (tanpa kategori)</h2>
+                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-semibold tabular-nums">
+                  {looseArchivedExams.length} ujian
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {looseArchivedExams.map(exam => (
+                  <ExamCard
+                    key={exam.id}
+                    exam={exam}
+                    isStudent={isStudent}
+                    formatDate={formatDate}
+
+                    fmt={fmt}
+                    openModal={openModal}
+                    categories={categories}
+                    onToggleVisibility={() => handleToggleVisibility('exam', exam.id, exam.exam_is_hidden)}
+                    onToggleArchive={handleToggleExamArchive}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
+      {/* Modal Kelola Kategori */}
+      {manageCategory && (
+        <CategoryManageModal
+          category={manageCategory}
+          isAdmin={userRole === 'admin'}
+          onClose={() => setManageCategory(null)}
+          onArchive={() => {
+            const target = manageCategory;
+            setManageCategory(null);
+            setArchiveTarget(target);
+          }}
+          onToggleVisibility={async (mode) => {
+            await handleToggleVisibility('category', manageCategory.id, mode === 'admin_hidden' ? manageCategory.isAdminHidden : manageCategory.isHidden, mode);
+            setManageCategory(prev => prev ? {
+              ...prev,
+              isHidden: mode === 'hidden' ? !prev.isHidden : prev.isHidden,
+              isAdminHidden: mode === 'admin_hidden' ? !prev.isAdminHidden : prev.isAdminHidden
+            } : prev);
+          }}
+          onRename={() => {
+            const cat = manageCategory;
+            setManageCategory(null);
+            openModal('categoryManage', null, cat.id, cat.name);
+          }}
+          onDelete={() => {
+            const cat = manageCategory;
+            setManageCategory(null);
+            openModal('categoryDelete', null, cat.id);
+          }}
+        />
+      )}
+
+      {/* Modal Buat Ujian Baru */}
+      {showCreateModal && (
+        <CreateExamModal
+          isTeacher={userRole === 'teacher'}
+          defaultCategoryId={modalState.categoryId || (categories[0]?.id ?? null)}
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => {
+            setShowCreateModal(false);
+            refreshData();
+          }}
+        />
+      )}
+
       {/* Modals */}
-      {/* Category List & Create Modal */}
+      {/* Kategori Ujian: buat / ubah nama */}
       {modalState.isOpen && modalState.type === 'categoryManage' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={closeModal}>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all" onClick={e => e.stopPropagation()}>
-            <div className="p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
-                  <Icons.Folder />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                  {modalState.categoryId ? 'Ubah Nama Kategori' : 'Kategori Ujian'}
-                </h3>
-              </div>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={closeModal}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                {modalState.categoryId ? 'Ubah Nama Kategori' : 'Kategori Ujian'}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Kategori mengelompokkan ujian di daftar ini, misalnya per mata pelajaran atau tahun.
+              </p>
+            </div>
 
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Nama Kategori</label>
-                <input
-                  type="text"
-                  value={modalState.categoryName}
-                  onChange={(e) => setModalState(prev => ({ ...prev, categoryName: e.target.value }))}
-                  placeholder="Masukkan nama kategori baru"
-                  className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow"
-                  autoFocus
-                />
-              </div>
+            <div className="p-5">
+              <label htmlFor="categoryNameInput" className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+                Nama kategori
+              </label>
+              <input
+                id="categoryNameInput"
+                type="text"
+                value={modalState.categoryName}
+                onChange={(e) => setModalState(prev => ({ ...prev, categoryName: e.target.value }))}
+                onKeyDown={(e) => { if (e.key === 'Enter' && modalState.categoryName.trim()) executeAction(); }}
+                placeholder="Contoh: Matematika"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
+                autoFocus
+              />
+            </div>
 
-              <div className="flex justify-end gap-3">
-                <button onClick={closeModal} disabled={isExecuting} className="px-4 py-2 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50">
-                  {t('users_btn_cancel')}
-                </button>
-                <button onClick={executeAction} disabled={!modalState.categoryName.trim() || isExecuting} className="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 font-semibold rounded-lg shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                  {isExecuting && <Icons.Cog className="w-4 h-4 animate-spin" />}
-                  <span>{isExecuting ? t('layout_loading') : t('users_btn_save')}</span>
-                </button>
-              </div>
+            <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
+              <button onClick={closeModal} disabled={isExecuting} className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50">
+                {t('users_btn_cancel')}
+              </button>
+              <button onClick={executeAction} disabled={!modalState.categoryName.trim() || isExecuting} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
+                {isExecuting && <Icons.Spinner className="w-4 h-4" />}
+                <span>{isExecuting ? t('layout_loading') : t('users_btn_save')}</span>
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Move Exam Modal */}
+      {/* Pindahkan Ujian ke Kategori Lain */}
       {modalState.isOpen && modalState.type === 'moveExam' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={closeModal}>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all" onClick={e => e.stopPropagation()}>
-            <div className="p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
-                  <Icons.Folder />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Pindahkan Ujian</h3>
-              </div>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={closeModal}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Pindahkan Ujian</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Ujian akan dipindah ke kategori yang dipilih.</p>
+            </div>
 
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Pilih Kategori Tujuan</label>
-                <select
-                  value={modalState.categoryId || ''}
-                  onChange={(e) => setModalState(prev => ({ ...prev, categoryId: e.target.value }))}
-                  className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                >
-                  <option value="">{t('exams_category_none')}</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="p-5">
+              <label htmlFor="moveCategorySelect" className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+                Kategori tujuan
+              </label>
+              <select
+                id="moveCategorySelect"
+                value={modalState.categoryId || ''}
+                onChange={(e) => setModalState(prev => ({ ...prev, categoryId: e.target.value }))}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-none focus:border-slate-400 transition-colors"
+              >
+                <option value="">{t('exams_category_none')}</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
 
-              <div className="flex justify-end gap-3">
-                <button onClick={closeModal} disabled={isExecuting} className="px-4 py-2 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50">
-                  {t('users_btn_cancel')}
-                </button>
-                <button onClick={executeAction} disabled={isExecuting} className="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 font-semibold rounded-lg shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                  {isExecuting && <Icons.Cog className="w-4 h-4 animate-spin" />}
-                  <span>{isExecuting ? t('layout_loading') : t('exams_modal_move_title')}</span>
-                </button>
-              </div>
+            <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
+              <button onClick={closeModal} disabled={isExecuting} className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50">
+                {t('users_btn_cancel')}
+              </button>
+              <button onClick={executeAction} disabled={isExecuting} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
+                {isExecuting && <Icons.Spinner className="w-4 h-4" />}
+                <span>{isExecuting ? t('layout_loading') : t('exams_modal_move_title')}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1236,7 +1655,8 @@ export default function ExamsPage() {
         message={t('exams_modal_delete_msg')}
         confirmText={t('users_btn_delete')}
         confirmColor="bg-red-600 hover:bg-red-700"
-        icon={() => <Icons.Trash className="w-6 h-6" />}
+        tone="danger"
+        icon={() => <Icons.Trash className="w-5 h-5" />}
         isExecuting={isExecuting}
       />
       <ConfirmationModal
@@ -1246,8 +1666,9 @@ export default function ExamsPage() {
         title={t('exams_modal_duplicate_title')}
         message={t('exams_modal_duplicate_msg')}
         confirmText={t('exams_btn_duplicate')}
-        confirmColor="bg-amber-500 hover:bg-amber-600"
-        icon={() => <Icons.Duplicate className="w-6 h-6" />}
+        confirmColor="bg-slate-900 hover:bg-black dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+        tone="amber"
+        icon={() => <Icons.Duplicate className="w-5 h-5" />}
         isExecuting={isExecuting}
       />
 
@@ -1259,47 +1680,473 @@ export default function ExamsPage() {
         message={t('exams_modal_delete_msg')}
         confirmText={t('users_btn_delete')}
         confirmColor="bg-red-600 hover:bg-red-700"
-        icon={() => <Icons.Trash className="w-6 h-6" />}
+        tone="danger"
+        icon={() => <Icons.Trash className="w-5 h-5" />}
+        isExecuting={isExecuting}
+      />
+
+      {/* Arsip / Pulihkan Accordion (kategori) */}
+      <ConfirmationModal
+        isOpen={!!archiveTarget}
+        onClose={() => setArchiveTarget(null)}
+        onConfirm={confirmToggleCategoryArchive}
+        title={archiveTarget?.isArchived ? 'Pulihkan Kategori dari Arsip?' : 'Arsipkan Kategori?'}
+        message={archiveTarget
+          ? (archiveTarget.isArchived
+            ? `Kategori "${archiveTarget.name}" beserta ${archiveTarget.examCount} ujian di dalamnya akan dikembalikan ke daftar aktif dan kembali terlihat oleh siswa.`
+            : `Kategori "${archiveTarget.name}" beserta ${archiveTarget.examCount} ujian di dalamnya akan dipindahkan ke arsip. Siswa tidak akan melihatnya lagi, dan data tetap tersimpan.`)
+          : ''}
+        confirmText={archiveTarget?.isArchived ? 'Pulihkan' : 'Arsipkan'}
+        confirmColor={archiveTarget?.isArchived ? 'bg-slate-700 hover:bg-slate-800' : 'bg-slate-900 hover:bg-black'}
+        icon={() => archiveTarget?.isArchived
+          ? <Icons.Unarchive className="w-5 h-5" />
+          : <Icons.Archive className="w-5 h-5" />}
+        tone={"slate"}
         isExecuting={isExecuting}
       />
     </div>
   );
 }
 
-function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', confirmColor = 'bg-indigo-600 hover:bg-indigo-700', icon: Icon, isExecuting = false }) {
+/**
+ * Modal Buat Ujian Baru â€” menggantikan halaman /dashboard/exams/baru
+ */
+function CreateExamModal({ isTeacher, onClose, onCreated }) {
+  const [examName, setExamName] = useState('');
+  const [description, setDescription] = useState('');
+  const [subjectId, setSubjectId] = useState('');
+  const [requireSafeBrowser, setRequireSafeBrowser] = useState(false);
+  const [requireSeb, setRequireSeb] = useState(false);
+  const [subjects, setSubjects] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [selectedClasses, setSelectedClasses] = useState([]);
+  const [error, setError] = useState('');
+  const [loadingData, setLoadingData] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [subjectsRes, classesRes] = await Promise.all([fetch('/api/subjects'), fetch('/api/classes')]);
+        if (cancelled) return;
+        if (subjectsRes.ok) {
+          const data = await subjectsRes.json();
+          setSubjects(Array.isArray(data) ? data : []);
+        }
+        if (classesRes.ok) {
+          const data = await classesRes.json();
+          if (cancelled) return;
+          const list = Array.isArray(data) ? data : [];
+          setClasses(list);
+          if (isTeacher && list.length > 0) setSelectedClasses(list.map(c => c.id));
+        }
+      } catch (e) {
+        console.error('Gagal memuat data:', e);
+      } finally {
+        if (!cancelled) setLoadingData(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isTeacher]);
+
+  const toggleClass = (classId) => {
+    setSelectedClasses(prev => prev.includes(classId)
+      ? prev.filter(id => id !== classId)
+      : [...prev, classId]
+    );
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!examName.trim()) {
+      setError('Nama ujian wajib diisi.');
+      return;
+    }
+    if (selectedClasses.length === 0) {
+      setError('Pilih minimal satu kelas yang boleh mengikuti ujian ini.');
+      return;
+    }
+
+    setError('');
+    setSaving(true);
+    try {
+      const res = await fetch('/api/exams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exam_name: examName.trim(),
+          description,
+          require_safe_browser: requireSafeBrowser,
+          require_seb: requireSeb,
+          subject_id: subjectId || null,
+          allowed_classes: selectedClasses
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Gagal membuat ujian');
+      }
+
+      toast.success(`Ujian "${examName.trim()}" berhasil dibuat.`);
+      onCreated();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Buat ujian baru"
+        className="relative w-full sm:max-w-2xl h-full sm:h-auto sm:max-h-[90vh] sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl flex flex-col overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Buat Ujian Baru</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Isi data dasar dulu. Soal, jadwal, dan pengaturan lain bisa dilengkapi setelah ujian dibuat.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Tutup"
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+          >
+            <Icons.Close className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
+          {error && (
+            <div className="flex items-start gap-2 px-3.5 py-2.5 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/60">
+              <Icons.Alert className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+              <p className="text-xs text-red-700 dark:text-red-300">{error}</p>
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="createExamName" className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+              Nama ujian <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="createExamName"
+              type="text"
+              value={examName}
+              onChange={(e) => setExamName(e.target.value)}
+              placeholder="Contoh: Ujian Akhir Semester Matematika"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="createExamSubject" className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+                Mata pelajaran
+              </label>
+              <select
+                id="createExamSubject"
+                value={subjectId}
+                onChange={(e) => setSubjectId(e.target.value)}
+                disabled={loadingData}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 cursor-pointer focus:outline-none focus:border-slate-400 transition-colors"
+              >
+                <option value="">Tanpa mata pelajaran</option>
+                {subjects.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+                Kelas peserta <span className="text-red-500">*</span>
+              </label>
+              {loadingData ? (
+                <div className="h-[38px] rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" />
+              ) : classes.length === 0 ? (
+                <p className="text-xs text-slate-400 py-2">Belum ada kelas. Buat kelas terlebih dahulu.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                  {classes.map(cls => {
+                    const isSelected = selectedClasses.includes(cls.id);
+                    return (
+                      <button
+                        key={cls.id}
+                        type="button"
+                        onClick={() => toggleClass(cls.id)}
+                        aria-pressed={isSelected}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${isSelected
+                          ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent'
+                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-400'}`}
+                      >
+                        {isSelected && <Icons.Check className="w-3 h-3" />}
+                        {cls.class_name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">
+                Dipilih: {selectedClasses.length} kelas. Ujian tidak akan terlihat oleh siswa di luar kelas ini.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="createExamDesc" className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+              Deskripsi <span className="font-normal text-slate-400">(opsional)</span>
+            </label>
+            <textarea
+              id="createExamDesc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              placeholder="Penjelasan singkat tentang ujian ini."
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <ToggleCard
+              id="createRequireSafer"
+              checked={requireSafeBrowser}
+              onChange={setRequireSafeBrowser}
+              title="Rushless Safer"
+              description="Siswa hanya bisa ujian lewat aplikasi Rushless Safer."
+            />
+            <ToggleCard
+              id="createRequireSeb"
+              checked={requireSeb}
+              onChange={setRequireSeb}
+              title="Safe Exam Browser"
+              description="Siswa hanya bisa ujian lewat aplikasi SEB."
+            />
+          </div>
+        </form>
+
+        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            Setelah dibuat, ujian muncul di daftar. Klik Kelola untuk menambah soal.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={saving || loadingData}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {saving && <Icons.Spinner className="w-4 h-4" />}
+              {saving ? 'Menyimpan...' : 'Buat Ujian'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ToggleCard({ id, checked, onChange, title, description }) {
+  return (
+    <label htmlFor={id} className="flex items-start justify-between gap-3 px-3.5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-400 transition-colors cursor-pointer">
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</span>
+        <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{description}</span>
+      </span>
+      <span className="relative shrink-0 mt-0.5">
+        <input id={id} type="checkbox" className="peer sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+        <span className="block w-10 h-5 rounded-full bg-slate-200 dark:bg-slate-700 transition-colors peer-checked:bg-slate-900 dark:peer-checked:bg-white" />
+        <span className="absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+      </span>
+    </label>
+  );
+}
+/**
+ * Modal pengaturan kategori (dipakai dari tombol "Kelola" pada accordion)
+ */
+function CategoryManageModal({ category, onClose, onArchive, onToggleVisibility, onRename, onDelete, isAdmin }) {
+  if (!category) return null;
+
+  const { name, examCount, isHidden, isAdminHidden, isArchived } = category;
+
+  const rows = [
+    {
+      key: 'archive',
+      icon: isArchived ? <Icons.Unarchive className="w-4 h-4" /> : <Icons.Archive className="w-4 h-4" />,
+      title: isArchived ? 'Pulihkan dari arsip' : 'Arsipkan kategori',
+      desc: isArchived
+        ? 'Kembalikan kategori dan semua ujiannya ke daftar utama.'
+        : 'Sembunyikan dari daftar utama. Semua ujian di dalamnya ikut terarsip dan tidak terlihat siswa.',
+      onClick: onArchive,
+      tone: isArchived ? 'default' : 'default'
+    },
+    {
+      key: 'students',
+      icon: isHidden ? <Icons.EyeOff className="w-4 h-4" /> : <Icons.Eye className="w-4 h-4" />,
+      title: isHidden ? 'Tampilkan kembali ke siswa' : 'Sembunyikan dari siswa',
+      desc: isHidden
+        ? 'Ujian dalam kategori ini akan tampil lagi di daftar siswa.'
+        : 'Siswa tidak bisa melihat ujian di kategori ini. Guru tetap bisa.',
+      onClick: () => onToggleVisibility('hidden'),
+      badge: isHidden ? 'Tersembunyi' : 'Terlihat',
+      badgeTone: isHidden ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+    },
+    ...(isAdmin ? [{
+      key: 'admin',
+      icon: <Icons.Shield className="w-4 h-4" />,
+      title: isAdminHidden ? 'Tampilkan untuk guru & siswa' : 'Sembunyikan dari guru & siswa',
+      desc: isAdminHidden
+        ? 'Kategori akan terlihat lagi oleh seluruh pengguna.'
+        : 'Sembunyikan kategori ini dari seluruh pengguna, termasuk guru.',
+      onClick: () => onToggleVisibility('admin_hidden'),
+      badge: isAdminHidden ? 'Disembunyikan total' : 'Terlihat semua',
+      badgeTone: isAdminHidden ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+    }] : []),
+    {
+      key: 'rename',
+      icon: <Icons.Cog className="w-4 h-4" />,
+      title: 'Ubah nama kategori',
+      desc: 'Mengganti label kategori di daftar ujian.',
+      onClick: onRename,
+      separator: true
+    },
+    {
+      key: 'delete',
+      icon: <Icons.Trash className="w-4 h-4" />,
+      title: 'Hapus kategori',
+      desc: 'Ujian di dalamnya tidak ikut terhapus, hanya dipindahkan ke Tanpa Nama.',
+      onClick: onDelete,
+      danger: true
+    }
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Pengaturan kategori ${name}`}
+        className="w-full sm:max-w-lg h-full sm:h-auto sm:max-h-[88vh] sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">Kelola Kategori</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+              {name} - berlaku untuk {examCount} ujian di dalamnya.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Tutup"
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+          >
+            <Icons.Close className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-3">
+          {rows.map((row, i) => (
+            <div key={row.key}>
+              {row.separator && <div className="h-px bg-slate-200 dark:bg-slate-700 my-2" />}
+              <button
+                onClick={row.onClick}
+                className={`w-full flex items-start gap-3 px-3 py-3 rounded-xl text-left transition-colors ${row.danger
+                  ? 'hover:bg-red-50 dark:hover:bg-red-900/20'
+                  : 'hover:bg-slate-100 dark:hover:bg-slate-800'} ${i === rows.length - 1 ? '' : ''}`}
+              >
+                <span className={`shrink-0 mt-0.5 ${row.danger ? 'text-red-500' : 'text-slate-400'}`}>{row.icon}</span>
+                <span className="flex-1 min-w-0">
+                  <span className={`block text-sm font-semibold ${row.danger ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-100'}`}>
+                    {row.title}
+                  </span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">{row.desc}</span>
+                </span>
+                {row.badge && (
+                  <span className={`shrink-0 px-2 py-0.5 rounded-md text-[11px] font-semibold ${row.badgeTone}`}>
+                    {row.badge}
+                  </span>
+                )}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Perubahan berlaku langsung ke semua ujian di kategori ini.</p>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-opacity"
+          >
+            Selesai
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+function ConfirmationModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', confirmColor = 'bg-slate-900 hover:bg-black', icon: Icon, isExecuting = false, tone = 'slate' }) {
   const { t } = useLanguage();
   if (!isOpen) return null;
 
+  const toneCls = tone === 'danger'
+    ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+    : tone === 'amber'
+      ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'
+      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all" onClick={e => e.stopPropagation()}>
-        <div className="p-6">
-          <div className="flex items-center gap-4 mb-4">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="w-full sm:max-w-md sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="p-5">
+          <div className="flex items-start gap-3">
             {Icon && (
-              <div className={`p-3 rounded-full ${confirmColor.includes('red') ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'}`}>
-                <Icon className="w-6 h-6" />
-              </div>
+              <span className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${toneCls}`}>
+                <Icon className="w-5 h-5" />
+              </span>
             )}
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white">{title}</h3>
+            <div className="min-w-0">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{message}</p>
+            </div>
           </div>
-          <p className="text-slate-600 dark:text-slate-400 mb-6">{message}</p>
-          <div className="flex justify-end gap-3">
-            <button
-              onClick={onClose}
-              disabled={isExecuting}
-              className="px-4 py-2 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {t('users_btn_cancel')}
-            </button>
-            <button
-              onClick={onConfirm}
-              disabled={isExecuting}
-              className={`px-4 py-2 text-white font-semibold rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 ${confirmColor}`}
-            >
-              {isExecuting && <Icons.Cog className="w-4 h-4 animate-spin" />}
-              <span>{isExecuting ? t('layout_loading') : confirmText}</span>
-            </button>
-          </div>
+        </div>
+
+        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
+          <button
+            onClick={onClose}
+            disabled={isExecuting}
+            className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {t('users_btn_cancel')}
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isExecuting}
+            className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg transition-all active:scale-[0.98] disabled:opacity-50 ${confirmColor}`}
+          >
+            {isExecuting && <Icons.Spinner className="w-4 h-4" />}
+            <span>{isExecuting ? t('layout_loading') : confirmText}</span>
+          </button>
         </div>
       </div>
     </div>

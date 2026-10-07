@@ -6,6 +6,7 @@ import {
     FileSpreadsheet, PlusCircle, BellRing, CheckCircle2, HelpCircle, X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 // Format seconds to HH:MM:SS
 function formatTime(seconds) {
@@ -171,7 +172,7 @@ function LogPanel({ student, onClose, sseLog }) {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [logs]);
 
-    const formatLogTime = (ts) => new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const formatLogTime = (ts) => new Date(ts).toLocaleTimeString(localeForTz, { timeZone: appTimezone, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -295,6 +296,7 @@ function GuideModal({ isOpen, onClose }) {
 }
 
 export default function ControlPanel() {
+    const { timezone: appTimezone } = useLanguage();
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -379,7 +381,32 @@ export default function ControlPanel() {
     };
 
     const classes = ['All', ...new Set(students.map(s => s.class_name).filter(Boolean))];
-    const filteredStudents = students.filter(student => {
+
+    // Pengaman tampilan: pastikan satu baris per siswa.
+    // Query server sudah mengambil 1 attempt per siswa, tapi kalau suatu saat
+    // data mengembalikan baris ganda, students yang muncul tetap tidak akan
+    // terduplikasi di layar.
+    const uniqueStudents = useMemo(() => {
+      const map = new Map();
+      for (const s of students) {
+        const existing = map.get(s.id);
+        if (!existing) {
+          map.set(s.id, s);
+          continue;
+        }
+        // Kalau ternyata dobel, pilih yang paling butuh perhatian:
+        // 1) yang sedang ada attempt-nya, 2) sisa waktu paling sedikit.
+        const curTime = s.attempt_id ? s.seconds_left : Number.MAX_SAFE_INTEGER;
+        const oldTime = existing.attempt_id ? existing.seconds_left : Number.MAX_SAFE_INTEGER;
+        if (curTime < oldTime) map.set(s.id, s);
+        else if (existing.in_progress_count !== s.in_progress_count) {
+          map.set(s.id, { ...existing, in_progress_count: Math.max(existing.in_progress_count || 0, s.in_progress_count || 0) });
+        }
+      }
+      return Array.from(map.values());
+    }, [students]);
+
+    const filteredStudents = uniqueStudents.filter(student => {
         const matchesClass = selectedClass === 'All' || student.class_name === selectedClass;
         const matchesSearch = student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                               student.username?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -815,6 +842,14 @@ export default function ControlPanel() {
                                         <div className="space-y-1">
                                             <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 truncate max-w-[200px]">{s.current_exam}</div>
                                             {s.seconds_left !== null && <StudentTimer secondsLeft={s.seconds_left} />}
+                                            {s.in_progress_count > 1 && (
+                                                <div
+                                                    title={`Siswa ini sedang mengerjakan ${s.in_progress_count} ujian sekaligus`}
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[9px] font-bold uppercase tracking-wide"
+                                                >
+                                                    +{s.in_progress_count - 1} ujian lain
+                                                </div>
+                                            )}
                                         </div>
                                     ) : <span className="text-[11px] text-slate-400">Idle</span>}
                                 </td>
@@ -899,9 +934,16 @@ export default function ControlPanel() {
                         </div>
 
                         {s.current_exam ? (
-                            <div className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900/40 rounded-xl px-3 py-2">
-                                <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 truncate">{s.current_exam}</div>
-                                {s.seconds_left !== null && <StudentTimer secondsLeft={s.seconds_left} />}
+                            <div className="space-y-1">
+                                <div className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900/40 rounded-xl px-3 py-2">
+                                    <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 truncate">{s.current_exam}</div>
+                                    {s.seconds_left !== null && <StudentTimer secondsLeft={s.seconds_left} />}
+                                </div>
+                                {s.in_progress_count > 1 && (
+                                    <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                                        Siswa ini masih membuka {s.in_progress_count - 1} ujian lain sekaligus.
+                                    </p>
+                                )}
                             </div>
                         ) : (
                             <div className="text-[11px] text-slate-400 bg-slate-50 dark:bg-slate-900/40 rounded-xl px-3 py-2">Idle — tidak sedang mengerjakan ujian</div>

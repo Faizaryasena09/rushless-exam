@@ -2,256 +2,255 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from './ThemeProvider';
 import { useLanguage } from '@/app/context/LanguageContext';
+import {
+    Sun,
+    Moon,
+    Menu,
+    ChevronDown,
+    User as UserIcon,
+    Download,
+    LogOut
+} from 'lucide-react';
 
-// Sun icon for light mode
-const SunIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-  </svg>
-);
-
-// Moon icon for dark mode
-const MoonIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-  </svg>
-);
+// Label halaman untuk ditampilkan di header
+const PAGE_TITLES = [
+    { match: '/dashboard/exams/questions', label: 'Kelola Soal' },
+    { match: '/dashboard/exams/questions', label: 'Panduan Soal' },
+    { match: '/dashboard/exams/results', label: 'Hasil Ujian' },
+    { match: '/dashboard/exams/manage', label: 'Pengaturan Ujian' },
+    { match: '/dashboard/exams/preview', label: 'Preview Ujian' },
+    { match: '/dashboard/exams', label: 'Ujian' },
+    { match: '/dashboard/users', label: 'Pengguna' },
+    { match: '/dashboard/classes', label: 'Kelas' },
+    { match: '/dashboard/subjects', label: 'Mata Pelajaran' },
+    { match: '/dashboard/web-settings', label: 'Pengaturan Website' },
+    { match: '/dashboard/system-overview', label: 'Ringkasan Sistem' },
+    { match: '/dashboard/activity-logs', label: 'Log Aktivitas' },
+    { match: '/dashboard/session-control', label: 'Kontrol Sesi' },
+    { match: '/dashboard/archive-answers', label: 'Arsip Jawaban' },
+    { match: '/dashboard/bank-soal', label: 'Bank Soal' },
+    { match: '/dashboard/profile', label: 'Profil Saya' },
+    { match: '/dashboard/download-app', label: 'Download Aplikasi' },
+    { match: '/dashboard/control', label: 'Kontrol Ujian' }
+];
 
 export default function Header({ user, isLoading, toggleSidebar, showToggleButton }) {
-  const router = useRouter();
-  const { theme, toggleTheme } = useTheme();
-  const { t } = useLanguage();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
-  const [branding, setBranding] = useState({ site_name: 'Rushless Exam', site_logo: '/favicon.ico' });
+    const router = useRouter();
+    const pathname = usePathname();
+    const { theme, toggleTheme } = useTheme();
+    const { t } = useLanguage();
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef(null);
+    const [branding, setBranding] = useState({ site_name: 'Rushless Exam', site_logo: '/favicon.ico' });
 
-  useEffect(() => {
-     fetch('/api/web-settings?mode=branding')
-         .then(res => res.json())
-         .then(data => setBranding(data))
-         .catch(err => console.error(err));
-  }, []);
+    useEffect(() => {
+        fetch('/api/web-settings?mode=branding')
+            .then(res => res.json())
+            .then(data => setBranding(data))
+            .catch(err => console.error(err));
+    }, []);
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    // Tutup dropdown saat klik di luar
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setDropdownOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Tutup dropdown dengan Escape
+    useEffect(() => {
+        function handleEscape(event) {
+            if (event.key === 'Escape') setDropdownOpen(false);
+        }
+        document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, []);
+
+    const handleLogout = async () => {
         setDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+        await fetch('/api/logout', { method: 'POST' });
+        router.push('/');
+    };
 
-  // Close dropdown on Escape key
-  useEffect(() => {
-    function handleEscape(event) {
-      if (event.key === 'Escape') setDropdownOpen(false);
-    }
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, []);
+    const getInitials = (name) => (name ? name.trim().charAt(0).toUpperCase() : 'U');
 
-  const handleLogout = async () => {
-    setDropdownOpen(false);
-    await fetch('/api/logout', { method: 'POST' });
-    router.push('/');
-  };
+    const roleLabel = !user
+        ? ''
+        : user.roleName === 'student'
+            ? t('dash_role_student')
+            : user.roleName === 'teacher'
+                ? t('dash_role_teacher')
+                : t('dash_role_admin');
 
-  const getInitials = (name) => {
-    return name ? name.charAt(0).toUpperCase() : 'U';
-  };
+    const currentPage = PAGE_TITLES.find(item => pathname?.startsWith(item.match))?.label;
 
-  return (
-    <header className="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg border-b border-slate-200/60 dark:border-slate-700/60 shadow-sm transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
-        <div className="flex items-center">
-          {showToggleButton && (
-            <button onClick={toggleSidebar} className="text-gray-500 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-300 focus:outline-none mr-4" aria-label="Toggle sidebar">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          )}
-          {/* --- Logo Section --- */}
-          <Link href="/" className="group flex items-center gap-2.5 outline-none">
-            <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-transparent transition-transform duration-300 group-hover:scale-105">
-              <img src={branding?.site_logo || '/favicon.ico'} alt="Logo" className="w-8 h-8 object-contain drop-shadow-sm" />
-            </div>
-            <div className="flex flex-col">
-              <span 
-                className="text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors prose prose-sm prose-slate dark:prose-invert"
-                dangerouslySetInnerHTML={{ __html: branding?.site_name || 'Rushless Exam' }}
-              >
-              </span>
-            </div>
-          </Link>
-        </div>
+    return (
+        <header className="sticky top-0 z-50 w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+                {/* Kiri: toggle + logo */}
+                <div className="flex items-center gap-3 min-w-0">
+                    {showToggleButton && (
+                        <button
+                            onClick={toggleSidebar}
+                            aria-label="Buka / tutup menu samping"
+                            className="p-2 -ml-1 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
+                        >
+                            <Menu size={18} />
+                        </button>
+                    )}
 
-        {/* --- Actions Section --- */}
-        <div className="flex items-center gap-2">
-
-          {/* Theme Toggle Button */}
-          <button
-            onClick={toggleTheme}
-            className="relative p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-          >
-            <div className="relative w-4 h-4">
-              <div className={`absolute inset-0 transition-all duration-300 ${theme === 'dark' ? 'opacity-0 rotate-90 scale-0' : 'opacity-100 rotate-0 scale-100'}`}>
-                <MoonIcon />
-              </div>
-              <div className={`absolute inset-0 transition-all duration-300 ${theme === 'dark' ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-0'}`}>
-                <SunIcon />
-              </div>
-            </div>
-          </button>
-
-          {isLoading ? (
-            // Loading Skeleton
-            <div className="flex items-center gap-3 animate-pulse">
-              <div className="h-9 w-9 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
-              <div className="hidden sm:block h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
-            </div>
-          ) : user ? (
-            // State: Logged In — Avatar with Dropdown
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-3 pl-2 sm:pl-0 focus:outline-none group"
-                aria-expanded={dropdownOpen}
-                aria-haspopup="true"
-              >
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 leading-none mb-1">{user.name || user.username}</p>
-                  <p className="text-[10px] uppercase tracking-wider font-medium text-slate-400 dark:text-slate-500">
-                    {user.roleName === 'student' ? 'Murid' : 
-                     user.roleName === 'teacher' ? 'Guru' : 
-                     user.roleName === 'admin' ? 'Administrator' : 
-                     (user.roleName || '')}
-                  </p>
-                </div>
-
-                <div className="relative">
-                  <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-[2px] shadow-sm transition-transform duration-200 group-hover:scale-105">
-                    <div className="h-full w-full rounded-full bg-white dark:bg-slate-800 flex items-center justify-center">
-                      <span className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 to-purple-600">
-                        {getInitials(user.name || user.username)}
-                      </span>
-                    </div>
-                  </div>
-                  {/* Active Indicator */}
-                  <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-800 transform translate-y-1/4 translate-x-1/4"></span>
-                </div>
-
-                {/* Dropdown Arrow */}
-                <svg className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {/* Dropdown Menu */}
-              <div
-                className={`absolute right-0 mt-2 w-64 bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/60 dark:border-slate-700/60 overflow-hidden transition-all duration-200 origin-top-right ${dropdownOpen
-                  ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
-                  : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
-                  }`}
-              >
-                {/* User Info Section */}
-                <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-indigo-50/30 dark:from-slate-700/50 dark:to-indigo-900/20 border-b border-slate-100 dark:border-slate-700">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-[2px] flex-shrink-0">
-                      <div className="h-full w-full rounded-full bg-white dark:bg-slate-800 flex items-center justify-center">
-                        <span className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 to-purple-600">
-                          {getInitials(user.name || user.username)}
+                    <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0 group">
+                        <span className="shrink-0 w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden">
+                            <img
+                                src={branding?.site_logo || '/favicon.ico'}
+                                alt="Logo"
+                                className="w-5 h-5 object-contain"
+                            />
                         </span>
-                      </div>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{user.name || user.username}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">@{user.username}</p>
-                    </div>
-                  </div>
+                        <span className="min-w-0">
+                            <span
+                                className="block max-w-[180px] sm:max-w-[260px] truncate text-sm font-bold text-slate-900 dark:text-white leading-tight"
+                                dangerouslySetInnerHTML={{ __html: branding?.site_name || 'Rushless Exam' }}
+                            />
+                            {currentPage && (
+                                <span className="block text-[11px] text-slate-400 leading-tight truncate">{currentPage}</span>
+                            )}
+                        </span>
+                    </Link>
                 </div>
 
-                {/* Menu Items */}
-                <div className="py-1.5">
-                  <Link
-                    href="/dashboard/profile"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors duration-150"
-                  >
-                    <svg className="w-4 h-4 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    <span className="font-medium">{t('header_my_profile')}</span>
-                  </Link>
+                {/* Kanan: aksi */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                        onClick={toggleTheme}
+                        aria-label={theme === 'dark' ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'}
+                        title={theme === 'dark' ? t('header_light_mode') : t('header_dark_mode')}
+                        className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
+                    >
+                        {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+                    </button>
 
-                  <Link
-                    href="/dashboard/download-app"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors duration-150"
-                  >
-                    <svg className="w-4 h-4 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    <span className="font-medium">Download Aplikasi</span>
-                  </Link>
+                    {isLoading ? (
+                        <div className="flex items-center gap-2 animate-pulse pl-1">
+                            <div className="h-8 w-8 bg-slate-200 dark:bg-slate-800 rounded-lg" />
+                            <div className="hidden sm:block h-3 w-20 bg-slate-200 dark:bg-slate-800 rounded" />
+                        </div>
+                    ) : user ? (
+                        <div className="relative" ref={dropdownRef}>
+                            <button
+                                onClick={() => setDropdownOpen(v => !v)}
+                                aria-expanded={dropdownOpen}
+                                aria-haspopup="true"
+                                aria-label="Menu pengguna"
+                                className="flex items-center gap-2 pl-1 pr-1.5 sm:pr-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                                <span className="hidden sm:block text-right leading-tight">
+                                    <span className="block text-xs font-semibold text-slate-700 dark:text-slate-200 max-w-[120px] truncate">
+                                        {user.name || user.username}
+                                    </span>
+                                    <span className="block text-[10px] text-slate-400">{roleLabel}</span>
+                                </span>
 
-                  {/* Theme Toggle in Dropdown */}
-                  <button
-                    onClick={() => { toggleTheme(); }}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors duration-150 w-full text-left"
-                  >
-                    <span className="text-slate-400 dark:text-slate-500">
-                      {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-                    </span>
-                    <span className="font-medium">{theme === 'dark' ? t('header_light_mode') : t('header_dark_mode')}</span>
-                    <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium ${theme === 'dark'
-                        ? 'bg-indigo-500/20 text-indigo-300'
-                        : 'bg-slate-100 text-slate-500'
-                      }`}>
-                      {theme === 'dark' ? '🌙' : '☀️'}
-                    </span>
-                  </button>
+                                <span className="relative shrink-0">
+                                    <span className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold">
+                                        {getInitials(user.name || user.username)}
+                                    </span>
+                                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+                                </span>
 
-                  <div className="mx-3 my-1 border-t border-slate-100 dark:border-slate-700"></div>
+                                <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
 
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-600 dark:hover:text-rose-400 transition-colors duration-150 w-full text-left"
-                  >
-                    <svg className="w-4 h-4 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    <span className="font-medium">{t('header_logout')}</span>
-                  </button>
+                            {/* Dropdown akun */}
+                            <div
+                                className={`absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden transition-all origin-top-right z-50 ${dropdownOpen
+                                    ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
+                                    : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}
+                            >
+                                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                                    <div className="flex items-center gap-3">
+                                        <span className="shrink-0 flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold">
+                                            {getInitials(user.name || user.username)}
+                                        </span>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{user.name || user.username}</p>
+                                            <p className="text-xs text-slate-400 truncate">@{user.username} &middot; {roleLabel}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-1.5">
+                                    <MenuItem
+                                        href="/dashboard/profile"
+                                        icon={<UserIcon size={16} />}
+                                        label={t('header_my_profile')}
+                                        onClick={() => setDropdownOpen(false)}
+                                    />
+                                    <MenuItem
+                                        href="/dashboard/download-app"
+                                        icon={<Download size={16} />}
+                                        label="Download Aplikasi"
+                                        onClick={() => setDropdownOpen(false)}
+                                    />
+
+                                    <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
+
+                                    <button
+                                        onClick={() => { setDropdownOpen(false); toggleTheme(); }}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left"
+                                    >
+                                        {theme === 'dark' ? <Sun size={16} className="text-slate-400" /> : <Moon size={16} className="text-slate-400" />}
+                                        <span className="font-medium">{theme === 'dark' ? t('header_light_mode') : t('header_dark_mode')}</span>
+                                        <span className="ml-auto text-[11px] text-slate-400">{theme === 'dark' ? 'Terang' : 'Gelap'}</span>
+                                    </button>
+
+                                    <div className="h-px bg-slate-100 dark:border-slate-800 my-1" />
+
+                                    <button
+                                        onClick={handleLogout}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
+                                    >
+                                        <LogOut size={16} />
+                                        <span className="font-medium">{t('header_logout')}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            <span className="hidden sm:block text-sm text-slate-500 dark:text-slate-400">
+                                {t('header_welcome_guest')}
+                            </span>
+                            <Link
+                                href="/login"
+                                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity"
+                            >
+                                {t('header_sign_in')}
+                            </Link>
+                        </div>
+                    )}
                 </div>
-              </div>
             </div>
-          ) : (
-            // State: Guest
-            <div className="flex items-center gap-4">
-              <span className="hidden sm:block text-sm font-medium text-slate-500 dark:text-slate-400">
-                {t('header_welcome_guest')}
-              </span>
-              <Link
-                href="/login"
-                className="group relative inline-flex items-center justify-center px-5 py-2 text-sm font-semibold text-white transition-all duration-200 bg-indigo-600 rounded-lg hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-500/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600"
-              >
-                <span>{t('header_sign_in')}</span>
-                <svg className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-              </Link>
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
-  );
+        </header>
+    );
+}
+
+function MenuItem({ href, icon, label, onClick }) {
+    return (
+        <Link
+            href={href}
+            onClick={onClick}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        >
+            <span className="text-slate-400">{icon}</span>
+            <span className="font-medium">{label}</span>
+        </Link>
+    );
 }

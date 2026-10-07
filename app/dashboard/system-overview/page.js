@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useLanguage } from '@/app/context/LanguageContext';
+import { TriangleAlert } from 'lucide-react';
 
 // --- Constants ---
 const HISTORY_LENGTH = 60; // 60 seconds of history
@@ -264,6 +266,7 @@ function Sparkline({ data, color = '#6366f1', height = 30, width = 80 }) {
 // MAIN PAGE COMPONENT
 // =====================================================
 export default function WebSettingsPage() {
+    const { fmt } = useLanguage();
     const [fullData, setFullData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -283,6 +286,18 @@ export default function WebSettingsPage() {
     const [realtime, setRealtime] = useState(null);
 
     const intervalRef = useRef(null);
+
+    // Selisih jam server vs database. Dicek SEKALI saat mount (bukan polling),
+    // karena query ini menambah beban dan hasilnya jarang berubah.
+    const [clockSkew, setClockSkew] = useState(null);
+    useEffect(() => {
+        let cancelled = false;
+        fetch('/api/system-health')
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => { if (!cancelled && d) setClockSkew(d.clockSkew || null); })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, []);
 
     // Fetch full data (initial load)
     const fetchFullData = useCallback(async () => {
@@ -652,7 +667,21 @@ export default function WebSettingsPage() {
                         <p className="text-xs font-bold text-indigo-500 uppercase mt-2 tracking-widest">System uptime</p>
                     </div>
                     <div className="mt-2 pt-3 border-t border-slate-100 dark:border-slate-700">
-                        <InfoRow label="Server Time" value={realtime?.serverTime ? new Date(realtime.serverTime).toLocaleString('id-ID') : '-'} />
+                        <InfoRow label="Server Time" value={realtime?.serverTime ? fmt.dateTime(realtime.serverTime) : '-'} />
+                        {clockSkew?.ok === false && clockSkew.skewSeconds && (
+                            <div className="mt-2 flex items-start gap-2 px-2.5 py-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/25">
+                                <TriangleAlert size={13} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                                <p className="text-[11px] leading-snug text-amber-800 dark:text-amber-300">
+                                    Jam server meleset <strong>{clockSkew.skewSeconds} detik</strong> dari jam database.
+                                    Timer ujian memakai jam database, jadi hasil bisa terlihat tidak sinkron dengan jam di layar.
+                                </p>
+                            </div>
+                        )}
+                        {clockSkew?.ok === true && (
+                            <p className="mt-1.5 text-[10px] text-slate-400">
+                                Jam server sinkron dengan database (selisih {clockSkew.skewSeconds} detik).
+                            </p>
+                        )}
                     </div>
                 </InfoCard>
 

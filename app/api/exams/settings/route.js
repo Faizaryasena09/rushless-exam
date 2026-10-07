@@ -34,7 +34,19 @@ export async function GET(request) {
       return NextResponse.json({ message: 'Exam not found' }, { status: 404 });
     }
 
-    return NextResponse.json(examData, {
+    // Sensor untuk siswa: hapus data yang tidak boleh diketahui peserta.
+    //   current_token  = token akses ujian (bisa dipakai ikutan masuk)
+    //   seb_config_key = hash kunci konfigurasi SEB
+    // Halaman siswa tidak memakai keduanya, jadi tidak ada yang rusak.
+    const isStudent = session.user.roleName === 'student';
+    const safeData = isStudent
+      ? (() => {
+          const { current_token, seb_config_key, geschool_exit_password, ...rest } = examData;
+          return rest;
+        })()
+      : examData;
+
+    return NextResponse.json(safeData, {
       headers: {
         'Cache-Control': 'no-store, max-age=0, must-revalidate',
         'Pragma': 'no-cache',

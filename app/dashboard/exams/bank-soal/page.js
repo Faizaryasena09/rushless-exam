@@ -23,7 +23,8 @@ import {
   X,
   Eye,
   Check,
-  CheckSquare
+  CheckSquare,
+  AlertCircle
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
@@ -114,10 +115,12 @@ export default function BankSoalPage() {
   }, [folders, currentFolderId]);
 
   const filteredQuestions = useMemo(() => {
-    return questions.filter(q => 
-      q.question_text.toLowerCase().includes(searchTerm.toLowerCase())
+    return questions.filter(q =>
+      (q.question_text || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [questions, searchTerm]);
+
+  const allSelected = filteredQuestions.length > 0 && selectedQuestionIds.length === filteredQuestions.length;
 
   const handleCreateFolder = async (e) => {
     e.preventDefault();
@@ -247,16 +250,16 @@ export default function BankSoalPage() {
         }
       ` }} />
 
-      {/* 1. Bagian Judul & Tombol (Akan Tergulung Ke Atas) */}
+      {/* 1. Bagian Judul & Tombol */}
       <div className="bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
-        <div className="animate-fade-in-down max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="animate-fade-in-down max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3.5">
               <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-200 dark:shadow-none shrink-0">
                 <Folder className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight leading-none">
+                <h1 className="text-lg sm:text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight leading-none">
                   Bank Soal
                 </h1>
                 <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest opacity-60">
@@ -264,32 +267,33 @@ export default function BankSoalPage() {
                 </p>
               </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <button 
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-200 dark:shadow-none active:scale-95"
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm hover:shadow-md active:scale-95"
               >
-                <Download className="w-4 h-4" />
-                Impor Soal
+                <Upload className="w-4 h-4" />
+                <span className="hidden sm:inline">Impor Soal</span>
+                <span className="sm:hidden">Impor</span>
               </button>
-              <button 
+              <button
                 onClick={() => {
                   setExportScope(currentFolderId ? 'folder' : 'all');
                   setIsExportModalOpen(true);
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all active:scale-95 border border-indigo-100 dark:border-indigo-800"
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-[11px] font-bold hover:bg-slate-50 dark:hover:bg-slate-600 transition-all active:scale-95"
               >
                 <Download className="w-4 h-4" />
                 Ekspor
               </button>
-              <button 
+              <button
                 onClick={() => {
                    setEditingFolder(null);
                    setFolderName('');
                    setIsFolderModalOpen(true);
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-700 border-2 border-slate-100 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95"
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm hover:shadow-md active:scale-95"
               >
                 <Plus className="w-4 h-4" />
                 Folder Baru
@@ -299,41 +303,76 @@ export default function BankSoalPage() {
         </div>
       </div>
 
-      {/* 2. Bagian Navigasi (Akan Tetap Menempel/Sticky) */}
-      <div className="sticky top-16 z-20 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <nav className="flex items-center gap-1 overflow-x-auto no-scrollbar w-full sm:w-auto">
-              <button 
-                onClick={() => setCurrentFolderId(null)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${!currentFolderId ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-              >
-                <Home className="w-4 h-4" />
-                Root
-              </button>
-              
-              {path.map((folder, idx) => (
-                <div key={folder.id} className="flex items-center gap-1">
-                  <ChevronRight className="w-4 h-4 text-slate-300" />
-                  <button 
-                    onClick={() => setCurrentFolderId(folder.id)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${folder.id === currentFolderId ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-                  >
-                    {folder.name}
-                  </button>
-                </div>
-              ))}
-            </nav>
-            
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input 
-                type="text"
+      {/* 2. Navigasi (Sticky) */}
+      <div className="sticky top-16 z-20 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            {/* Breadcrumb + tombol kembali ke folder induk */}
+            <div className="flex items-center gap-1.5 min-w-0">
+              {currentFolderId && (
+                <button
+                  onClick={() => {
+                    const parent = path.length > 1 ? path[path.length - 2] : null;
+                    setCurrentFolderId(parent ? parent.id : null);
+                  }}
+                  aria-label="Kembali ke folder sebelumnya"
+                  title="Kembali"
+                  className="shrink-0 p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              )}
+
+              <nav className="flex items-center gap-0.5 overflow-x-auto no-scrollbar min-w-0">
+                <button
+                  onClick={() => setCurrentFolderId(null)}
+                  aria-current={!currentFolderId ? 'page' : undefined}
+                  className={`flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] font-semibold transition-colors ${!currentFolderId
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-700 dark:hover:text-slate-200'
+                    }`}
+                >
+                  <Home className="w-3.5 h-3.5" />
+                  Bank Soal
+                </button>
+
+                {path.map((folder) => (
+                  <div key={folder.id} className="flex items-center gap-0.5 shrink-0">
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0" />
+                    <button
+                      onClick={() => setCurrentFolderId(folder.id)}
+                      aria-current={folder.id === currentFolderId ? 'page' : undefined}
+                      className={`px-2.5 py-1.5 rounded-lg text-[13px] font-semibold whitespace-nowrap transition-colors ${folder.id === currentFolderId
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-700 dark:hover:text-slate-200'
+                        }`}
+                    >
+                      {folder.name}
+                    </button>
+                  </div>
+                ))}
+              </nav>
+            </div>
+
+            <div className="relative w-full sm:w-64 shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="search"
                 placeholder="Cari soal..."
+                aria-label="Cari soal di folder ini"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-900 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
+                className="w-full pl-9 pr-8 py-2 bg-slate-100 dark:bg-slate-900/60 border border-transparent focus:border-indigo-300 dark:focus:border-indigo-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-slate-400"
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  aria-label="Bersihkan pencarian"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -342,55 +381,73 @@ export default function BankSoalPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="mt-4 text-slate-500 font-bold">Memuat data...</p>
+            <div className="w-10 h-10 border-[3px] border-indigo-200 dark:border-slate-700 border-t-indigo-600 rounded-full animate-spin" />
+            <p className="mt-4 text-sm text-slate-400 font-medium">Memuat data...</p>
           </div>
         ) : (
           <div className="space-y-6">
             {/* Folders Grid */}
             {currentFolders.length > 0 && (
               <section className="animate-fade-in-up" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
-                <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <div className="w-1 h-3 bg-indigo-500 rounded-full"></div>
-                  Folders ({currentFolders.length})
+                <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span className="w-1 h-3 bg-indigo-500 rounded-full" />
+                  Folders
+                  <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] tabular-nums">
+                    {currentFolders.length}
+                  </span>
                 </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   {currentFolders.map(folder => (
-                    <div 
+                    <div
                       key={folder.id}
-                      className="group bg-white dark:bg-slate-800 p-4 rounded-2xl border-2 border-transparent hover:border-indigo-400 hover:shadow-xl hover:shadow-indigo-100 dark:hover:shadow-none transition-all cursor-pointer relative"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setCurrentFolderId(folder.id);
+                        }
+                      }}
+                      aria-label={`Buka folder ${folder.name}`}
+                      className="group bg-white dark:bg-slate-800 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500/60 hover:shadow-lg hover:shadow-indigo-100/60 dark:hover:shadow-none transition-all cursor-pointer relative focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                       onClick={() => setCurrentFolderId(folder.id)}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl text-indigo-600 dark:text-indigo-400 transition-transform group-hover:scale-110">
-                          <Folder className="w-6 h-6 fill-current" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-slate-800 dark:text-white truncate">{folder.name}</h3>
-                          <p className="text-[10px] text-slate-400 font-medium">Klik untuk buka</p>
-                        </div>
+                      <div className="flex items-center gap-3">
+                        <span className="shrink-0 p-2.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl text-indigo-600 dark:text-indigo-400 transition-colors group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20">
+                          <Folder className="w-5 h-5 fill-current" />
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm text-slate-800 dark:text-white truncate">{folder.name}</h3>
+                          <p className="text-[10px] text-slate-400 font-medium truncate">
+                            {folder.question_count !== undefined ? `${folder.question_count} soal` : 'Klik untuk buka'}
+                          </p>
+                        </span>
                       </div>
-                      
-                      <div className="absolute top-2 right-2 flex opacity-0 group-hover:opacity-100 transition-opacity">
-                         <button 
+
+                      <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                        <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setEditingFolder(folder);
                               setFolderName(folder.name);
                               setIsFolderModalOpen(true);
                             }}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                            aria-label={`Ubah folder ${folder.name}`}
+                            title="Ubah Folder"
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
                          >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="w-3.5 h-3.5" />
                          </button>
-                         <button 
+                         <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteFolder(folder.id);
                             }}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                            aria-label={`Hapus folder ${folder.name}`}
+                            title="Hapus Folder"
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                          >
-                            <Trash className="w-4 h-4" />
+                            <Trash className="w-3.5 h-3.5" />
                          </button>
                       </div>
                     </div>
@@ -401,33 +458,49 @@ export default function BankSoalPage() {
 
             {/* Questions Section */}
             {currentFolderId && (
-              <section className="animate-fade-in-up mt-10" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
-                <div className="flex items-center justify-between mb-4">
+              <section className="animate-fade-in-up mt-8" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <div className="w-1 h-3 bg-emerald-500 rounded-full"></div>
-                      Butir Soal ({filteredQuestions.length})
+                    <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <span className="w-1 h-3 bg-emerald-500 rounded-full" />
+                      Butir Soal
+                      <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] tabular-nums">
+                        {filteredQuestions.length}
+                      </span>
                     </h2>
-                    
+
                     {filteredQuestions.length > 0 && (
-                      <button 
-                        onClick={toggleSelectAll}
-                        className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-50 dark:hover:bg-indigo-900/40 hover:text-indigo-600 transition-all border border-slate-200 dark:border-slate-700"
-                      >
-                        <div className={`w-3 h-3 border-2 rounded-sm transition-all flex items-center justify-center ${selectedQuestionIds.length === filteredQuestions.length ? 'bg-indigo-600 border-indigo-600' : 'bg-transparent border-slate-300'}`}>
-                           {selectedQuestionIds.length === filteredQuestions.length && <div className="w-1.5 h-1.5 bg-white rounded-full scale-0 animate-in zoom-in-0 fill-mode-forwards duration-200"></div>}
-                        </div>
-                        {selectedQuestionIds.length === filteredQuestions.length ? 'Lepas Semua' : 'Pilih Semua'}
-                      </button>
+                      <>
+                        <button
+                          onClick={toggleSelectAll}
+                          aria-pressed={allSelected}
+                          className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg text-[10px] font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/40 hover:text-indigo-600 transition-colors border border-slate-200 dark:border-slate-700"
+                        >
+                          <span className={`w-3 h-3 rounded-sm border-2 flex items-center justify-center transition-colors ${allSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-transparent border-slate-300 dark:border-slate-600'}`}>
+                            {allSelected && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+                          </span>
+                          {allSelected ? 'Lepas Semua' : 'Pilih Semua'}
+                        </button>
+
+                        {selectedQuestionIds.length > 0 && (
+                          <button
+                            onClick={() => setSelectedQuestionIds([])}
+                            className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-slate-400 hover:text-rose-600 transition-colors"
+                          >
+                            <X className="w-3 h-3" />
+                            Batal pilih
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
-                  
-                  <button 
+
+                  <button
                     onClick={() => {
                       setEditingQuestion(null);
                       setIsQuestionModalOpen(true);
                     }}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-indigo-100 transition-all active:scale-95"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm hover:shadow-md active:scale-95"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Tambah Soal
@@ -437,82 +510,130 @@ export default function BankSoalPage() {
                 {filteredQuestions.length === 0 ? (
                   <div className="bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl p-12 flex flex-col items-center justify-center text-center">
                     <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-full mb-4">
-                      <FileText className="w-10 h-10 text-slate-300" />
+                      {searchTerm ? (
+                        <Search className="w-8 h-8 text-slate-300" />
+                      ) : (
+                        <FileText className="w-8 h-8 text-slate-300" />
+                      )}
                     </div>
-                    <h3 className="text-slate-800 dark:text-white font-black uppercase tracking-tight">Folder Kosong</h3>
-                    <p className="text-sm text-slate-400 max-w-xs mt-1">Belum ada soal di folder ini. Kamu bisa tambah manual atau impor dari ujian yang sudah ada.</p>
+                    <h3 className="text-slate-800 dark:text-white font-bold">
+                      {searchTerm ? 'Tidak ada soal yang cocok' : 'Folder Kosong'}
+                    </h3>
+                    <p className="text-sm text-slate-400 max-w-xs mt-1">
+                      {searchTerm
+                        ? `Tidak ditemukan soal dengan kata kunci "${searchTerm}".`
+                        : 'Belum ada soal di folder ini. Kamu bisa tambah manual atau impor dari ujian yang sudah ada.'}
+                    </p>
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="mt-5 px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+                      >
+                        Bersihkan pencarian
+                      </button>
+                    )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-4">
-                    {filteredQuestions.map((question, idx) => (
-                      <div 
-                        key={question.id}
-                        onClick={() => setPreviewQuestion(question)}
-                        className={`group relative bg-white dark:bg-slate-800 p-6 rounded-3xl border-2 transition-all cursor-pointer ${selectedQuestionIds.includes(question.id) ? 'border-indigo-500 shadow-lg shadow-indigo-100 dark:shadow-none' : 'border-transparent hover:border-slate-100 dark:hover:border-slate-700 hover:shadow-lg'}`}
-                      >
-                        {/* Selector Box */}
-                        <div 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleSelectQuestion(question.id);
+                  <div className="grid grid-cols-1 gap-3">
+                    {filteredQuestions.map((question, idx) => {
+                      const isSelected = selectedQuestionIds.includes(question.id);
+                      return (
+                        <div
+                          key={question.id}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setPreviewQuestion(question);
+                            }
                           }}
-                          className={`absolute top-6 left-6 w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all z-10 ${selectedQuestionIds.includes(question.id) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-transparent hover:border-indigo-400'}`}
+                          onClick={() => setPreviewQuestion(question)}
+                          className={`group relative bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${isSelected
+                            ? 'border-indigo-500 ring-1 ring-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-500/5'
+                            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md'
+                            }`}
                         >
-                          <Check className="w-5 h-5 transition-transform duration-200" style={{ transform: selectedQuestionIds.includes(question.id) ? 'scale(1)' : 'scale(0)' }} />
-                        </div>
+                          <div className="flex items-start gap-3.5">
+                            {/* Checkbox */}
+                            <span
+                              role="checkbox"
+                              aria-checked={isSelected}
+                              aria-label={`Pilih soal nomor ${idx + 1}`}
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSelectQuestion(question.id);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  toggleSelectQuestion(question.id);
+                                }
+                              }}
+                              className={`shrink-0 mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isSelected
+                                ? 'bg-indigo-600 border-indigo-600 text-white'
+                                : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-transparent hover:border-indigo-400 focus-visible:ring-2 focus-visible:ring-indigo-500'
+                                }`}
+                            >
+                              <Check className="w-3 h-3 transition-transform duration-150" style={{ transform: isSelected ? 'scale(1)' : 'scale(0)' }} strokeWidth={3} />
+                            </span>
 
-                        <div className="flex items-start gap-4 pl-12">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-2">
-                               <div className="flex items-center gap-2">
-                                 <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded text-[9px] font-black uppercase tracking-widest leading-tight">
-                                    {question.question_type?.replace(/_/g, ' ')}
-                                 </span>
-                                 <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-                                 <span className="text-[10px] font-bold text-slate-400">#{idx + 1}</span>
-                               </div>
-                               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-indigo-600 text-[10px] font-black uppercase tracking-widest">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                                <span className="px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 rounded text-[9px] font-bold uppercase tracking-wider leading-tight">
+                                  {question.question_type?.replace(/_/g, ' ')}
+                                </span>
+                                <span className="text-[10px] font-semibold text-slate-400 tabular-nums">#{idx + 1}</span>
+                                <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                                <span className="text-[10px] font-semibold text-slate-400">{question.points} poin</span>
+                                <span className="ml-auto hidden sm:flex items-center gap-1 text-[10px] font-semibold text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <Eye className="w-3.5 h-3.5" />
-                                  Klik untuk Pratinjau
-                               </div>
-                            </div>
-                            <div 
-                              className="text-slate-700 dark:text-slate-300 prose prose-sm max-w-none line-clamp-3 font-semibold"
-                              dangerouslySetInnerHTML={{ __html: question.question_text }}
-                            />
-                            
-                            <div className="mt-6 flex items-center justify-between border-t border-slate-50 dark:border-slate-700 pt-4">
-                               <div className="text-[10px] font-bold text-slate-400">
-                                  Poin: {question.points} | Ditambahkan: {new Date(question.created_at).toLocaleDateString()}
-                               </div>
-                               <div className="flex items-center gap-1">
-                                  <button 
+                                  Pratinjau
+                                </span>
+                              </div>
+
+                              <div
+                                className="text-slate-700 dark:text-slate-300 prose prose-sm max-w-none line-clamp-2 font-medium"
+                                dangerouslySetInnerHTML={{ __html: question.question_text }}
+                              />
+
+                              <div className="mt-3 flex items-center justify-between gap-3">
+                                <span className="text-[10px] font-medium text-slate-400 truncate">
+                                  Ditambahkan {new Date(question.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </span>
+                                <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                  <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setEditingQuestion(question);
                                       setIsQuestionModalOpen(true);
                                     }}
-                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                    aria-label="Edit soal"
                                     title="Edit Soal"
+                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
                                   >
-                                    <Edit className="w-4 h-4" />
+                                    <Edit className="w-3.5 h-3.5" />
                                   </button>
-                                  <button 
+                                  <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleDeleteQuestion(question.id);
                                     }}
-                                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                    aria-label="Hapus soal"
                                     title="Hapus Soal"
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                   >
-                                    <Trash className="w-4 h-4" />
+                                    <Trash className="w-3.5 h-3.5" />
                                   </button>
-                               </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </section>
@@ -520,21 +641,21 @@ export default function BankSoalPage() {
 
             {/* Empty State for Root */}
             {!currentFolderId && currentFolders.length === 0 && (
-              <div className="animate-fade-in-up bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl p-20 flex flex-col items-center justify-center text-center" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
-                <div className="p-6 bg-slate-50 dark:bg-slate-900 rounded-full mb-6">
-                  <Folder className="w-16 h-16 text-slate-200" />
+              <div className="animate-fade-in-up bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl p-16 sm:p-20 flex flex-col items-center justify-center text-center" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
+                <div className="p-6 bg-slate-50 dark:bg-slate-900 rounded-full mb-5">
+                  <Folder className="w-12 h-12 text-slate-300" />
                 </div>
-                <h3 className="text-xl text-slate-800 dark:text-white font-black uppercase tracking-tight">Mulai Bangun Perpustakaanmu</h3>
-                <p className="text-slate-400 max-w-sm mt-2">Buat folder untuk merapikan soal-soal per mata pelajaran atau topik.</p>
-                <button 
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Mulai Bangun Perpustakaanmu</h3>
+                <p className="text-slate-400 max-w-sm mt-1.5 text-sm">Buat folder untuk merapikan soal-soal per mata pelajaran atau topik.</p>
+                <button
                     onClick={() => {
                       setEditingFolder(null);
                       setFolderName('');
                       setIsFolderModalOpen(true);
                     }}
-                    className="mt-6 flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:scale-105 active:scale-95 transition-all"
+                    className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm hover:shadow-md active:scale-95 transition-all"
                 >
-                    <Plus className="w-5 h-5" />
+                    <Plus className="w-4 h-4" />
                     Buat Folder Pertama
                 </button>
               </div>
@@ -544,44 +665,48 @@ export default function BankSoalPage() {
       </div>
 
       {/* Folder Modal */}
-      {isFolderModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsFolderModalOpen(false)}></div>
-          <div className="relative bg-white dark:bg-slate-800 w-full max-w-md p-8 rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200">
-            <h2 className="text-xl font-black text-slate-800 dark:text-white mb-6">
-              {editingFolder ? 'Ubah Folder' : 'Buat Folder Baru'}
-            </h2>
-            <form onSubmit={handleCreateFolder} className="space-y-4">
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Nama Folder</label>
-                <input 
-                  autoFocus
-                  type="text"
-                  value={folderName}
-                  onChange={(e) => setFolderName(e.target.value)}
-                  className="w-full p-4 border-2 border-slate-100 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-800 focus:border-indigo-500 outline-none transition-all font-bold text-slate-700 dark:text-slate-100"
-                  placeholder="Contoh: Matematika Kelas 10"
-                />
-              </div>
-              <div className="flex gap-3 mt-8">
-                <button 
-                  type="button"
-                  onClick={() => setIsFolderModalOpen(false)}
-                  className="flex-1 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-2xl transition-all"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 py-3 bg-indigo-600 text-white text-sm font-bold rounded-2xl shadow-lg shadow-indigo-100 dark:shadow-none hover:bg-indigo-700 transition-all active:scale-95"
-                >
-                  Simpan
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={isFolderModalOpen}
+        onClose={() => setIsFolderModalOpen(false)}
+        size="sm"
+        icon={editingFolder ? Edit : Folder}
+        iconClass="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+        title={editingFolder ? 'Ubah Folder' : 'Buat Folder Baru'}
+        subtitle={editingFolder ? 'Perbarui nama folder ini' : `Berisi di dalam ${currentFolderId ? 'folder ini' : 'Bank Soal'}`}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <ModalButton variant="ghost" onClick={() => setIsFolderModalOpen(false)}>
+              Batal
+            </ModalButton>
+            <ModalButton
+              type="submit"
+              variant="primary"
+              form="bank-folder-form"
+              disabled={!folderName.trim()}
+            >
+              {editingFolder ? 'Simpan Perubahan' : 'Buat Folder'}
+            </ModalButton>
           </div>
-        </div>
-      )}
+        }
+      >
+        <form id="bank-folder-form" onSubmit={handleCreateFolder}>
+          <label htmlFor="folder-name" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            Nama Folder
+          </label>
+          <input
+            id="folder-name"
+            autoFocus
+            type="text"
+            value={folderName}
+            onChange={(e) => setFolderName(e.target.value)}
+            placeholder="Contoh: Matematika Kelas 10"
+            className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-slate-900/5 dark:focus:ring-white/5 transition-colors"
+          />
+          <p className="mt-2 text-[11px] text-slate-400">
+            Folder bisa berisi folder lain (sub-folder) dan butir soal.
+          </p>
+        </form>
+      </Modal>
 
       {/* Import Modal */}
       {isImportModalOpen && (
@@ -597,35 +722,26 @@ export default function BankSoalPage() {
       )}
 
       {/* Question Modal */}
-      {isQuestionModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsQuestionModalOpen(false)}></div>
-           <div className="relative bg-white dark:bg-slate-900 w-full max-w-5xl h-[90vh] rounded-[3rem] shadow-2xl overflow-hidden flex flex-col border border-white/20">
-              <div className="px-10 py-8 border-b border-slate-50 dark:border-slate-800 flex justify-between items-center">
-                 <div>
-                    <h2 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
-                        {editingQuestion ? 'Sunting Butir Soal' : 'Tambah Soal ke Bank'}
-                    </h2>
-                    <p className="text-xs text-slate-400 font-bold mt-1 uppercase tracking-widest opacity-60">Repositori Bank Soal Rushless</p>
-                 </div>
-                 <button onClick={() => setIsQuestionModalOpen(false)} className="p-3 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 rounded-2xl text-slate-400 transition-all">
-                    <X className="w-6 h-6" />
-                 </button>
-              </div>
-              <div className="flex-1 overflow-y-auto px-10 py-10 custom-scrollbar">
-                 <BankQuestionForm 
-                    folderId={currentFolderId}
-                    initialData={editingQuestion}
-                    onSave={() => {
-                        setIsQuestionModalOpen(false);
-                        fetchData();
-                    }}
-                    onCancel={() => setIsQuestionModalOpen(false)}
-                 />
-              </div>
-           </div>
-        </div>
-      )}
+      <Modal
+        open={isQuestionModalOpen}
+        onClose={() => setIsQuestionModalOpen(false)}
+        size="xl"
+        icon={editingQuestion ? Edit : Plus}
+        iconClass="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+        title={editingQuestion ? 'Sunting Butir Soal' : 'Tambah Soal ke Bank'}
+        subtitle={path.length > 0 ? path.map(f => f.name).join(' / ') : 'Bank Soal'}
+        bodyClassName="custom-scrollbar"
+      >
+        <BankQuestionForm
+          folderId={currentFolderId}
+          initialData={editingQuestion}
+          onSave={() => {
+              setIsQuestionModalOpen(false);
+              fetchData();
+          }}
+          onCancel={() => setIsQuestionModalOpen(false)}
+        />
+      </Modal>
 
       {/* Export Modal */}
       {isExportModalOpen && (
@@ -639,209 +755,342 @@ export default function BankSoalPage() {
       )}
 
       {/* Question Preview Modal */}
-      {previewQuestion && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setPreviewQuestion(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white/10 animate-in zoom-in-95 duration-300">
-            {/* Header */}
-            <div className="px-10 py-8 border-b border-slate-50 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-900/20">
-                  <Eye className="w-6 h-6" />
+      <Modal
+        open={!!previewQuestion}
+        onClose={() => setPreviewQuestion(null)}
+        size="lg"
+        icon={Eye}
+        iconClass="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+        title="Pratinjau Butir Soal"
+        subtitle={path.length > 0 ? path.map(f => f.name).join(' / ') : 'Bank Soal'}
+        badge={
+          previewQuestion ? (
+            <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+              <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 rounded text-[10px] font-semibold uppercase tracking-wide">
+                {previewQuestion.question_type?.replace(/_/g, ' ')}
+              </span>
+              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded text-[10px] font-semibold tabular-nums">
+                {previewQuestion.points} poin
+              </span>
+            </div>
+          ) : null
+        }
+        bodyClassName="custom-scrollbar bg-slate-50/50 dark:bg-slate-950/40"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <ModalButton
+              variant="secondary"
+              onClick={() => {
+                setPreviewQuestion(null);
+                setEditingQuestion(previewQuestion);
+                setIsQuestionModalOpen(true);
+              }}
+            >
+              <Edit size={15} />
+              Edit Soal
+            </ModalButton>
+            <ModalButton variant="primary" onClick={() => setPreviewQuestion(null)}>
+              Tutup
+            </ModalButton>
+          </div>
+        }
+      >
+        {previewQuestion && (
+          <div className="space-y-5">
+            {/* Question Text */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Pertanyaan</p>
+              <div
+                className="text-base text-slate-800 dark:text-slate-200 font-medium leading-relaxed prose prose-sm max-w-none dark:prose-invert"
+                dangerouslySetInnerHTML={{ __html: previewQuestion.question_text }}
+              />
+            </div>
+
+            {/* Options / Answer Area */}
+            <div className="space-y-3">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pilihan &amp; Kunci Jawaban</p>
+
+              {/* Multiple Choice / Complex */}
+              {(previewQuestion.question_type === 'multiple_choice' || previewQuestion.question_type === 'multiple_choice_complex') && (
+                <div className="grid grid-cols-1 gap-2">
+                  {(() => {
+                    let opts = {};
+                    try {
+                      opts = typeof previewQuestion.options === 'string'
+                        ? JSON.parse(previewQuestion.options)
+                        : (previewQuestion.options || {});
+                    } catch (e) {
+                      console.error('Parse Error', e);
+                    }
+                    return Object.entries(opts).map(([key, value]) => {
+                      const isCorrect = previewQuestion.question_type === 'multiple_choice'
+                        ? previewQuestion.correct_option === key
+                        : previewQuestion.correct_option?.split(',').includes(key);
+
+                      return (
+                        <div
+                          key={key}
+                          className={`flex items-start gap-3 p-3.5 rounded-xl border transition-colors ${isCorrect
+                            ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                            }`}
+                        >
+                          <span className={`w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center text-xs font-bold uppercase ${isCorrect
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                            }`}>
+                            {key}
+                          </span>
+                          <div className="flex-1 min-w-0 text-sm text-slate-700 dark:text-slate-300 prose prose-sm max-w-none">
+                            <div dangerouslySetInnerHTML={{ __html: value }} />
+                          </div>
+                          {isCorrect && (
+                            <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-600 text-white rounded-md text-[9px] font-bold uppercase tracking-wide">
+                              <CheckSquare size={10} />
+                              Kunci
+                            </span>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
-                <div>
-                  <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Pratinjau Butir Soal</h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded">
-                      {previewQuestion.question_type?.replace(/_/g, ' ')}
-                    </span>
-                    <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{previewQuestion.points} POIN</span>
+              )}
+
+              {/* True / False */}
+              {previewQuestion.question_type === 'true_false' && (
+                <div className="grid grid-cols-2 gap-3">
+                  {['Benar', 'Salah'].map((val) => {
+                    const isCorrect = previewQuestion.correct_option === val;
+                    return (
+                      <div
+                        key={val}
+                        className={`p-5 rounded-xl border flex flex-col items-center justify-center gap-2.5 transition-colors ${isCorrect
+                          ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                          }`}
+                      >
+                        <span className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${isCorrect
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                          }`}>
+                          {val === 'Benar' ? 'B' : 'S'}
+                        </span>
+                        <span className={`text-sm font-semibold ${isCorrect ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                          {val}
+                        </span>
+                        {isCorrect && (
+                          <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                            Kunci Jawaban
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Essay */}
+              {previewQuestion.question_type === 'essay' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FileText size={14} className="text-slate-400" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contoh Jawaban / Kunci</span>
                   </div>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                    {previewQuestion.correct_option || 'Tidak ada kunci jawaban spesifik untuk soal uraian.'}
+                  </p>
                 </div>
-              </div>
-              <button onClick={() => setPreviewQuestion(null)} className="p-3 bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-600 rounded-2xl text-slate-400 transition-all">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
+              )}
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto px-10 py-10 custom-scrollbar bg-white dark:bg-slate-900">
-              <div className="space-y-10">
-                {/* Question Text */}
-                <div className="bg-slate-50/50 dark:bg-slate-800/30 p-8 rounded-3xl border border-slate-100 dark:border-slate-800">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Pertanyaan:</p>
-                  <div 
-                    className="text-lg md:text-xl text-slate-800 dark:text-slate-200 font-bold leading-relaxed prose prose-indigo dark:prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: previewQuestion.question_text }}
-                  />
-                </div>
+              {/* Matching */}
+              {previewQuestion.question_type === 'matching' && (
+                <div className="space-y-2.5">
+                  {(() => {
+                    let opts = {};
+                    try {
+                      opts = typeof previewQuestion.options === 'string' ? JSON.parse(previewQuestion.options) : (previewQuestion.options || {});
+                    } catch (e) {
+                      console.error('Parse Error', e);
+                    }
+                    const pairs = opts.pairs || [];
+                    if (pairs.length === 0) return <p className="text-sm italic text-slate-400">Tidak ada pasangan yang didefinisikan.</p>;
 
-                {/* Options / Answer Area */}
-                <div className="space-y-4">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Editor Jawaban & Kunci:</p>
-                  
-                  {/* Multiple Choice / Complex */}
-                  {(previewQuestion.question_type === 'multiple_choice' || previewQuestion.question_type === 'multiple_choice_complex') && (
-                    <div className="grid grid-cols-1 gap-3">
-                      {Object.entries(typeof previewQuestion.options === 'string' ? JSON.parse(previewQuestion.options) : (previewQuestion.options || {})).map(([key, value]) => {
-                        const isCorrect = previewQuestion.question_type === 'multiple_choice' 
-                          ? previewQuestion.correct_option === key
-                          : previewQuestion.correct_option?.split(',').includes(key);
-
-                        return (
-                          <div 
-                            key={key}
-                            className={`flex items-start gap-4 p-5 rounded-2xl border-2 transition-all ${isCorrect ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-500 ring-4 ring-emerald-500/5' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-800'}`}
-                          >
-                            <div className={`w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center font-black text-xs ${isCorrect ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
-                              {key}
-                            </div>
-                            <div className="flex-1 min-w-0 py-1">
-                              <div className={`text-base font-bold ${isCorrect ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-300'}`} dangerouslySetInnerHTML={{ __html: value }} />
-                            </div>
-                            {isCorrect && (
-                              <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 text-white rounded-full text-[9px] font-black uppercase tracking-widest">
-                                <CheckSquare className="w-3 h-3" />
-                                Kunci Jawaban
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* True / False */}
-                  {previewQuestion.question_type === 'true_false' && (
-                     <div className="grid grid-cols-2 gap-4">
-                        {['Benar', 'Salah'].map((val) => {
-                           const isCorrect = previewQuestion.correct_option === val;
-                           return (
-                              <div key={val} className={`p-6 rounded-3xl border-2 flex flex-col items-center justify-center gap-4 transition-all ${isCorrect ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-500 ring-4 ring-emerald-500/5' : 'bg-slate-50 dark:bg-slate-800 border-transparent'}`}>
-                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${isCorrect ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'bg-white dark:bg-slate-700 text-slate-400'}`}>
-                                    {val === 'Benar' ? 'B' : 'S'}
-                                 </div>
-                                 <span className={`font-black uppercase tracking-widest ${isCorrect ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400 text-xs'}`}>{val}</span>
-                                 {isCorrect && <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">KUNCI JAWABAN</span>}
-                              </div>
-                           );
-                        })}
-                     </div>
-                  )}
-
-                  {/* Essay */}
-                  {previewQuestion.question_type === 'essay' && (
-                    <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-2 mb-4">
-                        <FileText className="w-4 h-4 text-slate-400" />
-                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Contoh Jawaban / Kunci:</span>
+                    return pairs.map((pair, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="flex-1 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-700 dark:text-slate-300 prose prose-sm max-w-none">
+                          <div dangerouslySetInnerHTML={{ __html: pair.p }} />
+                        </div>
+                        <span className="h-px w-6 bg-slate-300 dark:bg-slate-700 shrink-0" />
+                        <div className="flex-1 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-700 dark:text-slate-300 prose prose-sm max-w-none">
+                          <div dangerouslySetInnerHTML={{ __html: pair.r }} />
+                        </div>
                       </div>
-                      <div className="text-slate-600 dark:text-slate-300 font-bold leading-relaxed italic">
-                        {previewQuestion.correct_option || 'Tidak ada kunci jawaban spesifik untuk uraian.'}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Matching */}
-                  {previewQuestion.question_type === 'matching' && (
-                    <div className="space-y-4">
-                      {(() => {
-                        let opts = {};
-                        try {
-                          opts = typeof previewQuestion.options === 'string' ? JSON.parse(previewQuestion.options) : (previewQuestion.options || {});
-                        } catch (e) {
-                          console.error("Parse Error", e);
-                        }
-                        const pairs = opts.pairs || [];
-                        if (pairs.length === 0) return <p className="text-sm italic text-slate-400">Tidak ada pasangan yang didefinisikan.</p>;
-                        
-                        return pairs.map((pair, i) => (
-                          <div key={i} className="flex items-center gap-4">
-                             <div className="flex-1 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl font-bold text-indigo-700 dark:text-indigo-300 text-sm">
-                                <div className="prose dark:prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: pair.p }} />
-                             </div>
-                             <div className="h-0.5 w-8 bg-slate-200 dark:bg-slate-700 relative">
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-2 h-2 bg-slate-300 rounded-full"></div>
-                             </div>
-                             <div className="flex-1 p-4 bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl font-bold text-emerald-700 dark:text-emerald-300 text-sm">
-                                <div className="prose dark:prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: pair.r }} />
-                             </div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  )}
+                    ));
+                  })()}
                 </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="px-10 py-6 border-t border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-end gap-3">
-              <button 
-                onClick={() => {
-                  setPreviewQuestion(null);
-                  setEditingQuestion(previewQuestion);
-                  setIsQuestionModalOpen(true);
-                }}
-                className="flex items-center gap-2 px-6 py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-100 transition-all active:scale-95"
-              >
-                <Edit className="w-4 h-4" />
-                Edit Soal
-              </button>
-              <button 
-                onClick={() => setPreviewQuestion(null)}
-                className="px-8 py-3 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all active:scale-95"
-              >
-                Tutup
-              </button>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Floating Bulk Action Bar */}
       {selectedQuestionIds.length > 0 && (
-         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[90] animate-in slide-in-from-bottom-10 duration-500 flex items-center gap-6 px-8 py-4 bg-slate-900/90 dark:bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-[2.5rem] shadow-2xl text-white">
-            <div className="flex items-center gap-3 border-r border-white/10 pr-6 mr-2">
-               <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center font-black shadow-lg">
+         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] animate-in slide-in-from-bottom-10 duration-500 flex items-center gap-4 sm:gap-5 px-4 sm:px-5 py-3 bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl text-white max-w-[calc(100vw-2rem)]">
+            <div className="flex items-center gap-2.5 border-r border-white/10 pr-4 sm:pr-5">
+               <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-xs font-bold tabular-nums shrink-0">
                   {selectedQuestionIds.length}
                </div>
-               <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-white/40">Terpilih</p>
-                  <p className="text-[10px] font-bold text-white/80 leading-none">Butir Soal</p>
+               <div className="hidden sm:block">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 leading-none">Terpilih</p>
+                  <p className="text-[11px] font-semibold text-white/80 leading-tight mt-0.5">Butir Soal</p>
                </div>
             </div>
 
-            <div className="flex items-center gap-2">
-                 <button 
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                 <button
                   onClick={handleBulkDelete}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-rose-900/20"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[11px] font-semibold transition-all active:scale-95 whitespace-nowrap"
                >
-                  <Trash className="w-4 h-4" />
-                   Hapus Massal
+                  <Trash className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Hapus Massal</span>
+                  <span className="sm:hidden">Hapus</span>
                </button>
-               <button 
+               <button
                   onClick={() => {
                     setExportScope('selected');
                     setIsExportModalOpen(true);
                   }}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-indigo-900/20"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-semibold transition-all active:scale-95 whitespace-nowrap"
                >
-                  <Download className="w-4 h-4" />
-                  Ekspor Terpilih
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Ekspor Terpilih</span>
+                  <span className="sm:hidden">Ekspor</span>
                </button>
-               <button 
+               <button
                   onClick={() => setSelectedQuestionIds([])}
-                  className="px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                  aria-label="Batalkan Pilihan"
+                  className="shrink-0 p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-all"
                >
-                  Batal
+                  <X className="w-4 h-4" />
                </button>
             </div>
          </div>
       )}
     </div>
    );
+}
+
+/* ============================================================
+   MODAL SHELL — tema konsisten dengan halaman dashboard lain
+   (rounded-2xl, border slate, tombol slate-900/white)
+   ============================================================ */
+const MODAL_SIZES = {
+  sm: 'sm:max-w-md',
+  md: 'sm:max-w-2xl',
+  lg: 'sm:max-w-4xl',
+  xl: 'sm:max-w-5xl',
+};
+
+function Modal({ open, onClose, size = 'md', icon: Icon, iconClass = '', title, subtitle, badge, children, footer, bodyClassName = '' }) {
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    document.addEventListener('keydown', handleKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={typeof title === 'string' ? title : undefined}
+    >
+      <div
+        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+        onClick={onClose}
+        aria-hidden
+      />
+
+      <div
+        className={`relative w-full sm:${MODAL_SIZES[size] || MODAL_SIZES.md} bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-900/10 dark:shadow-black/40 overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-in zoom-in-95 duration-200`}
+      >
+        {/* Grip untuk mobile */}
+        <div className="sm:hidden flex justify-center pt-2.5 pb-1 shrink-0">
+          <span className="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+        </div>
+
+        {/* Header */}
+        <div className="flex-shrink-0 flex items-start justify-between gap-4 px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-3 min-w-0">
+            {Icon && (
+              <span className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${iconClass || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300'}`}>
+                <Icon size={17} />
+              </span>
+            )}
+            <div className="min-w-0">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white truncate">{title}</h2>
+              {subtitle && <p className="text-xs text-slate-400 mt-0.5 truncate">{subtitle}</p>}
+            </div>
+            {badge}
+          </div>
+
+          <button
+            onClick={onClose}
+            aria-label="Tutup"
+            className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className={`flex-1 overflow-y-auto px-5 sm:px-6 py-5 ${bodyClassName}`}>{children}</div>
+
+        {/* Footer */}
+        {footer && (
+          <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 rounded-b-2xl">
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ModalButton({ variant = 'ghost', loading = false, className = '', children, ...props }) {
+  const styles = {
+    primary: 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90',
+    accent: 'bg-indigo-600 text-white hover:bg-indigo-700',
+    success: 'bg-emerald-600 text-white hover:bg-emerald-700',
+    danger: 'bg-rose-600 text-white hover:bg-rose-700',
+    secondary: 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700',
+    ghost: 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
+  };
+
+  return (
+    <button
+      {...props}
+      disabled={props.disabled || loading}
+      className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none ${styles[variant]} ${className}`}
+    >
+      {loading && (
+        <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin opacity-70" />
+      )}
+      {children}
+    </button>
+  );
 }
 
 // Sub-component for Bank Export
@@ -887,113 +1136,108 @@ function BankExportModal({ isOpen, onClose, currentFolderId, selectedIds, initia
 
   if (!isOpen) return null;
 
+  const scopeOptions = [
+    { value: 'all', label: 'Seluruh Bank Soal', desc: 'Semua folder dan butir soal', show: true },
+    { value: 'folder', label: 'Folder Saat Ini', desc: 'Termasuk semua sub-folder', show: !!currentFolderId },
+    { value: 'selected', label: `Soal Terpilih (${selectedIds.length})`, desc: 'Hanya soal yang Anda centang', show: selectedIds.length > 0 },
+  ].filter(o => o.show);
+
+  const modeOptions = [
+    { value: 'questions_and_answers', label: 'Soal + Jawaban' },
+    { value: 'questions_only', label: 'Soal Saja' },
+    { value: 'answers_only', label: 'Jawaban Saja' },
+  ];
+
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" onClick={onClose}></div>
-      <div className="relative bg-white dark:bg-slate-800 w-full max-w-md p-8 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Ekspor Bank Soal</h2>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all">
-            <X className="w-5 h-5 text-slate-400" />
-          </button>
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      size="sm"
+      icon={Download}
+      iconClass="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+      title="Ekspor Bank Soal"
+      subtitle="Unduh butir soal ke file .docx"
+      footer={
+        <div className="flex items-center justify-end gap-2">
+          <ModalButton variant="ghost" onClick={onClose}>Batal</ModalButton>
+          <ModalButton variant="primary" onClick={handleExport} loading={loading}>
+            {loading ? 'Menyiapkan File' : 'Unduh File'}
+          </ModalButton>
+        </div>
+      }
+    >
+      <div className="space-y-5">
+        {/* Scope Selection */}
+        <fieldset>
+          <legend className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Cakupan Ekspor</legend>
+          <div className="space-y-2">
+            {scopeOptions.map(opt => {
+              const active = scope === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => setScope(opt.value)}
+                  aria-pressed={active}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${active
+                    ? 'border-slate-900 dark:border-white bg-slate-50 dark:bg-slate-800'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500'
+                    }`}
+                >
+                  <span className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${active
+                    ? 'border-slate-900 dark:border-white'
+                    : 'border-slate-300 dark:border-slate-600'
+                    }`}>
+                    {active && <span className="w-2 h-2 rounded-full bg-slate-900 dark:bg-white" />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{opt.label}</span>
+                    <span className="block text-[11px] text-slate-400 truncate">{opt.desc}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        {/* Mode */}
+        <div>
+          <label htmlFor="export-mode" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Tipe Data</label>
+          <select
+            id="export-mode"
+            value={mode}
+            onChange={(e) => setMode(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-100 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 dark:focus:ring-white/5 transition-colors"
+          >
+            {modeOptions.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
         </div>
 
-        <div className="space-y-6">
-          {/* Scope Selection */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cakupan Ekspor</label>
-            <div className="grid grid-cols-1 gap-2">
-              <button 
-                onClick={() => setScope('all')}
-                className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${scope === 'all' ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400' : 'border-slate-100 dark:border-slate-700 text-slate-500 hover:border-slate-200'}`}
-              >
-                <div className="flex flex-col items-start">
-                  <span className="font-bold text-sm">Seluruh Bank Soal</span>
-                  <span className="text-[10px] opacity-70">Semua folder dan butir soal</span>
-                </div>
-                {scope === 'all' && <Check className="w-5 h-5" />}
-              </button>
-              
-              {currentFolderId && (
-                <button 
-                  onClick={() => setScope('folder')}
-                  className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${scope === 'folder' ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400' : 'border-slate-100 dark:border-slate-700 text-slate-500 hover:border-slate-200'}`}
+        {/* Format */}
+        <div>
+          <span className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Format Dokumen</span>
+          <div className="grid grid-cols-2 gap-2">
+            {[{ value: 'standard', label: 'Standard' }, { value: 'rushless', label: 'Rushless' }].map(f => {
+              const active = format === f.value;
+              return (
+                <button
+                  key={f.value}
+                  onClick={() => setFormat(f.value)}
+                  aria-pressed={active}
+                  className={`py-2.5 rounded-lg border text-sm font-semibold transition-colors ${active
+                    ? 'border-slate-900 dark:border-white bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-400'
+                    }`}
                 >
-                  <div className="flex flex-col items-start">
-                    <span className="font-bold text-sm">Folder Saat Ini</span>
-                    <span className="text-[10px] opacity-70">Termasuk semua sub-folder</span>
-                  </div>
-                  {scope === 'folder' && <Check className="w-5 h-5" />}
+                  {f.label}
                 </button>
-              )}
-
-              {selectedIds.length > 0 && (
-                <button 
-                  onClick={() => setScope('selected')}
-                  className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${scope === 'selected' ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400' : 'border-slate-100 dark:border-slate-700 text-slate-500 hover:border-slate-200'}`}
-                >
-                  <div className="flex flex-col items-start">
-                    <span className="font-bold text-sm">Soal Terpilih ({selectedIds.length})</span>
-                    <span className="text-[10px] opacity-70">Hanya soal yang Anda centang</span>
-                  </div>
-                  {scope === 'selected' && <Check className="w-5 h-5" />}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Mode & Format Selection Area */}
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100 dark:border-slate-700">
-             <div className="space-y-2 col-span-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipe Data</label>
-                <select 
-                  value={mode}
-                  onChange={(e) => setMode(e.target.value)}
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all dark:text-white"
-                >
-                  <option value="questions_and_answers">Soal + Jawaban</option>
-                  <option value="questions_only">Soal Saja</option>
-                  <option value="answers_only">Jawaban Saja</option>
-                </select>
-             </div>
-
-             <div className="space-y-2 col-span-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Format Dokumen</label>
-                <div className="flex gap-2">
-                   <button 
-                      onClick={() => setFormat('standard')}
-                      className={`flex-1 py-3 rounded-xl border-2 text-[10px] font-black uppercase tracking-tight transition-all ${format === 'standard' ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-slate-100 text-slate-400'}`}
-                   >
-                      Standard
-                   </button>
-                   <button 
-                      onClick={() => setFormat('rushless')}
-                      className={`flex-1 py-3 rounded-xl border-2 text-[10px] font-black uppercase tracking-tight transition-all ${format === 'rushless' ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-slate-100 text-slate-400'}`}
-                   >
-                      Rushless
-                   </button>
-                </div>
-             </div>
-          </div>
-
-          <div className="flex gap-3 mt-8">
-            <button 
-              onClick={onClose}
-              className="flex-1 py-4 text-xs font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all"
-            >
-              Batal
-            </button>
-            <button 
-              onClick={handleExport}
-              disabled={loading}
-              className="flex-1 py-4 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-100 dark:shadow-none hover:bg-indigo-700 transition-all active:scale-95 disabled:bg-indigo-300"
-            >
-              {loading ? 'Exporting...' : 'Unduh File'}
-            </button>
+              );
+            })}
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -1066,108 +1310,183 @@ function BankImportModal({ folderId, isOpen, onClose, onSuccess }) {
     }
   };
 
+  const allExamQuestionsSelected = examQuestions.length > 0 && selectedQuestionIds.length === examQuestions.length;
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose}></div>
-      <div className="relative bg-white dark:bg-slate-900 w-full max-w-4xl h-[85vh] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-            <div className="flex items-center gap-3">
-               <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl text-emerald-600 dark:text-emerald-400">
-                  <Download className="w-6 h-6" />
-               </div>
-               <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Impor Soal ke Bank</h2>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-all active:scale-95"><X className="w-5 h-5" /></button>
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Impor Soal ke Bank"
+    >
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose} aria-hidden />
+
+      <div className="relative w-full sm:max-w-4xl h-[92vh] sm:h-auto sm:max-h-[90vh] bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-900/10 dark:shadow-black/40 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+        {/* Grip mobile */}
+        <div className="sm:hidden flex justify-center pt-2.5 pb-1 shrink-0">
+          <span className="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-            {/* Exam List Sidebar */}
-            <div className="w-full md:w-80 border-r border-slate-100 dark:border-slate-800 p-6 overflow-y-auto bg-slate-50/50 dark:bg-slate-900/50 no-scrollbar">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Pilih Ujian Sumber:</p>
-                <div className="space-y-2">
-                   {exams.map(exam => (
-                      <button 
-                        key={exam.id}
-                        onClick={() => {
-                          setSelectedExamId(exam.id);
-                          setSelectedQuestionIds([]);
-                          fetchExamQuestions(exam.id);
-                        }}
-                        className={`w-full text-left p-3 rounded-xl text-sm font-bold transition-all border-2 ${selectedExamId === exam.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent hover:border-slate-200 dark:hover:border-slate-700'}`}
-                      >
-                         <p className="truncate">{exam.exam_name}</p>
-                         <p className={`text-[10px] opacity-70 ${selectedExamId === exam.id ? 'text-white' : 'text-slate-400'}`}>{exam.subject_name || 'Tanpa Pelajaran'}</p>
-                      </button>
-                   ))}
-                </div>
+        {/* Header */}
+        <div className="flex-shrink-0 flex items-start justify-between gap-4 px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="shrink-0 w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <Upload size={17} />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Impor Soal ke Bank</h2>
+              <p className="text-xs text-slate-400 mt-0.5 truncate">
+                Salin butir soal dari ujian yang sudah ada
+              </p>
             </div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Tutup"
+            className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
-            {/* Questions Selection Area */}
-            <div className="flex-1 p-6 overflow-y-auto no-scrollbar bg-white dark:bg-slate-950">
-                {!selectedExamId ? (
-                   <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-                      <ArrowLeft className="w-12 h-12 mb-4 animate-bounce-x" />
-                      <p className="font-bold">Pilih ujian di sebelah kiri</p>
-                   </div>
-                ) : loading ? (
-                   <div className="h-full flex items-center justify-center font-bold text-slate-400 animate-pulse">Memuat soal...</div>
-                ) : (
-                   <div className="space-y-4">
-                      <div className="flex items-center justify-between sticky top-0 bg-white dark:bg-slate-950 py-2 z-10 border-b border-slate-50 dark:border-slate-900/50">
-                         <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{examQuestions.length} Butir Soal Ditemukan</p>
-                         <button 
-                            onClick={() => {
-                               if (selectedQuestionIds.length === examQuestions.length) setSelectedQuestionIds([]);
-                               else setSelectedQuestionIds(examQuestions.map(q => q.id));
-                            }}
-                            className="text-[10px] font-bold text-indigo-600"
-                         >
-                            {selectedQuestionIds.length === examQuestions.length ? 'Batal Semua' : 'Pilih Semua'}
-                         </button>
+        {!folderId && (
+          <div className="flex-shrink-0 flex items-start gap-2.5 px-5 sm:px-6 py-3 bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/20">
+            <AlertCircle size={15} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              Buka folder tujuan terlebih dahulu sebelum melakukan impor soal.
+            </p>
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
+          {/* Exam List Sidebar */}
+          <div className="w-full md:w-72 shrink-0 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 p-4 overflow-y-auto bg-slate-50 dark:bg-slate-950/40">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5 px-1">Ujian Sumber</p>
+
+            {loading && exams.length === 0 ? (
+              <div className="space-y-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-14 rounded-lg bg-slate-200/60 dark:bg-slate-800 animate-pulse" />
+                ))}
+              </div>
+            ) : exams.length === 0 ? (
+              <p className="text-xs text-slate-400 px-1 py-4">Belum ada ujian yang bisa diimpor.</p>
+            ) : (
+              <div className="space-y-1">
+                {exams.map(exam => {
+                  const active = selectedExamId === exam.id;
+                  return (
+                    <button
+                      key={exam.id}
+                      onClick={() => {
+                        setSelectedExamId(exam.id);
+                        setSelectedQuestionIds([]);
+                        fetchExamQuestions(exam.id);
+                      }}
+                      aria-pressed={active}
+                      className={`w-full text-left p-2.5 rounded-lg text-sm transition-colors ${active
+                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                    >
+                      <p className="font-semibold truncate">{exam.exam_name}</p>
+                      <p className={`text-[11px] truncate ${active ? 'text-white/70 dark:text-slate-900/70' : 'text-slate-400'}`}>
+                        {exam.subject_name || 'Tanpa Pelajaran'}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Questions Selection Area */}
+          <div className="flex-1 p-4 sm:p-5 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900 min-h-0">
+            {!selectedExamId ? (
+              <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-center">
+                <span className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
+                  <ArrowLeft size={20} className="text-slate-400" />
+                </span>
+                <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Pilih ujian di samping</p>
+                <p className="text-xs text-slate-400 mt-1">Butir soal akan tampil di sini</p>
+              </div>
+            ) : loading ? (
+              <div className="space-y-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-16 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                ))}
+              </div>
+            ) : examQuestions.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-12">Ujian ini belum memiliki butir soal.</p>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between sticky top-0 bg-white dark:bg-slate-900 py-2 mb-1 z-10">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 tabular-nums">
+                    {examQuestions.length} butir soal ditemukan
+                  </p>
+                  <button
+                    onClick={() => {
+                      if (allExamQuestionsSelected) setSelectedQuestionIds([]);
+                      else setSelectedQuestionIds(examQuestions.map(q => q.id));
+                    }}
+                    className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    {allExamQuestionsSelected ? 'Batalkan Semua' : 'Pilih Semua'}
+                  </button>
+                </div>
+
+                {examQuestions.map(q => {
+                  const checked = selectedQuestionIds.includes(q.id);
+                  return (
+                    <label
+                      key={q.id}
+                      className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${checked
+                        ? 'bg-slate-900 dark:bg-white border-transparent'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600'
+                        }`}
+                    >
+                      <input
+                        type="checkbox"
+                        aria-label={`Pilih soal`}
+                        className="w-4 h-4 mt-0.5 rounded border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-900 focus:ring-0 shrink-0"
+                        checked={checked}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedQuestionIds([...selectedQuestionIds, q.id]);
+                          else setSelectedQuestionIds(selectedQuestionIds.filter(id => id !== q.id));
+                        }}
+                      />
+                      <div className="flex-1 min-w-0 pointer-events-none">
+                        <div
+                          className={`text-sm line-clamp-2 leading-relaxed prose prose-sm max-w-none ${checked ? 'text-white dark:text-slate-900' : 'text-slate-600 dark:text-slate-300'}`}
+                          dangerouslySetInnerHTML={{ __html: q.question_text }}
+                        />
                       </div>
-                      {examQuestions.map(q => (
-                         <label key={q.id} className={`flex items-start gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${selectedQuestionIds.includes(q.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-500 shadow-md ring-4 ring-indigo-500/5' : 'bg-slate-50/50 dark:bg-slate-800/30 border-transparent hover:border-slate-200 dark:hover:border-slate-700'}`}>
-                            <input 
-                              type="checkbox" 
-                              className="w-5 h-5 mt-1 rounded-lg border-2 border-slate-300 text-indigo-600 focus:ring-0"
-                              checked={selectedQuestionIds.includes(q.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) setSelectedQuestionIds([...selectedQuestionIds, q.id]);
-                                else setSelectedQuestionIds(selectedQuestionIds.filter(id => id !== q.id));
-                              }}
-                            />
-                            <div className="flex-1 min-w-0 pointer-events-none">
-                               <div className="line-clamp-2 text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-bold" dangerouslySetInnerHTML={{ __html: q.question_text }} />
-                            </div>
-                         </label>
-                      ))}
-                   </div>
-                )}
-            </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
-            <div className="text-xs font-bold text-slate-400">
-               {selectedQuestionIds.length} soal terpilih untuk dimasukkan ke folder ini.
-            </div>
-            <div className="flex gap-4">
-               <button onClick={onClose} className="px-6 py-2 text-sm font-bold text-slate-500">Batal</button>
-               <button 
-                  disabled={selectedQuestionIds.length === 0 || transferring || !folderId}
-                  onClick={handleImport}
-                  className="px-8 py-2.5 bg-emerald-600 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-200 dark:shadow-none hover:bg-emerald-700 transition-all active:scale-95 flex items-center gap-2"
-               >
-                  {transferring ? 'Sedang Memproses...' : (
-                    <>
-                      <Plus className="w-4 h-4" />
-                      Konfirmasi Impor
-                    </>
-                  )}
-               </button>
-            </div>
+        <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+            <span className="font-semibold text-slate-700 dark:text-slate-200">{selectedQuestionIds.length}</span> soal terpilih
+            {folderId ? ' siap diimpor' : ' · tentukan folder tujuan dulu'}
+          </p>
+          <div className="flex items-center gap-2">
+            <ModalButton variant="ghost" onClick={onClose}>Batal</ModalButton>
+            <ModalButton
+              variant="success"
+              onClick={handleImport}
+              loading={transferring}
+              disabled={selectedQuestionIds.length === 0 || !folderId}
+            >
+              {transferring ? 'Memproses' : 'Konfirmasi Impor'}
+            </ModalButton>
+          </div>
         </div>
       </div>
     </div>

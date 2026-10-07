@@ -38,11 +38,15 @@ export async function GET(request) {
     const { shuffle_questions, shuffle_answers } = examData.settings;
     let questions = [...examData.questions]; // Deep copy for shuffling
 
+    // Kunci jawaban HANYA untuk admin/guru. Untuk siswa tidak boleh pernah
+    // dikirim ke browser (bisa dilihat lewat view-source/devtools).
+    const isStudent = session.user.roleName === 'student';
+
     // 3. Create a deterministic seed for this user and exam
     const seed = session.user.id + '-' + examId;
 
     // 4. Shuffle questions if enabled only for students
-    if (shuffle_questions && session.user.roleName === 'student') {
+    if (shuffle_questions && isStudent) {
       seededShuffle(questions, seed);
     }
 
@@ -59,7 +63,6 @@ export async function GET(request) {
           id: question.id,
           exam_id: question.exam_id,
           question_text: question.question_text,
-          correct_option: question.correct_option,
           options: [],
         };
       }
@@ -70,7 +73,7 @@ export async function GET(request) {
         const pairs = [...(parsedOptions.pairs || [])]; // Shallow clone for safe shuffling
         let responses = pairs.map(p => p.r);
         
-        if (session.user.roleName === 'student') {
+        if (isStudent) {
           // Use very distinct deterministic seeds to avoid similar permutations
           const premiseSeed = `PREMISE-${seed}-${question.id}`;
           const responseSeed = `RESPONSE-${seed}-${question.id}`;
@@ -106,23 +109,29 @@ export async function GET(request) {
           text,
         }));
 
-        if (shuffle_answers && session.user.roleName === 'student') {
+        if (shuffle_answers && isStudent) {
           const answerSeed = seed + '-q' + question.id;
           seededShuffle(optionsArray, answerSeed);
         }
         resultOptions = optionsArray;
       }
 
+      // Sisipkan kunci jawaban hanya untuk pengajar/admin.
+      // (scoring_metadata berisi kata kunci esai -> termasuk kunci jawaban)
+      const staffFields = isStudent ? {} : {
+        correct_option: question.correct_option,
+        scoring_metadata: question.scoring_metadata,
+      };
+
       return {
         id: question.id,
         exam_id: question.exam_id,
         question_text: question.question_text,
-        correct_option: question.correct_option,
         options: resultOptions,
         question_type: question.question_type,
         points: question.points,
         scoring_strategy: question.scoring_strategy,
-        scoring_metadata: question.scoring_metadata,
+        ...staffFields,
       };
     });
 

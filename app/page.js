@@ -2,8 +2,11 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, User as UserIcon, Lock, LogIn, LoaderCircle, ShieldCheck } from 'lucide-react';
+import { Toaster, toast } from 'sonner';
 import { useLanguage } from '@/app/context/LanguageContext';
+
+const LOCKOUT_TOAST_ID = 'login-lockout';
 
 function LoginForm() {
   const { t } = useLanguage();
@@ -11,46 +14,35 @@ function LoginForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/dashboard';
   const [lockoutEndTs, setLockoutEndTs] = useState(null);
-  const [countdownText, setCountdownText] = useState('');
+  const [lockoutMessage, setLockoutMessage] = useState('');
 
   useEffect(() => {
-    let interval;
-    if (lockoutEndTs) {
-      const updateCountdown = () => {
-        const now = Math.floor(Date.now() / 1000);
-        const diff = lockoutEndTs - now;
-        if (diff <= 0) {
-          setLockoutEndTs(null);
-          setCountdownText('');
-          setError('');
-          return;
-        }
-        const m = Math.floor(diff / 60);
-        const s = diff % 60;
-        setCountdownText(`${t('login_retry_in')} ${m}m ${s}s`);
-      };
-      updateCountdown();
-      interval = setInterval(updateCountdown, 1000);
-    }
+    if (!lockoutEndTs) return;
+    const updateCountdown = () => {
+      const diff = lockoutEndTs - Math.floor(Date.now() / 1000);
+      if (diff <= 0) {
+        toast.dismiss(LOCKOUT_TOAST_ID);
+        setLockoutEndTs(null);
+        setLockoutMessage('');
+        return;
+      }
+      const m = Math.floor(diff / 60);
+      const s = diff % 60;
+      toast.error(lockoutMessage, {
+        id: LOCKOUT_TOAST_ID,
+        duration: Infinity,
+        description: `${t('login_retry_in')} ${m}m ${s}s`,
+      });
+    };
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
-  }, [lockoutEndTs]);
-
-  const setupDatabase = async () => {
-    try {
-      const res = await fetch('/api/setup');
-      const data = await res.json();
-      alert(data.message || data.error);
-    } catch (error) {
-      alert('Failed to setup database.');
-    }
-  };
+  }, [lockoutEndTs, lockoutMessage]);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -58,9 +50,7 @@ function LoginForm() {
         const res = await fetch('/api/user-session');
         if (res.ok) {
           const data = await res.json();
-          if (data.user) {
-            router.push(redirectTo);
-          }
+          if (data.user) router.push(redirectTo);
         }
       } catch (error) {
         console.error('Failed to check session:', error);
@@ -68,51 +58,51 @@ function LoginForm() {
     };
     checkSession();
 
-    // Fetch site branding
     const fetchBranding = async () => {
-        try {
-            const res = await fetch('/api/web-settings?mode=branding');
-            if (res.ok) {
-                const data = await res.json();
-                setBranding(data);
-                if (data.site_name) {
-                    const plainTextName = data.site_name.replace(/<[^>]*>?/gm, '').trim();
-                    document.title = plainTextName || 'Rushless Exam'; // Set window title
-                }
-            }
-        } catch(e) { console.error(e) }
+      try {
+        const res = await fetch('/api/web-settings?mode=branding');
+        if (res.ok) {
+          const data = await res.json();
+          setBranding(data);
+          if (data.site_name) {
+            document.title = data.site_name.replace(/<[^>]*>?/gm, '').trim() || 'Rushless Exam';
+          }
+        }
+      } catch (e) { console.error(e); }
     };
     fetchBranding();
   }, [router, redirectTo]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    toast.dismiss();
     setIsLoading(true);
+    let handledByLockoutToast = false;
 
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
+        const message = data.message || 'Something went wrong';
         if (res.status === 429 && data.locked_until_ts) {
+          handledByLockoutToast = true;
+          setLockoutMessage(message);
           setLockoutEndTs(data.locked_until_ts);
         } else {
           setLockoutEndTs(null);
-          setCountdownText('');
+          setLockoutMessage('');
+          toast.error(message);
         }
-        throw new Error(data.message || 'Something went wrong');
+        throw new Error(message);
       }
 
-      setSuccess(t('login_success'));
+      toast.success(t('login_success'));
 
       setTimeout(() => {
         if (typeof window !== 'undefined') {
@@ -122,186 +112,130 @@ function LoginForm() {
         }
         router.push(redirectTo);
       }, 1000);
-
     } catch (error) {
-      setError(error.message);
+      if (!handledByLockoutToast) toast.error(error.message);
       setIsLoading(false);
     }
   };
 
+  const disabled = isLoading || lockoutEndTs !== null;
+
   return (
-    <main className="flex min-h-screen items-center justify-center animated-bg transition-colors duration-300 p-6">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes cardFadeIn {
-          from {
-            opacity: 0;
-            transform: scale(0.96) translateY(12px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-        @keyframes itemFadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(12px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes gradientShift {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .animate-card {
-          animation: cardFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        .animate-item {
-          animation: itemFadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          opacity: 0;
-        }
-        .animated-bg {
-          background: linear-gradient(-45deg, #f1f5f9, #e2e8f0, #cbd5e1, #f8fafc);
-          background-size: 400% 400%;
-          animation: gradientShift 15s ease infinite;
-        }
-        .dark .animated-bg {
-          background: linear-gradient(-45deg, #020617, #0f172a, #1e293b, #0f172a);
-          background-size: 400% 400%;
-          animation: gradientShift 15s ease infinite;
-        }
-      ` }} />
+    <div className="relative min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-5 py-10 overflow-hidden">
+      {/* Latar halus */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="rl-grid absolute inset-0 opacity-40 dark:opacity-25" />
+        <div className="rl-blob h-80 w-80 bg-indigo-400/40 dark:bg-indigo-700/25 -top-24 -left-24" />
+        <div className="rl-blob h-96 w-96 bg-slate-300/50 dark:bg-slate-800/50 -bottom-32 -right-24" style={{ animationDelay: '-8s' }} />
+      </div>
 
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 shadow-2xl rounded-2xl overflow-hidden border border-gray-200/50 dark:border-gray-700 transition-colors duration-300 animate-card">
+      {/* Kartu */}
+      <div className="rl-animate-card relative w-full max-w-[460px]">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl shadow-slate-900/5 dark:shadow-black/40 overflow-hidden">
 
-        <div className="p-8 text-center animate-item" style={{ animationDelay: '50ms', animationFillMode: 'forwards' }}>
-          <div className="flex justify-center mb-4">
-            <img src={branding.site_logo} alt={`${branding.site_name} Logo`} className="h-14 w-auto object-contain drop-shadow-sm" />
+          <div className="px-8 pt-9 pb-7 text-center">
+            <div className="flex justify-center mb-4">
+              <span className="rl-float w-16 h-16 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden">
+                <img src={branding.site_logo} alt="Logo" className="h-9 w-9 object-contain" />
+              </span>
+            </div>
+            <h1
+              className="text-xl font-bold text-slate-900 dark:text-white truncate"
+              dangerouslySetInnerHTML={{ __html: branding.site_name }}
+            />
           </div>
-          <h1 
-            className="text-3xl font-bold text-gray-800 dark:text-white mb-1 transition-colors duration-300 prose prose-slate dark:prose-invert"
-            dangerouslySetInnerHTML={{ __html: branding.site_name }}
-          ></h1>
-          <p className="text-gray-500 dark:text-gray-400 transition-colors duration-300">{t('login_subtitle')}</p>
-        </div>
 
-        <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-6">
-
-          {error && (
-            <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 text-red-700 dark:text-red-400 p-3 rounded-md text-sm transition-colors duration-300">
-              <p>{error}</p>
-              {countdownText && (
-                <p className="font-bold mt-2 text-lg text-red-800 dark:text-red-300 animate-pulse">
-                  ⏱ {countdownText}
-                </p>
-              )}
-            </div>
-          )}
-          {success && (
-            <div className="bg-green-50 dark:bg-green-900/30 border-l-4 border-green-500 text-green-700 dark:text-green-400 p-3 rounded-md text-sm transition-colors duration-300">
-              <p>{success}</p>
-            </div>
-          )}
-
-          <div className="animate-item" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
-            <label className="block text-gray-600 dark:text-gray-300 text-sm font-semibold mb-2 transition-colors duration-300" htmlFor="username">
-              {t('login_username_label')}
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
+          <form onSubmit={handleSubmit} className="px-8 pb-8 -mt-2 space-y-4">
+            <div>
+              <label htmlFor="username" className="sr-only">{t('login_username_label')}</label>
+              <div className="relative">
+                <UserIcon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  id="username"
+                  type="text"
+                  autoComplete="username"
+                  placeholder={t('login_username_label')}
+                  aria-label={t('login_username_label')}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  disabled={disabled}
+                  suppressHydrationWarning
+                  className="w-full pl-10 pr-3 py-3 text-[15px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-900/5 dark:focus:ring-white/5 transition-colors disabled:opacity-60"
+                />
               </div>
-              <input
-                className="w-full pl-10 pr-3 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-colors duration-300"
-                id="username"
-                type="text"
-                placeholder="e.g. admin"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                disabled={isLoading || lockoutEndTs !== null}
-                suppressHydrationWarning={true}
-              />
             </div>
-          </div>
 
-          <div className="animate-item" style={{ animationDelay: '350ms', animationFillMode: 'forwards' }}>
-            <label className="block text-gray-600 dark:text-gray-300 text-sm font-semibold mb-2 transition-colors duration-300" htmlFor="password">
-              {t('login_password_label')}
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+            <div>
+              <label htmlFor="password" className="sr-only">{t('login_password_label')}</label>
+              <div className="relative">
+                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder={t('login_password_label')}
+                  aria-label={t('login_password_label')}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={disabled}
+                  suppressHydrationWarning
+                  className="w-full pl-10 pr-11 py-3 text-[15px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-900/5 dark:focus:ring-white/5 transition-colors disabled:opacity-60"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
               </div>
-              <input
-                className="w-full pl-10 pr-10 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-colors duration-300"
-                id="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading || lockoutEndTs !== null}
-                suppressHydrationWarning={true}
-              />
-              <button
-                type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none transition-colors duration-300"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" />
-                ) : (
-                  <Eye className="h-5 w-5" />
-                )}
-              </button>
             </div>
-          </div>
 
-          <div className="animate-item" style={{ animationDelay: '500ms', animationFillMode: 'forwards' }}>
             <button
-              className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform hover:scale-105 ${isLoading || lockoutEndTs !== null ? 'opacity-70 cursor-not-allowed' : ''
-                }`}
               type="submit"
-              disabled={isLoading || lockoutEndTs !== null}
-              suppressHydrationWarning={true}
+              disabled={disabled}
+              suppressHydrationWarning
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-[15px] font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity disabled:opacity-60"
             >
               {isLoading ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                <>
+                  <LoaderCircle size={17} className="animate-spin" />
                   {t('login_btn_loading')}
-                </span>
+                </>
               ) : (
-                t('login_btn')
+                <>
+                  <LogIn size={17} />
+                  {t('login_btn')}
+                </>
               )}
             </button>
-          </div>
-        </form>
+          </form>
 
-        <div className="bg-gray-50 dark:bg-gray-800/80 px-8 py-4 border-t border-gray-100 dark:border-gray-700 transition-colors duration-300">
+          <div className="px-8 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30">
+            <p className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+              <ShieldCheck size={12} />
+              {t('login_secure_note')}
+            </p>
+          </div>
         </div>
       </div>
-    </main>
+      <Toaster position="top-center" richColors />
+    </div>
   );
 }
 
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <main className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 transition-colors duration-300 p-6">
-        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
-      </main>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="flex items-center gap-2 text-sm text-slate-400">
+          <LoaderCircle size={17} className="animate-spin" />
+          Loading...
+        </div>
+      </div>
     }>
       <LoginForm />
     </Suspense>

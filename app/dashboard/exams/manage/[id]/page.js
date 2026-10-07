@@ -1,51 +1,52 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, ClipboardList, Settings } from 'lucide-react';
+import { ArrowLeft, ClipboardList, ChevronDown, ChevronRight, Check, Plus, CheckCircle2, AlertCircle, AlertTriangle, Info, Clock } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { mysqlToDatetimeLocal, datetimeLocalToMysql, formatDateTime } from '@/app/lib/timezone';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
-// Helper to format dates for datetime-local input
-const toDateTimeLocal = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  try {
-    return date.toISOString().slice(0, 16);
-  } catch (error) {
-    return '';
-  }
-};
+// Helper untuk mengisi <input type="datetime-local"> dari nilai DATETIME MySQL.
+//
+// PENTING:值 ini TIDAK dikonversi ke waktu lokal browser. Nilai datetime-local
+// selalu "wall clock" tanpa zona, dan nilai di DB juga naive, jadi memakainya
+// new Date() di sini akan menggeser jadwal ujian setiap kali disimpan dari
+// browser yang berada di zona waktu berbeda.
+const toDateTimeLocal = (dateString) => mysqlToDatetimeLocal(dateString);
 
 // --- Reusable Switch Component ---
-const Switch = ({ id, label, description, checked, onChange, disabled }) => (
-  <label htmlFor={id} className={`flex items-center justify-between p-4 rounded-lg transition-colors ${disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
-    <div>
-      <span className={`text-sm font-medium ${disabled ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>{label}</span>
-      {description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{description}</p>}
-    </div>
-    <div className="relative">
+const Switch = ({ id, label, description, checked, onChange, disabled, standalone }) => (
+  <label
+    htmlFor={id}
+    className={`flex items-start justify-between gap-4 transition-colors ${standalone ? 'p-0' : 'px-4 py-3'} ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'} ${standalone ? '' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+  >
+    <span className="min-w-0">
+      <span className={`block text-sm font-semibold ${disabled ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}`}>{label}</span>
+      {description && <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">{description}</span>}
+    </span>
+    <span className="relative shrink-0 mt-0.5">
       <input
         id={id}
         type="checkbox"
-        className="sr-only"
+        className="peer sr-only"
         checked={checked}
         onChange={onChange}
         disabled={disabled}
       />
-      <div className={`block w-14 h-8 rounded-full transition-colors ${checked ? (disabled ? 'bg-indigo-300' : 'bg-indigo-600') : (disabled ? 'bg-slate-200 dark:bg-slate-600' : 'bg-slate-300 dark:bg-slate-600')}`}></div>
-      <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${checked ? 'transform translate-x-6' : ''}`}></div>
-    </div>
+      <span className={`block w-11 h-6 rounded-full transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-slate-400 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-slate-900 ${checked ? (disabled ? 'bg-slate-400' : 'bg-slate-900 dark:bg-white') : 'bg-slate-200 dark:bg-slate-700'}`} />
+      <span className={`absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+    </span>
   </label>
 );
 
 // --- Reusable Segmented Control ---
 const SegmentedControl = ({ name, options, value, onChange }) => (
-  <div className="flex items-center p-1 bg-slate-200 dark:bg-slate-700 rounded-lg">
+  <div role="radiogroup" aria-label={name} className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg gap-1">
     {options.map(option => (
       <label key={option.value} className={`flex-1 text-center relative ${option.disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
         <input
@@ -54,10 +55,10 @@ const SegmentedControl = ({ name, options, value, onChange }) => (
           value={option.value}
           checked={value === option.value}
           onChange={(e) => onChange(e.target.value)}
-          className="sr-only"
+          className="peer sr-only"
           disabled={option.disabled}
         />
-        <span className={`block w-full py-1.5 text-sm font-semibold rounded-md transition-all ${option.disabled ? 'text-slate-400 dark:text-slate-500' : (value === option.value ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/50')}`}>
+        <span className={`block w-full py-1.5 px-2 text-sm font-semibold rounded-md transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-slate-400 ${option.disabled ? 'text-slate-400 dark:text-slate-500' : (value === option.value ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-50 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100')}`}>
           {option.label}
         </span>
       </label>
@@ -68,6 +69,7 @@ const SegmentedControl = ({ name, options, value, onChange }) => (
 
 export default function ManageExamPage() {
   const { id: examId } = useParams();
+  const { timezone, fmt } = useLanguage();
 
   const [examName, setExamName] = useState('');
   const [description, setDescription] = useState('');
@@ -104,6 +106,16 @@ export default function ManageExamPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState('idle'); // idle | saving | saved | error
+  const [openSections, setOpenSections] = useState({
+    detail: true,
+    jadwal: true,
+    kelas: true,
+    keamanan: true,
+    token: true,
+    petunjuk: false,
+    hasil: true
+  });
 
   // Track if initial load is done to prevent auto-saving on mount
   const isInitialLoadDone = useRef(false);
@@ -111,6 +123,20 @@ export default function ManageExamPage() {
   const saveTimeoutRef = useRef(null);
 
   const isScheduled = startTime && endTime;
+
+  const isInvalidSchedule = Boolean(startTime && endTime && new Date(endTime) <= new Date(startTime));
+
+  const warnings = useMemo(() => {
+    const list = [];
+    if (isInvalidSchedule) list.push('Waktu batas akses lebih dulu atau sama dengan waktu mulai.');
+    if (selectedClasses.length === 0) list.push('Belum ada kelas yang dipilih, ujian tidak akan terlihat oleh siswa.');
+    if (requireToken && tokenType === 'static' && !currentToken.trim()) list.push('Token statis belum diisi, siswa tidak akan bisa memulai ujian.');
+    if (requireToken && tokenType === 'auto' && !liveAutoToken) list.push('Token otomatis belum tersedia dari server.');
+    if (requireAllAnswered && minTimeMinutes > 0) list.push('Wajib jawab semua soal + batas pengumpulan bisa membuat siswa gagal submit.');
+    const safers = [requireSafeBrowser && 'Rushless Safer', requireSeb && 'SEB', requireGeschool && 'Geschool'].filter(Boolean);
+    if (safers.length > 1) list.push(`Lebih dari satu aplikasi pengawas aktif (${safers.join(', ')}). Pilih salah satu.`);
+    return list;
+  }, [isInvalidSchedule, selectedClasses.length, requireToken, tokenType, currentToken, liveAutoToken, requireAllAnswered, minTimeMinutes, requireSafeBrowser, requireSeb, requireGeschool]);
 
   // Effect to enforce async mode if exam is not scheduled
   useEffect(() => {
@@ -223,6 +249,7 @@ export default function ManageExamPage() {
 
   const executeAutoSave = async () => {
     setSaving(true);
+    setSaveState('saving');
     const savingToastId = toast.loading('Menyimpan perubahan...');
 
     const examDetailsPromise = fetch('/api/exams', {
@@ -241,8 +268,8 @@ export default function ManageExamPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         examId,
-        startTime: startTime || null,
-        endTime: endTime || null,
+        startTime: datetimeLocalToMysql(startTime),
+        endTime: datetimeLocalToMysql(endTime),
         shuffleQuestions: shuffleQuestions,
         shuffleAnswers: shuffleAnswers,
         timerMode: timerMode,
@@ -277,8 +304,10 @@ export default function ManageExamPage() {
       }
 
       toast.success('Semua perubahan berhasil disimpan.', { id: savingToastId });
+      setSaveState('saved');
     } catch (err) {
       toast.error(err.message, { id: savingToastId });
+      setSaveState('error');
     } finally {
       setSaving(false);
     }
@@ -302,491 +331,659 @@ export default function ManageExamPage() {
     timerMode, durationMinutes, minTimeMinutes, maxAttempts, requireSafeBrowser, requireSeb, requireGeschool, selectedClasses, showInstructions, instructionType, customInstructions, showResult, showAnalysis, requireAllAnswered, requireToken, tokenType, currentToken, violationAction
   ]);
 
-  if (loading) {
+if (loading) {
     return (
-      <div className="container mx-auto p-4 md:p-6">
-        <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-4 animate-pulse"></div>
-        <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-2/3 mb-8 animate-pulse"></div>
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 space-y-6">
-          <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-1/4 mb-2 animate-pulse"></div>
-          <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg w-full animate-pulse"></div>
-          <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-1/4 mb-2 animate-pulse"></div>
-          <div className="h-24 bg-slate-200 dark:bg-slate-700 rounded-lg w-full animate-pulse"></div>
+      <div className="space-y-5">
+        <div className="h-7 w-40 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+        <div className="h-10 w-2/3 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2 space-y-4">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">
+                <div className="h-4 w-48 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+                <div className="h-10 w-full bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+                <div className="h-10 w-2/3 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+              </div>
+            ))}
+          </div>
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 h-40 animate-pulse" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(15px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes fadeInDown {
-          from {
-            opacity: 0;
-            transform: translateY(-15px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in-down {
-          animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        .animate-fade-in-up {
-          animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          opacity: 0;
-        }
-      ` }} />
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link
+            href="/dashboard/exams"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+          >
+            <ArrowLeft size={14} />
+            Kembali ke Daftar Ujian
+          </Link>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1.5 break-words">
+            {examName || 'Kelola Ujian'}
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            Semua perubahan tersimpan otomatis 1 detik setelah kamu berhenti mengetik.
+          </p>
+        </div>
 
-      <Link 
-        href="/dashboard/exams" 
-        className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg transition-all active:scale-95"
-      >
-        <ArrowLeft size={18} />
-        Kembali ke Daftar Ujian
-      </Link>
-      <div className="animate-fade-in-down mb-6">
-        <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100">{examName || 'Kelola Ujian'}</h1>
-        <p className="text-lg text-slate-500 dark:text-slate-400 mt-1">Atur detail ujian, pengaturan pengerjaan, dan daftar soal. Setiap perubahan disimpan secara otomatis.</p>
+        <SaveIndicator state={saveState} saving={saving} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      {warnings.length > 0 && (
+        <div className="rounded-xl border border-amber-300 dark:border-amber-800/70 bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
+          <p className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-1">Perlu diperhatikan</p>
+          <ul className="space-y-1">
+            {warnings.map(w => (
+              <li key={w} className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1.5">
+                <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+                {w}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-        <div className="animate-fade-in-up md:col-span-2" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
-          <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 space-y-6">
-            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-4">
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Detail Ujian</h2>
-              {saving && <span className="text-sm font-semibold text-indigo-500 animate-pulse">Menyimpan...</span>}
-            </div>
+      {/* Navigasi section */}
+      <nav className="sticky top-0 z-20 -mx-1 px-1 py-2 bg-slate-50 dark:bg-slate-950/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800">
+        <div className="flex gap-1.5 overflow-x-auto">
+          {SECTIONS.map(s => (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors"
+            >
+              {s.label}
+            </a>
+          ))}
+        </div>
+      </nav>
 
-            <div>
-              <label htmlFor="examName" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Ujian</label>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Kolom utama */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Detail Ujian */}
+          <Section
+            id="detail"
+            title="Detail Ujian"
+            description="Nama, deskripsi, dan mata pelajaran untuk ujian ini."
+            open={openSections.detail}
+            onToggle={() => setOpenSections(p => ({ ...p, detail: !p.detail }))}
+          >
+            <Field label="Nama Ujian" htmlFor="examName" hint="Ditampilkan ke siswa saat membuka daftar ujian.">
               <input
                 id="examName"
                 type="text"
                 value={examName}
                 onChange={(e) => setExamName(e.target.value)}
-                className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                disabled={saving && false}
+                placeholder="Contoh: Ujian Tengah Semester"
+                className={inputCls}
                 required
               />
-            </div>
+            </Field>
 
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Deskripsi</label>
+            <Field label="Deskripsi" htmlFor="description" hint="Penjelasan singkat mengenai materi atau lingkup ujian.">
               <textarea
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                rows="4"
-                disabled={saving && false}
+                placeholder="Opsional"
+                rows={4}
+                className={inputCls}
               />
-            </div>
+            </Field>
 
-            <div>
-              <label htmlFor="subjectId" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Mata Pelajaran</label>
-              <select
-                id="subjectId"
-                value={subjectId}
-                onChange={(e) => setSubjectId(e.target.value)}
-                className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                disabled={saving && false}
-              >
+            <Field label="Mata Pelajaran" htmlFor="subjectId" hint="Membantu mengelompokkan ujian di daftar siswa.">
+              <select id="subjectId" value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className={inputCls}>
                 <option value="">Pilih Mata Pelajaran...</option>
                 {availableSubjects.map((sbj) => (
                   <option key={sbj.id} value={sbj.id}>{sbj.name}</option>
                 ))}
               </select>
+            </Field>
+          </Section>
+
+          {/* Jadwal & Waktu */}
+          <Section
+            id="jadwal"
+            title="Jadwal & Waktu Pengerjaan"
+            description="Tentukan kapan ujian bisa diakses dan berapa lama siswa boleh mengerjakan."
+            open={openSections.jadwal}
+            onToggle={() => setOpenSections(p => ({ ...p, jadwal: !p.jadwal }))}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Waktu Mulai Akses" htmlFor="startTime" hint={`Kosongkan jika ujian bisa diakses kapan saja. Jam diisi sesuai zona waktu aplikasi (${timezone}).`}>
+                <input id="startTime" type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="Waktu Batas Akses" htmlFor="endTime" hint={`Siswa tidak bisa masuk atau melanjutkan setelah waktu ini (${timezone}).`}>
+                <input id="endTime" type="datetime-local" value={endTime} onChange={(e) => setEndTime(e.target.value)} className={inputCls} />
+              </Field>
             </div>
 
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-4 pt-4">Pengaturan Ujian</h2>
+            {(startTime || endTime) && (
+              <InlineNote tone="info">
+                <Clock size={13} className="inline mr-1 -mt-0.5" />
+                Akan dibaca sebagai: <strong>{fmt.dateTime(`${startTime || endTime}`.replace('T', ' '))}</strong>
+                <span className="opacity-70"> ({timezone})</span>
+              </InlineNote>
+            )}
 
-            <div className="space-y-4">
-              {/* --- Assign Classes Section --- */}
-              <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Tugaskan ke Kelas</label>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Pilih kelas yang berhak mengikuti ujian ini. Jika tidak ada kelas yang dipilih, ujian akan disembunyikan dari semua siswa.</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {availableClasses.map((cls) => (
-                    <label key={cls.id} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedClasses.includes(cls.id)}
-                        onChange={() => handleToggleClass(cls.id)}
-                        className="w-4 h-4 text-indigo-600 dark:text-indigo-500 rounded focus:ring-indigo-500 dark:focus:ring-indigo-400 border-gray-300 dark:border-gray-600 dark:bg-slate-700"
-                        disabled={saving && false}
-                      />
-                      <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">{cls.class_name}</span>
-                    </label>
-                  ))}
-                  {availableClasses.length === 0 && <p className="text-xs text-red-500 dark:text-red-400 italic col-span-3">Tidak ada data kelas. Silakan buat kelas terlebih dahulu.</p>}
-                </div>
-              </div>
+            {!isScheduled && (
+              <InlineNote tone="info">
+                Jadwal belum diisi. Ujian bisa diakses siswa kapan saja, dan hanya metode <strong>Mandiri (Asinkron)</strong> yang tersedia.
+              </InlineNote>
+            )}
+            {isInvalidSchedule && (
+              <InlineNote tone="warning">
+                Waktu batas akses lebih dulu dari waktu mulai. Periksa kembali tanggal dan jamnya.
+              </InlineNote>
+            )}
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Metode Waktu</label>
-                <SegmentedControl
-                  name="timer-mode"
-                  options={[
-                    { label: 'Serentak (Sinkron)', value: 'sync', disabled: !isScheduled || (saving && false) },
-                    { label: 'Mandiri (Asinkron)', value: 'async', disabled: saving && false },
-                  ]}
-                  value={timerMode}
-                  onChange={setTimerMode}
-                />
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                  {timerMode === 'sync'
-                    ? 'Semua siswa memiliki waktu mulai dan selesai yang sama. Durasi mengacu pada jadwal.'
-                    : 'Setiap siswa mendapatkan durasi pengerjaan tetap sejak mereka menekan tombol mulai. Jadwal bertindak sebagai jendela akses.'
-                  }
-                </p>
-              </div>
+            <Field label="Metode Waktu" hint={timerMode === 'sync'
+              ? 'Semua siswa memakai waktu mulai dan selesai yang sama, mengikuti jadwal.'
+              : 'Setiap siswa mendapat durasi tetap sejak menekan tombol Mulai. Jadwal hanya menjadi jendela akses.'}>
+              <SegmentedControl
+                name="timer-mode"
+                options={[
+                  { label: 'Serentak (Sinkron)', value: 'sync', disabled: !isScheduled },
+                  { label: 'Mandiri (Asinkron)', value: 'async' },
+                ]}
+                value={timerMode}
+                onChange={setTimerMode}
+              />
+              {!isScheduled && (
+                <p className="text-[11px] text-slate-400 mt-1.5">Serentak tidak tersedia karena jadwal belum diisi.</p>
+              )}
+            </Field>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {(timerMode === 'async' || !isScheduled) && (
-                <div>
-                  <label htmlFor="duration" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Durasi Ujian (menit)</label>
+                <Field label="Durasi Ujian" htmlFor="duration" hint="Dalam menit.">
                   <input
                     id="duration"
                     type="number"
+                    min="1"
                     value={durationMinutes}
                     onChange={(e) => setDurationMinutes(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-                    className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                    disabled={saving && false}
-                    min="1"
+                    className={inputCls}
                   />
-                </div>
+                </Field>
               )}
-
-              <div>
-                <label htmlFor="minTime" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Batas Pengumpulan (menit terakhir)</label>
+              <Field label="Batas Pengumpulan" htmlFor="minTime" hint="Menit terakhir yang ditutup submit. Isi 0 untuk menonaktifkan.">
                 <input
                   id="minTime"
                   type="number"
+                  min="0"
                   value={minTimeMinutes}
                   onChange={(e) => setMinTimeMinutes(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-                  className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                  disabled={saving && false}
-                  min="0"
+                  className={inputCls}
                 />
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                  Isi 0 untuk menonaktifkan. Melarang siswa mengumpulkan jawaban di menit-menit terakhir ujian. Misal isi '1' berarti siswa tidak bisa submit di 1 menit terakhir.
-                </p>
-              </div>
-
-              <div>
-                <label htmlFor="maxAttempts" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Maksimal Percobaan</label>
+              </Field>
+              <Field label="Maksimal Percobaan" htmlFor="maxAttempts" hint="Berapa kali siswa boleh mengulang.">
                 <input
                   id="maxAttempts"
                   type="number"
+                  min="1"
                   value={maxAttempts}
                   onChange={(e) => setMaxAttempts(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-                  className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                  disabled={saving && false}
-                  min="1"
+                  className={inputCls}
                 />
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                  Berapa kali siswa dapat mencoba mengerjakan ujian ini.
-                </p>
-              </div>
+              </Field>
             </div>
+          </Section>
 
-            <div className="space-y-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-700">
+          {/* Kelas */}
+          <Section
+            id="kelas"
+            title="Kelas yang Berparticipan"
+            description="Hanya siswa dari kelas terpilih yang melihat ujian ini."
+            open={openSections.kelas}
+            onToggle={() => setOpenSections(p => ({ ...p, kelas: !p.kelas }))}
+            badge={selectedClasses.length > 0 ? `${selectedClasses.length} kelas` : null}
+          >
+            {availableClasses.length === 0 ? (
+              <InlineNote tone="warning">Belum ada data kelas. Buat kelas terlebih dahulu di menu Kelas.</InlineNote>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {availableClasses.map((cls) => {
+                  const isSelected = selectedClasses.includes(cls.id);
+                  return (
+                    <button
+                      key={cls.id}
+                      type="button"
+                      onClick={() => handleToggleClass(cls.id)}
+                      aria-pressed={isSelected}
+                      className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${isSelected
+                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-400'
+                      }`}
+                    >
+                      {isSelected ? <Check size={14} /> : <Plus size={14} className="text-slate-400" />}
+                      {cls.class_name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {selectedClasses.length > 0 && (
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-500 dark:text-slate-400">{selectedClasses.length} kelas dipilih.</p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedClasses([])}
+                  className="text-xs font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                >
+                  Kosongkan pilihan
+                </button>
+              </div>
+            )}
+          </Section>
+
+          {/* Keamanan */}
+          <Section
+            id="keamanan"
+            title="Keamanan & Fair Play"
+            description="Aplikasi pengawas, pengacakan soal, dan tindakan saat pelanggaran."
+            open={openSections.keamanan}
+            onToggle={() => setOpenSections(p => ({ ...p, keamanan: !p.keamanan }))}
+          >
+            <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
               <Switch
                 id="req-safe-browser"
                 label="Gunakan Rushless Safer"
-                description="Siswa wajib menggunakan aplikasi Rushless Safer untuk mengerjakan ujian ini."
+                description="Siswa wajib memakai aplikasi Rushless Safer saat mengerjakan ujian."
                 checked={requireSafeBrowser}
                 onChange={() => setRequireSafeBrowser(!requireSafeBrowser)}
-                disabled={saving && false}
               />
               <Switch
                 id="req-seb"
                 label="Gunakan SEB (Safe Exam Browser)"
-                description="Siswa wajib menggunakan aplikasi Safe Exam Browser untuk mengerjakan ujian ini."
+                description="Siswa wajib memakai aplikasi Safe Exam Browser."
                 checked={requireSeb}
                 onChange={() => setRequireSeb(!requireSeb)}
-                disabled={saving && false}
               />
               <Switch
                 id="req-geschool"
                 label="Gunakan Geschool Secure Mode"
-                description="Siswa wajib menggunakan aplikasi Geschool Secure Mode untuk mengerjakan ujian ini."
+                description="Siswa wajib memakai aplikasi Geschool Secure Mode."
                 checked={requireGeschool}
                 onChange={() => setRequireGeschool(!requireGeschool)}
-                disabled={saving && false}
               />
-              {requireGeschool && (
-                <div className="p-4 bg-indigo-50 dark:bg-indigo-950/20 border-l-4 border-indigo-500 rounded-r-lg">
-                  <div className="flex items-center gap-2 text-indigo-800 dark:text-indigo-300 mb-1">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="text-sm font-bold">Info Sandi Emergency</span>
-                  </div>
-                  <p className="text-xs text-indigo-700/80 dark:text-indigo-400 mt-1 leading-relaxed">
-                    Sandi Emergency Exit untuk Geschool mengikuti <strong>Konfigurasi Keamanan Aplikasi</strong> (Android & Safer) yang ada di menu Admin Tools. Perubahan sandi di sana akan otomatis berlaku untuk semua ujian yang menggunakan mode ini.
-                  </p>
-                </div>
-              )}
+            </div>
+
+            {requireGeschool && (
+              <InlineNote tone="info" title="Info Sandi Emergency">
+                Sandi Emergency Exit mengikuti <strong>Konfigurasi Keamanan Aplikasi</strong> (Android &amp; Safer) pada menu Admin Tools. Perubahan di sana otomatis berlaku untuk semua ujian dengan mode ini.
+              </InlineNote>
+            )}
+
+            <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
               <Switch
                 id="shuffle-questions"
                 label="Acak Urutan Soal"
-                description="Setiap siswa akan mendapatkan urutan soal yang berbeda."
+                description="Setiap siswa mendapat urutan soal yang berbeda."
                 checked={shuffleQuestions}
                 onChange={() => setShuffleQuestions(!shuffleQuestions)}
-                disabled={saving && false}
               />
               <Switch
                 id="shuffle-answers"
                 label="Acak Urutan Jawaban"
-                description="Opsi jawaban pada soal pilihan ganda akan diacak."
+                description="Opsi jawaban pada soal pilihan ganda diacak."
                 checked={shuffleAnswers}
                 onChange={() => setShuffleAnswers(!shuffleAnswers)}
-                disabled={saving && false}
               />
               <Switch
                 id="require-all-answered"
                 label="Wajib Jawab Semua Soal"
-                description="Siswa tidak dapat mengumpulkan jawaban jika masih ada soal yang belum dijawab."
+                description="Siswa tidak bisa mengumpulkan jawaban selama masih ada soal kosong."
                 checked={requireAllAnswered}
                 onChange={() => setRequireAllAnswered(!requireAllAnswered)}
-                disabled={saving && false}
               />
+            </div>
 
-              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800/50">
-                <label className="block text-sm font-bold text-amber-800 dark:text-amber-400 mb-1 flex items-center gap-2">
-                  Tindakan Pelanggaran Layar
-                </label>
-                <p className="text-xs text-amber-700 dark:text-amber-300 mb-3">
-                  Tentukan tindakan jika siswa terdeteksi meninggalkan halaman ujian (misal: ganti tab, buka aplikasi lain).
-                </p>
+            <Field
+              label="Tindakan Pelanggaran Layar"
+              hint={violationAction === 'abaikan'
+                ? 'Abaikan: hanya tercatat di log keamanan.'
+                : violationAction === 'peringatan'
+                  ? 'Peringatan: siswa diberi pesan peringatan saat kembali ke halaman ujian.'
+                  : 'Kunci Ujian: ujian terkunci otomatis hingga dibuka pengawas di kontrol ujian.'}
+            >
+              <SegmentedControl
+                name="violation-action"
+                options={[
+                  { label: 'Abaikan', value: 'abaikan' },
+                  { label: 'Peringatan', value: 'peringatan' },
+                  { label: 'Kunci Ujian', value: 'kunci' },
+                ]}
+                value={violationAction}
+                onChange={setViolationAction}
+              />
+            </Field>
+          </Section>
+
+          {/* Token */}
+          <Section
+            id="token"
+            title="Token Akses"
+            description="Siswa harus memasukkan token sebelum memulai ujian."
+            open={openSections.token}
+            onToggle={() => setOpenSections(p => ({ ...p, token: !p.token }))}
+            badge={requireToken ? 'Aktif' : null}
+          >
+            <Switch
+              id="require-token"
+              label="Perlu Token untuk Mulai Ujian"
+              description="Siswa harus memasukkan 6-digit token sebelum bisa memulai ujian."
+              checked={requireToken}
+              onChange={() => setRequireToken(!requireToken)}
+              standalone
+            />
+
+            {!requireToken && (
+              <p className="text-xs text-slate-400">Tanpa token, siswa cukup menekan tombol Mulai Ujian untuk memulai.</p>
+            )}
+
+            {requireToken && (
+              <div className="space-y-3 pl-3 border-l-2 border-slate-200 dark:border-slate-700">
                 <SegmentedControl
-                  name="violation-action"
+                  name="token-type"
                   options={[
-                    { label: 'Abaikan', value: 'abaikan', disabled: saving && false },
-                    { label: 'Peringatan', value: 'peringatan', disabled: saving && false },
-                    { label: 'Kunci Ujian', value: 'kunci', disabled: saving && false },
+                    { value: 'static', label: 'Statis (Custom)' },
+                    { value: 'auto', label: 'Otomatis (Tiap 15 Menit)' }
                   ]}
-                  value={violationAction}
-                  onChange={setViolationAction}
+                  value={tokenType}
+                  onChange={(val) => {
+                    setTokenType(val);
+                    if (val === 'auto') setCurrentToken('');
+                  }}
                 />
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                  {violationAction === 'abaikan' && 'Tidak ada tindakan khusus, hanya tercatat di log security.'}
-                  {violationAction === 'peringatan' && 'Menampilkan pesan peringatan kepada siswa saat kembali ke halaman ujian.'}
-                  {violationAction === 'kunci' && 'Otomatis mengunci ujian. Siswa tidak bisa melanjutkan sampai dibuka oleh pengawas di kontrol ujian.'}
-                </p>
+
+                {tokenType === 'static' ? (
+                  <Field label="Token Ujian" htmlFor="staticToken" hint="Maksimal 6 karakter. Siswa harus mengetik persis sama.">
+                    <input
+                      id="staticToken"
+                      type="text"
+                      maxLength={6}
+                      value={currentToken}
+                      onChange={(e) => setCurrentToken(e.target.value.toUpperCase())}
+                      placeholder="Contoh: ABCD12"
+                      className={`${inputCls} font-mono uppercase tracking-widest`}
+                    />
+                  </Field>
+                ) : (
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4">
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Token aktif saat ini</p>
+                    <p className="text-3xl font-mono font-bold tracking-[0.3em] text-slate-900 dark:text-white mt-1.5">
+                      {liveAutoToken || '••••••'}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                      Di-generate server dan <strong>berubah otomatis setiap 15 menit</strong>. Diperbarui otomatis di layar ini.
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
+          </Section>
 
-            {/* Token Settings */}
-            <div className="space-y-4 bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-              <Switch
-                id="require-token"
-                label="Perlu Token untuk Mulai Ujian"
-                description="Siswa harus memasukkan 6-digit token sebelum bisa memulai ujian, seperti halnya Moodle."
-                checked={requireToken}
-                onChange={() => setRequireToken(!requireToken)}
-                disabled={saving && false}
-              />
-              
-              {requireToken && (
-                <div className="pl-4 border-l-2 border-indigo-200 dark:border-indigo-800 space-y-4 pt-2">
-                  <SegmentedControl
-                    name="token-type"
-                    options={[
-                      { value: 'static', label: 'Statis (Custom)' },
-                      { value: 'auto', label: 'Otomatis (Tiap 15 Menit)' }
-                    ]}
-                    value={tokenType}
-                    onChange={(val) => {
-                      setTokenType(val);
-                      if (val === 'auto') setCurrentToken(''); // Clear static token if switched
-                    }}
-                    disabled={saving && false}
-                  />
+          {/* Petunjuk */}
+          <Section
+            id="petunjuk"
+            title="Petunjuk Pengerjaan"
+            description="Halaman petunjuk yang muncul sebelum siswa memulai ujian."
+            open={openSections.petunjuk}
+            onToggle={() => setOpenSections(p => ({ ...p, petunjuk: !p.petunjuk }))}
+          >
+            <Switch
+              id="show-instructions"
+              label="Tampilkan Petunjuk Pengerjaan"
+              description="Petunjuk muncul sebelum tombol Mulai Ujian ditekan."
+              checked={showInstructions}
+              onChange={() => setShowInstructions(!showInstructions)}
+              standalone
+            />
 
-                  {tokenType === 'static' ? (
-                    <div>
-                      <label htmlFor="staticToken" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                        Token Ujian (Maks 6 karakter)
-                      </label>
-                      <input
-                        id="staticToken"
-                        type="text"
-                        maxLength="6"
-                        value={currentToken}
-                        onChange={(e) => setCurrentToken(e.target.value.toUpperCase())}
-                        placeholder="Misal: ABCD12"
-                        className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 font-mono tracking-widest uppercase focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                        disabled={saving && false}
+            {showInstructions && (
+              <div className="space-y-3 pl-3 border-l-2 border-slate-200 dark:border-slate-700">
+                <SegmentedControl
+                  name="instruction-type"
+                  options={[
+                    { label: 'Template Default', value: 'template' },
+                    { label: 'Teks Kustom', value: 'custom' },
+                  ]}
+                  value={instructionType}
+                  onChange={setInstructionType}
+                />
+
+                {instructionType === 'template' ? (
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4">
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">Preview Petunjuk Default</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs text-slate-600 dark:text-slate-400">
+                      <li>Berdoalah sebelum mengerjakan ujian.</li>
+                      <li>Periksa daftar soal untuk melihat ragam pertanyaan yang tersedia.</li>
+                      <li>Silakan gunakan fitur <strong>Tandai Ragu</strong> jika belum yakin dengan jawaban.</li>
+                      <li>Kerjakan dengan jujur dan teliti.</li>
+                      <li>Pastikan menekan <strong>Selesai Ujian</strong> sebelum waktu habis.</li>
+                    </ul>
+                  </div>
+                ) : (
+                  <Field label="Teks Petunjuk Kustom" htmlFor="customInstructions" hint="Mendukung formatasi teks (bold, daftar, dan lainnya).">
+                    <div className="border border-slate-300 dark:border-slate-700 rounded-lg overflow-hidden">
+                      <JoditEditor
+                        value={customInstructions}
+                        onBlur={newContent => setCustomInstructions(newContent)}
+                        config={{
+                          readonly: false,
+                          theme: 'default',
+                          hidePoweredByJodit: true,
+                          placeholder: 'Ketik petunjuk kustom di sini...',
+                        }}
                       />
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                        Token statis yang Anda tentukan sendiri. Siswa harus memasukkan token persis seperti ini.
-                      </p>
                     </div>
-                  ) : (
-                    <div className="bg-indigo-50 dark:bg-indigo-900/40 p-4 rounded-lg border border-indigo-100 dark:border-indigo-800">
-                       <p className="text-sm text-indigo-800 dark:text-indigo-200 font-medium">Auto-Token Aktif Saat Ini:</p>
-                       <p className="text-3xl font-mono font-black tracking-widest text-indigo-600 dark:text-indigo-400 mt-2 flex items-center gap-3">
-                         {liveAutoToken ? liveAutoToken : <span className="text-xl animate-pulse">Memuat...</span>}
-                       </p>
-                       <p className="text-xs text-indigo-700/70 dark:text-indigo-300 mt-2 leading-relaxed">
-                         Token ini berupa 6 digit angka acak yang di-generate oleh server dan <strong>berubah otomatis setiap 15 menit</strong>. Anda dapat mengumumkan token ini kepada siswa.
-                       </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                  </Field>
+                )}
+              </div>
+            )}
+          </Section>
 
-            <div className="space-y-4 bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-              <Switch
-                id="show-instructions"
-                label="Tampilkan Petunjuk Pengerjaan"
-                description="Halaman petunjuk akan muncul sebelum siswa menekan tombol 'Mulai Ujian'."
-                checked={showInstructions}
-                onChange={() => setShowInstructions(!showInstructions)}
-                disabled={saving && false}
-              />
-              {showInstructions && (
-                <div className="pl-4 border-l-2 border-indigo-200 dark:border-indigo-800 space-y-4 pt-2">
-                  <SegmentedControl
-                    name="instruction-type"
-                    options={[
-                      { label: 'Gunakan Template Default', value: 'template', disabled: saving && false },
-                      { label: 'Gunakan Teks Kustom', value: 'custom', disabled: saving && false },
-                    ]}
-                    value={instructionType}
-                    onChange={setInstructionType}
-                  />
-
-                  {instructionType === 'template' ? (
-                    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg p-4 prose prose-sm prose-slate dark:prose-invert">
-                      <h4 className="font-bold">✨ Preview Petunjuk Default</h4>
-                      <ul>
-                        <li>Berdoalah sebelum mengerjakan ujian.</li>
-                        <li>Periksa daftar soal untuk melihat ragam pertanyaan yang tersedia.</li>
-                        <li>Silakan gunakan fitur <strong>Tandai Ragu</strong> jika belum yakin dengan jawaban.</li>
-                        <li>Kerjakan dengan jujur dan teliti.</li>
-                        <li>Pastikan untuk menekan <strong>Selesai Ujian</strong> sebelum waktu habis.</li>
-                      </ul>
-                    </div>
-                  ) : (
-                    <div>
-                      <label htmlFor="customInstructions" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Teks Petunjuk Kustom (Mendukung HTML)</label>
-                      <div className="border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden prose-sm">
-                        <JoditEditor
-                          value={customInstructions}
-                          onBlur={newContent => setCustomInstructions(newContent)}
-                          config={{
-                            readonly: saving,
-                            theme: 'default',
-                            hidePoweredByJodit: true,
-                            placeholder: 'Ketik petunjuk kustom di sini...',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-700">
+          {/* Hasil */}
+          <Section
+            id="hasil"
+            title="Hasil & Analisis"
+            description="Apa yang boleh dilihat siswa setelah ujian selesai."
+            open={openSections.hasil}
+            onToggle={() => setOpenSections(p => ({ ...p, hasil: !p.hasil }))}
+          >
+            <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
               <Switch
                 id="show-result"
                 label="Tampilkan Hasil"
-                description="Siswa dapat melihat skor akhir mereka setelah menyelesaikan ujian."
+                description="Siswa dapat melihat skor akhir setelah ujian selesai."
                 checked={showResult}
-                onChange={(e) => {
+                onChange={() => {
                   const val = !showResult;
                   setShowResult(val);
-                  if (!val) setShowAnalysis(false); // Cascade disable
+                  if (!val) setShowAnalysis(false);
                 }}
-                disabled={saving && false}
+                standalone
               />
               {showResult && (
-                <div className="pl-4">
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40">
                   <Switch
                     id="show-analysis"
                     label="Tampilkan Analisis Jawaban"
-                    description="Siswa dapat melihat daftar soal mana yang dijawab benar, salah, beserta kunci jawabannya."
+                    description="Siswa melihat soal mana yang benar/salah beserta kunci jawabannya."
                     checked={showAnalysis}
                     onChange={() => setShowAnalysis(!showAnalysis)}
-                    disabled={saving && false}
                   />
                 </div>
               )}
             </div>
-
-            <div>
-              <label htmlFor="startTime" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Waktu Mulai Akses (Opsional)
-              </label>
-              <input
-                id="startTime"
-                type="datetime-local"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                disabled={saving && false}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="endTime" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Waktu Batas Akses (Opsional)
-              </label>
-              <input
-                id="endTime"
-                type="datetime-local"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none"
-                disabled={saving && false}
-              />
-            </div>
-
-             <div className="pt-4 border-t border-slate-200 dark:border-slate-700 text-right">
-              <span className="text-xs text-slate-400 italic">Perubahan disimpan secara otomatis.</span>
-             </div>
-          </div>
+            {!showResult && (
+              <p className="text-xs text-slate-400">Siswa tidak melihat apa pun setelah ujian selesai; hasil hanya tersedia untuk pengawas.</p>
+            )}
+          </Section>
         </div>
 
-        <div className="animate-fade-in-up md:col-span-1" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
-          <div className="space-y-6 sticky top-24">
-            <div className="p-6 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded-2xl text-center">
-              <h3 className="font-bold text-sky-800 dark:text-sky-400 text-lg">Kelola Soal</h3>
-              <p className="text-sm text-sky-700 dark:text-sky-300 mt-1 mb-4">Tambah, edit, atau import soal untuk ujian ini.</p>
-              <Link href={`/dashboard/exams/questions/${examId}`} className="inline-flex items-center justify-center w-full px-5 py-2.5 bg-sky-500 hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-700 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all shadow-md shadow-sky-200 dark:shadow-sky-900/30">
-                Ke Pengaturan Soal &rarr;
-              </Link>
+        {/* Kolom samping */}
+        <div className="lg:col-span-1">
+          <div className="space-y-4 lg:sticky lg:top-14">
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Ringkasan</h3>
+              <dl className="mt-3 space-y-2.5 text-sm">
+                <SummaryRow label="Jadwal" value={isScheduled ? 'Terjadwal' : 'Tanpa jadwal'} tone={isScheduled ? 'emerald' : 'amber'} />
+                <SummaryRow
+                  label="Metode waktu"
+                  value={timerMode === 'sync' ? 'Serentak' : 'Mandiri'}
+                />
+                <SummaryRow
+                  label="Durasi"
+                  value={timerMode === 'sync' ? 'Mengikuti jadwal' : `${durationMinutes || 0} menit`}
+                />
+                <SummaryRow label="Kelas" value={selectedClasses.length > 0 ? `${selectedClasses.length} dipilih` : 'Belum ada'} tone={selectedClasses.length > 0 ? 'default' : 'amber'} />
+                <SummaryRow label="Token" value={requireToken ? (tokenType === 'auto' ? 'Otomatis' : currentToken || 'Belum diisi') : 'Tanpa token'} tone={requireToken && tokenType === 'static' && !currentToken ? 'amber' : 'default'} />
+                <SummaryRow label="Acak soal" value={shuffleQuestions ? 'Aktif' : 'Nonaktif'} />
+                <SummaryRow label="Tindakan pelanggaran" value={{ abaikan: 'Abaikan', peringatan: 'Peringatan', kunci: 'Kunci Ujian' }[violationAction] || violationAction} />
+                <SummaryRow label="Hasil untuk siswa" value={showResult ? (showAnalysis ? 'Skor + analisis' : 'Skor saja') : 'Tidak ditampilkan'} />
+              </dl>
             </div>
 
-            <div className="p-6 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-center">
-              <h3 className="font-bold text-emerald-800 dark:text-emerald-400 text-lg">Hasil Ujian</h3>
-              <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1 mb-4">Lihat skor, analisis jawaban, dan ekspor data siswa.</p>
-              <Link href={`/dashboard/exams/results/${examId}`} className="inline-flex items-center justify-center w-full px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 active:scale-95 text-white text-sm font-semibold rounded-lg transition-all shadow-md shadow-emerald-200 dark:shadow-emerald-900/30">
-                <ClipboardList className="w-4 h-4 mr-2" />
-                Lihat Hasil Ujian
-              </Link>
-            </div>
+            <Link
+              href={`/dashboard/exams/questions/${examId}`}
+              className="block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+            >
+              <div className="flex items-start gap-3">
+                <span className="shrink-0 w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                  <ClipboardList size={17} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Kelola Soal</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tambah, edit, atau import soal ujian ini.</p>
+                </div>
+                <ChevronRight size={16} className="shrink-0 text-slate-300 dark:text-slate-600 mt-1" />
+              </div>
+            </Link>
+
+            <Link
+              href={`/dashboard/exams/results/${examId}`}
+              className="block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+            >
+              <div className="flex items-start gap-3">
+                <span className="shrink-0 w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                  <BarChart3Icon />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Hasil Ujian</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Lihat skor, analisis jawaban, dan ekspor data.</p>
+                </div>
+                <ChevronRight size={16} className="shrink-0 text-slate-300 dark:text-slate-600 mt-1" />
+              </div>
+            </Link>
           </div>
         </div>
-
       </div>
     </div>
+  );
+}
+
+const inputCls = 'w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 dark:focus:border-slate-500 transition-colors';
+
+const SECTIONS = [
+  { id: 'detail', label: 'Detail' },
+  { id: 'jadwal', label: 'Jadwal & Waktu' },
+  { id: 'kelas', label: 'Kelas' },
+  { id: 'keamanan', label: 'Keamanan' },
+  { id: 'token', label: 'Token' },
+  { id: 'petunjuk', label: 'Petunjuk' },
+  { id: 'hasil', label: 'Hasil' }
+];
+
+function Section({ id, title, description, children, open, onToggle, badge }) {
+  return (
+    <section id={id} className="scroll-mt-16 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+      >
+        <ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-bold text-slate-800 dark:text-slate-100">{title}</span>
+          {description && <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">{description}</span>}
+        </span>
+        {badge && (
+          <span className="shrink-0 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300">{badge}</span>
+        )}
+      </button>
+      {open && <div className="px-4 pb-4 pt-1 space-y-4">{children}</div>}
+    </section>
+  );
+}
+
+function Field({ label, htmlFor, hint, children }) {
+  return (
+    <div>
+      <label htmlFor={htmlFor} className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">{label}</label>
+      {children}
+      {hint && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">{hint}</p>}
+    </div>
+  );
+}
+
+function InlineNote({ tone = 'info', title, children }) {
+  const toneCls = tone === 'warning'
+    ? 'border-amber-300 dark:border-amber-800/70 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300'
+    : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300';
+  return (
+    <div className={`rounded-lg border px-3.5 py-3 ${toneCls}`}>
+      {title && <p className="text-xs font-bold mb-1">{title}</p>}
+      <p className="text-xs leading-relaxed">{children}</p>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value, tone = 'default' }) {
+  const toneCls = tone === 'emerald'
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : tone === 'amber'
+      ? 'text-amber-600 dark:text-amber-400'
+      : 'text-slate-700 dark:text-slate-200';
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-xs text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className={`text-xs font-semibold text-right ${toneCls}`}>{value}</dd>
+    </div>
+  );
+}
+
+function SaveIndicator({ state, saving }) {
+  const map = {
+    saving: { text: 'Menyimpan...', cls: 'text-slate-500 dark:text-slate-400', icon: <span className="w-3 h-3 border-2 border-slate-300 dark:border-slate-600 border-t-slate-600 dark:border-t-slate-300 rounded-full animate-spin" /> },
+    saved: { text: 'Semua perubahan tersimpan', cls: 'text-emerald-600 dark:text-emerald-400', icon: <CheckCircle2 size={14} /> },
+    error: { text: 'Gagal menyimpan', cls: 'text-red-600 dark:text-red-400', icon: <AlertCircle size={14} /> },
+    idle: { text: 'Perubahan tersimpan otomatis', cls: 'text-slate-400 dark:text-slate-500', icon: <Info size={14} /> }
+  };
+  const item = map[state] || map.idle;
+  return (
+    <div className={`shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold ${item.cls}`}>
+      {saving ? map.saving.icon : item.icon}
+      {saving ? map.saving.text : item.text}
+    </div>
+  );
+}
+
+function BarChart3Icon() {
+  return (
+    <svg className="w-[17px] h-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v18h18" />
+      <path d="M7 15l3-4 3 3 5-6" />
+    </svg>
   );
 }

@@ -11,6 +11,50 @@ import redis, { isRedisReady } from '@/app/lib/redis';
 import { publish } from '@/app/lib/redis-pubsub';
 import { invalidateExamCache } from '@/app/lib/exams';
 
+// Toleransi (detik) sebelum submit dianggap terlambat.
+// Menyerap latensi jaringan, perbedaan jam server/komputer siswa, dan delay
+// saat auto-submit dari timer-stream berebut masuk.
+const SUBMIT_GRACE_SECONDS = 120;
+
+// Jendela waktu (detik) di mana student masih boleh mengirim jawaban SESUDAH
+// attempt selesai. Diperlukan karena halaman siswa mengirim ulang jawaban dari
+// memoryright setelah auto-submit terjadi (submitAnswersSafeguard). Di luar
+// jendela ini jawaban dianggap terkunci.
+const POST_SUBMIT_GRACE_SECONDS = 180;
+
+// Tentukan batas waktu (epoch detik) dari sisi server.
+// Mengembalikan null kalau tidak bisa dihitung -> pemanggil harus fail-open.
+async function resolveAttemptDeadline(examId, attempt) {
+    const rows = await query({
+        query: `
+            SELECT e.timer_mode, e.duration_minutes,
+                   UNIX_TIMESTAMP(s.end_time) AS end_time_ts
+            FROM rhs_exams e
+            LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
+            WHERE e.id = ?
+        `,
+        values: [examId],
+    }).catch(() => []);
+
+    const exams = Array.isArray(rows) ? rows : [];
+
+    for (const exam of exams) {
+      if (exam.timer_mode === 'async') {
+        // Ujian async: waktu dihitung dari saat siswa mulai
+        const durationSeconds = (exam.duration_minutes || 0) * 60;
+        const startTs = Number(attempt.start_time_ts) || 0;
+        if (startTs > 0) return startTs + durationSeconds + ((attempt.time_extension || 0) * 60);
+      } else {
+        // Ujian sync: waktu selesai ditentukan pengajar
+        const endTs = Number(exam.end_time_ts) || 0;
+        if (endTs > 0) return endTs + ((attempt.time_extension || 0) * 60);
+      }
+    }
+
+    // Tidak ada deadline yang bisa dihitung -> fail-open (biarkan submit)
+    return null;
+}
+
 async function getSession() {
   const cookieStore = await cookies();
   return await getIronSession(cookieStore, sessionOptions);
@@ -33,7 +77,14 @@ export async function POST(request) {
 
     // 0. Validasi attempt milik user ini (mencegah submit ngintip attempt orang lain)
     const attemptRows = await query({
-      query: 'SELECT id, status FROM rhs_exam_attempts WHERE id = ? AND user_id = ? AND exam_id = ?',
+      query: `
+        SELECT id, status,
+               UNIX_TIMESTAMP(start_time) AS start_time_ts,
+               UNIX_TIMESTAMP(end_time) AS end_time_ts,
+               time_extension
+        FROM rhs_exam_attempts
+        WHERE id = ? AND user_id = ? AND exam_id = ?
+      `,
       values: [attemptId, session.user.id, examId],
     });
 
@@ -50,12 +101,75 @@ export async function POST(request) {
     });
     const requireAllAnswered = settingsRows.length > 0 && Boolean(settingsRows[0].require_all_answered);
 
+    // 1b. Deadline check SERVER-SIDE.
+    // Timer di browser sama sekali tidak bisa dipercaya (user bisa freeze jam /
+    // manipulate localStorage), jadi batas waktu harus ditegakkan di server.
+    //
+    // Fail-open: kalau deadline tidak bisa dihitung (setting belum ada, null, dll)
+    // submit tetap DIIZINKAN. Tujuannya menutup jalur submit-terlambat, bukan
+    // mengunci siswa karena konfigurasi yang belum lengkap.
+    let deadlinePassed = false;
+    if (attemptStatus === 'in_progress') {
+      const deadline = await resolveAttemptDeadline(examId, attemptRows[0]);
+
+      if (deadline !== null) {
+        const now_ts = Math.floor(Date.now() / 1000);
+        // Grace period 120 detik untuk menyerap latensi jaringan & selisih jam.
+        deadlinePassed = now_ts > deadline + SUBMIT_GRACE_SECONDS;
+        if (deadlinePassed) {
+          logFromRequest(request, session, 'EXAM_SUBMIT_REJECTED_LATE', 'warn', {
+            examId,
+            attemptId,
+            secondsPastDeadline: now_ts - deadline,
+          });
+          return NextResponse.json(
+            { message: 'Waktu ujian sudah habis. Jawaban dikumpulkan otomatis oleh sistem.' },
+            { status: 409 }
+          );
+        }
+      }
+    }
+
+    // 1c. Cegah penulisan ulang jawaban setelah attempt benar-benar selesai.
+    //
+    // Client memanggil endpoint ini lagi sesaat setelah auto-submit untuk
+    // mem-"safeguard" jawaban yang masih ada di memory (lihat
+    // submitAnswersSafeguard di halaman siswa). Itu alur yang sah dan harus
+    // tetap jalan - jadi kita izinkan dalam jendela waktu singkat.
+    //
+    // Di luar jendela itu, request DITOLAK: tanpa ini student bisa mengirim
+    // POST ulang ke /api/exams/submit kapan saja dan menimpa selected_option,
+    // is_correct, serta score_earned di tabel hasil.
+    if (attemptStatus !== 'in_progress') {
+      const completedTs = Number(attemptRows[0].end_time_ts) || 0;
+      const now_ts = Math.floor(Date.now() / 1000);
+      const secondsSinceDone = completedTs > 0 ? now_ts - completedTs : Infinity;
+
+      if (completedTs === 0 || secondsSinceDone > POST_SUBMIT_GRACE_SECONDS) {
+        logFromRequest(request, session, 'EXAM_SUBMIT_REJECTED_LOCKED', 'warn', {
+          examId,
+          attemptId,
+          attemptStatus,
+          secondsSinceDone: Number.isFinite(secondsSinceDone) ? secondsSinceDone : null,
+        });
+        return NextResponse.json(
+          { message: 'Ujian sudah selesai dan jawaban sudah dikunci.' },
+          { status: 409 }
+        );
+      }
+    }
+
     // 2. Penilaian (SAMA dengan auto-submit server -> app/lib/grading.js)
     const grading = await gradeAnswers(examId, answers || {});
     const { score, maxPoints, earnedPoints, questionIds, rows } = grading;
 
-    // 3. Check require_all_answered
-    if (requireAllAnswered && questionIds.length > 0 && !isForce && attemptStatus === 'in_progress') {
+    // 3. Check require_all_answered.
+    // Catatan: `isForce` dari body request TIDAK lagi dipakai untuk melewati aturan
+    // ini, karena student bisa mengirimnya sendiri untuk bypass.
+    // Kalau waktu sudah habis, student tidak boleh mengirim jawaban baru sama
+    // sekali (lihat deadline check di atas) - jawaban yang sudah tersimpan di
+    // temp-answer tetap dinilai oleh auto-submit server.
+    if (requireAllAnswered && questionIds.length > 0 && attemptStatus === 'in_progress') {
       const answeredQuestionIds = new Set(
         Object.keys(answers || {}).filter(id => answers[id] !== null && answers[id] !== undefined && answers[id] !== '')
       );

@@ -1,4 +1,4 @@
-import { query, transaction } from './db';
+import { query, transaction, ensureArchiveSchema } from './db';
 import { calculateQuestionScore } from './scoring';
 import { loadExamQuestions, resolveIsCorrect } from './grading';
 import redis, { isRedisReady } from './redis';
@@ -297,6 +297,8 @@ export async function invalidateExamCache(examId) {
 export async function getExamsList(user, forceFresh = false) {
     if (!user) return [];
 
+    await ensureArchiveSchema();
+
     const { id: userId, roleName: role, class_id: classId } = user;
     let exams;
     const listCacheKey = role === 'student' ? `exams:list:class:${classId}` : `exams:list:${role}:${userId}`;
@@ -332,6 +334,7 @@ export async function getExamsList(user, forceFresh = false) {
             examsQuery += `
                 INNER JOIN rhs_exam_classes ec ON e.id = ec.exam_id
                 WHERE ec.class_id = ? AND e.is_hidden = FALSE 
+                AND COALESCE(e.is_archived, FALSE) = FALSE
                 AND (c.id IS NULL OR (c.is_hidden = FALSE AND c.is_admin_hidden = FALSE))
             `;
             queryValues.push(classId || -1);
@@ -420,12 +423,14 @@ export async function getExamsList(user, forceFresh = false) {
 export async function getCategoriesList(user) {
     if (!user) return [];
 
+    await ensureArchiveSchema();
+
     const { roleName: role } = user;
-    let categoriesQuery = `SELECT id, name, created_by, created_at, is_hidden, is_hidden as isHidden, sort_order, is_admin_hidden, is_admin_hidden as isAdminHidden FROM rhs_exam_categories`;
+    let categoriesQuery = `SELECT id, name, created_by, created_at, is_hidden, is_hidden as isHidden, sort_order, is_admin_hidden, is_admin_hidden as isAdminHidden, COALESCE(is_archived, FALSE) as is_archived, COALESCE(is_archived, FALSE) as isArchived FROM rhs_exam_categories`;
     let queryValues = [];
 
     if (role === 'student') {
-        categoriesQuery += ` WHERE is_admin_hidden = FALSE AND is_hidden = FALSE`;
+        categoriesQuery += ` WHERE is_admin_hidden = FALSE AND is_hidden = FALSE AND COALESCE(is_archived, FALSE) = FALSE`;
     } else if (role !== 'admin') {
         categoriesQuery += ` WHERE is_admin_hidden = FALSE`;
     }

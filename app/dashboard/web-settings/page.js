@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTheme } from '@/app/components/ThemeProvider';
 import { useLanguage } from '@/app/context/LanguageContext';
 import Link from 'next/link';
 import Cropper from 'react-easy-crop';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
+import { Palette, Languages, Smartphone, UserCog, ShieldAlert, RotateCcw, Monitor, FileText, Users, FolderArchive, Save, LoaderCircle, ChevronRight, X, Info, Lock, LockOpen, TriangleAlert, KeyRound, ImagePlus, RefreshCw, Clock } from 'lucide-react';
+import { getSupportedTimezones, DEFAULT_TIMEZONE } from '@/app/lib/timezone';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
@@ -17,10 +19,51 @@ export default function WebSettingsPage() {
     const [lockedUsers, setLockedUsers] = useState([]);
     const [unlocking, setUnlocking] = useState({});
     const [unlockingAll, setUnlockingAll] = useState(false);
-    const { t, lang, setLang } = useLanguage();
+    const { t, lang, setLang, timezone: appTimezone, setTimezone: setAppTimezone, fmt } = useLanguage();
     const [selectedLang, setSelectedLang] = useState(lang);
     const [langSaving, setLangSaving] = useState(false);
+    const [selectedTimezone, setSelectedTimezone] = useState(appTimezone || DEFAULT_TIMEZONE);
+    const [tzSaving, setTzSaving] = useState(false);
     const [resetUnlocking, setResetUnlocking] = useState(false);
+
+    // Daftar zona waktu diambil dari runtime (Intl) supaya selalu sesuai dengan
+    // data IANA yang didukung Node/browser versi ini.
+    const TIMEZONE_OPTIONS = useMemo(() => {
+        const list = getSupportedTimezones();
+        return list.map(value => ({
+            value,
+            label: value.replace(/_/g, ' '),
+        }));
+    }, []);
+
+    // Ikuti perubahan timezone dari luar (mis. setelah simpan) supaya preview akurat.
+    useEffect(() => {
+        setSelectedTimezone(appTimezone || DEFAULT_TIMEZONE);
+    }, [appTimezone]);
+
+    const handleTimezoneSave = async () => {
+        setTzSaving(true);
+        try {
+            const res = await fetch('/api/web-settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: 'app_timezone', value: selectedTimezone }),
+            });
+            if (res.ok) {
+                // Terapkan langsung tanpa reload supaya seluruh halaman ikut berubah.
+                setAppTimezone(selectedTimezone);
+                setSettings(prev => ({ ...prev, app_timezone: selectedTimezone }));
+                toast.success(t('admin_tz_success'));
+            } else {
+                const d = await res.json();
+                toast.error(d.message || t('admin_error_settings_save'));
+            }
+        } catch {
+            toast.error(t('admin_generic_error'));
+        } finally {
+            setTzSaving(false);
+        }
+    };
 
     // Cropper State
     const [cropImage, setCropImage] = useState(null);
@@ -230,436 +273,304 @@ export default function WebSettingsPage() {
         }
     };
 
-    const getRoleColorClasses = (color) => {
-        const map = {
-            rose: { bg: 'bg-rose-50 dark:bg-rose-950/30', border: 'border-rose-200 dark:border-rose-800', text: 'text-rose-700 dark:text-rose-400', badge: 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 ring-rose-200 dark:ring-rose-800' },
-            amber: { bg: 'bg-amber-50 dark:bg-amber-950/30', border: 'border-amber-200 dark:border-amber-800', text: 'text-amber-700 dark:text-amber-400', badge: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 ring-amber-200 dark:ring-amber-800' },
-            sky: { bg: 'bg-sky-50 dark:bg-sky-950/30', border: 'border-sky-200 dark:border-sky-800', text: 'text-sky-700 dark:text-sky-400', badge: 'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 ring-sky-200 dark:ring-sky-800' },
-        };
-        return map[color] || map.sky;
-    };
-
     if (loading) {
         return (
-            <div className="max-w-4xl mx-auto space-y-6 animate-pulse">
-                <div className="h-8 w-48 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
-                <div className="space-y-4">
-                    {[1, 2, 3].map(i => (
-                        <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl p-6 h-40"></div>
-                    ))}
-                </div>
+            <div className="space-y-5">
+                <div className="h-7 w-56 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+                <div className="h-12 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+                {[0, 1, 2].map(i => (
+                    <div key={i} className="h-48 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 animate-pulse" />
+                ))}
             </div>
         );
     }
 
-    return (
-        <div className="max-w-4xl mx-auto space-y-6">
-            <style dangerouslySetInnerHTML={{ __html: `
-                @keyframes fadeInUp {
-                  from {
-                    opacity: 0;
-                    transform: translateY(15px);
-                  }
-                  to {
-                    opacity: 1;
-                    transform: translateY(0);
-                  }
-                }
-                @keyframes fadeInDown {
-                  from {
-                    opacity: 0;
-                    transform: translateY(-15px);
-                  }
-                  to {
-                    opacity: 1;
-                    transform: translateY(0);
-                  }
-                }
-                .animate-fade-in-down {
-                  animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-                }
-                .animate-fade-in-up {
-                  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-                  opacity: 0;
-                }
-            ` }} />
-
-            {/* Page Title */}
-            <div className="animate-fade-in-down flex items-center gap-3">
-                <div className="p-2.5 bg-gradient-to-br from-slate-600 to-slate-800 dark:from-slate-700 dark:to-slate-900 rounded-xl shadow-lg shadow-slate-500/20">
-                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                </div>
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t('admin_title')}</h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">{t('admin_subtitle')}</p>
-                </div>
+return (
+        <div className="space-y-5">
+            {/* Header */}
+            <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{t('admin_title')}</h1>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                    {t('admin_subtitle')} Setiap bagian punya tombol simpan sendiri.
+                </p>
             </div>
 
-            {/* Quick Navigation Cards */}
-            <div className="animate-fade-in-up grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
-                <Link href="/dashboard/system-overview" className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 dark:from-indigo-500/10 dark:to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="relative flex items-start gap-4">
-                        <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                        </div>
-                        <div className="flex-1">
-                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{t('admin_nav_overview')}</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('admin_nav_overview_desc')}</p>
-                        </div>
-                        <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </div>
-                </Link>
+            {/* Navigasi section */}
+            <nav className="sticky top-0 z-20 -mx-1 px-1 py-2 bg-slate-50 dark:bg-slate-950/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800">
+                <div className="flex gap-1.5 overflow-x-auto">
+                    {SETTINGS_SECTIONS.map(s => (
+                        <a
+                            key={s.id}
+                            href={`#${s.id}`}
+                            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors"
+                        >
+                            {s.label}
+                        </a>
+                    ))}
+                </div>
+            </nav>
 
-                <Link href="/dashboard/database" className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-emerald-300 dark:hover:border-emerald-600 transition-all duration-300 overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 dark:from-emerald-500/10 dark:to-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="relative flex items-start gap-4">
-                        <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/40 rounded-xl text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-                            </svg>
-                        </div>
-                        <div className="flex-1">
-                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{t('admin_nav_db')}</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('admin_nav_db_desc')}</p>
-                        </div>
-                        <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </div>
-                </Link>
-
-                <Link href="/dashboard/activity-logs" className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-amber-300 dark:hover:border-amber-600 transition-all duration-300 overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-500/5 dark:from-amber-500/10 dark:to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="relative flex items-start gap-4">
-                        <div className="p-2.5 bg-amber-100 dark:bg-amber-900/40 rounded-xl text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                        </div>
-                        <div className="flex-1">
-                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">{t('admin_nav_logs')}</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('admin_nav_logs_desc')}</p>
-                        </div>
-                        <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-amber-500 dark:group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </div>
-                </Link>
-
-                <Link href="/dashboard/session-control" className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-rose-300 dark:hover:border-rose-600 transition-all duration-300 overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-indigo-500/5 dark:from-rose-500/10 dark:to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="relative flex items-start gap-4">
-                        <div className="p-2.5 bg-rose-100 dark:bg-rose-900/40 rounded-xl text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                            </svg>
-                        </div>
-                        <div className="flex-1">
-                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">{t('admin_nav_session')}</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('admin_nav_session_desc')}</p>
-                        </div>
-                        <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-rose-500 dark:group-hover:text-rose-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </div>
-                </Link>
-
-                <Link href="/dashboard/archive-answers" className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-lg hover:border-sky-300 dark:hover:border-sky-600 transition-all duration-300 overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 to-slate-500/5 dark:from-sky-500/10 dark:to-slate-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="relative flex items-start gap-4">
-                        <div className="p-2.5 bg-sky-100 dark:bg-sky-900/40 rounded-xl text-sky-600 dark:text-sky-400 group-hover:scale-110 transition-transform">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8v13h14a2 2 0 002-2V8M5 8l1.5-4h11L19 8M5 8h14M10 12h4" />
-                            </svg>
-                        </div>
-                        <div className="flex-1">
-                            <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">{t('admin_nav_archive')}</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('admin_nav_archive_desc')}</p>
-                        </div>
-                        <svg className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-sky-500 dark:group-hover:text-sky-400 group-hover:translate-x-0.5 transition-all mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </div>
-                </Link>
+            {/* Shortcut ke halaman admin lain */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                <QuickLink href="/dashboard/system-overview" icon={<Monitor size={16} />} title={t('admin_nav_overview')} desc={t('admin_nav_overview_desc')} />
+                <QuickLink href="/dashboard/activity-logs" icon={<FileText size={16} />} title={t('admin_nav_logs')} desc={t('admin_nav_logs_desc')} />
+                <QuickLink href="/dashboard/session-control" icon={<Users size={16} />} title={t('admin_nav_session')} desc={t('admin_nav_session_desc')} />
+                <QuickLink href="/dashboard/archive-answers" icon={<FolderArchive size={16} />} title={t('admin_nav_archive')} desc={t('admin_nav_archive_desc')} />
             </div>
 
-            {/* Site Branding Section */}
-            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
-                <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-blue-50/30 dark:from-slate-700/50 dark:to-blue-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-                    <div className="p-1.5 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
-                        <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+            {/* Identitas Website */}
+            <SettingsSection id="branding" icon={<Palette size={16} />} title={t('admin_branding_title')} desc={t('admin_branding_desc')}>
+                <SettingRow
+                    label={t('admin_branding_site_name_label')}
+                    desc={t('admin_branding_site_name_desc')}
+                    control={(
+                        <SaveButton
+                            saving={saving.site_name}
+                            onClick={async () => {
+                                setSaving(prev => ({ ...prev, site_name: true }));
+                                try {
+                                    const res = await fetch('/api/web-settings', {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ key: 'site_name', value: settings.site_name || 'Rushless Exam' }),
+                                    });
+                                    if (res.ok) {
+                                        toast.success(t('admin_success_settings_save'));
+                                    } else {
+                                        const d = await res.json();
+                                        toast.error(d.message || t('admin_error_settings_save'));
+                                    }
+                                } catch { toast.error(t('admin_generic_error')); }
+                                finally { setSaving(prev => ({ ...prev, site_name: false })); }
+                            }}
+                            label={t('admin_branding_name_btn')}
+                        />
+                    )}
+                >
+                    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
+                        <JoditEditor
+                            value={settings.site_name || ''}
+                            onBlur={(newContent) => setSettings(prev => ({ ...prev, site_name: newContent }))}
+                            config={{
+                                readonly: saving.site_name,
+                                toolbarInline: true,
+                                theme: 'default',
+                                hidePoweredByJodit: true,
+                                placeholder: t('admin_branding_name_placeholder'),
+                            }}
+                        />
                     </div>
-                    <div>
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('admin_branding_title')}</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('admin_branding_desc')}</p>
-                    </div>
-                </div>
-                <div className="p-5 space-y-6">
-                    {/* Site Name Input */}
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                        <div className="md:max-w-xs">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_branding_site_name_label')}</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_branding_site_name_desc')}</p>
-                        </div>
-                        <div className="flex flex-col gap-3 w-full md:w-[65%]">
-                            <div className="border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden prose-sm bg-white dark:bg-slate-700 min-h-[100px]">
-                                <JoditEditor
-                                    value={settings.site_name || ''}
-                                    onBlur={newContent => setSettings(prev => ({ ...prev, site_name: newContent }))}
-                                    config={{
-                                        readonly: saving.site_name,
-                                        toolbarInline: true,
-                                        theme: 'default',
-                                        hidePoweredByJodit: true,
-                                        placeholder: t('admin_branding_name_placeholder'),
-                                    }}
-                                />
-                            </div>
-                            <div className="flex justify-end">
-                                <button
-                                    onClick={async () => {
-                                        setSaving(prev => ({ ...prev, site_name: true }));
-                                        try {
-                                            const res = await fetch('/api/web-settings', {
-                                                method: 'PUT',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ key: 'site_name', value: settings.site_name || 'Rushless Exam' }),
-                                            });
-                                            if (res.ok) {
-                                                toast.success(t('admin_success_settings_save'));
-                                            } else {
-                                                const d = await res.json();
-                                                toast.error(d.message || t('admin_error_settings_save'));
-                                            }
-                                        } catch { toast.error(t('admin_generic_error')); }
-                                        finally { setSaving(prev => ({ ...prev, site_name: false })); }
-                                    }}
-                                    disabled={saving.site_name}
-                                    className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
-                                >
-                                    {saving.site_name ? '...' : t('admin_branding_name_btn')}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                </SettingRow>
 
-                    <div className="border-t border-slate-100 dark:border-slate-700/50" />
+                <div className="h-px bg-slate-100 dark:border-slate-800" />
 
-                    {/* Site Logo Uploader Placeholder */}
-                    <div className="flex flex-col sm:flex-row justify-between gap-5">
-                        <div className="flex-1">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">{t('admin_branding_logo_title')}</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500 mb-4 cursor-pointer hover:underline" onClick={() => document.getElementById('logoInput').click()}>
-                                {t('admin_branding_logo_desc')}
-                            </p>
-                            <input 
-                                type="file" 
-                                id="logoInput" 
-                                accept="image/*" 
-                                className="hidden" 
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="sm:max-w-xs">
+                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('admin_branding_logo_title')}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{t('admin_branding_logo_desc')}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        {settings.site_logo && (
+                            <div className="w-16 h-16 shrink-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-1.5">
+                                <img src={settings.site_logo} alt="Logo saat ini" className="max-w-full max-h-full object-contain" />
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="file"
+                                id="logoInput"
+                                accept="image/*"
+                                className="hidden"
                                 onChange={(e) => {
-                                    if(e.target.files && e.target.files.length > 0) {
+                                    if (e.target.files && e.target.files.length > 0) {
                                         const reader = new FileReader();
                                         reader.onload = () => setCropImage(reader.result);
                                         reader.readAsDataURL(e.target.files[0]);
-                                        e.target.value = ''; // Reset
+                                        e.target.value = '';
                                     }
-                                }} 
-                            />
-                             <button
-                                onClick={() => document.getElementById('logoInput').click()}
-                                className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded-lg text-sm font-semibold border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors"
-                            >
-                                {t('admin_branding_logo_btn')}
-                            </button>
-                            {saving.site_logo && <span className="ml-3 text-xs text-slate-500 animate-pulse">{t('admin_branding_logo_saving')}</span>}
-                        </div>
-                        {settings.site_logo && (
-                            <div className="flex-shrink-0 flex flex-col items-center">
-                                <p className="text-xs text-slate-400 dark:text-slate-500 mb-2">{t('admin_branding_logo_current')}</p>
-                                <div className="w-20 h-20 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden p-2 shadow-inner">
-                                    <img src={settings.site_logo} alt="Current Site Logo" className="max-w-full max-h-full object-contain" />
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Language Section */}
-            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden" style={{ animationDelay: '250ms', animationFillMode: 'forwards' }}>
-                <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-violet-50/30 dark:from-slate-700/50 dark:to-violet-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-                    <div className="p-1.5 bg-violet-100 dark:bg-violet-900/40 rounded-lg">
-                        <svg className="w-4 h-4 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('admin_lang_title')}</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('admin_lang_desc')}</p>
-                    </div>
-                </div>
-                <div className="p-5">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-                        <div>
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_lang_label')}</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_lang_info')}</p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex w-full sm:w-auto rounded-xl overflow-hidden border border-slate-200 dark:border-slate-600 shadow-sm">
-                                <button
-                                    onClick={() => setSelectedLang('id')}
-                                    className={`flex-1 sm:flex-none px-4 py-2.5 text-sm font-bold transition-all ${
-                                        selectedLang === 'id'
-                                            ? 'bg-violet-600 text-white'
-                                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-                                    }`}
-                                >
-                                    🇮🇩 Indo
-                                </button>
-                                <button
-                                    onClick={() => setSelectedLang('en')}
-                                    className={`flex-1 sm:flex-none px-4 py-2.5 text-sm font-bold transition-all border-l border-slate-200 dark:border-slate-600 ${
-                                        selectedLang === 'en'
-                                            ? 'bg-violet-600 text-white'
-                                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-                                    }`}
-                                >
-                                    🇺🇸 English
-                                </button>
-                            </div>
-                            <button
-                                onClick={handleLanguageSave}
-                                disabled={langSaving}
-                                className="w-full sm:w-auto px-6 py-2.5 text-sm font-bold text-white bg-violet-600 hover:bg-violet-700 rounded-xl shadow-lg shadow-violet-100 dark:shadow-none transition-all disabled:opacity-50"
-                            >
-                                {langSaving ? '...' : t('users_btn_save')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Android App Configuration Section */}
-            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden" style={{ animationDelay: '300ms', animationFillMode: 'forwards' }}>
-                <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-emerald-50/30 dark:from-slate-700/50 dark:to-emerald-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-                    <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg">
-                        <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('admin_android_title')}</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('admin_android_desc')}</p>
-                    </div>
-                </div>
-                <div className="p-5">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-                        <div className="md:max-w-xs">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_android_emergency_label')}</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_android_emergency_desc')}</p>
-                        </div>
-                        <div className="flex items-center gap-3 w-full md:w-auto">
-                            <div className="relative flex-1 sm:flex-none">
-                                <input
-                                    type="text"
-                                    placeholder={t('admin_android_emergency_placeholder')}
-                                    value={settings.app_emergency_password || ''}
-                                    onChange={(e) => setSettings(prev => ({ ...prev, app_emergency_password: e.target.value }))}
-                                    className="w-full sm:w-48 px-4 py-2.5 text-sm font-bold bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                                />
-                            </div>
-                            <button
-                                onClick={async () => {
-                                    const key = 'app_emergency_password';
-                                    setSaving(prev => ({ ...prev, [key]: true }));
-                                    try {
-                                        const res = await fetch('/api/web-settings', {
-                                            method: 'PUT',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ key, value: settings[key] }),
-                                        });
-                                        if (res.ok) {
-                                            toast.success(t('admin_android_success_save'));
-                                        } else {
-                                            const d = await res.json();
-                                            toast.error(d.message || t('admin_error_settings_save'));
-                                        }
-                                    } catch { toast.error(t('admin_generic_error')); }
-                                    finally { setSaving(prev => ({ ...prev, [key]: false })); }
                                 }}
-                                disabled={saving.app_emergency_password}
-                                className="px-6 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg shadow-emerald-100 dark:shadow-none transition-all disabled:opacity-50"
+                            />
+                            <button
+                                onClick={() => document.getElementById('logoInput').click()}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                             >
-                                {saving.app_emergency_password ? '...' : t('users_btn_save')}
+                                <ImagePlus size={15} />
+                                {settings.site_logo ? 'Ganti Logo' : t('admin_branding_logo_btn')}
                             </button>
+                            {saving.site_logo && (
+                                <span className="text-xs text-slate-500 animate-pulse">{t('admin_branding_logo_saving')}</span>
+                            )}
                         </div>
                     </div>
                 </div>
-            </div>
+            </SettingsSection>
 
-            {/* Profile Permissions Section */}
-            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden" style={{ animationDelay: '350ms', animationFillMode: 'forwards' }}>
-                <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-indigo-50/30 dark:from-slate-700/50 dark:to-indigo-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-                    <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg">
-                        <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
+            {/* Bahasa */}
+            <SettingsSection id="language" icon={<Languages size={16} />} title={t('admin_lang_title')} desc={t('admin_lang_desc')}>
+                <SettingRow
+                    label={t('admin_lang_label')}
+                    desc={t('admin_lang_info')}
+                    control={(
+                        <SaveButton
+                            saving={langSaving}
+                            onClick={handleLanguageSave}
+                            label={t('users_btn_save')}
+                        />
+                    )}
+                >
+                    <div className="inline-flex p-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                        {[
+                            { key: 'id', label: 'Indo', flag: '🇮🇩' },
+                            { key: 'en', label: 'English', flag: '🇺🇸' }
+                        ].map(l => (
+                            <button
+                                key={l.key}
+                                onClick={() => setSelectedLang(l.key)}
+                                aria-pressed={selectedLang === l.key}
+                                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${selectedLang === l.key
+                                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                            >
+                                <span>{l.flag}</span>
+                                {l.label}
+                            </button>
+                        ))}
                     </div>
-                    <div>
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('admin_permissions_title')}</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('admin_permissions_desc')}</p>
-                    </div>
-                </div>
+                </SettingRow>
+            </SettingsSection>
 
-                <div className="overflow-x-hidden md:overflow-x-auto">
-                    {/* Desktop Table */}
-                    <table className="w-full hidden md:table">
+            {/* Zona Waktu */}
+            <SettingsSection id="timezone" icon={<Clock size={16} />} title={t('admin_tz_title')} desc={t('admin_tz_desc')}>
+                <SettingRow
+                    label={t('admin_tz_label')}
+                    desc={t('admin_tz_desc')}
+                    control={(
+                        <SaveButton
+                            saving={tzSaving}
+                            onClick={handleTimezoneSave}
+                            label={t('users_btn_save')}
+                        />
+                    )}
+                >
+                    <div className="space-y-2">
+                        <select
+                            value={selectedTimezone}
+                            onChange={(e) => setSelectedTimezone(e.target.value)}
+                            aria-label={t('admin_tz_label')}
+                            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors"
+                        >
+                            {TIMEZONE_OPTIONS.map(tz => (
+                                <option key={tz.value} value={tz.value}>
+                                    {tz.label}
+                                </option>
+                            ))}
+                        </select>
+
+                        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                            <Info size={13} className="shrink-0" />
+                            <span>
+                                {t('admin_tz_preview')}{' '}
+                                <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">
+                                    {fmt.clock(new Date())}
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                </SettingRow>
+            </SettingsSection>
+
+            {/* Konfigurasi Android */}
+            <SettingsSection id="android" icon={<Smartphone size={16} />} title={t('admin_android_title')} desc={t('admin_android_desc')}>
+                <SettingRow
+                    label={t('admin_android_emergency_label')}
+                    desc={t('admin_android_emergency_desc')}
+                    control={(
+                        <SaveButton
+                            saving={saving.app_emergency_password}
+                            onClick={async () => {
+                                const key = 'app_emergency_password';
+                                setSaving(prev => ({ ...prev, [key]: true }));
+                                try {
+                                    const res = await fetch('/api/web-settings', {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ key, value: settings[key] }),
+                                    });
+                                    if (res.ok) {
+                                        toast.success(t('admin_android_success_save'));
+                                    } else {
+                                        const d = await res.json();
+                                        toast.error(d.message || t('admin_error_settings_save'));
+                                    }
+                                } catch { toast.error(t('admin_generic_error')); }
+                                finally { setSaving(prev => ({ ...prev, [key]: false })); }
+                            }}
+                            label={t('users_btn_save')}
+                        />
+                    )}
+                >
+                    <input
+                        type="text"
+                        placeholder={t('admin_android_emergency_placeholder')}
+                        value={settings.app_emergency_password || ''}
+                        onChange={(e) => setSettings(prev => ({ ...prev, app_emergency_password: e.target.value }))}
+                        aria-label={t('admin_android_emergency_label')}
+                        className="w-full sm:w-64 px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
+                    />
+                </SettingRow>
+            </SettingsSection>
+
+            {/* Hak Akses */}
+            <SettingsSection
+                id="permissions"
+                icon={<UserCog size={16} />}
+                title={t('admin_permissions_title')}
+                desc={t('admin_permissions_desc')}
+                action={(
+                    <div className="flex flex-wrap items-center gap-2">
+                        {roles.map(role => {
+                            const enabled = permissions.filter(p => settings[`${role.key}_${p.key}`]).length;
+                            return (
+                                <span key={role.key} className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                                    {role.icon} {role.label}: {enabled}/{permissions.length}
+                                </span>
+                            );
+                        })}
+                    </div>
+                )}
+            >
+                {/* Desktop: tabel permission */}
+                <div className="hidden md:block overflow-x-auto -mx-4 px-4">
+                    <table className="w-full">
                         <thead>
-                            <tr className="border-b border-slate-100 dark:border-slate-700">
-                                <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-5 py-3">Permission</th>
+                            <tr className="border-b border-slate-200 dark:border-slate-800">
+                                <th className="text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 px-3 py-2.5">Permission</th>
                                 {roles.map(role => (
-                                    <th key={role.key} className="text-center text-xs font-semibold px-4 py-3 whitespace-nowrap">
-                                        <span className={`inline-flex items-center gap-1.5 ${getRoleColorClasses(role.color).text}`}>
-                                            <span>{role.icon}</span>
-                                            <span>{role.label}</span>
-                                        </span>
+                                    <th key={role.key} className="text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 px-3 py-2.5 whitespace-nowrap">
+                                        {role.icon} {role.label}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
-                        <tbody>
-                            {permissions.map((perm, idx) => (
-                                <tr key={perm.key} className={`border-b border-slate-50 dark:border-slate-700/50 last:border-0 ${idx % 2 === 0 ? '' : 'bg-slate-50/50 dark:bg-slate-700/20'}`}>
-                                    <td className="px-5 py-3">
-                                        <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{perm.label}</p>
-                                        <p className="text-xs text-slate-400 dark:text-slate-500">{perm.description}</p>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {permissions.map(perm => (
+                                <tr key={perm.key} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                                    <td className="px-3 py-3">
+                                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{perm.label}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">{perm.description}</p>
                                     </td>
                                     {roles.map(role => {
                                         const settingKey = `${role.key}_${perm.key}`;
                                         const isEnabled = settings[settingKey] ?? false;
                                         const isSaving = saving[settingKey] ?? false;
                                         return (
-                                            <td key={settingKey} className="px-4 py-3 text-center">
-                                                <button
-                                                    onClick={() => handleToggle(settingKey)}
+                                            <td key={settingKey} className="px-3 py-3 text-center">
+                                                <ToggleSwitch
+                                                    checked={isEnabled}
                                                     disabled={isSaving}
-                                                    className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 disabled:opacity-50 disabled:cursor-not-allowed ${isEnabled ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
-                                                    role="switch"
-                                                    aria-checked={isEnabled}
-                                                >
-                                                    <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                                                </button>
+                                                    label={`${role.label} - ${perm.label}`}
+                                                    onChange={() => handleToggle(settingKey)}
+                                                />
                                             </td>
                                         );
                                     })}
@@ -667,213 +578,164 @@ export default function WebSettingsPage() {
                             ))}
                         </tbody>
                     </table>
-
-                    {/* Mobile Card List */}
-                    <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700">
-                        {permissions.map(perm => (
-                            <div key={perm.key} className="p-5 space-y-4">
-                                <div>
-                                    <p className="text-sm font-bold text-slate-900 dark:text-white">{perm.label}</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">{perm.description}</p>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {roles.map(role => {
-                                        const settingKey = `${role.key}_${perm.key}`;
-                                        const isEnabled = settings[settingKey] ?? false;
-                                        const isSaving = saving[settingKey] ?? false;
-                                        const color = getRoleColorClasses(role.color);
-                                        return (
-                                            <div 
-                                                key={settingKey} 
-                                                onClick={() => !isSaving && handleToggle(settingKey)}
-                                                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${
-                                                    isEnabled 
-                                                        ? `${color.bg} ${color.border}` 
-                                                        : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 opacity-60'
-                                                }`}
-                                            >
-                                                <span className="text-lg mb-1">{role.icon}</span>
-                                                <span className={`text-[10px] font-bold uppercase tracking-tighter ${isEnabled ? color.text : 'text-slate-400'}`}>
-                                                    {role.label}
-                                                </span>
-                                                <div className={`mt-2 w-full h-1 rounded-full ${isEnabled ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}>
-                                                    {isSaving && <div className="h-full bg-indigo-400 animate-pulse rounded-full" />}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            {/* Brute Force Protection Section */}
-            <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden" style={{ animationDelay: '400ms', animationFillMode: 'forwards' }}>
-                <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-red-50/30 dark:from-slate-700/50 dark:to-red-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-                    <div className="p-1.5 bg-red-100 dark:bg-red-900/40 rounded-lg">
-                        <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('admin_bruteforce_title')}</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('admin_bruteforce_desc')}</p>
-                    </div>
                 </div>
 
-                <div className="p-5 space-y-4">
-                    {/* Max Attempts */}
-                    {/* Max Attempts */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="md:max-w-xs">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_bruteforce_max_label')}</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_bruteforce_max_desc')}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <div className="flex-1 flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="50"
-                                    value={settings.bruteforce_max_attempts ?? 5}
-                                    onChange={(e) => setSettings(prev => ({ ...prev, bruteforce_max_attempts: parseInt(e.target.value) || 1 }))}
-                                    className="w-16 bg-transparent text-center font-bold text-slate-900 dark:text-white outline-none"
-                                />
-                                <span className="text-xs font-bold text-slate-400 uppercase">Kali</span>
+                {/* Mobile: kartu permission */}
+                <div className="md:hidden space-y-3">
+                    {permissions.map(perm => (
+                        <div key={perm.key} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3.5">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{perm.label}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 mb-3">{perm.description}</p>
+                            <div className="grid grid-cols-3 gap-2">
+                                {roles.map(role => {
+                                    const settingKey = `${role.key}_${perm.key}`;
+                                    const isEnabled = settings[settingKey] ?? false;
+                                    const isSaving = saving[settingKey] ?? false;
+                                    return (
+                                        <button
+                                            key={settingKey}
+                                            onClick={() => !isSaving && handleToggle(settingKey)}
+                                            disabled={isSaving}
+                                            className={`flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg border transition-colors disabled:opacity-60 ${isEnabled
+                                                ? 'border-slate-900 dark:border-white bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                                                : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}
+                                        >
+                                            <span className="text-base leading-none">{role.icon}</span>
+                                            <span className="text-[11px] font-semibold">{role.label}</span>
+                                            <span className={`text-[10px] ${isEnabled ? 'opacity-70' : 'text-slate-400'}`}>
+                                                {isEnabled ? 'Aktif' : 'Nonaktif'}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
                             </div>
-                            <button
-                                onClick={async () => {
-                                    setSaving(prev => ({ ...prev, bruteforce_max_attempts: true }));
-                                    try {
-                                        const res = await fetch('/api/web-settings', {
-                                            method: 'PUT',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ key: 'bruteforce_max_attempts', value: settings.bruteforce_max_attempts ?? 5 }),
-                                        });
-                                        if (res.ok) {
-                                            toast.success(t('admin_bruteforce_success_save'));
-                                        } else {
-                                            const d = await res.json();
-                                            toast.error(d.message || t('admin_error_settings_save'));
-                                        }
-                                    } catch { toast.error(t('admin_generic_error')); }
-                                    finally { setSaving(prev => ({ ...prev, bruteforce_max_attempts: false })); }
-                                }}
-                                disabled={saving.bruteforce_max_attempts}
-                                className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
-                            >
-                                {saving.bruteforce_max_attempts ? '...' : t('users_btn_save')}
-                            </button>
+                        </div>
+                    ))}
+                </div>
+
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Perubahan pada tabel permission langsung tersimpan saat toggle diklik.
+                </p>
+            </SettingsSection>
+
+            {/* Keamanan Login */}
+            <SettingsSection id="security" icon={<ShieldAlert size={16} />} title={t('admin_bruteforce_title')} desc={t('admin_bruteforce_desc')}>
+                <SettingRow
+                    label={t('admin_bruteforce_max_label')}
+                    desc={t('admin_bruteforce_max_desc')}
+                    control={<NumberFieldControl
+                        value={settings.bruteforce_max_attempts ?? 5}
+                        min={1}
+                        max={50}
+                        unit="Kali"
+                        onChange={(v) => setSettings(prev => ({ ...prev, bruteforce_max_attempts: v }))}
+                        onSave={async () => {
+                            const key = 'bruteforce_max_attempts';
+                            setSaving(prev => ({ ...prev, [key]: true }));
+                            try {
+                                const res = await fetch('/api/web-settings', {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ key, value: settings[key] ?? 5 }),
+                                });
+                                if (res.ok) toast.success(t('admin_bruteforce_success_save'));
+                                else toast.error((await res.json()).message || t('admin_error_settings_save'));
+                            } catch { toast.error(t('admin_generic_error')); }
+                            finally { setSaving(prev => ({ ...prev, [key]: false })); }
+                        }}
+                        saving={saving.bruteforce_max_attempts}
+                        saveLabel={t('users_btn_save')}
+                    />}
+                />
+
+                <div className="h-px bg-slate-100 dark:bg-slate-800" />
+
+                <SettingRow
+                    label={t('admin_bruteforce_lockout_label')}
+                    desc={t('admin_bruteforce_lockout_desc')}
+                    control={<NumberFieldControl
+                        value={settings.bruteforce_lockout_minutes ?? 15}
+                        min={1}
+                        max={1440}
+                        unit="Menit"
+                        onChange={(v) => setSettings(prev => ({ ...prev, bruteforce_lockout_minutes: v }))}
+                        onSave={async () => {
+                            const key = 'bruteforce_lockout_minutes';
+                            setSaving(prev => ({ ...prev, [key]: true }));
+                            try {
+                                const res = await fetch('/api/web-settings', {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ key, value: settings[key] ?? 15 }),
+                                });
+                                if (res.ok) toast.success(t('admin_bruteforce_lockout_success_save'));
+                                else toast.error((await res.json()).message || t('admin_error_settings_save'));
+                            } catch { toast.error(t('admin_generic_error')); }
+                            finally { setSaving(prev => ({ ...prev, [key]: false })); }
+                        }}
+                        saving={saving.bruteforce_lockout_minutes}
+                        saveLabel={t('users_btn_save')}
+                    />}
+                />
+
+                {/* Aksi darurat */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50/50 dark:bg-red-950/20 px-4 py-3">
+                    <div className="flex items-start gap-2.5">
+                        <TriangleAlert size={16} className="shrink-0 mt-0.5 text-red-500" />
+                        <div>
+                            <p className="text-sm font-semibold text-red-700 dark:text-red-300">Buka Kunci Semua Login</p>
+                            <p className="text-xs text-red-600/80 dark:text-red-300/70">
+                                Membuka paksa seluruh akun yang terkunci karena gagal login berulang.
+                            </p>
                         </div>
                     </div>
+                    <button
+                        onClick={handleUnlockAll}
+                        disabled={unlockingAll}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50 shrink-0"
+                    >
+                        {unlockingAll ? <LoaderCircle size={14} className="animate-spin" /> : <LockOpen size={14} />}
+                        {unlockingAll ? 'Membuka...' : t('admin_bruteforce_btn_unlock_all')}
+                    </button>
+                </div>
 
-                    <div className="border-t border-slate-100 dark:border-slate-700/50" />
-
-                    {/* Lockout Duration */}
-                    {/* Lockout Duration */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="md:max-w-xs">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_bruteforce_lockout_label')}</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_bruteforce_lockout_desc')}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <div className="flex-1 flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="1440"
-                                    value={settings.bruteforce_lockout_minutes ?? 15}
-                                    onChange={(e) => setSettings(prev => ({ ...prev, bruteforce_lockout_minutes: parseInt(e.target.value) || 1 }))}
-                                    className="w-16 bg-transparent text-center font-bold text-slate-900 dark:text-white outline-none"
-                                />
-                                <span className="text-xs font-bold text-slate-400 uppercase">Menit</span>
-                            </div>
-                            <button
-                                onClick={async () => {
-                                    setSaving(prev => ({ ...prev, bruteforce_lockout_minutes: true }));
-                                    try {
-                                        const res = await fetch('/api/web-settings', {
-                                            method: 'PUT',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ key: 'bruteforce_lockout_minutes', value: settings.bruteforce_lockout_minutes ?? 15 }),
-                                        });
-                                        if (res.ok) {
-                                            toast.success(t('admin_bruteforce_lockout_success_save'));
-                                        } else {
-                                            const d = await res.json();
-                                            toast.error(d.message || t('admin_error_settings_save'));
-                                        }
-                                    } catch { toast.error(t('admin_generic_error')); }
-                                    finally { setSaving(prev => ({ ...prev, bruteforce_lockout_minutes: false })); }
-                                }}
-                                disabled={saving.bruteforce_lockout_minutes}
-                                className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
-                            >
-                                {saving.bruteforce_lockout_minutes ? '...' : t('users_btn_save')}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="border-t border-slate-100 dark:border-slate-700/50" />
-
-                    {/* Emergency Unlock All Button - Always Visible */}
-                    <div className="flex items-center justify-between gap-4 p-3 bg-rose-50/30 dark:bg-rose-950/10 rounded-xl border border-rose-100 dark:border-rose-900/30">
-                        <div className="flex-1">
-                            <p className="text-sm font-bold text-rose-700 dark:text-rose-400 font-mono">PANIC BUTTON</p>
-                            <p className="text-[10px] text-rose-600/70 dark:text-rose-400/50 uppercase tracking-tighter leading-none mt-0.5">Membuka paksa semua kunci login jika terjadi error sistem</p>
-                        </div>
+                {/* Daftar user terkunci */}
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between gap-3">
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                            {lockedUsers.length > 0
+                                ? t('admin_bruteforce_locked_count').replace('{count}', lockedUsers.length)
+                                : 'Tidak ada akun terkunci'}
+                        </p>
                         <button
-                            onClick={handleUnlockAll}
-                            disabled={unlockingAll}
-                            className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider text-rose-100 bg-rose-600 hover:bg-rose-700 rounded-xl shadow-lg shadow-rose-200 dark:shadow-none transition-all active:scale-95 disabled:opacity-50"
+                            onClick={fetchLockedUsers}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
                         >
-                            {unlockingAll ? '...' : (
-                                <>
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                                    </svg>
-                                    {t('admin_bruteforce_btn_unlock_all')}
-                                </>
-                            )}
+                            <RefreshCw size={12} />
+                            {t('admin_bruteforce_refresh')}
                         </button>
                     </div>
-                </div>
 
-                {/* Locked Users List */}
-                {lockedUsers.length > 0 && (
-                    <div className="border-t border-slate-200 dark:border-slate-700">
-                        <div className="px-5 py-3 bg-red-50/50 dark:bg-red-950/10 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
-                                </span>
-                                <span className="text-xs font-semibold text-red-600 dark:text-red-400">{t('admin_bruteforce_locked_count').replace('{count}', lockedUsers.length)}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <button onClick={fetchLockedUsers} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-                                    ↻ {t('admin_bruteforce_refresh')}
-                                </button>
-                            </div>
-                        </div>
-                        <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                    {lockedUsers.length === 0 ? (
+                        <p className="px-4 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
+                            Semua akun bisa login seperti biasa.
+                        </p>
+                    ) : (
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
                             {lockedUsers.map(u => (
-                                <div key={u.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                                <div key={u.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${u.isCurrentlyLocked
-                                                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                                                : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
-                                            }`}>
-                                            {u.isCurrentlyLocked ? '🔒' : '⚠️'}
-                                        </div>
+                                        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${u.isCurrentlyLocked
+                                            ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                            : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'}`}>
+                                            {u.isCurrentlyLocked ? <Lock size={14} /> : <TriangleAlert size={14} />}
+                                        </span>
                                         <div className="min-w-0">
-                                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                                            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
                                                 {u.name || u.username}
                                                 <span className="ml-1.5 text-xs font-normal text-slate-400">@{u.username}</span>
                                             </p>
-                                            <p className="text-xs text-slate-400 dark:text-slate-500">
+                                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
                                                 {u.failedAttempts} {t('admin_bruteforce_failed_suffix')}
                                                 {u.isCurrentlyLocked && u.lockedUntil && (
                                                     <span className="ml-1 text-red-500 dark:text-red-400 font-medium">
@@ -889,205 +751,165 @@ export default function WebSettingsPage() {
                                     <button
                                         onClick={() => handleUnlock(u.id, u.username)}
                                         disabled={unlocking[u.id]}
-                                        className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg transition-colors disabled:opacity-50"
+                                        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
                                     >
-                                        {unlocking[u.id] ? '...' : `🔓 ${t('admin_btn_unlock')}`}
+                                        {unlocking[u.id] ? <LoaderCircle size={13} className="animate-spin" /> : <LockOpen size={13} />}
+                                        {t('admin_btn_unlock')}
                                     </button>
                                 </div>
                             ))}
                         </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Session Reset Security Section */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/60 overflow-hidden">
-                <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-indigo-50/30 dark:from-slate-700/50 dark:to-indigo-950/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-                    <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg">
-                        <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('admin_session_reset_title')}</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('admin_session_reset_desc')}</p>
-                    </div>
+                    )}
                 </div>
+            </SettingsSection>
 
-                <div className="p-5 space-y-4">
-                    {/* Max Reset Attempts */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="md:max-w-xs">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_session_reset_max_title')}</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_session_reset_max_desc')}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <div className="flex-1 flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="50"
-                                    value={settings.reset_max_attempts ?? 3}
-                                    onChange={(e) => setSettings(prev => ({ ...prev, reset_max_attempts: parseInt(e.target.value) || 1 }))}
-                                    className="w-16 bg-transparent text-center font-bold text-slate-900 dark:text-white outline-none"
-                                />
-                                <span className="text-xs font-bold text-slate-400 uppercase">{t('admin_bruteforce_unit_times')}</span>
-                            </div>
-                            <button
-                                onClick={async () => {
-                                    setSaving(prev => ({ ...prev, reset_max_attempts: true }));
-                                    try {
-                                        const res = await fetch('/api/web-settings', {
-                                            method: 'PUT',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ key: 'reset_max_attempts', value: settings.reset_max_attempts ?? 3 }),
-                                        });
-                                        if (res.ok) {
-                                            toast.success(t('admin_session_reset_max_success'));
-                                        } else {
-                                            const d = await res.json();
-                                            toast.error(d.message || t('admin_error_settings_save'));
-                                        }
-                                    } catch { toast.error(t('admin_generic_error')); }
-                                    finally { setSaving(prev => ({ ...prev, reset_max_attempts: false })); }
-                                }}
-                                disabled={saving.reset_max_attempts}
-                                className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
-                            >
-                                {saving.reset_max_attempts ? '...' : t('users_btn_save')}
-                            </button>
-                        </div>
-                    </div>
+            {/* Reset Sesi */}
+            <SettingsSection id="session-reset" icon={<RotateCcw size={16} />} title={t('admin_session_reset_title')} desc={t('admin_session_reset_desc')}>
+                <SettingRow
+                    label={t('admin_session_reset_max_title')}
+                    desc={t('admin_session_reset_max_desc')}
+                    control={<NumberFieldControl
+                        value={settings.reset_max_attempts ?? 3}
+                        min={1}
+                        max={50}
+                        unit={t('admin_bruteforce_unit_times')}
+                        onChange={(v) => setSettings(prev => ({ ...prev, reset_max_attempts: v }))}
+                        onSave={async () => {
+                            const key = 'reset_max_attempts';
+                            setSaving(prev => ({ ...prev, [key]: true }));
+                            try {
+                                const res = await fetch('/api/web-settings', {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ key, value: settings[key] ?? 3 }),
+                                });
+                                if (res.ok) toast.success(t('admin_session_reset_max_success'));
+                                else toast.error((await res.json()).message || t('admin_error_settings_save'));
+                            } catch { toast.error(t('admin_generic_error')); }
+                            finally { setSaving(prev => ({ ...prev, [key]: false })); }
+                        }}
+                        saving={saving.reset_max_attempts}
+                        saveLabel={t('users_btn_save')}
+                    />}
+                />
 
-                    <div className="border-t border-slate-100 dark:border-slate-700/50" />
+                <div className="h-px bg-slate-100 dark:bg-slate-800" />
 
-                    {/* Reset Lockout Duration */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="md:max-w-xs">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('admin_session_reset_lock_title')}</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500">{t('admin_session_reset_lock_desc')}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <div className="flex-1 flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="1440"
-                                    value={settings.reset_lockout_minutes ?? 15}
-                                    onChange={(e) => setSettings(prev => ({ ...prev, reset_lockout_minutes: parseInt(e.target.value) || 1 }))}
-                                    className="w-16 bg-transparent text-center font-bold text-slate-900 dark:text-white outline-none"
-                                />
-                                <span className="text-xs font-bold text-slate-400 uppercase">{t('admin_bruteforce_unit_minutes')}</span>
-                            </div>
-                            <button
-                                onClick={async () => {
-                                    setSaving(prev => ({ ...prev, reset_lockout_minutes: true }));
-                                    try {
-                                        const res = await fetch('/api/web-settings', {
-                                            method: 'PUT',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ key: 'reset_lockout_minutes', value: settings.reset_lockout_minutes ?? 15 }),
-                                        });
-                                        if (res.ok) {
-                                            toast.success(t('admin_session_reset_lock_success'));
-                                        } else {
-                                            const d = await res.json();
-                                            toast.error(d.message || t('admin_error_settings_save'));
-                                        }
-                                    } catch { toast.error(t('admin_generic_error')); }
-                                    finally { setSaving(prev => ({ ...prev, reset_lockout_minutes: false })); }
-                                }}
-                                disabled={saving.reset_lockout_minutes}
-                                className="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50"
-                            >
-                                {saving.reset_lockout_minutes ? '...' : t('users_btn_save')}
-                            </button>
+                <SettingRow
+                    label={t('admin_session_reset_lock_title')}
+                    desc={t('admin_session_reset_lock_desc')}
+                    control={<NumberFieldControl
+                        value={settings.reset_lockout_minutes ?? 15}
+                        min={1}
+                        max={1440}
+                        unit={t('admin_bruteforce_unit_minutes')}
+                        onChange={(v) => setSettings(prev => ({ ...prev, reset_lockout_minutes: v }))}
+                        onSave={async () => {
+                            const key = 'reset_lockout_minutes';
+                            setSaving(prev => ({ ...prev, [key]: true }));
+                            try {
+                                const res = await fetch('/api/web-settings', {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ key, value: settings[key] ?? 15 }),
+                                });
+                                if (res.ok) toast.success(t('admin_session_reset_lock_success'));
+                                else toast.error((await res.json()).message || t('admin_error_settings_save'));
+                            } catch { toast.error(t('admin_generic_error')); }
+                            finally { setSaving(prev => ({ ...prev, [key]: false })); }
+                        }}
+                        saving={saving.reset_lockout_minutes}
+                        saveLabel={t('users_btn_save')}
+                    />}
+                />
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3">
+                    <div className="flex items-start gap-2.5">
+                        <KeyRound size={16} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                        <div>
+                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">{t('admin_session_reset_unlock_title')}</p>
+                            <p className="text-xs text-amber-700/80 dark:text-amber-300/70">{t('admin_session_reset_unlock_desc')}</p>
                         </div>
                     </div>
-
-                    <div className="border-t border-slate-100 dark:border-slate-700/50" />
-
-                    {/* Unlock Endpoint Action */}
-                    <div className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-950/20 rounded-2xl border border-amber-200 dark:border-amber-900/50">
-                        <div className="flex items-start gap-3">
-                            <div className="mt-0.5 text-amber-600 dark:text-amber-400">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold text-amber-900 dark:text-amber-100">{t('admin_session_reset_unlock_title')}</p>
-                                <p className="text-xs text-amber-700/70 dark:text-amber-400/70">{t('admin_session_reset_unlock_desc')}</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={handleUnlockReset}
-                            disabled={resetUnlocking}
-                            className="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-amber-200 dark:shadow-none transition-all disabled:opacity-50"
-                        >
-                            {resetUnlocking ? '...' : t('admin_btn_unlock')}
-                        </button>
-                    </div>
+                    <button
+                        onClick={handleUnlockReset}
+                        disabled={resetUnlocking}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-colors disabled:opacity-50 shrink-0"
+                    >
+                        {resetUnlocking ? <LoaderCircle size={14} className="animate-spin" /> : <LockOpen size={14} />}
+                        {resetUnlocking ? 'Membuka...' : t('admin_btn_unlock')}
+                    </button>
                 </div>
-            </div>
+            </SettingsSection>
 
-
-            {/* Info Note */}
-            <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 flex items-start gap-1.5">
+                <Info size={13} className="shrink-0 mt-0.5" />
                 {t('admin_footer_info')}
             </p>
 
-            {/* Cropper Modal */}
+            {/* Modal crop logo */}
             {cropImage && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col h-[80vh] sm:h-auto">
-                        <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                            <h3 className="font-bold text-slate-800 dark:text-white">{t('admin_modal_crop_title')}</h3>
-                            <button onClick={() => setCropImage(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 p-0 sm:p-6" onClick={() => setCropImage(null)}>
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        className="w-full sm:max-w-lg h-full sm:h-auto bg-white dark:bg-slate-900 sm:rounded-2xl shadow-xl overflow-hidden flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+                            <div>
+                                <h3 className="text-base font-bold text-slate-900 dark:text-white">{t('admin_modal_crop_title')}</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Logo akan dipotong otomatis menjadi rasio 1:1.</p>
+                            </div>
+                            <button
+                                onClick={() => setCropImage(null)}
+                                aria-label="Tutup"
+                                className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                            >
+                                <X size={18} />
                             </button>
                         </div>
-                        <div className="relative flex-1 min-h-[300px] w-full bg-slate-900">
+
+                        <div className="relative flex-1 min-h-[280px] w-full bg-slate-900">
                             <Cropper
                                 image={cropImage}
                                 crop={crop}
                                 zoom={zoom}
-                                aspect={1} // 1:1 Aspect Ratio recommended for logos
+                                aspect={1}
                                 onCropChange={setCrop}
                                 onCropComplete={onCropComplete}
                                 onZoomChange={setZoom}
                             />
                         </div>
-                        <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                            <div className="mb-4 flex items-center gap-3">
-                                <span className="text-xs font-medium text-slate-500">Zoom</span>
+
+                        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center gap-3">
+                            <label className="flex items-center gap-3 flex-1">
+                                <span className="text-xs font-semibold text-slate-500 shrink-0">Zoom</span>
                                 <input
                                     type="range"
                                     value={zoom}
                                     min={1}
                                     max={3}
                                     step={0.1}
-                                    aria-labelledby="Zoom"
+                                    aria-label="Zoom"
                                     onChange={(e) => setZoom(e.target.value)}
-                                    className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 accent-indigo-600"
+                                    className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-slate-900 dark:accent-white"
                                 />
-                            </div>
-                            <div className="flex gap-3 justify-end">
+                            </label>
+                            <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => setCropImage(null)}
-                                    className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                                    className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                                 >
                                     {t('admin_modal_crop_cancel')}
                                 </button>
                                 <button
                                     onClick={handleCropSave}
                                     disabled={saving.site_logo}
-                                    className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all disabled:opacity-50"
+                                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                                 >
-                                    {saving.site_logo ? '...' : t('admin_modal_crop_save')}
+                                    {saving.site_logo && <LoaderCircle size={14} className="animate-spin" />}
+                                    {t('admin_modal_crop_save')}
                                 </button>
                             </div>
                         </div>
@@ -1095,5 +917,117 @@ export default function WebSettingsPage() {
                 </div>
             )}
         </div>
+    );
+}
+
+const SETTINGS_SECTIONS = [
+    { id: 'branding', label: 'Identitas Website' },
+    { id: 'language', label: 'Bahasa' },
+    { id: 'timezone', label: 'Zona Waktu' },
+    { id: 'android', label: 'Android' },
+    { id: 'permissions', label: 'Hak Akses' },
+    { id: 'security', label: 'Keamanan Login' },
+    { id: 'session-reset', label: 'Reset Sesi' }
+];
+
+function SettingsSection({ id, icon, title, desc, children, action }) {
+    return (
+        <section id={id} className="scroll-mt-16 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-3 min-w-0">
+                    <span className="shrink-0 w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                        {icon}
+                    </span>
+                    <div className="min-w-0">
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{desc}</p>
+                    </div>
+                </div>
+                {action}
+            </div>
+            <div className="p-4 space-y-4">{children}</div>
+        </section>
+    );
+}
+
+function SettingRow({ label, desc, control, children }) {
+    return (
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+            <div className="lg:max-w-xs">
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{desc}</p>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full lg:w-auto lg:justify-end">
+                <div className="min-w-0">{children}</div>
+                {control}
+            </div>
+        </div>
+    );
+}
+
+function SaveButton({ onClick, saving, label }) {
+    return (
+        <button
+            onClick={onClick}
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
+        >
+            {saving ? <LoaderCircle size={13} className="animate-spin" /> : <Save size={13} />}
+            {saving ? 'Menyimpan' : label}
+        </button>
+    );
+}
+
+function NumberFieldControl({ value, onChange, onSave, saving, min, max, unit, saveLabel }) {
+    return (
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                <input
+                    type="number"
+                    min={min}
+                    max={max}
+                    value={value}
+                    onChange={(e) => onChange(parseInt(e.target.value, 10) || 1)}
+                    aria-label={unit}
+                    className="w-14 bg-transparent text-sm font-semibold text-slate-900 dark:text-white outline-none"
+                />
+                <span className="text-[11px] font-semibold text-slate-400 uppercase">{unit}</span>
+            </div>
+            <SaveButton onClick={onSave} saving={saving} label={saveLabel} />
+        </div>
+    );
+}
+
+function ToggleSwitch({ checked, onChange, disabled, label }) {
+    return (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            aria-label={label}
+            onClick={onChange}
+            disabled={disabled}
+            className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50 ${checked ? 'bg-slate-900 dark:bg-white' : 'bg-slate-200 dark:bg-slate-700'}`}
+        >
+            <span className={`pointer-events-none absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-4' : ''}`} />
+        </button>
+    );
+}
+
+function QuickLink({ href, icon, title, desc }) {
+    return (
+        <Link
+            href={href}
+            className="group flex items-start gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-3 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+        >
+            <span className="shrink-0 w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                {icon}
+            </span>
+            <span className="min-w-0 flex-1">
+                <span className="block text-xs font-bold text-slate-800 dark:text-white">{title}</span>
+                <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{desc}</span>
+            </span>
+            <ChevronRight size={14} className="shrink-0 text-slate-300 dark:text-slate-600 mt-1 group-hover:text-slate-500" />
+        </Link>
     );
 }

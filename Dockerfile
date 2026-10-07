@@ -19,12 +19,20 @@ WORKDIR /app
 
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
-ENV TZ=Asia/Jakarta
 
-# Install PM2 globally and Redis
+# Zona waktu default. Ini hanya DEFAULT - selalu bisa ditimpa saat runtime
+# lewat environment variable (docker-compose env_file / Coolify env vars).
+# Untuk lokasi lain, cukup set TZ=<nama IANA> di Coolify tanpa rebuild image.
+ENV TZ=Asia/Jakarta
+# Default untuk timezone tampilan di aplikasi (app/lib/timezone.js).
+# Bisa ditimpa lewat setting "Zona Waktu" di Admin Tools.
+ENV APP_TIMEZONE=Asia/Jakarta
+
+# Install PM2 globally, Redis, dan data zona waktu.
+# tzdata dibutuhkan agar TZ di atas benar-benar dipakai untuk tanggal/waktu.
 RUN npm install pm2 -g && \
     apt-get update -qq && \
-    apt-get install -y -qq --no-install-recommends redis-server && \
+    apt-get install -y -qq --no-install-recommends redis-server tzdata && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Buat folder untuk upload dan atur izin

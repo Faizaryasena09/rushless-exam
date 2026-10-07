@@ -6,7 +6,7 @@ import { sessionOptions } from '@/app/lib/session';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import redis, { isRedisReady } from '@/app/lib/redis';
-import { logActivity, getClientIP } from '@/app/lib/logger';
+import { logActivity, getClientIP, logSystemError } from '@/app/lib/logger';
 
 async function getBruteforceSettings() {
   const cacheKey = 'settings:bruteforce';
@@ -208,7 +208,12 @@ export async function POST(request) {
 
   } catch (error) {
     logActivity({ ip, action: 'LOGIN_ERROR', level: 'error', details: error.message });
-    return NextResponse.json({ message: 'Terjadi kesalahan sistem.', error: error.message }, { status: 500 });
+    await logSystemError(error, {
+      action: 'SYSTEM_LOGIN_FAILED',
+      request,
+      context: { endpoint: '/api/login' }
+    });
+    return NextResponse.json({ message: 'Terjadi kesalahan sistem.' }, { status: 500 });
   }
 }
 

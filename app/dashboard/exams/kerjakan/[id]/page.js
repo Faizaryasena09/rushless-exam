@@ -43,6 +43,16 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
+  Shield: () => (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  ),
+  List: () => (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+    </svg>
+  ),
   ArrowLeft: () => (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -473,8 +483,16 @@ export default function ExamTakingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ examId, answers, attemptId: attemptDetails.id, isForce: isAutoSubmit }),
       });
-      const resultData = await response.json();
-      if (!response.ok) throw new Error(resultData.message || 'Failed to submit exam.');
+      const resultData = await response.json().catch(() => ({}));
+
+      // 409 = server sudah mengunci jawaban (waktu habis / sudah selesai).
+      // Ini bukan kegagalan: jawaban sudah tersimpan & dinilai auto-submit.
+      // Jadi JANGAN alert error, tapi tetap lanjut ke halaman hasil/dashboard.
+      if (response.status === 409) {
+        logAction('SUBMIT', 'Server mengunci jawaban (waktu habis / sudah selesai)');
+      } else if (!response.ok) {
+        throw new Error(resultData.message || 'Failed to submit exam.');
+      }
 
       // Clear instruction confirmation + backup jawaban untuk exam ini on successful submit
       if (typeof window !== 'undefined') {
@@ -583,7 +601,12 @@ export default function ExamTakingPage() {
         fetch(`/api/exams/temporary-answer?exam_id=${examId}`)
       ]);
 
-      if (!attemptRes.ok) throw new Error((await attemptRes.json()).message || 'Could not start exam.');
+      if (!attemptRes.ok) {
+        const apiMessage = (await attemptRes.json()).message;
+        throw new Error(apiMessage || (settingsData?.require_token
+          ? 'Token Ujian tidak valid atau sudah kadaluarsa.'
+          : 'Could not start exam.'));
+      }
       if (!questionsRes.ok) throw new Error((await questionsRes.json()).message || 'Could not fetch questions.');
 
       const attemptData = await attemptRes.json();
@@ -1469,7 +1492,7 @@ export default function ExamTakingPage() {
   }
 
   if (loading) { return <div className="text-center p-20 dark:text-slate-300">Loading...</div> }
-  if (error) { return <div className="text-center p-20 text-red-500">Error: {error}</div> }
+  if (error && !showTokenModal && !showInstructionsScreen) { return <div className="text-center p-20 text-red-500">Error: {error}</div> }
 
 
   if (showInstructionsScreen) {
@@ -1485,211 +1508,253 @@ export default function ExamTakingPage() {
       }
     };
 
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
-        <style dangerouslySetInnerHTML={{ __html: `
-            @keyframes fadeInUp {
-              from {
-                opacity: 0;
-                transform: translateY(15px);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0);
-              }
-            }
-            @keyframes fadeInDown {
-              from {
-                opacity: 0;
-                transform: translateY(-15px);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0);
-              }
-            }
-            .animate-fade-in-down {
-              animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            }
-            .animate-fade-in-up {
-              animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-              opacity: 0;
-            }
-        ` }} />
-        <div className="animate-fade-in-up bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl w-full max-w-2xl border border-slate-200 dark:border-slate-700" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
+return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:py-12 flex items-start sm:items-center justify-center">
+        <div className="w-full max-w-2xl">
+          {/* Kartu */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl shadow-slate-900/5 dark:shadow-black/40 overflow-hidden">
 
-          {/* Header */}
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-transparent flex items-center justify-center mx-auto mb-4">
-              <img src={branding.site_logo} alt={branding.site_name} className="w-16 h-16 object-contain drop-shadow-sm" />
+            {/* Header */}
+            <div className="px-5 sm:px-7 pt-6 sm:pt-7 pb-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-4">
+              <span className="shrink-0 w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden">
+                <img src={branding.site_logo} alt={branding.site_name} className="h-7 w-7 object-contain" />
+              </span>
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Petunjuk Ujian</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{examDetails?.exam_name}</p>
+              </div>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-800 dark:text-white">Petunjuk Ujian</h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">{examDetails?.exam_name}</p>
-          </div>
 
-          {/* User Profile Info */}
-          {user && (
-            <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-700/30 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center gap-4 animate-in fade-in slide-in-from-bottom duration-300">
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 p-[2px] flex-shrink-0">
-                <div className="h-full w-full rounded-full bg-white dark:bg-slate-800 flex items-center justify-center">
-                  <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+            {/* Ringkasan info */}
+            <div className="px-5 sm:px-7 py-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap gap-2">
+              {examDetails?.duration_minutes ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold">
+                  <Icons.Clock />
+                  {examDetails.duration_minutes} menit
+                </span>
+              ) : null}
+              {questions.length > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold">
+                  {questions.length} soal
+                </span>
+              )}
+              {(examDetails?.require_safe_browser || examDetails?.require_seb || examDetails?.require_geschool) && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold">
+                  <Icons.Shield />
+                  Mode ujian aman
+                </span>
+              )}
+              {examDetails?.require_all_answered && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-semibold">
+                  Wajib menjawab semua soal
+                </span>
+              )}
+              {examDetails?.require_token && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold">
+                  Memerlukan token
+                </span>
+              )}
+            </div>
+
+            <div className="px-5 sm:px-7 py-5 space-y-4">
+              {/* Data peserta */}
+              {user && (
+                <div className="flex items-center gap-3 px-3.5 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+                  <span className="shrink-0 w-9 h-9 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center text-sm font-bold">
                     {user.name ? user.name.charAt(0).toUpperCase() : (user.username ? user.username.charAt(0).toUpperCase() : 'U')}
                   </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-wide font-semibold text-slate-400">Peserta</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{user.name || user.username}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="min-w-0 text-left">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Peserta Ujian</p>
-                <p className="text-base font-bold text-slate-800 dark:text-white truncate">{user.name || user.username}</p>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* Instruction Body */}
-          <div className="bg-slate-50 dark:bg-slate-700/50 p-6 rounded-2xl mb-6 border border-slate-100 dark:border-slate-600">
-            {examDetails?.instruction_type === 'custom' && examDetails?.custom_instructions ? (
-              <div
-                className="prose prose-slate dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
-                dangerouslySetInnerHTML={{ __html: examDetails.custom_instructions }}
-              />
-            ) : (
-              <div className="prose prose-slate dark:prose-invert max-w-none text-slate-700 dark:text-slate-300">
-                <ul className="space-y-3">
-                  <li>Berdoalah sebelum mengerjakan ujian.</li>
-                  <li>Periksa daftar soal untuk melihat ragam pertanyaan yang tersedia.</li>
-                  <li>Silakan gunakan fitur <strong>Tandai Ragu</strong> jika belum yakin dengan jawaban.</li>
-                  <li>Kerjakan dengan jujur dan teliti.</li>
-                  <li>Pastikan untuk menekan <strong>Selesai Ujian</strong> sebelum waktu habis.</li>
-                </ul>
-              </div>
-            )}
-            {examDetails?.duration_minutes && (
-              <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-600 flex items-center gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
-                <Icons.Clock /> Waktu Pengerjaan: {examDetails.duration_minutes} Menit
-              </div>
-            )}
-          </div>
-
-          {/* Confirmation Checkbox */}
-          <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all mb-6 ${instructionsConfirmed
-              ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-              : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
-            }`}>
-            <div className="relative flex-shrink-0 mt-0.5">
-              <input
-                type="checkbox"
-                checked={instructionsConfirmed}
-                onChange={handleConfirmationChange}
-                className="sr-only"
-              />
-              <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${instructionsConfirmed
-                  ? 'bg-indigo-600 border-indigo-600'
-                  : 'border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700'
-                }`}>
-                {instructionsConfirmed && (
-                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                  </svg>
+              {/* Isi petunjuk */}
+              <div className="px-4 sm:px-5 py-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 max-h-[45vh] overflow-y-auto">
+                {examDetails?.instruction_type === 'custom' && examDetails?.custom_instructions ? (
+                  <div
+                    className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-300"
+                    dangerouslySetInnerHTML={{ __html: examDetails.custom_instructions }}
+                  />
+                ) : (
+                  <ul className="space-y-2.5 text-sm text-slate-700 dark:text-slate-300 list-disc list-inside">
+                    <li>Berdoalah sebelum mengerjakan ujian.</li>
+                    <li>Periksa daftar soal untuk melihat ragam pertanyaan yang tersedia.</li>
+                    <li>Silakan gunakan fitur <strong>Tandai Ragu</strong> jika belum yakin dengan jawaban.</li>
+                    <li>Kerjakan dengan jujur dan teliti.</li>
+                    <li>Pastikan untuk menekan <strong>Selesai Ujian</strong> sebelum waktu habis.</li>
+                  </ul>
                 )}
               </div>
-            </div>
-            <div>
-              <span className={`text-sm font-semibold ${instructionsConfirmed ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'
-                }`}>
-                Saya sudah membaca dan memahami petunjuk ujian
-              </span>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Wajib dicentang sebelum dapat memulai ujian.
+
+              {/* Konfirmasi */}
+              <label className={`flex items-start gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors ${instructionsConfirmed
+                ? 'border-slate-900 dark:border-white bg-slate-900 dark:bg-white'
+                : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={instructionsConfirmed}
+                  onChange={handleConfirmationChange}
+                  className="sr-only"
+                />
+                <span className={`shrink-0 mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${instructionsConfirmed
+                  ? 'bg-transparent border-transparent'
+                  : 'border-slate-300 dark:border-slate-600'}`}
+                >
+                  {instructionsConfirmed && (
+                    <svg className="w-3 h-3 text-white dark:text-slate-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className={`block text-sm font-semibold ${instructionsConfirmed
+                    ? 'text-white dark:text-slate-900'
+                    : 'text-slate-800 dark:text-slate-100'}`}
+                  >
+                    Saya sudah membaca dan memahami petunjuk ujian
+                  </span>
+                  <span className={`block text-xs mt-0.5 ${instructionsConfirmed
+                    ? 'text-white/70 dark:text-slate-900/70'
+                    : 'text-slate-500 dark:text-slate-400'}`}
+                  >
+                    Wajib dicentang sebelum dapat memulai ujian.
+                  </span>
+                </span>
+              </label>
+
+              {/* Tombol */}
+              <button
+                onClick={() => {
+                  if (examDetails?.require_token) {
+                    setShowInstructionsScreen(false);
+                    setShowTokenModal(true);
+                  } else {
+                    startExamProcess(examDetails);
+                  }
+                }}
+                disabled={startingExam || !instructionsConfirmed}
+                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold transition-colors ${!instructionsConfirmed
+                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                  : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 disabled:opacity-60'}`}
+              >
+                {startingExam ? 'Memulai...' : instructionsConfirmed ? 'Mulai Ujian Sekarang' : 'Centang konfirmasi untuk melanjutkan'}
+                {!startingExam && instructionsConfirmed && <Icons.ChevronRight />}
+              </button>
+
+              <p className="text-[11px] text-slate-400 text-center">
+                Waktu ujian mulai berjalan setelah kamu menekan tombol Mulai Ujian.
               </p>
             </div>
-          </label>
-
-          {/* Start Button */}
-          <button
-            onClick={() => {
-              if (examDetails?.require_token) {
-                setShowInstructionsScreen(false);
-                setShowTokenModal(true);
-              } else {
-                startExamProcess(examDetails);
-              }
-            }}
-            disabled={startingExam || !instructionsConfirmed}
-            className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-lg transition-all ${!instructionsConfirmed
-                ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none'
-                : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98] shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30 disabled:opacity-70 disabled:cursor-not-allowed'
-              }`}
-          >
-            {startingExam ? 'Memulai...' : instructionsConfirmed ? 'Mulai Ujian Sekarang' : 'Centang konfirmasi untuk melanjutkan'}
-            {!startingExam && instructionsConfirmed && <Icons.ChevronRight />}
-          </button>
-        </div>
-
-      </div>
-    );
-  }
-
-  if (showTokenModal) {
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
-        <style dangerouslySetInnerHTML={{ __html: `
-            @keyframes fadeInUp {
-              from {
-                opacity: 0;
-                transform: translateY(15px);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0);
-              }
-            }
-            .animate-fade-in-up {
-              animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-              opacity: 0;
-            }
-        ` }} />
-        <div className="animate-fade-in-up bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative border border-slate-200 dark:border-slate-700" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
-          <button
-            onClick={() => { setShowTokenModal(false); setTokenInput(''); setError(null); setShowInstructionsScreen(true); }}
-            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-          <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-            </svg>
           </div>
-          <h3 className="text-xl font-bold text-slate-800 dark:text-white text-center mb-2">Masukkan Token Ujian</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-6">Ujian ini dilindungi dengan token. Masukkan token yang valid untuk melanjutkan.</p>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm text-center">
-              {error}
-            </div>
-          )}
-
-          <input
-            type="text"
-            value={tokenInput}
-            onChange={(e) => setTokenInput(e.target.value.toUpperCase())}
-            placeholder="Cth: ABCD12"
-            maxLength={6}
-            autoFocus
-            className="w-full text-center text-3xl font-mono font-black tracking-widest uppercase p-4 mb-6 border-2 border-slate-200 dark:border-slate-600 rounded-2xl bg-slate-50 dark:bg-slate-900/50 text-slate-800 dark:text-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 outline-none transition-all"
-          />
-
-          <button
-            onClick={() => startExamProcess(examDetails)}
-            disabled={startingExam || tokenInput.length < 1}
-            className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {startingExam ? 'Memverifikasi...' : 'Verifikasi & Mulai Ujian'}
-          </button>
         </div>
       </div>
     );
   }
 
+if (showTokenModal) {
+    const handleTokenKeyDown = (e) => {
+      if (e.key === 'Enter' && tokenInput.length >= 1 && !startingExam) {
+        e.preventDefault();
+        startExamProcess(examDetails);
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-10 flex items-center justify-center">
+        <div className="w-full max-w-[400px] rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl shadow-slate-900/5 dark:shadow-black/40 overflow-hidden">
+
+          {/* Header */}
+          <div className="px-6 pt-6 pb-5 border-b border-slate-100 dark:border-slate-800 flex items-start gap-3">
+            <span className="shrink-0 w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+              <svg className="w-5 h-5 text-slate-700 dark:text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+            </span>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base font-bold text-slate-900 dark:text-white">Masukkan Token Ujian</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{examDetails?.exam_name}</p>
+            </div>
+            <button
+              onClick={() => { setShowTokenModal(false); setTokenInput(''); setError(null); setShowInstructionsScreen(true); }}
+              aria-label="Kembali ke petunjuk ujian"
+              className="shrink-0 -mr-1.5 -mt-1 p-1.5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+
+<div className="px-6 py-5 space-y-4">
+            <div>
+              <label htmlFor="token-input" className="sr-only">Token ujian</label>
+              <input
+                id="token-input"
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                spellCheck={false}
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value.toUpperCase())}
+                onKeyDown={handleTokenKeyDown}
+                placeholder="••••••"
+                maxLength={6}
+                autoFocus
+                className="w-full text-center text-2xl font-mono font-bold tracking-[0.35em] uppercase py-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 placeholder:tracking-[0.35em] focus:outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-900/5 dark:focus:ring-white/5 transition-colors"
+              />
+              <p className="text-[11px] text-slate-400 mt-2 text-center">
+                Token terdiri dari 6 karakter dan tidak membedakan huruf besar-kecil.
+              </p>
+            </div>
+
+            <button
+              onClick={() => startExamProcess(examDetails)}
+              disabled={startingExam || tokenInput.length < 1}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {startingExam ? 'Memverifikasi...' : 'Verifikasi & Mulai Ujian'}
+              {!startingExam && <Icons.ChevronRight />}
+            </button>
+          </div>
+        </div>
+
+        {/* Modal error verifikasi token */}
+        {error && !startingExam && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 dark:bg-black/70 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden">
+              <div className="px-6 pt-6 pb-4 text-center">
+                <div className="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-900/60 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0l-7 12a2 2 0 001.74 3z" />
+                  </svg>
+                </div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">Error</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-300 mt-1.5 break-words">
+                  {error || 'Token Ujian tidak valid atau sudah kadaluarsa.'}
+                </p>
+              </div>
+
+              <div className="px-6 pb-6 space-y-2">
+                <button
+                  onClick={() => { setTokenInput(''); setError(null); }}
+                  className="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition-opacity"
+                >
+                  Masukkan Ulang Token
+                </button>
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-semibold border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
+                >
+                  Kembali ke Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // --- RENDERING ACTUAL EXAM ---
   return (

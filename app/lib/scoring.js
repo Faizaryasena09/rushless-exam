@@ -10,8 +10,10 @@ export function calculateQuestionScore(qInfo, studentAnswer) {
     let earnedForThisQuestion = 0;
 
     if (qInfo.type === 'multiple_choice_complex') {
-        const correctKeys = qInfo.correct.split(',').map(k => k.trim()).filter(k => k);
-        const studentKeys = studentAnswer.split(',').map(k => k.trim()).filter(k => k);
+        const correctKeys = [...new Set(qInfo.correct.split(',').map(k => k.trim()).filter(k => k))];
+        // PENTING: string jawaban berasal dari client, jadi bisa berisi key duplikat
+        // (mis. "A,A,A"). Tanpa dedupe, pgk_additive bisa menambah nilai berkali-kali.
+        const studentKeys = [...new Set(studentAnswer.split(',').map(k => k.trim()).filter(k => k))];
         
         // Use Sets for order-independent comparison
         const correctSet = new Set(correctKeys);
@@ -147,6 +149,13 @@ export function calculateQuestionScore(qInfo, studentAnswer) {
             earnedForThisQuestion = qInfo.points;
         }
     }
+
+    // Pengaman: nilai tidak boleh negatif dan tidak boleh melebihi poin maksimal.
+    // Untuk input normal clamp ini tidak mengubah apa pun.
+    const maxPoints = Number(qInfo.points) || 0;
+    if (!Number.isFinite(earnedForThisQuestion)) return 0;
+    if (earnedForThisQuestion < 0) return 0;
+    if (earnedForThisQuestion > maxPoints) return maxPoints;
 
     return earnedForThisQuestion;
 }

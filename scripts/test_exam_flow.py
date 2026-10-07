@@ -469,7 +469,7 @@ def wait_completed(attempt_id, timeout=60, poll=1.5):
 # ---------------------------------------------------------------- tests
 def run_migration_via_api():
     """Jalankan migrasi resmi aplikasi (GET /api/setup) memakai sesi admin.
-    Ini jalur yang sama dengan tombol 'Setup' di halaman Database."""
+    Ini jalur yang sama dengan tombol 'Setup' di halaman System Overview."""
     global BASE
     banner("MIGRASI SKEMA (--migrate)")
     try:
@@ -478,8 +478,9 @@ def run_migration_via_api():
         record("MIG.1 login admin", False, str(e))
         return False
 
-    # Jalankan route setup resmi aplikasi (sama seperti tombol Setup di Dashboard)
-    r = s.get(f"{BASE}/api/setup?key=@Rushless123", timeout=300)
+    # Jalankan route setup resmi aplikasi (sama seperti tombol Setup di Dashboard).
+    # Auth lewat cookie sesi admin, tidak ada lagi key hardcoded.
+    r = s.get(f"{BASE}/api/setup", timeout=300)
 
     if r.status_code != 200:
         record("MIG.2 jalankan /api/setup", False, f"HTTP {r.status_code} {r.text[:120]}")

@@ -8,7 +8,8 @@ import { logFromRequest } from '@/app/lib/logger';
 import redis, { isRedisReady } from '@/app/lib/redis';
 import fs from 'fs/promises';
 import { existsSync, writeFileSync, mkdirSync } from 'fs'; // For sync checks if needed, but we prefer async
-import path from 'path';
+import path from 'fs';
+import { DEFAULT_TIMEZONE, isValidTimezone } from '@/app/lib/timezone';
 
 async function getSession() {
     const cookieStore = await cookies();
@@ -68,11 +69,20 @@ export async function GET(request) {
         // Fetch web branding settings universally if requested (Public info)
         if (mode === 'branding') {
             const brandingRows = await query({
-                query: `SELECT setting_key, setting_value FROM rhs_web_settings WHERE setting_key IN ('site_name', 'site_logo', 'app_language')`,
+                query: `SELECT setting_key, setting_value FROM rhs_web_settings WHERE setting_key IN ('site_name', 'site_logo', 'app_language', 'app_timezone')`,
                 values: []
             });
-            const branding = { site_name: 'Rushless Exam', site_logo: '/favicon.ico', app_language: 'id' };
+            // Default timezone mengikuti env (di-set oleh Jenkins/PM2/Coolify),
+            // lalu jatuh ke Asia/Jakarta bila belum ada.
+            const branding = {
+                site_name: 'Rushless Exam',
+                site_logo: '/favicon.ico',
+                app_language: 'id',
+                app_timezone: DEFAULT_TIMEZONE
+            };
             brandingRows.forEach(row => branding[row.setting_key] = row.setting_value);
+            // Jangan pernah kirim timezone yang tidak valid ke client.
+            if (!isValidTimezone(branding.app_timezone)) branding.app_timezone = DEFAULT_TIMEZONE;
             return NextResponse.json(branding);
         }
 
@@ -174,10 +184,21 @@ export async function PUT(request) {
         }
 
         // Handle Web Settings (Branding & App Config)
-        if (['site_name', 'site_logo', 'app_language', 'app_emergency_password'].includes(key)) {
+        if (['site_name', 'site_logo', 'app_language', 'app_timezone', 'app_emergency_password'].includes(key)) {
             // Validate app_language
             if (key === 'app_language' && !['id', 'en'].includes(value)) {
                 return NextResponse.json({ message: 'Invalid language value. Use id or en.' }, { status: 400 });
+            }
+
+            // Validate app_timezone (harus nama IANA yang dikenal runtime)
+            if (key === 'app_timezone') {
+                const tz = String(value || '').trim();
+                if (!isValidTimezone(tz)) {
+                    return NextResponse.json({
+                        message: 'Invalid timezone. Gunakan nama IANA, contoh: Asia/Jakarta.'
+                    }, { status: 400 });
+                }
+                value = tz;
             }
 
             // Intercept site_logo base64 and save as file

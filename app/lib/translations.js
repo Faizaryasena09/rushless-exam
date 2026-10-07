@@ -12,6 +12,11 @@ const translations = {
     login_btn_loading: 'Memproses...',
     login_success: 'Login berhasil! Mengalihkan...',
     login_retry_in: 'Coba lagi dalam',
+    login_hero_title: 'KUJI LEBIH AMAN, HASIL LEBIH CEPAT',
+    login_feature_secure: 'Mode ujian aman dengan Rushless Safer, SEB, atau Geschool.',
+    login_feature_anticheat: 'Rekam aktivitas students, termasuk pindah tab dan salin-tempel.',
+    login_feature_realtime: 'Nilai dan analisis jawaban tersedia setelah ujian selesai.',
+    login_secure_note: 'Akses dilindungi dan aktivitas tercatat.',
 
     // --- Sidebar Nav ---
     nav_dashboard: 'Dashboard',
@@ -24,6 +29,9 @@ const translations = {
     nav_exam_control: 'Kontrol Ujian',
     nav_manage_exams: 'Kelola Ujian',
     nav_admin_tools: 'Admin Tools',
+    nav_group_main: 'Menu Utama',
+    nav_group_manage: 'Manajemen',
+    nav_group_admin: 'Sistem',
 
     // --- Header ---
     header_my_profile: 'Profil Saya',
@@ -386,6 +394,11 @@ const translations = {
     admin_branding_logo_current: 'Logo Saat Ini',
     admin_lang_title: 'Bahasa / Language',
     admin_lang_desc: 'Pilih bahasa antarmuka aplikasi',
+    admin_tz_title: 'Zona Waktu / Timezone',
+    admin_tz_desc: 'Zona waktu yang dipakai untuk menampilkan seluruh jam dan tanggal',
+    admin_tz_label: 'Zona waktu aplikasi',
+    admin_tz_preview: 'Waktu sekarang di zona terpilih:',
+    admin_tz_success: 'Zona waktu berhasil disimpan',
     admin_lang_label: 'Bahasa Antarmuka',
     admin_lang_info: 'Berlaku untuk semua halaman kecuali konten soal ujian.',
     admin_android_emergency_label: 'Sandi Emergency Exit',
@@ -593,6 +606,11 @@ const translations = {
     login_btn_loading: 'Signing In...',
     login_success: 'Login successful! Redirecting...',
     login_retry_in: 'Try again in',
+    login_hero_title: 'SAFER EXAMS, FASTER INSIGHTS',
+    login_feature_secure: 'Secure exam mode with Rushless Safer, SEB, or Geschool.',
+    login_feature_anticheat: 'Records student activity, including tab switching and copy-paste.',
+    login_feature_realtime: 'Scores and answer analysis available right after the exam ends.',
+    login_secure_note: 'Protected access with recorded activity.',
 
     // --- Sidebar Nav ---
     nav_dashboard: 'Dashboard',
@@ -605,6 +623,9 @@ const translations = {
     nav_exam_control: 'Exam Control',
     nav_manage_exams: 'Manage Exams',
     nav_admin_tools: 'Admin Tools',
+    nav_group_main: 'Main Menu',
+    nav_group_manage: 'Management',
+    nav_group_admin: 'System',
 
     // --- Header ---
     header_my_profile: 'My Profile',
@@ -967,6 +988,11 @@ const translations = {
     admin_branding_logo_current: 'Current Logo',
     admin_lang_title: 'Language / Bahasa',
     admin_lang_desc: 'Select the application interface language',
+    admin_tz_title: 'Timezone / Zona Waktu',
+    admin_tz_desc: 'Timezone used to display all times and dates',
+    admin_tz_label: 'Application timezone',
+    admin_tz_preview: 'Current time in selected timezone:',
+    admin_tz_success: 'Timezone saved successfully',
     admin_lang_label: 'Interface Language',
     admin_lang_info: 'Applies to all pages except exam question content.',
     admin_android_emergency_label: 'Emergency Exit Password',

@@ -26,14 +26,15 @@ const CHANGE_BADGE = {
 };
 
 function formatDateTime(value) {
-    if (!value) return '-';
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return '-';
-    return d.toLocaleString('id-ID', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-    });
-}
+        if (!value) return '-';
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return '-';
+        return d.toLocaleString(localeForTz, {
+            timeZone: appTimezone,
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
 
 /** Buang tag HTML + panjangkan/motong teks soal agar aman ditampilkan */
 function questionPreview(html, max = 90) {
@@ -57,7 +58,7 @@ function answerPreview(value, max = 140) {
 }
 
 export default function ArchiveAnswersPage() {
-    const { t } = useLanguage();
+    const { t, timezone: appTimezone } = useLanguage();
 
     const [groups, setGroups] = useState([]);
     const [stats, setStats] = useState({ total: 0, attempts: 0, oldest: null, newest: null });

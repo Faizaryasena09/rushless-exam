@@ -75,10 +75,18 @@ export async function GET(request) {
             e.exam_name,
             e.timer_mode,
             e.duration_minutes,
-            UNIX_TIMESTAMP(s.end_time) as exam_end_ts
+            UNIX_TIMESTAMP(s.end_time) as exam_end_ts,
+            (SELECT COUNT(*) FROM rhs_exam_attempts ea3
+              WHERE ea3.user_id = u.id AND ea3.status = 'in_progress') as in_progress_count
         FROM rhs_users u
         LEFT JOIN rhs_classes c ON u.class_id = c.id
-        LEFT JOIN rhs_exam_attempts ea ON u.id = ea.user_id AND ea.status = 'in_progress'
+        LEFT JOIN rhs_exam_attempts ea ON ea.id = (
+            SELECT ea2.id
+            FROM rhs_exam_attempts ea2
+            WHERE ea2.user_id = u.id AND ea2.status = 'in_progress'
+            ORDER BY ea2.start_time DESC, ea2.id DESC
+            LIMIT 1
+        )
         LEFT JOIN rhs_exams e ON ea.exam_id = e.id
         LEFT JOIN rhs_exam_settings s ON e.id = s.exam_id
         WHERE u.role = 'student' ${classFilter}
@@ -146,6 +154,9 @@ export async function GET(request) {
         current_exam: s.exam_name || null,
         attempt_id: s.attempt_id || null,
         seconds_left,
+        // Berapa banyak ujian yang sedang dikerjakan siswa ini sekaligus.
+        // > 1 berarti ada attempt lain yang tidak ditampilkan di baris ini.
+        in_progress_count: Number(s.in_progress_count) || 0,
       };
     });
 

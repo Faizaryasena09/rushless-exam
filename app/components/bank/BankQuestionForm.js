@@ -1,15 +1,18 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { 
-  Plus, 
-  Trash, 
-  Save, 
-  X, 
-  Settings,
-  Type,
+import { useState, useRef, useMemo } from 'react';
+import {
+  Plus,
+  Trash,
+  Save,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ListChecks,
+  ListFilter,
+  ToggleLeft,
+  GitCompareArrows,
+  AlignLeft,
+  Image as ImageIcon
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { uploadBase64Images } from '@/app/lib/utils';
@@ -17,20 +20,72 @@ import { toast } from 'sonner';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
-const Icons = {
-  Upload: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+/* ---------- Metadata: bahasa manusia, bukan kode internal ---------- */
+const QUESTION_TYPES = [
+  {
+    value: 'multiple_choice',
+    label: 'Pilihan Ganda',
+    desc: 'Satu jawaban benar',
+    icon: ListChecks,
+  },
+  {
+    value: 'multiple_choice_complex',
+    label: 'Pilihan Ganda Kompleks',
+    desc: 'Bisa lebih dari satu benar',
+    icon: ListFilter,
+  },
+  {
+    value: 'true_false',
+    label: 'Benar / Salah',
+    desc: 'Hanya dua pilihan',
+    icon: ToggleLeft,
+  },
+  {
+    value: 'matching',
+    label: 'Menjodohkan',
+    desc: 'Pasangkan kiri ke kanan',
+    icon: GitCompareArrows,
+  },
+  {
+    value: 'essay',
+    label: 'Esai',
+    desc: 'Jawaban panjang, dinilai guru',
+    icon: AlignLeft,
+  },
+];
+
+const SCORING_OPTIONS = {
+  multiple_choice_complex: [
+    { value: 'pgk_partial', label: 'Ada penalti', desc: 'Jawaban salah mengurangi poin. Paling umum.' },
+    { value: 'pgk_strict', label: 'Wajib semua benar', desc: 'Poin penuh hanya jika semua benar dan tidak ada yang salah.' },
+    { value: 'pgk_any', label: 'Minimal satu benar', desc: 'Poin penuh jika minimal satu benar dan tidak ada yang salah.' },
+    { value: 'pgk_additive', label: 'Tanpa penalti', desc: 'Setiap jawaban benar menambah poin, yang salah tidak mengurangi.' },
+  ],
+  essay: [
+    { value: 'essay_manual', label: 'Dinilai guru', desc: 'Anda yang menilai sendiri setelah ujian selesai.' },
+    { value: 'essay_keywords', label: 'Kata kunci (proporsional)', desc: 'Semakin banyak kata kunci cocok, semakin tinggi nilainya.' },
+    { value: 'essay_any_keyword', label: 'Minimal satu kata kunci', desc: 'Poin penuh hanya jika satu kata kunci saja sudah cocok.' },
+    { value: 'essay_strict_keywords', label: 'Semua kata kunci', desc: 'Poin penuh hanya jika semua kata kunci ditemukan.' },
+  ],
 };
 
-const JoditEditorWithUpload = ({ value, onBlur }) => {
+// Nilai dari editor Jodit berupa HTML, jadi <p><br></p> dianggap "terisi" kalau dicek dengan trim()
+const hasContent = (html) => (html || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
+
+const INPUT_CLASS =
+  'w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-slate-900/5 dark:focus:ring-white/5 transition-colors';
+
+const JoditEditorWithUpload = ({ value, onBlur, placeholder }) => {
     const editor = useRef(null);
     const config = useMemo(() => ({
         readonly: false,
         height: 'auto',
-        minHeight: 150,
+        minHeight: 120,
+        placeholder,
         insertImageAsBase64URL: true,
         hidePoweredByJodit: true,
-        buttons: 'bold,italic,underline,strikethrough,|,ul,ol,|,outdent,indent,|,font,fontsize,brush,paragraph,|,image,video,table,link,|,align,undo,redo,\n,cut,hr,eraser,copyformat,|,symbol,fullsize,print,about'
-    }), []);
+        buttons: 'bold,italic,underline,|,ul,ol,|,image,link,align,undo,redo,clearformat'
+    }), [placeholder]);
 
     const handleFileSelect = (event) => {
         const file = event.target.files[0];
@@ -51,12 +106,11 @@ const JoditEditorWithUpload = ({ value, onBlur }) => {
                 config={config}
                 onBlur={newContent => onBlur(newContent)}
             />
-            <div className="mt-2">
-                <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border-2 border-slate-100 dark:border-slate-700 transition-all active:scale-95">
-                    <Icons.Upload /> UPLOAD GAMBAR
-                    <input type="file" className="hidden" accept="image/*" onChange={handleFileSelect} />
-                </label>
-            </div>
+            <label className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors">
+                <ImageIcon size={13} />
+                Sisipkan gambar
+                <input type="file" className="hidden" accept="image/*" onChange={handleFileSelect} />
+            </label>
         </div>
     );
 };
@@ -168,13 +222,24 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
-        // Validation logic
-        const isMatchingEmpty = questionType === 'matching' && pairs.some(p => !p.p.trim() || !p.r.trim());
-        const isOptionsEmpty = questionType !== 'essay' && questionType !== 'matching' && options.some(o => !o.value.trim());
 
-        if (!questionText.trim() || isMatchingEmpty || isOptionsEmpty) {
-            setError('Mohon lengkapi pertanyaan dan semua opsi/pasangan.');
+        // Validasi
+        if (!hasContent(questionText)) {
+            setError('Tulis dulu pertanyaannya pada langkah 2.');
+            return;
+        }
+        if (questionType === 'matching' && pairs.some(p => !hasContent(p.p) || !hasContent(p.r))) {
+            setError('Ada pasangan yang belum lengkap pada langkah 3.');
+            return;
+        }
+        if (questionType !== 'essay' && questionType !== 'matching' && options.some(o => !hasContent(o.value))) {
+            setError('Ada pilihan jawaban yang masih kosong pada langkah 3.');
+            return;
+        }
+        if (
+            questionType === 'multiple_choice' && !hasContent(options.find(o => o.key === correctOption)?.value)
+        ) {
+            setError('Kunci jawaban menunjuk ke pilihan yang masih kosong.');
             return;
         }
 
@@ -244,247 +309,371 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
         }
     };
 
+    const questionTypesAvailable = questionType === 'multiple_choice_complex' || questionType === 'essay'
+        ? SCORING_OPTIONS[questionType]
+        : null;
+
+    const missingQuestion = !hasContent(questionText);
+    const missingOptions = questionType !== 'essay' && questionType !== 'matching' && options.some(o => !hasContent(o.value));
+    const missingPairs = questionType === 'matching' && pairs.some(p => !hasContent(p.p) || !hasContent(p.r));
+    const hasError = missingQuestion || missingOptions || missingPairs;
+
+    const StepHeader = ({ n, title, hint }) => (
+        <div className="flex items-baseline gap-2.5 mb-3">
+            <span className="shrink-0 w-5 h-5 rounded-md bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[11px] font-bold flex items-center justify-center tabular-nums">
+                {n}
+            </span>
+            <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h3>
+                {hint && <p className="text-xs text-slate-400 mt-0.5">{hint}</p>}
+            </div>
+        </div>
+    );
+
     return (
-        <form onSubmit={handleSubmit} className="space-y-10">
-            {/* Metadata Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border-2 border-slate-50 dark:border-slate-700 shadow-sm space-y-6">
-                    <div className="flex items-center gap-3">
-                        <Type className="w-5 h-5 text-indigo-500" />
-                        <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Metadata Soal</h3>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Tipe Soal</label>
-                            <select 
-                                value={questionType} 
-                                onChange={(e) => handleTypeChange(e.target.value)}
-                                className="w-full p-4 border-2 border-slate-100 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-800 transition-all font-bold text-slate-700 dark:text-slate-100 outline-none focus:border-indigo-400"
+        <form onSubmit={handleSubmit} className="pb-2">
+            {/* ============ 1. Tipe Soal ============ */}
+            <section className="mb-8">
+                <StepHeader n={1} title="Pilih tipe soal" hint="Menentukan forme soal dan cara penilaiannya." />
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                    {QUESTION_TYPES.map(t => {
+                        const active = questionType === t.value;
+                        const Icon = t.icon;
+                        return (
+                            <button
+                                key={t.value}
+                                type="button"
+                                onClick={() => handleTypeChange(t.value)}
+                                aria-pressed={active}
+                                className={`text-left p-3 rounded-xl border transition-colors ${active
+                                    ? 'border-slate-900 dark:border-white bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 bg-white dark:bg-slate-900'
+                                    }`}
                             >
-                                <option value="multiple_choice">Pilihan Ganda</option>
-                                <option value="multiple_choice_complex">Pilihan Ganda Kompleks</option>
-                                <option value="true_false">Benar / Salah</option>
-                                <option value="matching">Menjodohkan (Matching)</option>
-                                <option value="essay">Esai</option>
-                            </select>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider ml-1">Poin Dasar</label>
-                            <input 
-                                type="number" 
-                                step="any"
-                                value={points}
-                                onChange={(e) => setPoints(parseFloat(e.target.value))}
-                                className="w-full p-4 border-2 border-slate-100 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-800 transition-all font-bold text-slate-700 dark:text-slate-100 outline-none focus:border-indigo-400"
+                                <Icon size={17} className={active ? '' : 'text-slate-400'} />
+                                <p className="mt-1.5 text-[13px] font-semibold leading-tight">{t.label}</p>
+                                <p className={`text-[11px] leading-tight mt-0.5 ${active ? 'opacity-70' : 'text-slate-400'}`}>{t.desc}</p>
+                            </button>
+                        );
+                    })}
+                </div>
+            </section>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* ============ Kolom utama ============ */}
+                <div className="lg:col-span-2 space-y-8 min-w-0">
+                    {/* 2. Pertanyaan */}
+                    <section>
+                        <StepHeader n={2} title="Tulis pertanyaannya" hint="Boleh ketik teks biasa, sisipkan gambar, rumus, atau tabel." />
+                        <div className={`rounded-xl border bg-white dark:bg-slate-900 transition-colors ${missingQuestion && hasError ? 'border-rose-300 dark:border-rose-500/40' : 'border-slate-200 dark:border-slate-800'}`}>
+                            <JoditEditorWithUpload
+                                value={questionText}
+                                placeholder="Tulis pertanyaan di sini…"
+                                onBlur={newContent => setQuestionText(newContent)}
                             />
                         </div>
-                    </div>
-                </div>
-                
-                <div className="bg-indigo-600 rounded-[2.5rem] p-8 text-white flex flex-col justify-center relative shadow-2xl shadow-indigo-200 dark:shadow-none overflow-hidden group">
-                    <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-700"></div>
-                    <div className="relative">
-                        <p className="text-xs font-black opacity-60 uppercase tracking-widest mb-1">Status Bank</p>
-                        <div className="text-3xl font-black">{folderId ? 'Penyimpanan Ready' : 'Global (Root)'}</div>
-                        <div className="mt-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest bg-white/20 inline-flex px-3 py-1 rounded-full">
-                           <Save className="w-3 h-3" /> Auto Draft Disimpan
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Question Content */}
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border-2 border-slate-50 dark:border-slate-700 shadow-sm space-y-6">
-                <div className="flex items-center gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-500" />
-                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Konten Pertanyaan</h3>
-                </div>
-                <JoditEditorWithUpload 
-                    value={questionText}
-                    onBlur={newContent => setQuestionText(newContent)}
-                />
-            </div>
-
-            {/* Scoring Strategies Section */}
-            {(questionType === 'multiple_choice_complex' || questionType === 'essay') && (
-                <div className={`p-8 rounded-[2.5rem] border-2 shadow-sm animate-in fade-in duration-500 ${questionType === 'essay' ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/50' : 'bg-indigo-50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/50'}`}>
-                    <div className="flex items-center gap-3 mb-6">
-                        <Settings className={`w-5 h-5 ${questionType === 'essay' ? 'text-emerald-500' : 'text-indigo-500'}`} />
-                        <h3 className={`text-sm font-black uppercase tracking-widest ${questionType === 'essay' ? 'text-emerald-600' : 'text-indigo-600'}`}>
-                            {questionType === 'essay' ? 'Automasi Koreksi Esai' : 'Strategi PGK'}
-                        </h3>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {questionType === 'multiple_choice_complex' ? (
-                            ['pgk_partial', 'pgk_strict', 'pgk_any', 'pgk_additive'].map(s => (
-                                <button type="button" key={s} onClick={() => setScoringStrategy(s)} className={`p-4 rounded-3xl border-2 text-left transition-all ${scoringStrategy === s ? 'bg-white dark:bg-slate-800 border-indigo-500 shadow-xl scale-105 active:scale-95' : 'bg-white/40 dark:bg-slate-900/20 border-transparent hover:border-slate-200'}`}>
-                                    <p className="font-black text-xs uppercase tracking-widest mb-1 text-slate-400">{s.split('_')[1]}</p>
-                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 capitalize">{s.replace(/_/g, ' ')}</p>
-                                </button>
-                            ))
-                        ) : (
-                            ['essay_manual', 'essay_keywords', 'essay_any_keyword', 'essay_strict_keywords'].map(s => (
-                                <button type="button" key={s} onClick={() => setScoringStrategy(s)} className={`p-4 rounded-3xl border-2 text-left transition-all ${scoringStrategy === s ? 'bg-white dark:bg-slate-800 border-emerald-500 shadow-xl scale-105 active:scale-95' : 'bg-white/40 dark:bg-slate-900/20 border-transparent hover:border-slate-200'}`}>
-                                    <p className="font-black text-xs uppercase tracking-widest mb-1 text-slate-400">{s.split('_')[1]}</p>
-                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 capitalize">{s.replace(/_/g, ' ')}</p>
-                                </button>
-                            ))
+                        {missingQuestion && hasError && (
+                            <p className="mt-1.5 text-xs text-rose-600 dark:text-rose-400">Pertanyaan masih kosong.</p>
                         )}
-                    </div>
-                </div>
-            )}
+                    </section>
 
-            {/* Options Section */}
-            {questionType !== 'essay' && questionType !== 'matching' && (
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border-2 border-slate-50 dark:border-slate-700 shadow-sm space-y-8">
-                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Plus className="w-5 h-5 text-indigo-500" />
-                            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Pilihan Jawaban</h3>
-                        </div>
-                        {questionType !== 'true_false' && (
-                            <button type="button" onClick={addOption} className="text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all shadow-sm active:scale-90">
-                                Tambah Opsi
-                            </button>
-                        )}
-                    </div>
+                    {/* 3. Pilihan jawaban (PG / B-S) */}
+                    {questionType !== 'essay' && questionType !== 'matching' && (
+                        <section>
+                            <StepHeader
+                                n={3}
+                                title="Buat pilihan jawaban"
+                                hint={
+                                    questionType === 'multiple_choice_complex'
+                                        ? 'Centang kunci di sebelah kanan. Boleh lebih dari satu.'
+                                        : 'Pilih satu kunci di sebelah kanan setiap opsi.'
+                                }
+                            />
 
-                    <div className="grid grid-cols-1 gap-8">
-                        {options.map((opt) => (
-                           <div key={opt.id} className="relative group/opt">
-                              <div className="absolute -left-4 top-4 w-10 h-10 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black z-10 shadow-lg shadow-indigo-200">
-                                 {opt.key}
-                              </div>
-                              <div className="pl-10">
-                                 <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[2rem] border-2 border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/50 transition-all">
-                                    <div className="flex justify-between mb-4">
-                                       <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Isi Jawaban {opt.key}</span>
-                                       {options.length > 2 && questionType !== 'true_false' && (
-                                          <button type="button" onClick={() => removeOption(opt.id)} className="text-red-400 hover:text-red-600 transition-colors">
-                                             <Trash className="w-4 h-4" />
-                                          </button>
-                                       )}
-                                    </div>
-                                    {questionType === 'true_false' ? (
-                                       <input type="text" readOnly value={opt.value} className="w-full bg-white dark:bg-slate-800 p-4 rounded-xl border-none font-bold text-slate-400" />
-                                    ) : (
-                                       <JoditEditorWithUpload value={opt.value} onBlur={newContent => handleOptionChange(opt.id, newContent)} />
-                                    )}
-                                 </div>
-                              </div>
-                           </div>
-                        ))}
-                    </div>
+                            <div className="space-y-2">
+                                {options.map(opt => {
+                                    const checked = questionType === 'multiple_choice_complex'
+                                        ? correctOptions.includes(opt.key)
+                                        : correctOption === opt.key;
+                                    const isKey = checked;
 
-                    {/* Correct Answers */}
-                    <div className="pt-8 border-t border-slate-50 dark:border-slate-700">
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-6 ml-1">Kunci Jawaban</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                            {options.map(opt => {
-                                const isSelected = questionType === 'multiple_choice_complex' 
-                                    ? correctOptions.includes(opt.key) 
-                                    : correctOption === opt.key;
-                                
-                                return (
-                                    <button 
-                                        type="button" 
-                                        key={opt.id}
-                                        onClick={() => {
-                                            if (questionType === 'multiple_choice_complex') {
-                                                if (correctOptions.includes(opt.key)) setCorrectOptions(correctOptions.filter(k => k !== opt.key));
-                                                else setCorrectOptions([...correctOptions, opt.key]);
-                                            } else {
-                                                setCorrectOption(opt.key);
-                                            }
-                                        }}
-                                        className={`flex flex-col items-center gap-2 p-6 rounded-3xl border-2 transition-all ${isSelected ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-500 shadow-xl' : 'bg-slate-50 dark:bg-slate-900 border-transparent hover:bg-slate-100'}`}
-                                    >
-                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-black ${isSelected ? 'bg-emerald-500 text-white animate-in zoom-in-75 duration-300' : 'bg-white dark:bg-slate-800 text-slate-300'}`}>
-                                            {isSelected ? <CheckCircle2 className="w-6 h-6" /> : opt.key}
+                                    return (
+                                        <div
+                                            key={opt.id}
+                                            className={`group flex items-start gap-3 p-3 rounded-xl border transition-colors ${isKey
+                                                ? 'border-emerald-300 dark:border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-500/5'
+                                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+                                                }`}
+                                        >
+                                            {/* Tandai kunci */}
+                                            <label
+                                                className="shrink-0 cursor-pointer select-none pt-1 flex flex-col items-center gap-1"
+                                                title={questionType === 'multiple_choice_complex' ? 'Centang sebagai kunci' : 'Jadikan kunci jawaban'}
+                                            >
+                                                <input
+                                                    type={questionType === 'multiple_choice_complex' ? 'checkbox' : 'radio'}
+                                                    name="correct-answer"
+                                                    className="sr-only"
+                                                    checked={checked}
+                                                    onChange={() => {
+                                                        if (questionType === 'multiple_choice_complex') {
+                                                            setCorrectOptions(prev => prev.includes(opt.key)
+                                                                ? prev.filter(k => k !== opt.key)
+                                                                : [...prev, opt.key]);
+                                                        } else {
+                                                            setCorrectOption(opt.key);
+                                                        }
+                                                    }}
+                                                />
+                                                <span className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-colors ${isKey
+                                                    ? 'bg-emerald-600 border-emerald-600 text-white'
+                                                    : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-400'
+                                                    }`}>
+                                                    {isKey
+                                                        ? <CheckCircle2 size={15} />
+                                                        : <span className="text-xs font-bold">{opt.key}</span>}
+                                                </span>
+                                                <span className={`text-[9px] font-semibold ${isKey ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                                                    {isKey ? 'Kunci' : 'Kunci?'}
+                                                </span>
+                                            </label>
+
+                                            {/* Isi opsi */}
+                                            <div className="flex-1 min-w-0">
+                                                {questionType === 'true_false' ? (
+                                                    <div className="px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200">
+                                                        {opt.value}
+                                                    </div>
+                                                ) : (
+                                                    <JoditEditorWithUpload
+                                                        value={opt.value}
+                                                        placeholder={`Pilihan ${opt.key}…`}
+                                                        onBlur={newContent => handleOptionChange(opt.id, newContent)}
+                                                    />
+                                                )}
+                                            </div>
+
+                                            {options.length > 2 && questionType !== 'true_false' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeOption(opt.id)}
+                                                    aria-label={`Hapus opsi ${opt.key}`}
+                                                    className="shrink-0 p-1.5 mt-1 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                                                >
+                                                    <Trash size={15} />
+                                                </button>
+                                            )}
                                         </div>
-                                        <span className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-emerald-600' : 'text-slate-400'}`}>OPSI {opt.key}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            )}
+                                    );
+                                })}
+                            </div>
 
-            {/* Matching Section */}
-            {questionType === 'matching' && (
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border-2 border-slate-50 dark:border-slate-700 shadow-sm space-y-8">
-                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Plus className="w-5 h-5 text-indigo-500" />
-                            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Daftar Pasangan (Matching)</h3>
-                        </div>
-                        <button type="button" onClick={addPair} className="text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all shadow-sm active:scale-90">
-                            Tambah Pasangan
-                        </button>
-                    </div>
+                            {questionType !== 'true_false' && (
+                                <button
+                                    type="button"
+                                    onClick={addOption}
+                                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:border-slate-400 transition-colors"
+                                >
+                                    <Plus size={14} />
+                                    Tambah pilihan
+                                </button>
+                            )}
 
-                    <div className="space-y-6">
-                        {pairs.map((pair, idx) => (
-                            <div key={pair.id} className="relative group/pair">
-                                <div className="absolute -left-4 top-4 w-10 h-10 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black z-10 shadow-lg">
-                                    {idx + 1}
-                                </div>
-                                <div className="pl-10">
-                                    <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[2.5rem] border-2 border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/50 transition-all">
-                                        <div className="flex justify-between items-center mb-6">
-                                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Pasangan #{idx+1}</span>
+                            {missingOptions && hasError && (
+                                <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">Ada pilihan yang masih kosong.</p>
+                            )}
+                        </section>
+                    )}
+
+                    {/* 3. Pasangan (matching) */}
+                    {questionType === 'matching' && (
+                        <section>
+                            <StepHeader n={3} title="Buat pasangan" hint="Tulis sisi kiri, lalu isi sisi kanan yang tepat." />
+
+                            <div className="space-y-2">
+                                {pairs.map((pair, idx) => (
+                                    <div
+                                        key={pair.id}
+                                        className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 tabular-nums">
+                                                Pasangan {idx + 1}
+                                            </span>
                                             {pairs.length > 1 && (
-                                                <button type="button" onClick={() => removePair(pair.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all">
-                                                    <Trash className="w-4 h-4" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removePair(pair.id)}
+                                                    aria-label={`Hapus pasangan ${idx + 1}`}
+                                                    className="p-1 rounded-md text-slate-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                                                >
+                                                    <Trash size={14} />
                                                 </button>
                                             )}
                                         </div>
 
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                            <div className="space-y-3">
-                                                <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest ml-1">Sisi Kiri (Premis)</label>
-                                                <JoditEditorWithUpload value={pair.p} onBlur={newContent => handlePairChange(pair.id, 'p', newContent)} />
-                                            </div>
-                                            <div className="space-y-3">
-                                                <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest ml-1">Sisi Kanan (Respon)</label>
-                                                <JoditEditorWithUpload value={pair.r} onBlur={newContent => handlePairChange(pair.id, 'r', newContent)} />
-                                            </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-2">
+                                            <JoditEditorWithUpload
+                                                value={pair.p}
+                                                placeholder="Sisi kiri…"
+                                                onBlur={newContent => handlePairChange(pair.id, 'p', newContent)}
+                                            />
+                                            <span className="hidden sm:flex items-center justify-center text-slate-300 dark:text-slate-600">
+                                                <GitCompareArrows size={16} />
+                                            </span>
+                                            <JoditEditorWithUpload
+                                                value={pair.r}
+                                                placeholder="Sisi kanan…"
+                                                onBlur={newContent => handlePairChange(pair.id, 'r', newContent)}
+                                            />
                                         </div>
                                     </div>
-                                </div>
+                                ))}
                             </div>
-                        ))}
+
+                            <button
+                                type="button"
+                                onClick={addPair}
+                                className="mt-2 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:border-slate-400 transition-colors"
+                            >
+                                <Plus size={14} />
+                                Tambah pasangan
+                            </button>
+
+                            {missingPairs && hasError && (
+                                <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">Ada pasangan yang belum lengkap.</p>
+                            )}
+                        </section>
+                    )}
+                </div>
+
+                {/* ============ Kolom pengaturan ============ */}
+                <aside className="space-y-5">
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                        <label htmlFor="bank-points" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                            Poin
+                        </label>
+                        <p className="text-[11px] text-slate-400 mb-2">Bobot soal ini saat penilaian.</p>
+                        <input
+                            id="bank-points"
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={points}
+                            onChange={(e) => setPoints(parseFloat(e.target.value))}
+                            className={INPUT_CLASS}
+                        />
                     </div>
+
+                    {questionType === 'essay' && (
+                        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                            <label htmlFor="bank-keywords" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                                Kata kunci
+                            </label>
+                            <p className="text-[11px] text-slate-400 mb-2">
+                                Pisahkan dengan koma. Dipakai jika penilaian otomatis aktif.
+                            </p>
+                            <input
+                                id="bank-keywords"
+                                type="text"
+                                value={keywords}
+                                onChange={(e) => setKeywords(e.target.value)}
+                                placeholder="misal: fotosintesis, klorofil"
+                                className={INPUT_CLASS}
+                            />
+                        </div>
+                    )}
+
+                    {questionTypesAvailable && (
+                        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Cara menghitung nilai</p>
+                            <p className="text-[11px] text-slate-400 mb-3">
+                                {questionType === 'essay' ? 'Esai' : 'Pilihan ganda kompleks'} — pilih cara penilaian.
+                            </p>
+
+                            <div className="space-y-1.5">
+                                {questionTypesAvailable.map(opt => {
+                                    const active = scoringStrategy === opt.value;
+                                    return (
+                                        <label
+                                            key={opt.value}
+                                            className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors ${active
+                                                ? 'border-slate-900 dark:border-white bg-slate-50 dark:bg-slate-800'
+                                                : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                                                }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="scoring-strategy"
+                                                className="sr-only"
+                                                checked={active}
+                                                onChange={() => setScoringStrategy(opt.value)}
+                                            />
+                                            <span className={`shrink-0 mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${active
+                                                ? 'border-slate-900 dark:border-white'
+                                                : 'border-slate-300 dark:border-slate-600'
+                                                }`}>
+                                                {active && <span className="w-2 h-2 rounded-full bg-slate-900 dark:bg-white" />}
+                                            </span>
+                                            <span className="min-w-0">
+                                                <span className="block text-[13px] font-semibold text-slate-800 dark:text-slate-100">{opt.label}</span>
+                                                <span className="block text-[11px] text-slate-400 leading-snug">{opt.desc}</span>
+                                            </span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60">
+                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Tersimpan ke</p>
+                        <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-200 mt-0.5 truncate">
+                            {folderId ? 'Folder saat ini' : 'Bank Soal (Root)'}
+                        </p>
+                    </div>
+                </aside>
+            </div>
+
+            {/* ============ Error + Aksi ============ */}
+            {error && (
+                <div className="mt-6 flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20">
+                    <AlertCircle size={16} className="shrink-0 text-rose-600 dark:text-rose-400" />
+                    <p className="text-sm text-rose-700 dark:text-rose-300">{error}</p>
                 </div>
             )}
 
-            {error && <div className="p-6 bg-red-50 dark:bg-red-950/20 border-2 border-red-100 dark:border-red-900/50 rounded-3xl text-red-600 font-bold flex items-center gap-3 animate-pulse">
-                <AlertCircle className="w-5 h-5" /> {error}
-            </div>}
-
-            {/* Actions */}
-            <div className="sticky bottom-0 bg-white dark:bg-slate-900 bg-opacity-80 backdrop-blur-md p-8 border-t border-slate-50 dark:border-slate-800 flex justify-end gap-4 z-20 rounded-b-[2.5rem]">
-                <button 
-                    type="button" 
-                    onClick={onCancel}
-                    className="px-10 py-4 text-sm font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-all"
-                >
-                    Batal
-                </button>
-                <button 
-                   type="submit"
-                   disabled={loading}
-                   className="px-12 py-4 bg-indigo-600 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-2xl text-sm font-black uppercase tracking-[0.2em] shadow-2xl shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 transition-all active:scale-95 flex items-center gap-3"
-                >
-                    {loading ? 'Menyimpan...' : (
-                        <>
-                           <Save className="w-5 h-5" /> SIMPAN KE BANK
-                        </>
-                    )}
-                </button>
+            <div className="sticky bottom-0 -mx-5 sm:-mx-6 -mb-5 mt-6 px-5 sm:px-6 py-3.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+                <p className="text-[11px] text-slate-400 hidden sm:block">
+                    {hasError ? 'Lengkapi bagian yang masih kosong.' : 'Siap disimpan ke Bank Soal.'}
+                </p>
+                <div className="flex items-center gap-2 ml-auto">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 active:scale-[0.98]"
+                    >
+                        {loading ? (
+                            <>
+                                <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                Menyimpan
+                            </>
+                        ) : (
+                            <>
+                                <Save size={15} />
+                                {initialData ? 'Simpan Perubahan' : 'Simpan ke Bank Soal'}
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
         </form>
     );

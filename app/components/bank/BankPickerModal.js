@@ -110,176 +110,177 @@ export default function BankPickerModal({ isOpen, onClose, onSelect, examId }) {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose}></div>
-      <div className="relative bg-white dark:bg-slate-900 w-full max-w-5xl h-[90vh] rounded-[3rem] shadow-3xl overflow-hidden flex flex-col border border-white/20">
+return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative bg-white dark:bg-slate-900 w-full sm:max-w-5xl h-full sm:h-auto sm:max-h-[90vh] sm:rounded-2xl shadow-xl overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="px-10 py-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
-           <div>
-              <div className="flex items-center gap-3">
-                 <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-200 dark:shadow-none">
-                    <FileText className="w-6 h-6" />
-                 </div>
-                 <h2 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Ambil dari Bank Soal</h2>
-              </div>
-              <p className="text-sm text-slate-400 font-bold mt-1 ml-14 uppercase tracking-widest opacity-60">Pilih soal untuk ditambahkan ke ujian ini</p>
-           </div>
-           <button onClick={onClose} className="p-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl text-slate-400 transition-all">
-              <X className="w-6 h-6" />
-           </button>
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Ambil dari Bank Soal</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Centang soal yang ingin disalin ke ujian ini.</p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Tutup"
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Content Explorer Area */}
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
             {/* Folder Navigation Sidebar */}
-            <div className="w-full md:w-80 border-r border-slate-100 dark:border-slate-800 flex flex-col bg-slate-50/30 dark:bg-slate-900/30">
-                <div className="p-6">
-                    <button 
+            <div className="w-full md:w-64 shrink-0 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50 dark:bg-slate-900/40 max-h-48 md:max-h-none">
+                <div className="p-3">
+                    <button
                        onClick={() => setCurrentFolderId(null)}
-                       className={`w-full flex items-center gap-3 p-4 rounded-2xl font-black uppercase tracking-tight text-sm transition-all shadow-sm ${!currentFolderId ? 'bg-indigo-600 text-white shadow-indigo-200' : 'bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-50'}`}
+                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${!currentFolderId ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                     >
-                       <Home className="w-5 h-5" />
+                       <Home className="w-4 h-4" />
                        Semua Folder
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto px-6 pb-6 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar">
                     <div className="space-y-1">
                        {currentFolders.map(folder => (
                           <button 
                             key={folder.id}
                             onClick={() => setCurrentFolderId(folder.id)}
-                            className="w-full flex items-center justify-between p-4 rounded-2xl text-slate-600 dark:text-slate-300 font-bold hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm border-2 border-transparent hover:border-slate-100 dark:hover:border-slate-700 transition-all text-sm group"
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors text-left ${currentFolderId === folder.id ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold border border-slate-200 dark:border-slate-700' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                           >
-                             <div className="flex items-center gap-3">
-                                <Folder className="w-4 h-4 text-indigo-500 fill-current opacity-40 group-hover:opacity-100" />
+                             <span className="flex items-center gap-2 min-w-0">
+                                <Folder className="w-4 h-4 shrink-0 opacity-60" />
                                 <span className="truncate">{folder.name}</span>
-                             </div>
-                             <ChevronRight className="w-4 h-4 opacity-30" />
+                             </span>
+                             <ChevronRight className="w-4 h-4 shrink-0 opacity-40" />
                           </button>
                        ))}
                        {currentFolders.length === 0 && !loading && (
-                          <div className="py-10 text-center opacity-30 px-4">
-                             <Folder className="w-10 h-10 mx-auto mb-2" />
-                             <p className="text-[10px] font-black uppercase tracking-widest">Tidak ada sub-folder</p>
-                          </div>
+                          <p className="text-xs text-slate-400 py-6 text-center">Tidak ada sub-folder</p>
                        )}
                     </div>
                 </div>
             </div>
 
             {/* Questions Selection Area */}
-            <div className="flex-1 flex flex-col bg-white dark:bg-slate-950">
-                {/* Search & Path */}
-                <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800 flex flex-col sm:flex-row gap-4 justify-between items-center bg-white dark:bg-slate-950 sticky top-0 z-10">
-                   <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
-                      <nav className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">
-                         <button onClick={() => setCurrentFolderId(null)} className="hover:text-indigo-600 transition-colors">ROOT</button>
-                         {path.map(p => (
-                            <div key={p.id} className="flex items-center gap-1">
-                               <ChevronRight className="w-3 h-3" />
-                               <button onClick={() => setCurrentFolderId(p.id)} className="hover:text-indigo-600 transition-colors max-w-[100px] truncate">{p.name}</button>
-                            </div>
-                         ))}
-                      </nav>
-                   </div>
-                   <div className="relative w-full sm:w-64">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                      <input 
-                        type="text" 
-                        placeholder="Cari butir soal..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-2 border-transparent focus:border-indigo-400 rounded-2xl text-xs font-bold outline-none transition-all"
-                      />
-                   </div>
-                </div>
+            <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 min-h-0">
+               {/* Search & Path */}
+               <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-3 justify-between items-center">
+                  <nav className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 min-w-0 overflow-x-auto no-scrollbar">
+                     <button onClick={() => setCurrentFolderId(null)} className="hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap">Bank Soal</button>
+                     {path.map(p => (
+                        <span key={p.id} className="flex items-center gap-1">
+                           <ChevronRight className="w-3 h-3 shrink-0" />
+                           <button onClick={() => setCurrentFolderId(p.id)} className="hover:text-slate-900 dark:hover:text-white transition-colors max-w-[120px] truncate whitespace-nowrap">{p.name}</button>
+                        </span>
+                     ))}
+                  </nav>
+                  <div className="relative w-full sm:w-60 shrink-0">
+                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                     <input 
+                       type="text" 
+                       placeholder="Cari butir soal..."
+                       value={searchTerm}
+                       onChange={(e) => setSearchTerm(e.target.value)}
+                       aria-label="Cari soal di bank"
+                       className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
+                     />
+                  </div>
+               </div>
 
-                {/* Questions List */}
-                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                    {!currentFolderId ? (
-                       <div className="h-full flex flex-col items-center justify-center text-center py-20 opacity-30">
-                          <div className="p-8 bg-slate-50 dark:bg-slate-800 rounded-full mb-6 ring-4 ring-slate-100 dark:ring-slate-900">
-                             <Folder className="w-16 h-16 text-slate-400" />
-                          </div>
-                          <h3 className="text-xl font-black uppercase tracking-tight mb-2">Pilih Folder</h3>
-                          <p className="max-w-xs text-sm font-bold">Silakan pilih folder di sebelah kiri untuk melihat daftar soal yang tersedia.</p>
-                       </div>
-                    ) : loading ? (
-                       <div className="h-full flex items-center justify-center gap-2 text-slate-400 font-black uppercase tracking-widest text-xs">
-                          <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce delay-75"></div>
-                          <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce delay-150"></div>
-                       </div>
-                    ) : filteredQuestions.length === 0 ? (
-                       <div className="h-full flex flex-col items-center justify-center text-center opacity-30">
-                          <FileText className="w-12 h-12 mb-4" />
-                          <p className="font-bold">Folder ini belum memiliki soal</p>
-                       </div>
-                    ) : (
-                       <div className="space-y-4">
-                          {filteredQuestions.map(q => (
-                             <label 
-                               key={q.id} 
-                               className={`flex items-start gap-6 p-6 rounded-[2rem] border-2 transition-all cursor-pointer relative group ${selectedQuestionIds.includes(q.id) ? 'bg-indigo-600 border-indigo-600 shadow-2xl shadow-indigo-200 ring-8 ring-indigo-500/5' : 'bg-slate-50/50 dark:bg-slate-800/30 border-transparent hover:border-slate-200 dark:hover:border-slate-700'}`}
-                             >
-                                <div className={`w-8 h-8 mt-1 flex-shrink-0 flex items-center justify-center rounded-xl border-2 transition-all ${selectedQuestionIds.includes(q.id) ? 'bg-white border-white' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
-                                   {selectedQuestionIds.includes(q.id) ? (
-                                      <Check className="w-5 h-5 text-indigo-600 stroke-[4px]" />
-                                   ) : (
-                                      <div className="w-2 h-2 bg-slate-200 dark:bg-slate-700 rounded-full group-hover:scale-150 transition-all"></div>
-                                   )}
-                                </div>
-                                <input 
-                                  type="checkbox" 
-                                  className="hidden"
-                                  checked={selectedQuestionIds.includes(q.id)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) setSelectedQuestionIds([...selectedQuestionIds, q.id]);
-                                    else setSelectedQuestionIds(selectedQuestionIds.filter(id => id !== q.id));
-                                  }}
-                                />
-                                <div className="flex-1 min-w-0">
-                                   <div className={`text-[9px] font-black uppercase tracking-[0.2em] mb-3 px-2 py-0.5 inline-block rounded ${selectedQuestionIds.includes(q.id) ? 'bg-white/20 text-white' : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'}`}>
-                                      {q.question_type?.replace(/_/g, ' ')}
-                                   </div>
-                                   <div 
-                                      className={`text-sm leading-relaxed font-bold line-clamp-2 ${selectedQuestionIds.includes(q.id) ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`} 
-                                      dangerouslySetInnerHTML={{ __html: q.question_text }} 
-                                   />
-                                </div>
-                             </label>
-                          ))}
-                       </div>
-                    )}
-                </div>
+               {/* Questions List */}
+               <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                  {!currentFolderId ? (
+                     <div className="h-full flex flex-col items-center justify-center text-center py-16">
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-3">
+                           <Folder className="w-5 h-5" />
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800 dark:text-white">Pilih folder dulu</h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs">Pilih folder di sebelah kiri untuk melihat daftar soal yang tersedia.</p>
+                     </div>
+                  ) : loading ? (
+                     <div className="space-y-2">
+                        {[0, 1, 2].map(i => (
+                           <div key={i} className="h-16 rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                        ))}
+                     </div>
+                  ) : filteredQuestions.length === 0 ? (
+                     <div className="h-full flex flex-col items-center justify-center text-center py-16">
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-3">
+                           <FileText className="w-5 h-5" />
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Folder ini belum memiliki soal{searchTerm ? ' yang cocok dengan pencarian' : ''}.</p>
+                     </div>
+                  ) : (
+                     <div className="space-y-2">
+                        {filteredQuestions.map(q => {
+                           const isSelected = selectedQuestionIds.includes(q.id);
+                           return (
+                              <label 
+                                key={q.id} 
+                                className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-colors ${isSelected ? 'bg-slate-900 dark:bg-white border-transparent text-white dark:text-slate-900' : 'border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}
+                              >
+                                 <span className={`shrink-0 mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center ${isSelected ? 'border-white dark:border-slate-900' : 'border-slate-300 dark:border-slate-600'}`}>
+                                    {isSelected && <Check className="w-3 h-3" strokeWidth={4} />}
+                                 </span>
+                                 <input 
+                                   type="checkbox" 
+                                   className="hidden"
+                                   checked={isSelected}
+                                   onChange={(e) => {
+                                     if (e.target.checked) setSelectedQuestionIds([...selectedQuestionIds, q.id]);
+                                     else setSelectedQuestionIds(selectedQuestionIds.filter(id => id !== q.id));
+                                   }}
+                                 />
+                                 <span className="flex-1 min-w-0">
+                                    <span className={`block text-[10px] font-semibold uppercase tracking-wide mb-1 ${isSelected ? 'opacity-80' : 'text-slate-400'}`}>
+                                       {q.question_type?.replace(/_/g, ' ')}
+                                    </span>
+                                    <span 
+                                       className={`block text-sm leading-relaxed line-clamp-2 ${isSelected ? '' : 'text-slate-700 dark:text-slate-300'}`} 
+                                       dangerouslySetInnerHTML={{ __html: q.question_text }} 
+                                    />
+                                 </span>
+                              </label>
+                           );
+                        })}
+                     </div>
+                  )}
+               </div>
             </div>
         </div>
 
         {/* Footer */}
-        <div className="px-10 py-8 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col sm:flex-row justify-between items-center gap-6">
+        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
             <div className="flex flex-col">
-               <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Terpilih ({selectedQuestionIds.length}) Butir</span>
-               <p className="text-[10px] text-slate-400 font-bold max-w-[200px]">Soal akan diduplikasi dari bank ke ujian ini.</p>
+               <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{selectedQuestionIds.length} soal dipilih</span>
+               <span className="text-[11px] text-slate-400">Soal disalin dari bank, tidak berpindah.</span>
             </div>
             
-            <div className="flex items-center gap-4 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
                <button 
                   onClick={onClose} 
-                  className="px-8 py-3 text-sm font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all rounded-2xl"
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                >
                   Batal
                </button>
                <button 
                   disabled={selectedQuestionIds.length === 0 || transferring}
                   onClick={handleImport}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-12 py-4 bg-indigo-600 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-2xl text-sm font-black uppercase tracking-widest shadow-2xl shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 transition-all active:scale-95"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                >
-                  {transferring ? 'Sedang Memproses...' : 'Tambahkan Sekarang'}
+                  {transferring && <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white dark:border-slate-900/40 dark:border-t-slate-900 rounded-full animate-spin" />}
+                  {transferring ? 'Memproses...' : 'Tambahkan ke Ujian'}
                </button>
             </div>
         </div>
       </div>
     </div>
   );
-}
+};

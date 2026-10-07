@@ -31,10 +31,7 @@ async function indexExists(tableName, indexName) {
 // GET handler to perform database setup/migration
 export async function GET(request) {
   const session = await getSession(request);
-  const { searchParams } = new URL(request.url);
-  const key = searchParams.get('key');
-  const isKeyValid = key === '@Rushless123';
-  
+
   let messages = [];
 
   // Check if database is empty or users table doesn't exist
@@ -48,10 +45,10 @@ export async function GET(request) {
     isEmptyDatabase = true; // Table doesn't exist or DB connection err (treated as empty/needs setup)
   }
 
-  // Allow if admin OR if database is empty (first time setup) OR if valid key is provided
+  // Hanya boleh jalan oleh admin, atau saat instalasi pertama (database masih kosong)
   const isAdmin = session.user && session.user.roleName === 'admin';
 
-  if (!isAdmin && !isEmptyDatabase && !isKeyValid) {
+  if (!isAdmin && !isEmptyDatabase) {
     return NextResponse.json({ message: 'Unauthorized: Admin role required.' }, { status: 401 });
   }
 

@@ -4,76 +4,88 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/app/context/LanguageContext';
-import { 
-    Copy, 
-    List, 
-    Users, 
-    GraduationCap, 
-    LogOut 
+import {
+    Copy,
+    List,
+    Users,
+    GraduationCap,
+    LogOut,
+    ChevronRight
 } from 'lucide-react';
 import { useUser } from '@/app/context/UserContext';
 
 // --- COMPONENTS ---
 
-function DashboardCard({ href, title, description, icon, gradient, style }) {
+function MenuCard({ href, title, description, icon, onClick, danger = false }) {
+    const content = (
+        <>
+            <span className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${danger
+                ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
+                {icon}
+            </span>
+            <span className="min-w-0 flex-1">
+                <span className={`block text-sm font-bold ${danger ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-white'}`}>
+                    {title}
+                </span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">{description}</span>
+            </span>
+            <ChevronRight size={15} className="shrink-0 text-slate-300 dark:text-slate-600" />
+        </>
+    );
+
+    const cls = `flex items-start gap-3 rounded-xl border px-4 py-3.5 text-left transition-colors ${danger
+        ? 'border-red-200 dark:border-red-900/60 bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-950/20'
+        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'}`;
+
+    if (onClick) {
+        return (
+            <button type="button" onClick={onClick} className={`${cls} w-full`}>
+                {content}
+            </button>
+        );
+    }
+
     return (
-        <Link href={href} className="group relative block transition-all duration-300 hover:-translate-y-1 animate-fade-in-up" style={style}>
-            <div className={`relative overflow-hidden rounded-2xl p-6 shadow-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all group-hover:shadow-xl`}>
-                <div className="relative z-10 flex flex-col h-full">
-                    <div className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl text-white shadow-sm transition-transform group-hover:scale-110 ${gradient}`}>
-                        {icon}
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2 transition-colors group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
-                        {title}
-                    </h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">
-                        {description}
-                    </p>
-                </div>
-            </div>
+        <Link href={href} className={cls}>
+            {content}
         </Link>
     );
 }
 
-function StatCard({ title, value, icon, colorClass, style }) {
-    const colorStyles = {
-        blue: { bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400' },
-        violet: { bg: 'bg-violet-500/10', text: 'text-violet-600 dark:text-violet-400' },
-        indigo: { bg: 'bg-indigo-500/10', text: 'text-indigo-600 dark:text-indigo-400' },
-        emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400' },
-    };
-    
-    const styleObj = colorStyles[colorClass] || colorStyles.blue;
+function StatCard({ title, value, icon, tone = 'default', hint }) {
+    const toneCls = {
+        default: 'text-slate-900 dark:text-white',
+        emerald: 'text-emerald-600 dark:text-emerald-400',
+        indigo: 'text-indigo-600 dark:text-indigo-400',
+        amber: 'text-amber-600 dark:text-amber-400'
+    }[tone] || 'text-slate-900 dark:text-white';
 
     return (
-        <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3 sm:gap-4 transition-all hover:shadow-md overflow-hidden animate-fade-in-up" style={style}>
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${styleObj.bg} ${styleObj.text} flex-shrink-0`}>
-                {icon}
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3.5">
+            <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</p>
+                <span className="shrink-0 text-slate-400">{icon}</span>
             </div>
-            <div className="min-w-0 flex-1">
-                <p className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{title}</p>
-                <p className="text-base sm:text-lg font-black text-slate-800 dark:text-white leading-tight break-words">{value}</p>
-            </div>
+            <p className={`mt-1 text-2xl font-bold tabular-nums ${toneCls}`}>{value}</p>
+            {hint && <p className="text-[11px] text-slate-400 mt-0.5">{hint}</p>}
         </div>
     );
 }
 
 function SkeletonLoader() {
     return (
-        <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen">
-            <div className="max-w-7xl mx-auto space-y-8 animate-pulse">
-                <div className="flex justify-between items-center">
-                    <div className="space-y-3">
-                        <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded-lg w-64"></div>
-                        <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-48"></div>
-                    </div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[1, 2, 3, 4].map(i => <div key={i} className="h-20 bg-slate-200 dark:bg-slate-900 rounded-xl"></div>)}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {[1, 2, 3].map(i => <div key={i} className="h-40 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800"></div>)}
-                </div>
+        <div className="space-y-5">
+            <div className="h-28 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl animate-pulse" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="h-24 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl animate-pulse" />
+                ))}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {[1, 2, 3].map(i => (
+                    <div key={i} className="h-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl animate-pulse" />
+                ))}
             </div>
         </div>
     );
@@ -83,7 +95,7 @@ function SkeletonLoader() {
 
 export default function DashboardPage() {
     const router = useRouter();
-    const { t } = useLanguage();
+    const { t, timezone, fmt, dateLocale } = useLanguage();
     const { user, loading: loadingSession } = useUser();
     const [stats, setStats] = useState(null);
     const [loadingStats, setLoadingStats] = useState(true);
@@ -114,12 +126,20 @@ export default function DashboardPage() {
         if (user) {
             fetchStats();
         }
-        
+
         return () => clearInterval(timer);
     }, [user]);
 
+    // Jam diambil dari zona waktu aplikasi, supaya sapaan (pagi/siang/sore/malam)
+    // sesuai waktu yang dilihat admin - bukan zona browser.
     const getGreeting = () => {
-        const hour = time.getHours();
+        const hour = Number(
+            new Intl.DateTimeFormat('en-US', {
+                timeZone: timezone,
+                hour: '2-digit',
+                hour12: false,
+            }).format(time)
+        );
         if (hour < 11) return t('dash_greeting_morning');
         if (hour < 15) return t('dash_greeting_noon');
         if (hour < 18) return t('dash_greeting_afternoon');
@@ -134,162 +154,140 @@ export default function DashboardPage() {
         router.push('/');
     };
 
+    const isStudent = user.roleName === 'student';
+    const roleLabel = isStudent
+        ? t('dash_role_student')
+        : user.roleName === 'teacher'
+            ? t('dash_role_teacher')
+            : t('dash_role_admin');
+
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-10">
-            <style dangerouslySetInnerHTML={{ __html: `
-                @keyframes fadeInUp {
-                    from {
-                        opacity: 0;
-                        transform: translateY(20px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-                @keyframes fadeInDown {
-                    from {
-                        opacity: 0;
-                        transform: translateY(-20px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-                .animate-fade-in-down {
-                    animation: fadeInDown 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-                }
-                .animate-fade-in-up {
-                    animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-                    opacity: 0;
-                }
-            ` }} />
-            
-            <div className="max-w-7xl mx-auto px-6 pt-10 space-y-8">
-                
-                {/* Header / Hero */}
-                <div className="animate-fade-in-down flex flex-col md:flex-row justify-between items-center gap-6 bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                    <div className="text-center md:text-left min-w-0 w-full">
-                        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight break-words">
-                            {getGreeting()}, <br />
-                            <span className="text-indigo-600 dark:text-indigo-400 block sm:inline">
-                                {user.name || user.username}
+        <div className="space-y-5">
+            {/* Header */}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 px-5 py-5">
+                    <div className="flex items-start gap-4 min-w-0">
+                        <span className="shrink-0 w-11 h-11 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center text-base font-bold">
+                            {(user.name || user.username || '?').trim().charAt(0).toUpperCase()}
+                        </span>
+
+                        <div className="min-w-0">
+                            <p className="text-xs font-semibold text-slate-400">{getGreeting()}</p>
+                            <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white break-words">
+                                    {user.name || user.username}
+                                </h1>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-semibold">
+                                    <GraduationCap size={12} />
+                                    {roleLabel}
+                                </span>
+                            </div>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-xl">
+                                {isStudent ? t('dash_welcome_student') : t('dash_welcome_admin')}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 px-4 py-3 lg:min-w-[230px]">
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Waktu sekarang</span>
+                            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                <span className="relative flex h-1.5 w-1.5">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                                </span>
+                                Live
                             </span>
-                        </h1>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 font-medium">
-                            {user.roleName === 'student' 
-                                ? t('dash_welcome_student') 
-                                : t('dash_welcome_admin')}
+                        </div>
+                        <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900 dark:text-white leading-none">
+                            {fmt.clock(time)}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                            {new Intl.DateTimeFormat(dateLocale, { timeZone: timezone, weekday: 'long' }).format(time)}
+                            ,{' '}
+                            {fmt.date(time)}
                         </p>
                     </div>
-
-                    <div className="text-center md:text-right bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl min-w-[200px]">
-                        <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
-                            {time.toLocaleTimeString(t('dash_date_locale'), { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                        </div>
-                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">
-                            {time.toLocaleDateString(t('dash_date_locale'), { weekday: 'long', day: 'numeric', month: 'long' })}
-                        </div>
-                    </div>
                 </div>
+            </div>
 
-                {/* Statistik */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {user.roleName === 'admin' && (
-                        <>
-                            <StatCard 
-                                title={t('dash_stat_exams')} 
-                                value={stats?.totalExams || 0} 
-                                icon={<Copy size={18} />} 
-                                colorClass="blue" 
-                                style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}
-                            />
-                            <StatCard 
-                                title={t('dash_stat_users')} 
-                                value={stats?.totalUsers || 0} 
-                                icon={<Users size={18} />} 
-                                colorClass="violet" 
-                                style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}
-                            />
-                            <StatCard 
-                                title={t('dash_stat_questions')} 
-                                value={stats?.totalQuestions || 0} 
-                                icon={<List size={18} />} 
-                                colorClass="indigo" 
-                                style={{ animationDelay: '300ms', animationFillMode: 'forwards' }}
-                            />
-                        </>
-                    )}
-                    <StatCard 
-                        title={t('dash_stat_role')} 
-                        value={
-                            user.roleName === 'student' ? t('dash_role_student') : 
-                            user.roleName === 'teacher' ? t('dash_role_teacher') : 
-                            t('dash_role_admin')
-                        } 
-                        icon={<GraduationCap size={18} />} 
-                        colorClass="emerald" 
-                        style={{ 
-                            animationDelay: user.roleName === 'admin' ? '400ms' : '100ms', 
-                            animationFillMode: 'forwards' 
-                        }}
-                    />
+            {/* Statistik */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {!isStudent && (
+                    <>
+                        <StatCard
+                            title={t('dash_stat_exams')}
+                            value={stats?.totalExams ?? 0}
+                            icon={<Copy size={15} />}
+                            tone="indigo"
+                        />
+                        <StatCard
+                            title={t('dash_stat_users')}
+                            value={stats?.totalUsers ?? 0}
+                            icon={<Users size={15} />}
+                        />
+                        <StatCard
+                            title={t('dash_stat_questions')}
+                            value={stats?.totalQuestions ?? 0}
+                            icon={<List size={15} />}
+                        />
+                    </>
+                )}
+                <StatCard
+                    title={t('dash_stat_role')}
+                    value={roleLabel}
+                    icon={<GraduationCap size={15} />}
+                    tone="emerald"
+                />
+            </div>
+
+            {/* Menu utama */}
+            <div>
+                <div className="flex items-center justify-between px-1 pb-2">
+                    <h2 className="text-sm font-bold text-slate-800 dark:text-white">Menu</h2>
+                    <span className="text-[11px] text-slate-400">Pilih salah satu untuk mulai</span>
                 </div>
-
-                {/* Menu Utama */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <DashboardCard
-                        title={user.roleName === 'student' ? t('dash_card_exam_list_title') : t('dash_card_manage_exams_title')}
-                        description={user.roleName === 'student' ? t('dash_card_exam_list_desc') : t('dash_card_manage_exams_desc')}
-                        icon={<Copy size={24} />}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <MenuCard
                         href="/dashboard/exams"
-                        gradient="bg-indigo-600"
-                        style={{ 
-                            animationDelay: user.roleName === 'admin' ? '500ms' : '200ms', 
-                            animationFillMode: 'forwards' 
-                        }}
+                        title={isStudent ? t('dash_card_exam_list_title') : t('dash_card_manage_exams_title')}
+                        description={isStudent ? t('dash_card_exam_list_desc') : t('dash_card_manage_exams_desc')}
+                        icon={<Copy size={18} />}
                     />
-                    
+
                     {user.roleName === 'admin' && (
                         <>
-                            <DashboardCard
+                            <MenuCard
+                                href="/dashboard/users"
                                 title={t('dash_card_users_title')}
                                 description={t('dash_card_users_desc')}
-                                icon={<Users size={24} />}
-                                href="/dashboard/users"
-                                gradient="bg-violet-600"
-                                style={{ animationDelay: '600ms', animationFillMode: 'forwards' }}
+                                icon={<Users size={18} />}
                             />
-                            <DashboardCard
+                            <MenuCard
+                                href="/dashboard/web-settings"
                                 title={t('dash_card_settings_title')}
                                 description={t('dash_card_settings_desc')}
-                                icon={<List size={24} />}
-                                href="/dashboard/web-settings"
-                                gradient="bg-blue-600"
-                                style={{ animationDelay: '700ms', animationFillMode: 'forwards' }}
+                                icon={<List size={18} />}
                             />
                         </>
                     )}
 
-                    <button
+                    <MenuCard
+                        title={t('dash_btn_logout')}
+                        description={t('dash_logout_desc')}
+                        icon={<LogOut size={18} />}
                         onClick={handleLogout}
-                        className="group flex flex-col p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-red-500/50 transition-all text-left animate-fade-in-up"
-                        style={{ 
-                            animationDelay: user.roleName === 'admin' ? '800ms' : '300ms', 
-                            animationFillMode: 'forwards' 
-                        }}
-                    >
-                        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 transition-transform group-hover:scale-110">
-                            <LogOut size={24} />
-                        </div>
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">{t('dash_btn_logout')}</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                            {t('dash_logout_desc')}
-                        </p>
-                    </button>
+                        danger
+                    />
                 </div>
+            </div>
 
+            {/* Keterangan */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400 px-1">
+                <span className="font-semibold">Keterangan:</span>
+                {isStudent
+                    ? <span>Klik daftar ujian untuk melihat ujian yang tersedia di kelas kamu.</span>
+                    : <span>Statistik di atas berasal dari data sistem secara langsung.</span>}
             </div>
         </div>
     );

@@ -40,14 +40,15 @@ const STATUS_FILTERS = [
 ];
 
 function formatDateTime(value) {
-    if (!value) return '-';
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return '-';
-    return d.toLocaleString('id-ID', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-    });
-}
+        if (!value) return '-';
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return '-';
+        return d.toLocaleString(localeForTz, {
+            timeZone: appTimezone,
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
 
 function formatDuration(seconds) {
     if (seconds === null || seconds === undefined) return '-';
@@ -106,7 +107,7 @@ function ConfirmModal({ isOpen, onClose, onConfirm, title, message, itemName, lo
 }
 
 export default function SessionControlPage() {
-    const { t } = useLanguage();
+    const { t, timezone: appTimezone } = useLanguage();
     const [users, setUsers] = useState([]);
     const [summary, setSummary] = useState({ total: 0, online: 0, with_session: 0, stuck: 0, locked: 0 });
     const [redisReady, setRedisReady] = useState(true);

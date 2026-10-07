@@ -1,183 +1,322 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, X, User, Shield, GraduationCap, Save } from 'lucide-react';
+import { Eye, EyeOff, X, User, Shield, GraduationCap, Save, UserPlus, Users, BookOpen, Lock, Info } from 'lucide-react';
+
+const ROLES = [
+    { value: 'student', label: 'Siswa', desc: 'Hanya bisa melihat dan mengerjakan ujian.', icon: GraduationCap, active: 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' },
+    { value: 'teacher', label: 'Guru', desc: 'Buat soal, atur ujian, dan lihat hasil.', icon: BookOpen, active: 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' },
+    { value: 'admin', label: 'Administrator', desc: 'Akses penuh termasuk pengaturan sistem.', icon: Shield, active: 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' }
+];
 
 const UserModal = ({ user, onClose, onSave }) => {
-  const [username, setUsername] = useState('');
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
+  const isEdit = !!user;
+
+  // Form diinisialisasi sekali dari prop `user` (modal selalu di-mount ulang saat dibuka)
+  const [form, setForm] = useState(() => ({
+    username: user?.username || '',
+    name: user?.name || '',
+    password: '',
+    role: user?.role || 'student',
+    classId: user?.class_id || ''
+  }));
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState('student');
-  const [classId, setClassId] = useState('');
   const [classes, setClasses] = useState([]);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const { username, name, password, role, classId } = form;
+  const setField = (key) => (e) => setForm(prev => ({ ...prev, [key]: e.target.value }));
+  const handleUsernameChange = (e) => {
+    const cleaned = e.target.value.replace(/\s+/g, '');
+    setForm(prev => ({ ...prev, username: cleaned }));
+  };
 
   useEffect(() => {
+    let active = true;
+
     const fetchClasses = async () => {
       try {
         const res = await fetch('/api/classes');
-        if (res.ok) {
-          const data = await res.json();
-          const classList = Array.isArray(data) ? data : (data.classes || []);
-          setClasses(classList);
+        if (!res.ok || !active) return;
+        const data = await res.json();
+        const classList = Array.isArray(data) ? data : (data.classes || []);
+        if (!active) return;
+        setClasses(classList);
 
-          if (!user && classList.length > 0 && !classId) {
-            const defaultClass = classList.find(c => c.id == 1) || classList[0];
-            setClassId(defaultClass.id);
-          }
+        if (!user && classList.length > 0) {
+          const defaultClass = classList.find(c => c.id == 1) || classList[0];
+          setForm(prev => (prev.classId ? prev : { ...prev, classId: defaultClass.id }));
         }
-      } catch (error) {
-        console.error('Failed to fetch classes:', error);
+      } catch (err) {
+        console.error('Failed to fetch classes:', err);
       }
     };
 
     fetchClasses();
 
-    if (user) {
-      setUsername(user.username);
-      setName(user.name || '');
-      setRole(user.role);
-      setClassId(user.class_id || '');
-    } else {
-      setUsername('');
-      setName('');
-      setPassword('');
-      setShowPassword(false);
-      setRole('student');
-    }
+    return () => { active = false; };
   }, [user]);
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
+  const validate = () => {
+    if (!username.trim()) return 'Username wajib diisi.';
+    if (!name.trim()) return 'Nama lengkap wajib diisi.';
+    if (!isEdit && password.length < 6) return 'Password minimal 6 karakter.';
+    if (isEdit && password && password.length < 6) return 'Password baru minimal 6 karakter.';
+    if (role === 'student' && !classId) return 'Siswa wajib assigned ke sebuah kelas.';
+    return '';
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave({
-      id: user?.id,
-      username,
-      name,
-      password,
-      role,
-      class_id: role === 'student' ? (classId ? parseInt(classId) : null) : null
-    });
+
+    const message = validate();
+    if (message) {
+      setError(message);
+      return;
+    }
+
+    setError('');
+    setSaving(true);
+    try {
+      await onSave({
+        id: user?.id,
+        username: username.trim(),
+        name: name.trim(),
+        password,
+        role,
+        class_id: role === 'student' ? (classId ? parseInt(classId, 10) : null) : null
+      });
+    } catch (err) {
+      setError(err.message || 'Gagal menyimpan pengguna.');
+      setSaving(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 duration-200">
-        <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl ${user ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'}`}>
-               {user ? <Shield size={20} /> : <User size={20} />}
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 p-0 sm:p-6" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={isEdit ? 'Edit pengguna' : 'Tambah pengguna baru'}
+        className="relative w-full sm:max-w-2xl h-full sm:h-auto sm:max-h-[92vh] sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="shrink-0 w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+              {isEdit ? <Users size={18} /> : <UserPlus size={18} />}
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                {isEdit ? 'Edit Pengguna' : 'Tambah Pengguna'}
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {isEdit
+                  ? `Mengubah data @${user.username}. Password hanya diganti bila diisi.`
+                  : 'Isi data akun. Username dipakai untuk login dan tidak bisa diubah nanti.'}
+              </p>
             </div>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-white">
-              {user ? 'Edit Profil' : 'Tambah User Baru'}
-            </h2>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-all">
-            <X size={20} />
+          <button
+            onClick={onClose}
+            aria-label="Tutup"
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+          >
+            <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider pl-1">Nama Lengkap</label>
+        {/* Body */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
+          {error && (
+            <div className="flex items-start gap-2 px-3.5 py-2.5 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/60">
+              <Info size={15} className="shrink-0 mt-0.5 text-red-500" />
+              <p className="text-xs text-red-700 dark:text-red-300">{error}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Nama Lengkap" htmlFor="userName" hint="Nama yang tampil di daftar dan hasil ujian.">
               <input
+                id="userName"
                 type="text"
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="cth: Budi Santoso"
+                onChange={setField('name')}
+                placeholder="Contoh: Budi Santoso"
+                className={inputCls}
               />
-            </div>
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider pl-1">Username</label>
+            </Field>
+
+            <Field label="Username" htmlFor="userUsername" hint="Dipakai untuk login. Tanpa spasi.">
               <input
+                id="userUsername"
                 type="text"
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
+                onChange={handleUsernameChange}
+                placeholder="contoh: budi.santoso"
+                autoComplete="off"
+                className={inputCls}
               />
-            </div>
+            </Field>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider pl-1">
-              {user ? 'Password Baru (Opsional)' : 'Password'}
-            </label>
+          <Field
+            label={isEdit ? 'Password Baru (opsional)' : 'Password'}
+            htmlFor="userPassword"
+            hint={isEdit ? 'Kosongkan bila tidak ingin mengganti password.' : 'Minimal 6 karakter.'}
+          >
             <div className="relative">
               <input
-                type={showPassword ? "text" : "password"}
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all pr-12"
+                id="userPassword"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={user ? 'Kosongkan jika tidak ingin ganti' : 'Minimal 6 karakter'}
-                required={!user}
+                onChange={setField('password')}
+                placeholder={isEdit ? 'Kosongkan jika tidak ingin ganti' : 'Minimal 6 karakter'}
+                autoComplete="new-password"
+                className={`${inputCls} pr-10`}
               />
               <button
                 type="button"
-                className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-indigo-500 focus:outline-none transition-colors"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setShowPassword(v => !v)}
+                aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                title={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-          </div>
+          </Field>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider pl-1">Role</label>
-              <select
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-              >
-                <option value="student">Siswa</option>
-                <option value="teacher">Guru</option>
-                <option value="admin">Administrator</option>
-              </select>
-            </div>
-
-            {role === 'student' && (
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider pl-1">Kelas</label>
-                <div className="relative">
-                  <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                  <select
-                    className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer"
-                    value={classId}
-                    onChange={(e) => setClassId(e.target.value)}
-                    required={role === 'student'}
+          <div>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">Peran akun</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {ROLES.map(r => {
+                const isActive = role === r.value;
+                const Icon = r.icon;
+                return (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, role: r.value }))}
+                    aria-pressed={isActive}
+                    className={`flex flex-col items-start gap-1.5 px-3 py-2.5 rounded-xl border text-left transition-colors ${isActive
+                      ? r.active
+                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-400'}`}
                   >
-                    <option value="" disabled>Pilih Kelas...</option>
-                    {classes.map((c) => (
-                      <option key={c.id} value={c.id}>{c.class_name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
+                    <span className="flex items-center gap-1.5">
+                      <Icon size={14} className={isActive ? '' : 'text-slate-400'} />
+                      <span className="text-sm font-semibold">{r.label}</span>
+                    </span>
+                    <span className={`text-[11px] leading-snug ${isActive ? 'opacity-80' : 'text-slate-500 dark:text-slate-400'}`}>
+                      {r.desc}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="flex gap-4 pt-6">
+          {role === 'student' && (
+            <Field label="Kelas" htmlFor="userClass" hint="Siswa hanya melihat ujian yang diberikan ke kelas ini.">
+              {classes.length === 0 ? (
+                <div className="px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-500 border border-slate-200 dark:border-slate-700">
+                  Belum ada kelas. Buat kelas terlebih dahulu di menu Kelas.
+                </div>
+              ) : (
+                <select
+                  id="userClass"
+                  value={classId}
+                  onChange={setField('classId')}
+                  className={`${inputCls} cursor-pointer`}
+                >
+                  <option value="">Pilih kelas...</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.class_name}</option>
+                  ))}
+                </select>
+              )}
+            </Field>
+          )}
+
+          {role === 'student' && classes.length === 0 && (
+            <div className="flex items-start gap-2 px-3.5 py-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/60">
+              <Info size={15} className="shrink-0 mt-0.5 text-amber-500" />
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                Pengguna dengan peran siswa wajib punya kelas agar bisa melihat ujian.
+              </p>
+            </div>
+          )}
+
+          {role !== 'student' && (
+            <div className="flex items-start gap-2 px-3.5 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+              <Info size={15} className="shrink-0 mt-0.5 text-slate-400" />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {role === 'teacher'
+                  ? 'Guru tidak perlu kelas. Aksesnya mengikuti kelas & mata pelajaran yang ditugaskan.'
+                  : 'Administrator memiliki akses ke seluruh fitur, termasuk pengaturan website.'}
+              </p>
+            </div>
+          )}
+        </form>
+
+        {/* Footer */}
+        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:flex items-center gap-1.5">
+            <Lock size={12} />
+            Data disimpan setelah tombol ditekan.
+          </p>
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              className="flex-1 py-3 text-sm font-bold text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
               onClick={onClose}
+              disabled={saving}
+              className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
             >
               Batal
             </button>
             <button
               type="submit"
-              className="flex-1 py-3 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 shadow-md shadow-indigo-200 dark:shadow-indigo-900/40 transition-all transform active:scale-95 flex items-center justify-center gap-2"
+              onClick={handleSubmit}
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              <Save size={18} />
-              {user ? 'Simpan Perubahan' : 'Buat User'}
+              <Save size={15} />
+              {saving ? 'Menyimpan...' : (isEdit ? 'Simpan Perubahan' : 'Buat Pengguna')}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
 };
+
+const inputCls = 'w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors';
+
+function Field({ label, htmlFor, hint, children }) {
+  return (
+    <div>
+      <label htmlFor={htmlFor} className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+        {label}
+      </label>
+      {children}
+      {hint && <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">{hint}</p>}
+    </div>
+  );
+}
 
 export default UserModal;

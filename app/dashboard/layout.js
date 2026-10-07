@@ -10,15 +10,31 @@ import { UserProvider } from '../context/UserContext';
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const { t } = useLanguage();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+// Sidebar terbuka secara default di layar lebar (>= lg)
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // On component mount, check screen size and set sidebar to open for large screens
-    if (window.innerWidth >= 1024) { // 1024px is Tailwind's 'lg' breakpoint
-      setSidebarOpen(true);
-    }
+    const isLarge = () => window.innerWidth >= 1024; // 1024px = breakpoint 'lg' Tailwind
+
+    // Pastikan sidebar tetap terbuka saat一开始 di layar lebar
+    if (isLarge()) setSidebarOpen(true);
+
+    // Sesuaikan otomatis saat jendela di-resize / orientasi berubah
+    const handleResize = () => {
+      if (isLarge()) setSidebarOpen(true);
+      else setSidebarOpen(false);
+    };
+
+    let resizeTimer;
+    const handleResizeDebounced = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(handleResize, 120);
+    };
+
+    window.addEventListener('resize', handleResizeDebounced);
+    window.addEventListener('orientationchange', handleResize);
 
     let sse;
     let handleUnload;
@@ -106,6 +122,9 @@ export default function DashboardLayout({ children }) {
 
     return () => {
       clearInterval(licenseHeartbeat);
+      clearTimeout(resizeTimer);
+      window.removeEventListener('resize', handleResizeDebounced);
+      window.removeEventListener('orientationchange', handleResize);
       if (sse) sse.close();
       if (handleUnload) {
         window.removeEventListener('beforeunload', handleUnload);
