@@ -693,6 +693,7 @@ function StatCell({ label, value, tone }) {
 }
 
 function AttemptRow({ attempt, number, isBest, formatScore, totalQuestions, isDeleting, isConfirming, onOpen, onShowLogs, onRequestDelete, onCancelDelete, onConfirmDelete }) {
+    const { fmt } = useLanguage();
     const score = Number(attempt.score) || 0;
     const scoreTone = score >= 80
         ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
@@ -841,6 +842,7 @@ function getLogMeta(actionType) {
 }
 
 function LogViewerModal({ attemptId, studentName, onClose }) {
+    const { fmt } = useLanguage();
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);

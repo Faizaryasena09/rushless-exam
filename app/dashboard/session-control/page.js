@@ -39,12 +39,12 @@ const STATUS_FILTERS = [
     { value: 'offline', label: 'Offline' },
 ];
 
-function formatDateTime(value) {
+function formatDateTime(value, timeZone) {
         if (!value) return '-';
         const d = new Date(value);
         if (Number.isNaN(d.getTime())) return '-';
-        return d.toLocaleString(localeForTz, {
-            timeZone: appTimezone,
+        return d.toLocaleString('id-ID', {
+            timeZone: timeZone || undefined,
             day: '2-digit', month: 'short', year: 'numeric',
             hour: '2-digit', minute: '2-digit'
         });
@@ -498,7 +498,7 @@ export default function SessionControlPage() {
                                         </td>
 
                                         <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
-                                            {formatDateTime(u.last_login)}
+                                            {formatDateTime(u.last_login, appTimezone)}
                                         </td>
 
                                         <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
@@ -508,7 +508,7 @@ export default function SessionControlPage() {
                                                     {formatDuration(u.idle_seconds)}
                                                 </span>
                                             ) : (
-                                                <span className="text-slate-400">{formatDateTime(u.last_activity)}</span>
+                                                <span className="text-slate-400">{formatDateTime(u.last_activity, appTimezone)}</span>
                                             )}
                                         </td>
 

@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 const LIMITS = [25, 50, 100, 200, 500];
 

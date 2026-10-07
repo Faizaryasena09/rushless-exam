@@ -126,6 +126,7 @@ function StudentTimer({ secondsLeft }) {
 
 /* --- Log Panel --- */
 function LogPanel({ student, onClose, sseLog }) {
+    const { timezone: appTimezone } = useLanguage();
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const bottomRef = useRef(null);
@@ -172,7 +173,7 @@ function LogPanel({ student, onClose, sseLog }) {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [logs]);
 
-    const formatLogTime = (ts) => new Date(ts).toLocaleTimeString(localeForTz, { timeZone: appTimezone, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const formatLogTime = (ts, timeZone) => new Date(ts).toLocaleTimeString('id-ID', { timeZone: timeZone || undefined, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -197,7 +198,7 @@ function LogPanel({ student, onClose, sseLog }) {
                     {!loading && logs.length === 0 && <div className="text-center text-slate-400 py-10">Belum ada log untuk sesi ini.</div>}
                     {logs.map((log) => (
                         <div key={log.id} className="flex items-start gap-2">
-                            <span className="text-slate-400 whitespace-nowrap flex-shrink-0 pt-0.5">{formatLogTime(log.created_at)}</span>
+                            <span className="text-slate-400 whitespace-nowrap flex-shrink-0 pt-0.5">{formatLogTime(log.created_at, appTimezone)}</span>
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap flex-shrink-0 ${ACTION_COLORS[log.action_type] || 'bg-slate-100 text-slate-600'}`}>
                                 {log.action_type}
                             </span>
