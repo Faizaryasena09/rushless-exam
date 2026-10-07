@@ -42,16 +42,14 @@ pipeline {
                 sh '''
                 # Validasi zona waktu sebelum dipakai, supaya build gagal cepat
                 # daripada deploy aplikasi dengan TZ ngawur.
-                node <<'TZCHECK'
-                const tz = process.env.TZ || '';
-                try {
-                    new Intl.DateTimeFormat('en-US', { timeZone: tz }).format(new Date(0));
-                    console.log('[tz] OK:', tz);
-                } catch (e) {
-                    console.error('[tz] ZONA WAKTU TIDAK VALID:', tz);
-                    process.exit(1);
-                }
-                TZCHECK
+                #
+                # Sengaja pakai 'node -e' satu baris (bukan heredoc):
+                # - single-quote mencegah interpolasi shell
+                # - tidak ada penutup heredoc yang bisa salah spasi
+                #
+                # Kalau TZ kosong -> hanya peringatan (pakai default sistem).
+                # Kalau TZ diisi tapi TIDAK dikenal -> build GAGAL.
+                node -e 'const tz=(process.env.TZ||"").trim();if(!tz){console.warn("[tz] TZ kosong, memakai zona waktu sistem");process.exit(0)}try{new Intl.DateTimeFormat("en-US",{timeZone:tz}).format(new Date(0));console.log("[tz] Zona waktu OK:",tz)}catch(e){console.error("[tz] ZONA WAKTU TIDAK VALID:",tz);process.exit(1)}'
 
                 # Jenkins hanya fokus membuat file .env
                 cat > .env <<EOF
