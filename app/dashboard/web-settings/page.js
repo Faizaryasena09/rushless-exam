@@ -8,7 +8,7 @@ import Cropper from 'react-easy-crop';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { Palette, Languages, Smartphone, UserCog, ShieldAlert, RotateCcw, Monitor, FileText, Users, FolderArchive, Save, LoaderCircle, ChevronRight, X, Info, Lock, LockOpen, TriangleAlert, KeyRound, ImagePlus, RefreshCw, Clock } from 'lucide-react';
-import { getSupportedTimezones, DEFAULT_TIMEZONE } from '@/app/lib/timezone';
+import { getSupportedTimezones, DEFAULT_TIMEZONE, formatClock } from '@/app/lib/timezone';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
@@ -19,7 +19,7 @@ export default function WebSettingsPage() {
     const [lockedUsers, setLockedUsers] = useState([]);
     const [unlocking, setUnlocking] = useState({});
     const [unlockingAll, setUnlockingAll] = useState(false);
-    const { t, lang, setLang, timezone: appTimezone, setTimezone: setAppTimezone, fmt } = useLanguage();
+    const { t, lang, setLang, timezone: appTimezone, setTimezone: setAppTimezone, fmt, dateLocale } = useLanguage();
     const [selectedLang, setSelectedLang] = useState(lang);
     const [langSaving, setLangSaving] = useState(false);
     const [selectedTimezone, setSelectedTimezone] = useState(appTimezone || DEFAULT_TIMEZONE);
@@ -28,8 +28,12 @@ export default function WebSettingsPage() {
 
     // Daftar zona waktu diambil dari runtime (Intl) supaya selalu sesuai dengan
     // data IANA yang didukung Node/browser versi ini.
+    //
+    // Penting: daftar ini bisa berbeda antara Node (SSR) dan browser (client),
+    // sehingga selalu diurutkan agar urutan <option> sama dan tidak terjadi
+    // hydration mismatch.
     const TIMEZONE_OPTIONS = useMemo(() => {
-        const list = getSupportedTimezones();
+        const list = getSupportedTimezones().slice().sort();
         return list.map(value => ({
             value,
             label: value.replace(/_/g, ' '),
@@ -471,7 +475,10 @@ return (
                             <span>
                                 {t('admin_tz_preview')}{' '}
                                 <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">
-                                    {fmt.clock(new Date())}
+                                    {/* Pratinjau memakai zona yang sedang dipilih, bukan
+                                        zona aktif, jadi admin bisa langsung melihat
+                                        efek sekalian perubahan. */}
+                                    {formatClock(new Date(), { locale: dateLocale, timeZone: selectedTimezone })}
                                 </span>
                             </span>
                         </div>
@@ -739,7 +746,7 @@ return (
                                                 {u.failedAttempts} {t('admin_bruteforce_failed_suffix')}
                                                 {u.isCurrentlyLocked && u.lockedUntil && (
                                                     <span className="ml-1 text-red-500 dark:text-red-400 font-medium">
-                                                        · {t('admin_bruteforce_locked_until')} {new Date(u.lockedUntil).toLocaleString(t('dash_date_locale'), { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                                                        · {t('admin_bruteforce_locked_until')} {fmt.dateTime(u.lockedUntil)}
                                                     </span>
                                                 )}
                                                 {!u.isCurrentlyLocked && u.failedAttempts > 0 && (

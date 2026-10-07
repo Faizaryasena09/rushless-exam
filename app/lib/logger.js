@@ -1,4 +1,5 @@
 import { query } from './db';
+import { DEFAULT_TIMEZONE } from './timezone';
 import redis, { isRedisReady } from './redis';
 import { publish } from './redis-pubsub';
 import { ensureActivityLogsSchema } from './activity-log-schema';
@@ -51,9 +52,11 @@ export function getClientIP(request) {
  * Format Date to MySQL compatible YYYY-MM-DD HH:MM:SS
  */
 export function formatMySQLDate(date = new Date()) {
-    // Uses sv-SE locale as it naturally formats to YYYY-MM-DD HH:MM:SS
+    // sv-SE locale secara alami memformat jadi YYYY-MM-DD HH:MM:SS.
+    // Zona waktu diambil dari satu sumber kebenaran (app/lib/timezone.js),
+    // yang nilainya berasal dari env TZ / APP_TIMEZONE.
     return new Intl.DateTimeFormat('sv-SE', {
-        timeZone: 'Asia/Jakarta',
+        timeZone: DEFAULT_TIMEZONE,
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',

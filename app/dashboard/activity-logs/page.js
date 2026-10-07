@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useLanguage } from '@/app/context/LanguageContext';
+import { formatTimestamp } from '@/app/lib/timezone';
 
 const LIMITS = [25, 50, 100, 200, 500];
 
@@ -67,13 +68,7 @@ const FIELD_LABELS = {
 
 function formatTime(dateStr, timeZone) {
       if (!dateStr) return '-';
-      const d = new Date(dateStr);
-      if (Number.isNaN(d.getTime())) return String(dateStr);
-      return d.toLocaleString('id-ID', {
-          timeZone: timeZone || undefined,
-          day: '2-digit', month: 'short', year: 'numeric',
-          hour: '2-digit', minute: '2-digit', second: '2-digit'
-      });
+      return formatTimestamp(dateStr, { locale: 'id-ID', timeZone, seconds: true });
     }
 
 function parseDetails(str) {
@@ -95,7 +90,7 @@ function formatValue(value) {
 }
 
 export default function ActivityLogsPage() {
-    const { timezone: appTimezone } = useLanguage();
+    const { timezone: appTimezone, fmt } = useLanguage();
     const [logs, setLogs] = useState([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
@@ -275,7 +270,7 @@ export default function ActivityLogsPage() {
                     <h1 className="text-lg font-bold text-slate-900 dark:text-white">Activity Logs</h1>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                         {total.toLocaleString('id-ID')} record
-                        {lastUpdated && !loading && ` · diperbarui ${lastUpdated.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
+                        {lastUpdated && !loading && ` · diperbarui ${fmt.clock(lastUpdated)}`}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">

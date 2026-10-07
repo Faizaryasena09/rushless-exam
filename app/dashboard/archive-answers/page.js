@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Fragment } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useLanguage } from '@/app/context/LanguageContext';
+import { formatTimestamp } from '@/app/lib/timezone';
 import {
     Archive, Search, RefreshCw, Trash2, ChevronDown, ChevronUp,
     Loader2, AlertTriangle, CheckCircle2, XCircle, Clock, FileText, Users,
@@ -27,13 +28,7 @@ const CHANGE_BADGE = {
 
 function formatDateTime(value, timeZone) {
         if (!value) return '-';
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return '-';
-        return d.toLocaleString('id-ID', {
-            timeZone: timeZone || undefined,
-            day: '2-digit', month: 'short', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
+        return formatTimestamp(value, { locale: 'id-ID', timeZone });
     }
 
 /** Buang tag HTML + panjangkan/motong teks soal agar aman ditampilkan */

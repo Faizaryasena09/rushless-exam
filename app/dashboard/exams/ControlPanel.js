@@ -97,20 +97,33 @@ function ActionButton({ metaKey, icon: Icon, onClick, tone = 'slate', pulse = fa
 
 /* --- Student Timer --- */
 function StudentTimer({ secondsLeft }) {
+    // Sisa waktu ditampilkan dari deadline absolut, bukan dengan mengurangi 1
+    // detik tiap tick. Rantai setTimeout sebelumnya bisa melenceng jauh dari
+    // timer siswa karena tiap tick menambah penundaan.
     const [display, setDisplay] = useState(secondsLeft);
 
+    // Sisa waktu dihitung dari deadline absolut, bukan dikurangi 1 detik tiap
+    // tick: rantai setTimeout lama bisa melenceng jauh dari timer siswa karena
+    // tiap tick menambah penundaan sendiri.
+    //
+    // Nilai dari server dijadikan titik acuan di dalam effect, lalu display
+    // di-refresh dari sana. Tidak ada setState langsung di body effect supaya
+    // tidak memicu render bertingkat.
     useEffect(() => {
-        setDisplay(secondsLeft);
+        if (secondsLeft === null || secondsLeft === undefined) return;
+        const deadline = Date.now() + secondsLeft * 1000;
+        const id = setInterval(() => {
+            setDisplay(Math.max(0, Math.round((deadline - Date.now()) / 1000)));
+        }, 250);
+        return () => clearInterval(id);
     }, [secondsLeft]);
-
-    useEffect(() => {
-        if (display === null || display <= 0) return;
-        const t = setTimeout(() => setDisplay(prev => Math.max(0, prev - 1)), 1000);
-        return () => clearTimeout(t);
-    }, [display]);
 
     const isCritical = display !== null && display <= 300;
     const isExpired = display === 0;
+
+    if (secondsLeft === null || secondsLeft === undefined || display === null || display === undefined) {
+        return <span className="inline-flex items-center gap-1.5 font-mono text-xs font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-400">—</span>;
+    }
 
     return (
         <span className={`inline-flex items-center gap-1.5 font-mono text-xs font-bold px-2 py-1 rounded-lg ${
@@ -691,7 +704,7 @@ export default function ControlPanel() {
                              Exam Control
                         </h1>
                         <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5 mt-2 ml-1">
-                            Update: <span className="text-slate-700 dark:text-slate-300 font-bold">{lastUpdated.toLocaleTimeString('id-ID')}</span>
+                            Update: <span className="text-slate-700 dark:text-slate-300 font-bold">{lastUpdated.toLocaleTimeString('id-ID', { timeZone: appTimezone })}</span>
                             <span className={`flex items-center gap-1 ml-2 font-bold uppercase ${
                                 sseStatus === 'connected' ? 'text-emerald-500' : 
                                 sseStatus === 'connecting' ? 'text-amber-500 animate-pulse' : 

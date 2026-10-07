@@ -33,7 +33,7 @@ import BankQuestionForm from '@/app/components/bank/BankQuestionForm';
 
 export default function BankSoalPage() {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, fmt } = useLanguage();
   const { user, loading: loadingSession } = useUser();
   const [folders, setFolders] = useState([]);
   const [questions, setQuestions] = useState([]);
@@ -601,7 +601,7 @@ export default function BankSoalPage() {
 
                               <div className="mt-3 flex items-center justify-between gap-3">
                                 <span className="text-[10px] font-medium text-slate-400 truncate">
-                                  Ditambahkan {new Date(question.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  Ditambahkan {fmt.date(question.created_at)}
                                 </span>
                                 <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                                   <button

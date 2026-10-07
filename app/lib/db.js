@@ -1,5 +1,6 @@
 import mysql from "mysql2/promise";
 import { recordInfraError } from "./log-fallback";
+import { timeZoneOffsetLabel } from "./timezone";
 
 function toPositiveInt(value, fallback) {
   const parsed = Number.parseInt(value, 10);
@@ -43,12 +44,39 @@ const dbConfig = {
   connectTimeout: 10000, // 10 seconds timeout for new connections
   charset: "utf8mb4",
   multipleStatements: false,
+
+  // PENTING: kolom DATETIME di aplikasi ini bersifat "naive" (tanpa info
+  // zona waktu). Tanpa opsi ini, mysql2 menganggap nilainya sebagai waktu
+  // lokal lalu mengubahnya jadi objek Date dalam UTC. Akibatnya nilai yang
+  // sama bergeser 7 jam di server berzona WIB sebelum sampai ke browser
+  // (contoh: tersimpan 08:00, tampil & tersimpan ulang jadi 01:00).
+  //
+  // Dengan dateStrings: true, DATETIME dikirim apa adanya sebagai string
+  // dan tidak pernah digeser. timezone saat ditampilkan-atasi di sisi klien
+  // (app/lib/timezone.js) dan di UI pengaturan.
+  dateStrings: true,
 };
 
 let lastPoolErrorAt = 0;
 
+// Zona waktu sesi MySQL. Nilai DATETIME di aplikasi ini bersifat naive, jadi
+// UNIX_TIMESTAMP(start_time) hanya benar kalau MySQL menafsirkan string itu di
+// zona yang sama dengan zona aplikasi. Tanpa baris ini, batas waktu ujian
+// bergeser sebesar selisih zona server DB versus zona aplikasi (7 jam untuk
+// MySQL yang jalan di UTC).
+const DB_TIME_ZONE = timeZoneOffsetLabel();
+
 function createPool() {
   const instance = mysql.createPool(dbConfig);
+
+  // Dijalankan sekali per koneksi fisik, sebelum query pertama.
+  instance.pool.on("connection", (conn) => {
+    conn.query(`SET time_zone = '${DB_TIME_ZONE}'`, (err) => {
+      if (err) {
+        console.warn(`[DB] Gagal set time_zone sesi: ${err?.message}`);
+      }
+    });
+  });
 
   // Tanpa listener 'error', error koneksi dari pool akan jadi unhandled
   // 'error' event dan menjatuhkan seluruh proses Node.

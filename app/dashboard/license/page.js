@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useLanguage } from '@/app/context/LanguageContext';
 
 export default function LicensePage() {
-    const { t } = useLanguage();
+    const { t, fmt } = useLanguage();
     const [status, setStatus] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isActivating, setIsActivating] = useState(false);
@@ -335,7 +335,7 @@ export default function LicensePage() {
                                 }`}>
                                     {isActive ? t('lic_status_active') : t('lic_status_inactive')}
                                 </p>
-                                <p className="text-xs font-bold text-slate-400 mt-1 italic opacity-60">{t('lic_last_sync')} {status?.last_check ? new Date(status.last_check).toLocaleTimeString() : t('lic_never')}</p>
+                                <p className="text-xs font-bold text-slate-400 mt-1 italic opacity-60">{t('lic_last_sync')} {status?.last_check ? fmt.time(status.last_check) : t('lic_never')}</p>
                             </div>
                         </div>
 

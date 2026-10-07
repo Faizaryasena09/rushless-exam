@@ -405,6 +405,8 @@ export default function ExamTakingPage() {
   }), []);
   const finishExamHandled = useRef(false);
   const initExamRef = useRef(false);
+  // Menahan enforceRushlessSafer supaya hanya dieksekusi sekali (lihat fungsinya).
+  const secureBrowserCheckedRef = useRef(false);
   const [showTimeAddedAlert, setShowTimeAddedAlert] = useState(false);
 
   // Modal State
@@ -483,16 +485,9 @@ export default function ExamTakingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ examId, answers, attemptId: attemptDetails.id, isForce: isAutoSubmit }),
       });
-      const resultData = await response.json().catch(() => ({}));
 
-      // 409 = server sudah mengunci jawaban (waktu habis / sudah selesai).
-      // Ini bukan kegagalan: jawaban sudah tersimpan & dinilai auto-submit.
-      // Jadi JANGAN alert error, tapi tetap lanjut ke halaman hasil/dashboard.
-      if (response.status === 409) {
-        logAction('SUBMIT', 'Server mengunci jawaban (waktu habis / sudah selesai)');
-      } else if (!response.ok) {
-        throw new Error(resultData.message || 'Failed to submit exam.');
-      }
+      const resultData = await response.json();
+      if (!response.ok) throw new Error(resultData.message || 'Failed to submit exam.');
 
       // Clear instruction confirmation + backup jawaban untuk exam ini on successful submit
       if (typeof window !== 'undefined') {
@@ -869,6 +864,21 @@ export default function ExamTakingPage() {
   }, []);
 
   const enforceRushlessSafer = useCallback(async () => {
+    // Tunggu pengaturan ujian selesai dimuat dulu. Kalau dicek saat examDetails
+    // masih null, kita tidak tahu apakah secure browser diwajibkan atau tidak,
+    // sehingga pengecek-an jadi tidak berarti.
+    if (!examDetails) return;
+
+    // Jalankan HANYA SEKALI per ujian.
+    //
+    // Fungsi ini menulis document.body.innerHTML untuk menampilkan halaman
+    // launcher, yang menghapus seluruh DOM React. Kalau dipanggil ulang
+    // (mis. examDetails dapat objek baru dari polling/SSE), React bereaksi
+    // terus terhadap DOM yang sudah dihancurkan -> halaman bisa ter-render
+    // ulang berulang kali.
+    if (secureBrowserCheckedRef.current) return;
+    secureBrowserCheckedRef.current = true;
+
     // 1. Detect All Possible Secure Environments
     const userAgent = navigator.userAgent.toLowerCase();
     const isRushless = userAgent.includes('rushless') || (window.chrome && window.chrome.webview) || (typeof window !== 'undefined' && !!window.RushlessSafer);
@@ -917,14 +927,31 @@ export default function ExamTakingPage() {
                     <p style="color:#94a3b8;font-size:0.875rem;margin-top:32px;font-weight:500;">Belum punya aplikasinya? Hubungi proktor ujian Anda.</p>
                 </div>
                 <script>
-                    const isMobileLookup = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                    if (isMobileLookup) {
-                        const toast = document.getElementById('autoLaunchToast');
-                        toast.style.display = 'block';
-                        setTimeout(() => {
+                    (function () {
+                        var isMobileLookup = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                        if (!isMobileLookup) return;
+
+                        // Auto-launch hanya SEKALI per sesi.
+                        // Tanpa penanda ini, jika aplikasi tidak berhasil
+                        // mendeteksi dirinya sendiri, halaman akan membuka
+                        // aplikasi -> aplikasi membuka halaman -> ulangi,
+                        // sehingga aplikasi terus-terusan显示 layar splash.
+                        var flag = 'rushless_launcher_autolaunched';
+                        try {
+                            if (sessionStorage.getItem(flag)) return;
+                            sessionStorage.setItem(flag, '1');
+                        } catch (e) {
+                            // storage diblokir: lebih baik tidak auto-launch
+                            // daripada risking loop tanpa batas.
+                            return;
+                        }
+
+                        var toast = document.getElementById('autoLaunchToast');
+                        if (toast) toast.style.display = 'block';
+                        setTimeout(function () {
                             window.location.href = "${launchUrl}";
                         }, 2000);
-                    }
+                    })();
                 </script>
             `;
       return;
@@ -1400,6 +1427,8 @@ export default function ExamTakingPage() {
         setError(err.message);
         setLoading(false);
         initExamRef.current = false;
+        // Izinkan pengecekan secure browser diulang saat halaman dicoba lagi.
+        secureBrowserCheckedRef.current = false;
       }
     }
     loadExamSettings();

@@ -7,6 +7,7 @@ import { getIronSession } from 'iron-session';
 import { sessionOptions } from './session';
 import { validateUserSession } from './auth';
 import { publish } from './redis-pubsub';
+import { wallClockToEpochMs, DEFAULT_TIMEZONE } from './timezone';
 
 /**
  * Recalculates all scores for a given exam.
@@ -395,8 +396,11 @@ export async function getExamsList(user, forceFresh = false) {
                         const durationSeconds = (exam.duration_minutes || 0) * 60;
                         if (now_ts > (attempt.start_time_ts + durationSeconds)) isExpired = true;
                     } else if (exam.end_time) {
-                        const globalEndTime = Math.floor(new Date(exam.end_time).getTime() / 1000);
-                        if (now_ts > globalEndTime) isExpired = true;
+                        // Kolom naive harus dibaca sebagai wall clock zona
+                        // aplikasi, bukan zona Node, supaya tidak beda 7 jam
+                        // dari gate API yang memakai UNIX_TIMESTAMP().
+                        const globalEndTime = Math.floor(wallClockToEpochMs(exam.end_time, DEFAULT_TIMEZONE) / 1000);
+                        if (globalEndTime !== null && now_ts > globalEndTime) isExpired = true;
                     }
                 }
                 if (!isExpired) acc[attempt.exam_id].hasInProgress = true;

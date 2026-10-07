@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@/app/context/UserContext';
 import { useLanguage } from '@/app/context/LanguageContext';
+import { wallClockToEpochMs } from '@/app/lib/timezone';
 import { toast } from 'sonner';
 
 // --- Icons ---
@@ -38,22 +39,37 @@ const Icons = {
 
 // --- Student Action Button Component ---
 const StudentExamActions = ({ exam }) => {
-  const { t } = useLanguage();
-  const now = Date.now();
+  const { t, timezone } = useLanguage();
 
-  const startTime = exam.start_time ? new Date(exam.start_time).getTime() : null;
-  const endTime = exam.end_time ? new Date(exam.end_time).getTime() : null;
+  // Jadwal MySQL bersifat naive, jadi harus dikonversi ke epoch lewat zona
+  // aplikasi. Kalau pakai new Date() langsung, hasilnya mengikuti zona browser
+  // dan countdown bisa meleset beberapa jam.
+  const startTime = wallClockToEpochMs(exam.start_time, timezone);
+  const endTime = wallClockToEpochMs(exam.end_time, timezone);
   const maxAttempts = exam.max_attempts ? Number(exam.max_attempts) : null;
   const userAttempts = exam.user_attempts || 0;
   const hasInProgress = !!exam.has_in_progress;
   const latestAttemptId = exam.latest_attempt_id;
   const latestScore = exam.latest_score;
 
+  // Countdown harus benar-benar berjalan, jadi jam lokal di-tick tiap detik.
+  // Nilai awal null supaya render SSR dan hydration sama-sama pakai null
+  // (tidak ada hydration mismatch), lalu diisi setelah mount.
+  const [nowMs, setNowMs] = useState(null);
+  useEffect(() => {
+    setNowMs(Date.now());
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const now = nowMs ?? 0;
+
   // Determine exam window status
-  const examNotStarted = startTime !== null && now < startTime;
-  const examEnded = endTime !== null && now > endTime;
+  const examNotStarted = startTime !== null && now > 0 && now < startTime;
+  const examEnded = endTime !== null && now > 0 && now > endTime;
   const maxAttemptsReached = maxAttempts !== null && userAttempts >= maxAttempts;
-  const canTakeExam = !examNotStarted && !examEnded && !maxAttemptsReached;
+  // Sebelum jam lokal diketahui, anggap belum selesai supaya tidak sempat
+  // menampilkan tombol "Selesai" untuk ujian yang masih berjalan.
+  const canTakeExam = now > 0 && !examNotStarted && !examEnded && !maxAttemptsReached;
 
   // Format countdown to start
   const formatCountdown = (targetMs) => {
@@ -689,7 +705,7 @@ const CategoryAccordion = ({ id, name, exams, isOpen, toggleOpen, isStudent, for
 
 export default function ExamsPage() {
     const router = useRouter();
-    const { t, fmt } = useLanguage();
+    const { t, fmt, timezone } = useLanguage();
   const { user, loading: loadingSession } = useUser();
 
   const userRole = user?.roleName;
@@ -733,8 +749,8 @@ export default function ExamsPage() {
 
     if (sortBy === 'start_time') {
       result = [...result].sort((a, b) => {
-        const aTime = a.start_time ? new Date(a.start_time).getTime() : null;
-        const bTime = b.start_time ? new Date(b.start_time).getTime() : null;
+        const aTime = wallClockToEpochMs(a.start_time, timezone);
+        const bTime = wallClockToEpochMs(b.start_time, timezone);
 
         if (aTime !== null && bTime !== null) return aTime - bTime;
         if (aTime !== null) return -1;
@@ -744,7 +760,7 @@ export default function ExamsPage() {
     }
 
     return result;
-  }, [exams, searchTerm, sortBy, archiveFilter]);
+  }, [exams, searchTerm, sortBy, archiveFilter, timezone]);
 
   const archiveCounts = useMemo(() => {
     const list = exams || [];

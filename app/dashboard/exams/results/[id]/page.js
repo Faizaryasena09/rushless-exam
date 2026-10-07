@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ChevronUp, ChevronDown, ChevronsUpDown, ArrowLeft, Search, Download, Trash2, Settings, X, Check, CheckCircle2, XCircle, MinusCircle, AlertCircle, ShieldAlert, PencilLine, Flag, Send, Navigation, PlayCircle, Circle, ScrollText, Trophy, Clock, ChevronRight, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '@/app/context/LanguageContext';
+import { wallClockToEpochMs } from '@/app/lib/timezone';
 
 export default function ExamResultsPage() {
     const router = useRouter();
@@ -520,6 +521,7 @@ function Avatar({ name, completed }) {
 }
 
 function StudentAnalysisDetail({ student, scoringMode, totalQuestions, onClose, refresh }) {
+    const { fmt, timezone } = useLanguage();
     const [selectedAttemptId, setSelectedAttemptId] = useState(null);
     const [attemptIdForLog, setAttemptIdForLog] = useState(null);
     const [deletingId, setDeletingId] = useState(null);
@@ -545,15 +547,15 @@ const attempts = useMemo(() => {
         const list = [...(student.attempts || [])];
         // Paling baru di atas: berdasarkan waktu mulai, fallback ke waktu selesai
         list.sort((a, b) => {
-            const aTime = new Date(a.startTime || a.endTime || 0).getTime();
-            const bTime = new Date(b.startTime || b.endTime || 0).getTime();
+            const aTime = wallClockToEpochMs(a.startTime || a.endTime, timezone) ?? 0;
+            const bTime = wallClockToEpochMs(b.startTime || b.endTime, timezone) ?? 0;
             if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
             if (Number.isNaN(aTime)) return 1;
             if (Number.isNaN(bTime)) return -1;
             return bTime - aTime;
         });
         return list;
-    }, [student]);
+    }, [student, timezone]);
     const formatScore = (value) => scoringMode === 'raw' ? formatNumber(value) : Math.round(Number(value));
 
     const stats = useMemo(() => {
@@ -701,9 +703,13 @@ function AttemptRow({ attempt, number, isBest, formatScore, totalQuestions, isDe
             ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20'
             : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20';
 
-    const start = attempt.startTime ? new Date(attempt.startTime) : null;
-    const end = attempt.endTime ? new Date(attempt.endTime) : null;
-    const duration = start && end && !Number.isNaN(end - start) ? formatDuration(end - start) : null;
+    // startTime/endTime adalah DATETIME naive dari MySQL. new Date() akan
+    // memakainya sebagai waktu lokal browser lalu diformat ulang ke zona
+    // aplikasi, sehingga jamnya bergeser.(fmt.dateTime sudah menangani string
+    // naive sebagai identity, jadi cukup kirim string aslinya.)
+    const startMs = attempt.startTime ? wallClockToEpochMs(attempt.startTime, timezone) : null;
+    const endMs = attempt.endTime ? wallClockToEpochMs(attempt.endTime, timezone) : null;
+    const duration = startMs !== null && endMs !== null && endMs >= startMs ? formatDuration(endMs - startMs) : null;
 
     const answered = attempt.answeredCount ?? (attempt.correctCount + attempt.incorrectCount);
     const accuracy = answered > 0 ? Math.round((attempt.correctCount / answered) * 100) : 0;
@@ -718,7 +724,7 @@ function AttemptRow({ attempt, number, isBest, formatScore, totalQuestions, isDe
                     <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">
                             <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
-                                {start ? fmt.dateTime(start) : 'Waktu tidak tersedia'}
+                                {attempt.startTime ? fmt.dateTime(attempt.startTime) : 'Waktu tidak tersedia'}
                             </span>
                             {isBest && (
                                 <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold uppercase">
@@ -842,7 +848,7 @@ function getLogMeta(actionType) {
 }
 
 function LogViewerModal({ attemptId, studentName, onClose }) {
-    const { fmt } = useLanguage();
+    const { fmt, timezone } = useLanguage();
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -901,20 +907,22 @@ function LogViewerModal({ attemptId, studentName, onClose }) {
     const groupedLogs = useMemo(() => {
         const groups = [];
         visibleLogs.forEach(log => {
-            const date = new Date(log.created_at);
-            const key = date.toDateString();
+            const label = fmt.date(log.created_at);
+            const key = label;
             const last = groups[groups.length - 1];
             if (last && last.key === key) last.items.push(log);
-            else groups.push({ key, label: fmt.date(date), items: [log] });
+            else groups.push({ key, label, items: [log] });
         });
         return groups;
-    }, [visibleLogs]);
+    }, [visibleLogs, fmt]);
 
     const securityCount = types.find(([key]) => key === 'SECURITY')?.[1] || 0;
     const first = logs[0]?.created_at;
     const last = logs[logs.length - 1]?.created_at;
-    const durationText = first && last
-        ? formatDuration(new Date(last) - new Date(first))
+    const firstMs = first ? wallClockToEpochMs(first, timezone) : null;
+    const lastMs = last ? wallClockToEpochMs(last, timezone) : null;
+    const durationText = firstMs !== null && lastMs !== null && lastMs >= firstMs
+        ? formatDuration(lastMs - firstMs)
         : null;
 
     return (

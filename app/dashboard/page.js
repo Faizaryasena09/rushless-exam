@@ -99,9 +99,13 @@ export default function DashboardPage() {
     const { user, loading: loadingSession } = useUser();
     const [stats, setStats] = useState(null);
     const [loadingStats, setLoadingStats] = useState(true);
-    const [time, setTime] = useState(new Date());
+    // Dimulai null, bukan new Date(), supaya render SSR dan hydration sama.
+    // Jam diisi setelah mount: kalau diisi di server, hasilnya ikut zona Node
+    // lalu melompat saat hydration.
+    const [time, setTime] = useState(null);
 
     useEffect(() => {
+        setTime(new Date());
         const timer = setInterval(() => setTime(new Date()), 1000);
 
         async function fetchStats() {
@@ -133,6 +137,7 @@ export default function DashboardPage() {
     // Jam diambil dari zona waktu aplikasi, supaya sapaan (pagi/siang/sore/malam)
     // sesuai waktu yang dilihat admin - bukan zona browser.
     const getGreeting = () => {
+        if (!time) return t('dash_greeting_morning');
         const hour = Number(
             new Intl.DateTimeFormat('en-US', {
                 timeZone: timezone,
@@ -200,12 +205,12 @@ export default function DashboardPage() {
                             </span>
                         </div>
                         <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900 dark:text-white leading-none">
-                            {fmt.clock(time)}
+                            {time ? fmt.clock(time) : '--:--:--'}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                            {new Intl.DateTimeFormat(dateLocale, { timeZone: timezone, weekday: 'long' }).format(time)}
+                            {time ? new Intl.DateTimeFormat(dateLocale, { timeZone: timezone, weekday: 'long' }).format(time) : ''}
                             ,{' '}
-                            {fmt.date(time)}
+                            {time ? fmt.date(time) : '-'}
                         </p>
                     </div>
                 </div>

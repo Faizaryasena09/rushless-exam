@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 export default function ProfilePage() {
+    const { fmt } = useLanguage();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [permissions, setPermissions] = useState({ can_change_password: true, can_change_username: true });
@@ -265,7 +267,7 @@ export default function ProfilePage() {
                             <div>
                                 <p className="text-[10px] uppercase tracking-wider font-medium text-slate-400">Bergabung</p>
                                 <p className="text-sm font-semibold text-slate-700">
-                                    {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                                    {profile?.createdAt ? fmt.date(profile.createdAt) : '-'}
                                 </p>
                             </div>
                         </div>

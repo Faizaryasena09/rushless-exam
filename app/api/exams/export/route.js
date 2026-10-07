@@ -3,6 +3,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
+import { formatDateTime as formatDateTimeIn, DEFAULT_TIMEZONE } from '@/app/lib/timezone';
 import * as XLSX from 'xlsx';
 
 async function getSession() {
@@ -141,6 +142,11 @@ export async function GET(request) {
         const totalQuestions = questions.length;
         const pointsPerQuestion = totalQuestions > 0 ? 100 / totalQuestions : 0;
 
+        // Kolom start_time/end_time adalah DATETIME naive MySQL, jadi diformat
+        // lewat helper timezone (identity) - bukan new Date() yang memakai zona
+        // server dan bisa bergeser 7 jam.
+        const formatDateTime = (value) => formatDateTimeIn(value, { locale: 'id-ID', timeZone: DEFAULT_TIMEZONE });
+
         const excelData = processedAttempts.map(attempt => {
             const row = {
                 'Student Name': attempt.name || attempt.username, // Fallback to username if name is empty
@@ -149,8 +155,8 @@ export async function GET(request) {
                 'Subject': subjectName,
                 'Attempt': attempt.attemptNumber,
                 'State': attempt.status,
-                'Started on': attempt.start_time ? new Date(attempt.start_time).toLocaleString() : '-',
-                'Completed': attempt.end_time ? new Date(attempt.end_time).toLocaleString() : '-',
+                'Started on': formatDateTime(attempt.start_time),
+                'Completed': formatDateTime(attempt.end_time),
                 'Total Score': typeof attempt.score === 'number' ? Number(attempt.score.toFixed(2)) : 0
             };
 
