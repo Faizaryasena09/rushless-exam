@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { uploadBase64Images } from '@/app/lib/utils';
+import { uploadBase64Images, htmlHasContent } from '@/app/lib/utils';
 import { 
     ArrowLeft, Database, DownloadCloud, Plus, Search, Pencil, Trash2, GripVertical, 
     Check, X, ChevronRight, AlertTriangle, Eye, Upload, FileText, Library, Sparkles, 
@@ -163,7 +163,10 @@ const toOptionList = (rawOptions) => {
         .map(([key, value]) => ({ key: String(key), value: readValue(value) }));
 };
 
-const hasContent = (html) => String(html ?? '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
+// Soal berisi gambar saja tetap sah, jadi embed (gambar/video/iframe) ikut
+// dihitung sebagai isi - bukan cuma teks. htmlHasContent juga aman menerima
+// objek, jadi opsi yang salah bentuk tidak meledak di sini.
+const hasContent = (html) => htmlHasContent(html);
 
 const EDIT_INPUT_CLASS =
     'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all';

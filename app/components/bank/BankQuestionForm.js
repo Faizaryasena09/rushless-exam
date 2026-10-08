@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useRef, useMemo } from 'react';
 import {
@@ -16,7 +16,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { uploadBase64Images } from '@/app/lib/utils';
+import { uploadBase64Images, htmlHasContent } from '@/app/lib/utils';
 import MatrixEditor from '@/app/components/exam/MatrixEditor';
 import {
   MATRIX_TYPE,
@@ -91,13 +91,15 @@ const SCORING_OPTIONS = {
   ],
 };
 
-// Nilai dari editor Jodit berupa HTML, jadi <p><br></p> dianggap "terisi" kalau dicek dengan trim()
-const hasContent = (html) => (html || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
+// Nilai dari editor Jodit berupa HTML, jadi <p><br></p> dianggap "terisi" kalau dicek dengan trim().
+// htmlHasContent juga menghitung gambar/video sebagai isi - soal atau pilihan
+// jawaban yang isinya cuma gambar bukan soal kosong.
+const hasContent = (html) => htmlHasContent(html);
 
 const INPUT_CLASS =
   'w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-slate-900/5 dark:focus:ring-white/5 transition-colors';
 
-const JoditEditorWithUpload = ({ value, onBlur, placeholder = '' }) => {
+const JoditEditorWithUpload = ({ value, onChange, onBlur, placeholder = '' }) => {
     const editor = useRef(null);
     const config = useMemo(() => ({
         readonly: false,
@@ -106,7 +108,7 @@ const JoditEditorWithUpload = ({ value, onBlur, placeholder = '' }) => {
         placeholder,
         insertImageAsBase64URL: true,
         hidePoweredByJodit: true,
-        buttons: 'bold,italic,underline,|,ul,ol,|,image,link,align,undo,redo,clearformat'
+        buttons: 'bold,italic,underline,strikethrough,|,ul,ol,|,image,link,align,undo,redo,clearformat'
     }), [placeholder]);
 
     const handleFileSelect = (event) => {
@@ -120,13 +122,21 @@ const JoditEditorWithUpload = ({ value, onBlur, placeholder = '' }) => {
         event.target.value = null;
     };
 
+    // 'blur' saja tidak cukup: state baru ikut berubah setelah user pindah
+    // fokus, jadi form sempat menuduh field yang sudah diisi masih kosong.
+    const syncValue = (newContent) => {
+        if (onChange) onChange(newContent);
+        else if (onBlur) onBlur(newContent);
+    };
+
     return (
         <div className="relative">
             <JoditEditor
                 ref={editor}
                 value={value}
                 config={config}
-                onBlur={newContent => onBlur(newContent)}
+                onChange={syncValue}
+                onBlur={syncValue}
             />
             <label className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors">
                 <ImageIcon size={13} />
@@ -447,8 +457,8 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
                         <div className={`rounded-xl border bg-white dark:bg-slate-900 transition-colors ${missingQuestion && hasError ? 'border-rose-300 dark:border-rose-500/40' : 'border-slate-200 dark:border-slate-800'}`}>
                             <JoditEditorWithUpload
                                 value={questionText}
-                                placeholder="Tulis pertanyaan di sini…"
-                                onBlur={newContent => setQuestionText(newContent)}
+                                placeholder="Tulis pertanyaan di siniâ€¦"
+                                onChange={newContent => setQuestionText(newContent)}
                             />
                         </div>
                         {missingQuestion && hasError && (
@@ -526,8 +536,8 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
                                                 ) : (
                                                     <JoditEditorWithUpload
                                                         value={opt.value}
-                                                        placeholder={`Pilihan ${opt.key}…`}
-                                                        onBlur={newContent => handleOptionChange(opt.id, newContent)}
+                                                        placeholder={`Pilihan ${opt.key}â€¦`}
+                                                        onChange={newContent => handleOptionChange(opt.id, newContent)}
                                                     />
                                                 )}
                                             </div>
@@ -594,16 +604,16 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
                                         <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-2">
                                             <JoditEditorWithUpload
                                                 value={pair.p}
-                                                placeholder="Sisi kiri…"
-                                                onBlur={newContent => handlePairChange(pair.id, 'p', newContent)}
+                                                placeholder="Sisi kiriâ€¦"
+                                                onChange={newContent => handlePairChange(pair.id, 'p', newContent)}
                                             />
                                             <span className="hidden sm:flex items-center justify-center text-slate-300 dark:text-slate-600">
                                                 <GitCompareArrows size={16} />
                                             </span>
                                             <JoditEditorWithUpload
                                                 value={pair.r}
-                                                placeholder="Sisi kanan…"
-                                                onBlur={newContent => handlePairChange(pair.id, 'r', newContent)}
+                                                placeholder="Sisi kananâ€¦"
+                                                onChange={newContent => handlePairChange(pair.id, 'r', newContent)}
                                             />
                                         </div>
                                     </div>
@@ -695,7 +705,7 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
                         <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                             <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Cara menghitung nilai</p>
                             <p className="text-[11px] text-slate-400 mb-3">
-                                {questionType === 'essay' ? 'Esai' : (questionType === MATRIX_TYPE ? 'Tabel pernyataan' : 'Pilihan ganda kompleks')} — pilih cara penilaian.
+                                {questionType === 'essay' ? 'Esai' : (questionType === MATRIX_TYPE ? 'Tabel pernyataan' : 'Pilihan ganda kompleks')} â€” pilih cara penilaian.
                             </p>
 
                             <div className="space-y-1.5">

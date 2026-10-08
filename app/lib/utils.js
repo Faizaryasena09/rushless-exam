@@ -1,3 +1,24 @@
+/**
+ * Embed yang dianggap "isi" walau tidak punya teks sama sekali.
+ * Tanpa ini, soal/opsi yang isinya cuma gambar akan terbaca kosong karena
+ * <img> ikut hilang saat tag-nya dibuang.
+ */
+const CONTENT_EMBED_RE = /<(img|video|audio|iframe|embed|object|svg|canvas)\b/i;
+
+/**
+ * Apakah HTML dari editor Jodit sudah berisi sesuatu yang layak disimpan?
+ * - String aman: pemanggil boleh mengirim objek atau undefined.
+ * - Teks yang tersisa setelah semua tag dibuang dihitung sebagai isi.
+ * - Embed (gambar, video, tabel bergambar, ...) dihitung sebagai isi walau
+ *   tidak ada karakter teksnya.
+ */
+export const htmlHasContent = (html) => {
+    const raw = String(html ?? '');
+    if (raw.trim() === '') return false;
+    if (CONTENT_EMBED_RE.test(raw)) return true;
+    return raw.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
+};
+
 export const uploadBase64Images = async (htmlContent) => {
     if (!htmlContent || typeof window === 'undefined') {
         return htmlContent;

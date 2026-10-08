@@ -2,6 +2,7 @@
 
 import { Plus, Trash2, Check } from 'lucide-react';
 import { columnTone } from './MatrixTable';
+import { htmlHasContent } from '@/app/lib/utils';
 
 /**
  * Editor untuk tipe soal `true_false_matrix`.
@@ -34,7 +35,7 @@ export default function MatrixEditor({
     correctKeys = [],
     onCorrectKeysChange,
     Editor,
-    isEmptyStatement = (text) => !(text || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim(),
+    isEmptyStatement = (text) => !htmlHasContent(text),
 }) {
     const updateColumnLabel = (key, label) => {
         onColumnsChange(columns.map(col => (col.key === key ? { ...col, label } : col)));

@@ -9,6 +9,8 @@
  * - correct_option   : sentinel "MATRIX" (kunci asli ada di scoring_metadata)
  */
 
+import { htmlHasContent } from './utils';
+
 export const MATRIX_TYPE = 'true_false_matrix';
 export const MATRIX_SENTINEL = 'MATRIX';
 export const MATRIX_STRATEGIES = ['matrix_partial', 'matrix_strict'];
@@ -82,7 +84,9 @@ export function normalizeMatrixItems(matrixItems) {
             seen.add(id);
             return { id, text };
         })
-        .filter(item => item.text.trim() !== '' && item.text.replace(/<[^>]*>/g, '').trim() !== '');
+        // htmlHasContent, bukan sekadar "sisa setelah tag dibuang": baris yang
+        // isinya cuma gambar akan ikut terhapus kalau dicek dengan cara lama.
+        .filter(item => htmlHasContent(item.text));
 }
 
 /**
