@@ -2829,25 +2829,45 @@ function QuestionAnswerPreview({ question }) {
 
     const correctOptions = q.correct_option ? String(q.correct_option).split(',').map(s => s.trim()).filter(Boolean) : [];
 
+    // Satu opsi satu baris, berapa pun panjang teksnya. Bentuk chip yang
+    // menempel bikin tinggi tiap baris soal beda-beda, jadi sulit memindai
+    // soal + kuncinya sekilas. Badge huruf jadi anchor rata kiri.
     return (
-        <span className="flex flex-wrap gap-1.5 pt-1">
+        <span className="block pt-1 space-y-1.5">
             {Object.entries(q.options || {}).map(([key, value]) => {
                 const isCorrect = correctOptions.includes(key);
                 return (
                     <span
                         key={key}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs max-w-full border transition-all ${
+                        className={`flex items-start gap-2.5 px-2.5 py-2 rounded-xl text-xs border transition-all ${
                             isCorrect
-                                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50 font-bold shadow-xs'
-                                : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/50 shadow-xs'
+                                : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700'
                         }`}
                     >
-                        <span className="font-extrabold shrink-0">{key}.</span>
-                        <span 
-                            className="max-w-full overflow-hidden [&_img]:max-h-28 [&_img]:w-auto [&_img]:rounded-md [&_img]:inline-block [&_img]:my-1"
+                        <span className={`shrink-0 grid place-items-center w-5 h-5 rounded-md text-[10px] font-extrabold tabular-nums ${
+                            isCorrect
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                        }`}>
+                            {key}
+                        </span>
+
+                        <span
+                            className={`min-w-0 flex-1 leading-relaxed [&_img]:max-h-28 [&_img]:w-auto [&_img]:rounded-md [&_img]:inline-block [&_img]:my-1 [&_table]:block [&_table]:overflow-x-auto ${
+                                isCorrect
+                                    ? 'font-bold text-emerald-800 dark:text-emerald-200'
+                                    : 'text-slate-700 dark:text-slate-200'
+                            }`}
                             dangerouslySetInnerHTML={{ __html: value || '' }}
                         />
-                        {isCorrect && <Check size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400 ml-auto" strokeWidth={3} />}
+
+                        {isCorrect && (
+                            <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-extrabold uppercase tracking-wide">
+                                <Check size={11} strokeWidth={3} />
+                                Kunci
+                            </span>
+                        )}
                     </span>
                 );
             })}
