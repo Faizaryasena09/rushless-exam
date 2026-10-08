@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { validateUserSession } from '@/app/lib/auth';
+import { MATRIX_TYPE, normalizeMatrixItems } from '@/app/lib/matrix';
 
 async function getSession(request) {
   const cookieStore = await cookies();
@@ -48,6 +49,7 @@ export async function POST(request) {
       folder_id, 
       question_text, 
       options, 
+      matrix_items,
       correct_option, 
       question_type, 
       points, 
@@ -61,12 +63,13 @@ export async function POST(request) {
 
     const result = await query({
       query: `INSERT INTO rhs_question_bank (
-        folder_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        folder_id, question_text, options, matrix_items, correct_option, question_type, points, scoring_strategy, scoring_metadata, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       values: [
         folder_id,
         question_text,
         JSON.stringify(options || {}),
+        question_type === MATRIX_TYPE ? JSON.stringify(normalizeMatrixItems(matrix_items)) : null,
         correct_option || '',
         question_type || 'multiple_choice',
         points || 1.0,
@@ -96,6 +99,7 @@ export async function PUT(request) {
       folder_id, 
       question_text, 
       options, 
+      matrix_items,
       correct_option, 
       question_type, 
       points, 
@@ -123,6 +127,7 @@ export async function PUT(request) {
         folder_id = ?, 
         question_text = ?, 
         options = ?, 
+        matrix_items = ?, 
         correct_option = ?, 
         question_type = ?, 
         points = ?, 
@@ -133,6 +138,7 @@ export async function PUT(request) {
         folder_id,
         question_text,
         JSON.stringify(options || {}),
+        question_type === MATRIX_TYPE ? JSON.stringify(normalizeMatrixItems(matrix_items)) : null,
         correct_option,
         question_type,
         points,

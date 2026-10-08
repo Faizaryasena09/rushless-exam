@@ -11,11 +11,23 @@ import {
   ListFilter,
   ToggleLeft,
   GitCompareArrows,
+  Table2,
   AlignLeft,
   Image as ImageIcon
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { uploadBase64Images } from '@/app/lib/utils';
+import MatrixEditor from '@/app/components/exam/MatrixEditor';
+import {
+  MATRIX_TYPE,
+  MATRIX_SENTINEL,
+  DEFAULT_MATRIX_COLUMNS,
+  normalizeMatrixColumns,
+  normalizeMatrixItems,
+  normalizeMatrixKeys,
+  getMatrixKeys,
+  unlabeledColumnError,
+} from '@/app/lib/matrix';
 import { toast } from 'sonner';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
@@ -39,6 +51,12 @@ const QUESTION_TYPES = [
     label: 'Benar / Salah',
     desc: 'Hanya dua pilihan',
     icon: ToggleLeft,
+  },
+  {
+    value: MATRIX_TYPE,
+    label: 'Tabel Pilihan Kompleks',
+    desc: 'Tabel pernyataan, kolom custom',
+    icon: Table2,
   },
   {
     value: 'matching',
@@ -67,6 +85,10 @@ const SCORING_OPTIONS = {
     { value: 'essay_any_keyword', label: 'Minimal satu kata kunci', desc: 'Poin penuh hanya jika satu kata kunci saja sudah cocok.' },
     { value: 'essay_strict_keywords', label: 'Semua kata kunci', desc: 'Poin penuh hanya jika semua kata kunci ditemukan.' },
   ],
+  [MATRIX_TYPE]: [
+    { value: 'matrix_partial', label: 'Proporsional per baris', desc: 'Nilai dibagi rata sesuai jumlah pernyataan yang dijawab benar.' },
+    { value: 'matrix_strict', label: 'Wajib semua benar', desc: 'Poin penuh hanya jika seluruh pernyataan dijawab benar.' },
+  ],
 };
 
 // Nilai dari editor Jodit berupa HTML, jadi <p><br></p> dianggap "terisi" kalau dicek dengan trim()
@@ -75,7 +97,7 @@ const hasContent = (html) => (html || '').replace(/<[^>]+>/g, '').replace(/&nbsp
 const INPUT_CLASS =
   'w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-slate-900/5 dark:focus:ring-white/5 transition-colors';
 
-const JoditEditorWithUpload = ({ value, onBlur, placeholder }) => {
+const JoditEditorWithUpload = ({ value, onBlur, placeholder = '' }) => {
     const editor = useRef(null);
     const config = useMemo(() => ({
         readonly: false,
@@ -140,12 +162,33 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
         ];
     }, [initialData]);
 
+    const parsedInitialMatrix = useMemo(() => {
+        // Kolom hanya boleh diambil dari options kalau soalnya memang tabel
+        // pernyataan. Kalau bukan, options berisi teks pilihan jawaban yang
+        // sama sekali tidak relevan sebagai nama kolom.
+        const isMatrix = initialData?.question_type === MATRIX_TYPE;
+        const columns = isMatrix
+            ? normalizeMatrixColumns(initialData?.options)
+            : normalizeMatrixColumns(DEFAULT_MATRIX_COLUMNS);
+        const items = isMatrix ? normalizeMatrixItems(initialData?.matrix_items) : [];
+
+        if (items.length > 0) {
+            return { columns, items, keys: normalizeMatrixKeys(getMatrixKeys(initialData?.scoring_metadata), items.length, columns) };
+        }
+        // Soal baru: siapkan 4 baris kosong supaya resemble tabel pada gambar.
+        const fresh = [1, 2, 3, 4].map(n => ({ id: `r${n}`, text: '' }));
+        return { columns, items: fresh, keys: fresh.map(() => columns[0]?.key || 'A') };
+    }, [initialData]);
+
     const [options, setOptions] = useState(parsedInitialOptions);
     const [pairs, setPairs] = useState(parsedInitialPairs);
+    const [matrixColumns, setMatrixColumns] = useState(parsedInitialMatrix.columns);
+    const [matrixItems, setMatrixItems] = useState(parsedInitialMatrix.items);
+    const [matrixKeys, setMatrixKeys] = useState(parsedInitialMatrix.keys);
     const [correctOption, setCorrectOption] = useState(initialData?.correct_option || 'A');
     const [questionType, setQuestionType] = useState(initialData?.question_type || 'multiple_choice');
     const [points, setPoints] = useState(initialData?.points || 1);
-    const [scoringStrategy, setScoringStrategy] = useState(initialData?.scoring_strategy || (initialData?.question_type === 'essay' ? 'essay_manual' : 'standard'));
+    const [scoringStrategy, setScoringStrategy] = useState(initialData?.scoring_strategy || (initialData?.question_type === 'essay' ? 'essay_manual' : (initialData?.question_type === MATRIX_TYPE ? 'matrix_partial' : 'standard')));
     const [correctOptions, setCorrectOptions] = useState(() => {
         if (initialData?.question_type === 'multiple_choice_complex' && initialData.correct_option) {
             return initialData.correct_option.split(',');
@@ -198,7 +241,7 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
 
     const handleTypeChange = (type) => {
         setQuestionType(type);
-        setScoringStrategy(type === 'essay' ? 'essay_manual' : 'standard');
+        setScoringStrategy(type === 'essay' ? 'essay_manual' : (type === MATRIX_TYPE ? 'matrix_partial' : 'standard'));
         if (type === 'true_false') {
             setOptions([
                 { id: 1, key: 'A', value: 'Benar' },
@@ -207,6 +250,9 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
             setCorrectOption('A');
         } else if (type === 'essay') {
             setOptions([]);
+        } else if (type === MATRIX_TYPE) {
+            setOptions([]);
+            setCorrectOption(MATRIX_SENTINEL);
         } else if (type === 'matching') {
             setOptions([]);
             if (pairs.length === 0) {
@@ -232,7 +278,17 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
             setError('Ada pasangan yang belum lengkap pada langkah 3.');
             return;
         }
-        if (questionType !== 'essay' && questionType !== 'matching' && options.some(o => !hasContent(o.value))) {
+        if (questionType === MATRIX_TYPE) {
+            if (matrixColumns.some(c => !c.label.trim())) {
+                setError(unlabeledColumnError(matrixColumns));
+                return;
+            }
+            if (matrixItems.length === 0 || matrixItems.some(item => !hasContent(item.text))) {
+                setError('Ada pernyataan yang masih kosong pada langkah 3.');
+                return;
+            }
+        }
+        if (questionType !== 'essay' && questionType !== 'matching' && questionType !== MATRIX_TYPE && options.some(o => !hasContent(o.value))) {
             setError('Ada pilihan jawaban yang masih kosong pada langkah 3.');
             return;
         }
@@ -264,8 +320,20 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
             );
 
             let optionsForApi = {};
+            let matrixItemsForApi = null;
             if (questionType === 'matching') {
                 optionsForApi = { pairs: processedPairs };
+            } else if (questionType === MATRIX_TYPE) {
+                optionsForApi = matrixColumns.reduce((acc, col) => {
+                    acc[col.key] = col.label.trim();
+                    return acc;
+                }, {});
+                matrixItemsForApi = await Promise.all(
+                    matrixItems.map(async (item) => ({
+                        id: item.id,
+                        text: await uploadBase64Images(item.text),
+                    }))
+                );
             } else {
                 optionsForApi = processedOptions.reduce((acc, opt) => {
                     acc[opt.key] = opt.value;
@@ -275,18 +343,23 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
 
             const finalCorrectOption = questionType === 'multiple_choice_complex' 
                 ? correctOptions.sort().join(',') 
-                : correctOption;
+                : (questionType === MATRIX_TYPE ? MATRIX_SENTINEL : correctOption);
 
             const payload = {
                 id: initialData?.id,
                 folder_id: folderId,
                 question_text: processedQuestionText,
                 options: optionsForApi,
+                matrix_items: matrixItemsForApi,
                 correct_option: finalCorrectOption,
                 question_type: questionType,
                 points,
                 scoring_strategy: scoringStrategy,
-                scoring_metadata: questionType === 'essay' ? { keywords: keywords.split(',').map(k => k.trim()).filter(k => k) } : null
+                scoring_metadata: questionType === 'essay'
+                    ? { keywords: keywords.split(',').map(k => k.trim()).filter(k => k) }
+                    : (questionType === MATRIX_TYPE
+                        ? { matrixKeys: normalizeMatrixKeys(matrixKeys, matrixItems.length, matrixColumns) }
+                        : null)
             };
 
             const res = await fetch('/api/bank/questions', {
@@ -309,14 +382,19 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
         }
     };
 
-    const questionTypesAvailable = questionType === 'multiple_choice_complex' || questionType === 'essay'
+    const questionTypesAvailable = questionType === 'multiple_choice_complex' || questionType === 'essay' || questionType === MATRIX_TYPE
         ? SCORING_OPTIONS[questionType]
         : null;
 
     const missingQuestion = !hasContent(questionText);
-    const missingOptions = questionType !== 'essay' && questionType !== 'matching' && options.some(o => !hasContent(o.value));
+    const missingOptions = questionType !== 'essay' && questionType !== 'matching' && questionType !== MATRIX_TYPE && options.some(o => !hasContent(o.value));
     const missingPairs = questionType === 'matching' && pairs.some(p => !hasContent(p.p) || !hasContent(p.r));
-    const hasError = missingQuestion || missingOptions || missingPairs;
+    const missingMatrix = questionType === MATRIX_TYPE && (
+        matrixColumns.some(c => !c.label.trim())
+        || matrixItems.length === 0
+        || matrixItems.some(item => !hasContent(item.text))
+    );
+    const hasError = missingQuestion || missingOptions || missingPairs || missingMatrix;
 
     const StepHeader = ({ n, title, hint }) => (
         <div className="flex items-baseline gap-2.5 mb-3">
@@ -379,7 +457,7 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
                     </section>
 
                     {/* 3. Pilihan jawaban (PG / B-S) */}
-                    {questionType !== 'essay' && questionType !== 'matching' && (
+                    {questionType !== 'essay' && questionType !== 'matching' && questionType !== MATRIX_TYPE && (
                         <section>
                             <StepHeader
                                 n={3}
@@ -546,6 +624,34 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
                             )}
                         </section>
                     )}
+
+                    {/* 3. Tabel pernyataan (true_false_matrix) */}
+                    {questionType === MATRIX_TYPE && (
+                        <section>
+                            <StepHeader
+                                n={3}
+                                title="Buat kolom & pernyataan"
+                                hint="Nama kolom bebas. Tiap pernyataan hanya boleh memilih satu kolom sebagai kunci."
+                            />
+                            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
+                                <MatrixEditor
+                                    columns={matrixColumns}
+                                    onColumnsChange={setMatrixColumns}
+                                    items={matrixItems}
+                                    onItemsChange={setMatrixItems}
+                                    correctKeys={matrixKeys}
+                                    onCorrectKeysChange={setMatrixKeys}
+                                    Editor={JoditEditorWithUpload}
+                                    isEmptyStatement={(text) => !hasContent(text)}
+                                />
+                            </div>
+                            {missingMatrix && hasError && (
+                                <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">
+                                    Ada kolom tanpa label atau pernyataan yang masih kosong.
+                                </p>
+                            )}
+                        </section>
+                    )}
                 </div>
 
                 {/* ============ Kolom pengaturan ============ */}
@@ -589,7 +695,7 @@ export default function BankQuestionForm({ folderId, initialData, onSave, onCanc
                         <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                             <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Cara menghitung nilai</p>
                             <p className="text-[11px] text-slate-400 mb-3">
-                                {questionType === 'essay' ? 'Esai' : 'Pilihan ganda kompleks'} — pilih cara penilaian.
+                                {questionType === 'essay' ? 'Esai' : (questionType === MATRIX_TYPE ? 'Tabel pernyataan' : 'Pilihan ganda kompleks')} — pilih cara penilaian.
                             </p>
 
                             <div className="space-y-1.5">

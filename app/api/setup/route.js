@@ -183,9 +183,10 @@ export async function GET(request) {
       query: `
             CREATE TABLE IF NOT EXISTS ${questionBankTableName} (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                folder_id INT NOT NULL,
+folder_id INT NOT NULL,
                 question_text TEXT NOT NULL,
                 options JSON,
+                matrix_items JSON,
                 correct_option TEXT,
                 question_type VARCHAR(50) NOT NULL DEFAULT 'multiple_choice',
                 points DECIMAL(10,2) DEFAULT 1.0,
@@ -201,6 +202,18 @@ export async function GET(request) {
       values: [],
     });
     messages.push(`Table '${questionBankTableName}' created or already exists.`);
+
+    // --- Check and add 'matrix_items' column to question bank table ---
+    const hasBankMatrixItems = await columnExists(questionBankTableName, 'matrix_items');
+    if (!hasBankMatrixItems) {
+      await query({
+        query: `ALTER TABLE ${questionBankTableName} ADD COLUMN matrix_items JSON;`,
+        values: [],
+      });
+      messages.push(`Column 'matrix_items' created successfully in '${questionBankTableName}'.`);
+    } else {
+      messages.push(`Column 'matrix_items' already exists in '${questionBankTableName}'.`);
+    }
 
     // --- Check and create 'rhs_teacher_classes' table (Junction table for Teachers) ---
     const teacherClassesTableName = 'rhs_teacher_classes';
@@ -581,7 +594,7 @@ export async function GET(request) {
     const hasQuestionType = await columnExists(questionsTableName, 'question_type');
     if (!hasQuestionType) {
       await query({
-        query: `ALTER TABLE ${questionsTableName} ADD COLUMN question_type ENUM('multiple_choice', 'multiple_choice_complex', 'true_false', 'essay', 'matching') NOT NULL DEFAULT 'multiple_choice';`,
+        query: `ALTER TABLE ${questionsTableName} ADD COLUMN question_type ENUM('multiple_choice', 'multiple_choice_complex', 'true_false', 'true_false_matrix', 'essay', 'matching') NOT NULL DEFAULT 'multiple_choice';`,
         values: [],
       });
       messages.push(`Column 'question_type' created successfully in '${questionsTableName}'.`);
@@ -589,6 +602,28 @@ export async function GET(request) {
       messages.push(`Column 'question_type' already exists in '${questionsTableName}'.`);
     }
     
+    // --- Ensure 'question_type' ENUM supports 'true_false_matrix' ---
+    // MODIFY (bukan ADD) karena tipenya baru; aman diulang karena selalu
+    // menuliskan daftar tipe lengkap yang sama.
+    await query({
+      query: `ALTER TABLE ${questionsTableName} MODIFY COLUMN question_type ENUM('multiple_choice', 'multiple_choice_complex', 'true_false', 'true_false_matrix', 'essay', 'matching') NOT NULL DEFAULT 'multiple_choice';`,
+      values: [],
+    });
+    messages.push(`Column 'question_type' in '${questionsTableName}' supports 'true_false_matrix'.`);
+
+    // --- Check and add 'matrix_items' column to exam_questions table ---
+    // Menyimpan baris pernyataan untuk tipe true_false_matrix.
+    const hasMatrixItems = await columnExists(questionsTableName, 'matrix_items');
+    if (!hasMatrixItems) {
+      await query({
+        query: `ALTER TABLE ${questionsTableName} ADD COLUMN matrix_items JSON;`,
+        values: [],
+      });
+      messages.push(`Column 'matrix_items' created successfully in '${questionsTableName}'.`);
+    } else {
+      messages.push(`Column 'matrix_items' already exists in '${questionsTableName}'.`);
+    }
+
     // --- Check and add 'points' column to exam_questions table ---
     const hasPointsValue = await columnExists(questionsTableName, 'points');
     if (!hasPointsValue) {

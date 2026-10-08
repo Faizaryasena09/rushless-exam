@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { Toaster, toast } from 'sonner';
 import { useUser } from '@/app/context/UserContext';
 import dynamic from 'next/dynamic';
+import MatrixTable from '@/app/components/exam/MatrixTable';
+import { MATRIX_TYPE, normalizeMatrixColumns, normalizeMatrixItems, parseMatrixAnswer, isMatrixAnswerComplete } from '@/app/lib/matrix';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
@@ -23,6 +25,16 @@ function useDebounce(value, delay) {
 }
 
 // --- Helper Functions ---
+// Tabel pernyataan baru bisa "ada isinya" tapi belum lengkap, jadi tidak boleh
+// dihitung selesai hanya karena answers[qid] tidak undefined.
+const isQuestionAnswered = (question, answer) => {
+  if (answer === undefined || answer === null || answer === '') return false;
+  if (question?.question_type === MATRIX_TYPE) {
+    return isMatrixAnswerComplete(answer, question.matrix_items);
+  }
+  return true;
+};
+
 const formatTime = (seconds) => {
   if (seconds === null || seconds < 0) return '00:00:00';
   const h = Math.floor(seconds / 3600);
@@ -179,7 +191,7 @@ SaveStatusIndicator.displayName = 'SaveStatusIndicator';
 
 // --- Question Navigation Component ---
 const QuestionNavigation = memo(({ questions, answers, doubtful, currentIndex, onSelect }) => {
-  const answeredCount = Object.keys(answers).length;
+  const answeredCount = questions.filter(q => isQuestionAnswered(q, answers[q.id])).length;
   const doubtfulCount = Object.values(doubtful).filter(v => v).length;
   const remainingCount = questions.length - answeredCount;
   const progress = (answeredCount / questions.length) * 100;
@@ -222,7 +234,7 @@ const QuestionNavigation = memo(({ questions, answers, doubtful, currentIndex, o
       <div className="p-5 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
         <div className="grid grid-cols-5 gap-2.5">
           {questions.map((q, index) => {
-            const isAnswered = answers[q.id] !== undefined;
+            const answered = isQuestionAnswered(q, answers[q.id]);
             const isDoubtful = doubtful[q.id];
             const isActive = index === currentIndex;
 
@@ -232,7 +244,7 @@ const QuestionNavigation = memo(({ questions, answers, doubtful, currentIndex, o
               btnStyle += "bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-none ring-4 ring-indigo-500/10";
             } else if (isDoubtful) {
               btnStyle += "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/50 hover:bg-amber-100";
-            } else if (isAnswered) {
+            } else if (answered) {
               btnStyle += "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-100";
             } else {
               btnStyle += "bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-600";
@@ -246,7 +258,7 @@ const QuestionNavigation = memo(({ questions, answers, doubtful, currentIndex, o
               >
                 {index + 1}
                 {isDoubtful && <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full border border-white dark:border-slate-800"></span>}
-                {isAnswered && !isDoubtful && <span className="absolute bottom-1 right-1"><Icons.CheckCircleSmall /></span>}
+                {answered && !isDoubtful && <span className="absolute bottom-1 right-1"><Icons.CheckCircleSmall /></span>}
               </button>
             );
           })}
@@ -279,7 +291,7 @@ const QuestionNavigation = memo(({ questions, answers, doubtful, currentIndex, o
 const FinishConfirmationModal = ({ isOpen, onClose, onConfirm, questions, answers, requireAllAnswered }) => {
   if (!isOpen) return null;
 
-  const unansweredQuestions = questions.filter(q => answers[q.id] === undefined);
+  const unansweredQuestions = questions.filter(q => !isQuestionAnswered(q, answers[q.id]));
   const isComplete = unansweredQuestions.length === 0;
   const blockSubmit = requireAllAnswered && !isComplete;
 
@@ -383,6 +395,13 @@ export default function ExamTakingPage() {
     xl: { question: 'text-2xl md:text-3xl', options: 'text-xl' }
   };
   const fsClasses = fontSizeClasses[fontSize] || fontSizeClasses.md;
+
+  // Jawaban tabel pernyataan disimpan sebagai JSON string, jadi di-decode di sini
+  // supaya tabel bisa menerima objek biasa.
+  const matrixChoice = useMemo(
+    () => parseMatrixAnswer(answers[currentQuestion?.id]),
+    [answers, currentQuestion?.id]
+  );
 
 
   // Instruction State
@@ -745,6 +764,49 @@ export default function ExamTakingPage() {
       }
     } catch (error) {
       console.error('Failed to save temporary answer:', error);
+      setSaveStatus('error');
+    }
+  }, [examId, questions, answers, logAction]);
+
+  const handleMatrixSelect = useCallback(async (questionId, itemId, columnKey) => {
+    const qIndex = questions.findIndex(q => q.id === questionId);
+
+    // Jawaban disimpan sebagai JSON string { itemId: columnKey }, sama seperti
+    // soal menjodohkan, jadi hanya bisa satu kolom per baris.
+    const nextChoices = { ...parseMatrixAnswer(answers[questionId]) };
+    if (nextChoices[itemId] === columnKey) {
+      delete nextChoices[itemId];
+    } else {
+      nextChoices[itemId] = columnKey;
+    }
+
+    const newAnswer = Object.keys(nextChoices).length > 0 ? JSON.stringify(nextChoices) : '';
+
+    logAction('ANSWER', `Memperbarui jawaban tabel untuk soal nomor ${qIndex + 1}`);
+    setAnswers((prev) => {
+      if (!newAnswer) {
+        const next = { ...prev };
+        delete next[questionId];
+        return next;
+      }
+      return { ...prev, [questionId]: newAnswer };
+    });
+
+    try {
+      setSaveStatus('saving');
+      const response = await fetch('/api/exams/temporary-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ examId, questionId, selectedOption: newAnswer || null }),
+      });
+      if (response.ok) {
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } else {
+        setSaveStatus('error');
+      }
+    } catch (error) {
+      console.error('Failed to save matrix answer:', error);
       setSaveStatus('error');
     }
   }, [examId, questions, answers, logAction]);
@@ -1353,9 +1415,9 @@ export default function ExamTakingPage() {
 
   const progressPercentage = useMemo(() => {
     if (questions.length === 0) return 0;
-    const answeredCount = Object.keys(answers).length;
+    const answeredCount = questions.filter(q => isQuestionAnswered(q, answers[q.id])).length;
     return Math.round((answeredCount / questions.length) * 100);
-  }, [answers, questions.length]);
+  }, [answers, questions]);
 
   useEffect(() => {
     // Removed redundant /api/user-session fetch. DashboardLayout monitors this via SSE.
@@ -2002,7 +2064,7 @@ if (showTokenModal) {
                             <Icons.CheckCircleSmall /> Jawaban otomatis tersimpan saat Anda pindah soal atau selesai mengetik.
                           </p>
                         </div>
-                      ) : (
+                      ) : currentQuestion.question_type === MATRIX_TYPE ? null : (
                         currentQuestion.options && Array.isArray(currentQuestion.options) && currentQuestion.options.map((option, idx) => {
                           const optionLabel = String.fromCharCode(65 + idx);
                           const isSelected = currentQuestion.question_type === 'multiple_choice_complex'
@@ -2075,6 +2137,22 @@ if (showTokenModal) {
                               );
                             })}
                           </div>
+                        </div>
+                      )}
+
+                      {currentQuestion.question_type === MATRIX_TYPE && (
+                        <div className="mt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                          <MatrixTable
+                            groupId={`q${currentQuestion.id}`}
+                            columns={normalizeMatrixColumns(currentQuestion.options)}
+                            items={normalizeMatrixItems(currentQuestion.matrix_items)}
+                            value={matrixChoice}
+                            statementClass={`${fsClasses.question} font-medium`}
+                            onChange={(itemId, columnKey) => handleMatrixSelect(currentQuestion.id, itemId, columnKey)}
+                          />
+                          <p className="mt-3 text-xs text-slate-400 italic font-medium flex items-center gap-1.5">
+                            <Icons.CheckCircle /> Pilih satu kolom untuk setiap pernyataan. Jawaban otomatis tersimpan.
+                          </p>
                         </div>
                       )}
                     </div>
@@ -2226,7 +2304,7 @@ if (showTokenModal) {
             <div className="p-6 overflow-y-auto flex-1 bg-white dark:bg-slate-900 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 pb-8">
                 {questions.map((q, index) => {
-                  const isAnswered = answers[q.id] !== undefined;
+                  const answered = isQuestionAnswered(q, answers[q.id]);
                   const isDoubtful = doubtfulAnswers[q.id];
                   const isActive = index === currentQuestionIndex;
 
@@ -2236,7 +2314,7 @@ if (showTokenModal) {
                     buttonClass += 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200 dark:shadow-none ring-4 ring-indigo-500/10 drop-shadow-md';
                   } else if (isDoubtful) {
                     buttonClass += 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/50 hover:bg-amber-100';
-                  } else if (isAnswered) {
+                  } else if (answered) {
                     buttonClass += 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-100';
                   } else {
                     buttonClass += 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-600 hover:text-indigo-600';
@@ -2250,7 +2328,7 @@ if (showTokenModal) {
                     >
                       {index + 1}
                       {isDoubtful && <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full border border-white dark:border-slate-900 animate-pulse"></span>}
-                      {isAnswered && !isDoubtful && <span className="absolute bottom-1 right-1"><Icons.CheckCircleSmall /></span>}
+                      {answered && !isDoubtful && <span className="absolute bottom-1 right-1"><Icons.CheckCircleSmall /></span>}
                     </button>
                   );
                 })}

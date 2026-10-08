@@ -30,6 +30,14 @@ import dynamic from 'next/dynamic';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 import BankQuestionForm from '@/app/components/bank/BankQuestionForm';
+import MatrixTable from '@/app/components/exam/MatrixTable';
+import {
+  MATRIX_TYPE,
+  normalizeMatrixColumns,
+  normalizeMatrixItems,
+  normalizeMatrixKeys,
+  getMatrixKeys,
+} from '@/app/lib/matrix';
 
 /**
  * Warna per tipe soal. Bank soal bisa berisi ratusan butir, jadi jenis soal
@@ -39,6 +47,7 @@ import BankQuestionForm from '@/app/components/bank/BankQuestionForm';
 const QUESTION_TYPE_TONE = {
   multiple_choice: 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-900/60',
   multiple_choice_complex: 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-900/60',
+  [MATRIX_TYPE]: 'bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-900/60',
   short_answer: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-900/60',
   essay: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/60',
   _default: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700',
@@ -978,6 +987,21 @@ export default function BankSoalPage() {
                     ));
                   })()}
                 </div>
+              )}
+
+              {/* Tabel Pernyataan (true_false_matrix) */}
+              {previewQuestion.question_type === MATRIX_TYPE && (
+                <MatrixTable
+                  groupId={`bank-preview-${previewQuestion.id}`}
+                  disabled
+                  columns={normalizeMatrixColumns(previewQuestion.options)}
+                  items={normalizeMatrixItems(previewQuestion.matrix_items)}
+                  correctKeys={normalizeMatrixKeys(
+                    getMatrixKeys(previewQuestion.scoring_metadata),
+                    normalizeMatrixItems(previewQuestion.matrix_items).length,
+                    normalizeMatrixColumns(previewQuestion.options)
+                  )}
+                />
               )}
             </div>
           </div>

@@ -10,6 +10,7 @@ import { query } from '@/app/lib/db';
 import { sessionOptions } from '@/app/lib/session';
 import { recalculateExamScores, distributeExamPoints, invalidateExamCache } from '@/app/lib/exams';
 import redis, { isRedisReady } from '@/app/lib/redis';
+import { MATRIX_TYPE, MATRIX_SENTINEL } from '@/app/lib/matrix';
 
 // Helper for ASYNC string replace
 async function replaceAsync(str, regex, asyncFn) {
@@ -300,8 +301,8 @@ export async function POST(request) {
         // --- Database Insertion ---
         console.log('[UPLOAD] 8. Inserting into database...');
         // 1. Prepare placeholders for bulk insert
-        const placeholders = parsedQuestions.map(() => '(?,?,?,?,?,?,?,?)').join(',');
-        const sql = `INSERT INTO rhs_exam_questions (exam_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata) VALUES ${placeholders}`;
+        const placeholders = parsedQuestions.map(() => '(?,?,?,?,?,?,?,?,?)').join(',');
+        const sql = `INSERT INTO rhs_exam_questions (exam_id, question_text, options, matrix_items, correct_option, question_type, points, scoring_strategy, scoring_metadata) VALUES ${placeholders}`;
 
         // 2. Flatten array for values mapping
         const values = parsedQuestions.flatMap(q =>
@@ -309,6 +310,7 @@ export async function POST(request) {
                 examId,
                 q.question_text,
                 JSON.stringify(q.options),
+                Array.isArray(q.matrix_items) && q.matrix_items.length > 0 ? JSON.stringify(q.matrix_items) : null,
                 q.correct_option || '',
                 q.question_type || 'multiple_choice',
                 q.points || 1.0,
@@ -973,6 +975,71 @@ function parseHtmlContent(rawHtml, documentListFormats) {
             };
             result.correct_option = ansParts.join(',');
             result.scoring_strategy = 'standard';
+        } else if (q.question_type === MATRIX_TYPE) {
+            // Format dokumen:
+            //   [Matrix]
+            //   <teks soal>
+            //   A. pernyataan pertama
+            //   B. pernyataan kedua
+            //   [COLS] Benar | Salah
+            //   Ans: A=Salah, B=Benar
+            const allLines = [...q.question_text_lines, ...q.opt_lines, ...q.raw_lines];
+
+            const statements = {};
+            const colsLabels = [];
+            const qTextParts = [];
+            let foundFirstItem = false;
+
+            allLines.forEach((line, idx) => {
+                const cleanLine = line.replace(/<[^>]+>/g, '').trim();
+                const colsMatch = cleanLine.match(/^\s*\[COLS\]\s*(.+)$/i);
+                const itemMatch = cleanLine.match(/^\s*([A-Za-z])\s*([.)\-:]\s+)(.*)/s);
+
+                if (colsMatch) {
+                    colsLabels.push(...colsMatch[1].split('|').map(c => c.trim()).filter(Boolean));
+                } else if (idx > 0 && itemMatch) {
+                    foundFirstItem = true;
+                    const key = itemMatch[1].toUpperCase();
+                    statements[key] = extractContentAfterPrefix(line, /^\s*[A-Za-z]\s*[.)\-:]\s*/).trim() || itemMatch[3].trim();
+                } else if (!foundFirstItem) {
+                    qTextParts.push(line);
+                }
+            });
+
+            let finalQText = joinLinesHtml(qTextParts.map(line => formatLine(line))).trim();
+            finalQText = finalQText.replace(/^(\s*(?:<[^>]+>\s*)*)\d+\s*[.)]\s*/, '$1');
+            const finalPointMatch = finalQText.match(/\[(?:BOBOT|POINT):\s*([\d.]+)\]/i);
+            if (finalPointMatch) {
+                result.points = parseFloat(finalPointMatch[1]);
+                finalQText = finalQText.replace(finalPointMatch[0], '').trim();
+            }
+            finalQText = finalQText.replace(/\[COLS\][\s\S]*$/i, '').trim();
+            result.question_text = finalQText;
+
+            const items = Object.keys(statements).sort().map((key, idx) => ({ id: `r${idx + 1}`, text: statements[key] }));
+
+            const columns = (colsLabels.length >= 2 ? colsLabels : ['Benar', 'Salah']).slice(0, 6);
+            result.options = columns.reduce((acc, label, idx) => {
+                acc[String.fromCharCode(65 + idx)] = label;
+                return acc;
+            }, {});
+
+            const keyByLabel = new Map(columns.map((label, idx) => [label.toLowerCase(), String.fromCharCode(65 + idx)]));
+            const ansLine = (q.ans_line || '').replace(/^\s*(?:ans|jawaban|kunci|key)\s*:\s*/i, '').trim();
+            const matrixKeys = items.map((_, idx) => {
+                const rowLetter = String.fromCharCode(65 + idx);
+                const found = ansLine.split(',').map(p => p.trim()).find(p => new RegExp(`^${rowLetter}\\s*[-=]`, 'i').test(p));
+                if (!found) return 'A';
+                const label = found.replace(new RegExp(`^${rowLetter}\\s*[-=]\\s*`, 'i'), '').trim();
+                return keyByLabel.get(label.toLowerCase()) || 'A';
+            });
+
+            result.matrix_items = items;
+            result.correct_option = MATRIX_SENTINEL;
+            result.scoring_metadata = { matrixKeys };
+            const matrixCheckString = finalQText + ' ' + (q.ans_line || '');
+            result.scoring_strategy = matrixCheckString.match(/\[MATRIX_STRICT\]/i) ? 'matrix_strict' : 'matrix_partial';
+            result.question_text = result.question_text.replace(/\[MATRIX_STRICT\]/gi, '').trim();
         }
 
         return result;
@@ -982,8 +1049,8 @@ function parseHtmlContent(rawHtml, documentListFormats) {
 
     restoredLines.forEach(line => {
         const cleanLine = line.replace(/<[^>]+>/g, '').trim();
-        const typeMatch = cleanLine.match(/^\s*\[(Multiple Choice|Pilihan Ganda|ESSAY|Esai|Uraian|MATCHING|Menjodohkan)\]/i);
-        
+        const typeMatch = cleanLine.match(/^\s*\[(Multiple Choice|Pilihan Ganda|ESSAY|Esai|Uraian|MATCHING|Menjodohkan|MATRIX|Tabel Pilihan Kompleks)\]/i);
+
         if (typeMatch) {
             if (currentQuestion) {
                 questions.push(finalizeQuestion(currentQuestion));
@@ -994,6 +1061,8 @@ function parseHtmlContent(rawHtml, documentListFormats) {
                 type = 'essay';
             } else if (rawType === 'matching' || rawType === 'menjodohkan') {
                 type = 'matching';
+            } else if (rawType === 'matrix' || rawType === 'tabel pilihan kompleks') {
+                type = MATRIX_TYPE;
             }
             currentQuestionType = type;
             
@@ -1025,7 +1094,7 @@ function parseHtmlContent(rawHtml, documentListFormats) {
         const isTableLine = /<\/?(?:table|tr|td|th|tbody|thead|tfoot)\b/i.test(line);
 
         // Detect implicit new question starting with a number
-        if (currentQuestion && currentQuestion.question_type !== 'matching') {
+        if (currentQuestion && currentQuestion.question_type !== 'matching' && currentQuestion.question_type !== MATRIX_TYPE) {
             const isNumbered = cleanLine.match(/^\s*\d+\s*[.)]/);
             const isPrevComplete = currentQuestion.opt_lines.length > 0 || currentQuestion.ans_line !== null;
             

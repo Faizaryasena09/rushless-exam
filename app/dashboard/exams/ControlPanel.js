@@ -3,10 +3,11 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
     ChevronUp, ChevronDown, ArrowUpDown, RefreshCcw, Users, Clock,
-    FileSpreadsheet, PlusCircle, BellRing, CheckCircle2, HelpCircle, X
+    FileSpreadsheet, PlusCircle, BellRing, CheckCircle2, HelpCircle, X, Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '@/app/context/LanguageContext';
+import LiveAnswersModal from '@/app/components/exam/LiveAnswersModal';
 
 // Format seconds to HH:MM:SS
 function formatTime(seconds) {
@@ -333,6 +334,8 @@ export default function ControlPanel() {
     const [onlineFirst, setOnlineFirst] = useState(false);
     const [sseLog, setSseLog] = useState(null);
     const [showGuide, setShowGuide] = useState(false);
+    const [showAnswers, setShowAnswers] = useState(false);
+    const [liveAnswers, setLiveAnswers] = useState([]);
     const [modalConfig, setModalConfig] = useState({ 
         isOpen: false, 
         type: 'confirm', 
@@ -344,6 +347,8 @@ export default function ControlPanel() {
         targetName: ''
     });
 
+    // Jawaban siswa hanya ikut di-push server kalau modalnya sedang dibuka.
+    // Query string memicu effect reconnect, jadi ada satu koneksi SSE saja.
     useEffect(() => {
         let eventSource;
         let retryTimeout;
@@ -352,7 +357,7 @@ export default function ControlPanel() {
             if (eventSource) eventSource.close();
             setSseStatus('connecting');
 
-            eventSource = new EventSource('/api/control/stream');
+            eventSource = new EventSource(`/api/control/stream${showAnswers ? '?answers=1' : ''}`);
 
             eventSource.onopen = () => {
                 setSseStatus('connected');
@@ -366,6 +371,9 @@ export default function ControlPanel() {
                         setStudents(data.students);
                         setRedisActive(data.redisActive ?? true);
                         setLastUpdated(new Date());
+                    }
+                    if (data.answers) {
+                        setLiveAnswers(data.answers);
                     }
                     if (data.log_update) {
                         setSseLog(data.log_update);
@@ -389,7 +397,7 @@ export default function ControlPanel() {
             if (eventSource) eventSource.close();
             if (retryTimeout) clearTimeout(retryTimeout);
         };
-    }, []);
+    }, [showAnswers]);
 
     const fetchStatus = async () => {
         try {
@@ -706,6 +714,13 @@ export default function ControlPanel() {
 
             {logStudent && <LogPanel student={logStudent} sseLog={sseLog} onClose={() => setLogStudent(null)} />}
             {showGuide && <GuideModal isOpen={showGuide} onClose={() => setShowGuide(false)} />}
+            {showAnswers && (
+                <LiveAnswersModal
+                    onClose={() => setShowAnswers(false)}
+                    students={students}
+                    liveAnswers={liveAnswers}
+                />
+            )}
 
             <div className="animate-fade-in-down relative overflow-hidden rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200/70 dark:ring-slate-800/70 text-slate-800 dark:text-slate-200">
                 <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-indigo-50/70 dark:from-slate-800 dark:via-slate-800 dark:to-indigo-950/20" />
@@ -794,6 +809,14 @@ export default function ControlPanel() {
                         >
                             <RefreshCcw size={18} />
                             <span className="text-xs font-bold hidden sm:inline">Refresh</span>
+                        </button>
+                        <button 
+                            onClick={() => setShowAnswers(true)}
+                            title="Lihat jawaban siswa secara realtime"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-cyan-50 dark:bg-cyan-950/30 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-900/60 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 transition-all"
+                        >
+                            <Eye size={15} />
+                            <span className="hidden sm:inline">Jawaban</span>
                         </button>
                         <button 
                             onClick={() => setShowGuide(true)}

@@ -10,6 +10,7 @@ import { archiveTempAnswers } from '@/app/lib/temp-archive';
 import redis, { isRedisReady } from '@/app/lib/redis';
 import { publish } from '@/app/lib/redis-pubsub';
 import { invalidateExamCache } from '@/app/lib/exams';
+import { MATRIX_TYPE, isMatrixAnswerComplete } from '@/app/lib/matrix';
 
 // Toleransi (detik) sebelum submit dianggap terlambat.
 // Menyerap latensi jaringan, perbedaan jam server/komputer siswa, dan delay
@@ -170,10 +171,17 @@ export async function POST(request) {
     // sekali (lihat deadline check di atas) - jawaban yang sudah tersimpan di
     // temp-answer tetap dinilai oleh auto-submit server.
     if (requireAllAnswered && questionIds.length > 0 && attemptStatus === 'in_progress') {
-      const answeredQuestionIds = new Set(
-        Object.keys(answers || {}).filter(id => answers[id] !== null && answers[id] !== undefined && answers[id] !== '')
-      );
-      const unansweredCount = questionIds.filter(id => !answeredQuestionIds.has(id)).length;
+      // Tabel pernyataan harus terisi semua barisnya, bukan cuma punya isian.
+      const isComplete = (id) => {
+        const value = answers ? answers[id] : undefined;
+        if (value === null || value === undefined || value === '') return false;
+        const qInfo = grading.questionInfoMap?.[id];
+        if (qInfo?.type === MATRIX_TYPE) {
+          return isMatrixAnswerComplete(value, qInfo.metadata?.matrixItemIds || []);
+        }
+        return true;
+      };
+      const unansweredCount = questionIds.filter(id => !isComplete(id)).length;
       if (unansweredCount > 0) {
         return NextResponse.json(
           { message: `Semua soal harus dijawab sebelum mengumpulkan. Masih ada ${unansweredCount} soal yang belum dijawab.` },

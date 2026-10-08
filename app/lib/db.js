@@ -505,7 +505,8 @@ export async function setupDatabase() {
               exam_id INT NOT NULL,
               question_text TEXT NOT NULL,
               options JSON,
-              correct_option VARCHAR(1) NOT NULL,
+              matrix_items JSON,
+              correct_option VARCHAR(255) NOT NULL,
               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
               FOREIGN KEY (exam_id) REFERENCES rhs_exams(id) ON DELETE CASCADE

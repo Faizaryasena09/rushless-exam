@@ -1,5 +1,6 @@
 import { query } from './db';
 import { calculateQuestionScore } from './scoring';
+import { MATRIX_TYPE, normalizeMatrixItems } from './matrix';
 
 /**
  * Parse JSON dengan aman (MySQL JSON bisa come back string / object)
@@ -20,19 +21,25 @@ export function parseJsonSafe(value, fallback = {}) {
  */
 export async function loadExamQuestions(examId) {
     const allQuestions = await query({
-        query: `SELECT id, options, correct_option, question_type, points, scoring_strategy, scoring_metadata
+        query: `SELECT id, options, matrix_items, correct_option, question_type, points, scoring_strategy, scoring_metadata
                 FROM rhs_exam_questions WHERE exam_id = ?`,
         values: [examId],
     });
 
     const questionInfoMap = allQuestions.reduce((acc, q) => {
+        const metadata = parseJsonSafe(q.scoring_metadata, {});
+        // Untuk true_false_matrix, kunci jawaban berindex baris. Simpan juga id baris
+        // supaya penilaian tetap benar walau urutan baris berubah.
+        if (q.question_type === MATRIX_TYPE) {
+            metadata.matrixItemIds = normalizeMatrixItems(q.matrix_items).map(item => item.id);
+        }
         acc[String(q.id)] = {
             correct: q.correct_option,
             type: q.question_type,
             options: q.options,
             points: q.points || 1,
             strategy: q.scoring_strategy || 'standard',
-            metadata: parseJsonSafe(q.scoring_metadata, {})
+            metadata
         };
         return acc;
     }, {});
@@ -49,6 +56,10 @@ export function resolveIsCorrect(qInfo, studentAnswer, earned) {
         return earned > 0;
     }
     if (qInfo.type === 'matching') {
+        return earned >= qInfo.points;
+    }
+    if (qInfo.type === MATRIX_TYPE) {
+        // Benar semua baris saja yang dihitung benar.
         return earned >= qInfo.points;
     }
     return qInfo.correct === studentAnswer;

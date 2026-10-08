@@ -7,11 +7,13 @@ import { uploadBase64Images } from '@/app/lib/utils';
 import { 
     ArrowLeft, Database, DownloadCloud, Plus, Search, Pencil, Trash2, GripVertical, 
     Check, X, ChevronRight, AlertTriangle, Eye, Upload, FileText, Library, Sparkles, 
-    Scale, GitCompareArrows, CheckCircle2, HelpCircle, FileCheck, Layers, Award, Info
+    Scale, GitCompareArrows, CheckCircle2, HelpCircle, FileCheck, Layers, Award, Info, Table2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import BankPickerModal from '@/app/components/bank/BankPickerModal';
+import MatrixEditor from '@/app/components/exam/MatrixEditor';
+import { MATRIX_TYPE, MATRIX_SENTINEL, DEFAULT_MATRIX_COLUMNS, normalizeMatrixColumns, normalizeMatrixItems, normalizeMatrixKeys, getMatrixKeys, unlabeledColumnError } from '@/app/lib/matrix';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
@@ -65,6 +67,13 @@ const TONE = {
         text: 'text-slate-700 dark:text-slate-300',
         iconBg: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
         accent: 'from-slate-400 to-slate-600',
+    },
+    cyan: {
+        bg: 'bg-cyan-50 dark:bg-cyan-950/30',
+        border: 'border-cyan-200 dark:border-cyan-900/60',
+        text: 'text-cyan-700 dark:text-cyan-300',
+        iconBg: 'bg-cyan-100 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400',
+        accent: 'from-cyan-500 to-sky-500',
     }
 };
 
@@ -73,6 +82,7 @@ const QUESTION_TYPE_META = {
     multiple_choice: { label: 'Pilihan Ganda', hint: 'Satu jawaban benar', toneKey: 'blue', icon: FileCheck },
     multiple_choice_complex: { label: 'Pilihan Ganda Kompleks', hint: 'Bisa lebih dari satu benar', toneKey: 'purple', icon: Layers },
     true_false: { label: 'Benar / Salah', hint: 'Hanya dua pilihan', toneKey: 'emerald', icon: CheckCircle2 },
+    [MATRIX_TYPE]: { label: 'Tabel Pilihan Kompleks', hint: 'Tabel pernyataan, kolom custom', toneKey: 'cyan', icon: Table2 },
     matching: { label: 'Menjodohkan', hint: 'Pasangkan kiri ke kanan', toneKey: 'amber', icon: GitCompareArrows },
     essay: { label: 'Esai', hint: 'Jawaban panjang, dinilai guru', toneKey: 'indigo', icon: FileText }
 };
@@ -81,6 +91,7 @@ const QUESTION_TYPE_LABEL = {
     multiple_choice: 'Pilihan Ganda',
     multiple_choice_complex: 'Pilihan Ganda Kompleks',
     true_false: 'Benar / Salah',
+    [MATRIX_TYPE]: 'Tabel Pilihan Kompleks',
     matching: 'Menjodohkan',
     essay: 'Esai'
 };
@@ -89,6 +100,7 @@ const QUESTION_TYPE_HINT = {
     multiple_choice: 'Satu jawaban benar',
     multiple_choice_complex: 'Bisa lebih dari satu benar',
     true_false: 'Hanya dua pilihan',
+    [MATRIX_TYPE]: 'Tabel pernyataan, kolom custom',
     matching: 'Pasangkan kiri ke kanan',
     essay: 'Jawaban panjang, dinilai guru'
 };
@@ -101,10 +113,57 @@ const SCORING_LABELS = {
     essay_manual: { label: 'Dinilai guru', desc: 'Anda yang menilai sendiri setelah ujian selesai.' },
     essay_keywords: { label: 'Kata kunci (proporsional)', desc: 'Semakin banyak kata kunci cocok, semakin tinggi nilainya.' },
     essay_any_keyword: { label: 'Minimal satu kata kunci', desc: 'Poin penuh hanya jika satu kata kunci saja sudah cocok.' },
-    essay_strict_keywords: { label: 'Semua kata kunci', desc: 'Poin penuh hanya jika semua kata kunci ditemukan.' }
+    essay_strict_keywords: { label: 'Semua kata kunci', desc: 'Poin penuh hanya jika semua kata kunci ditemukan.' },
+    matrix_partial: { label: 'Proporsional per baris', desc: 'Nilai dibagi rata sesuai jumlah pernyataan yang dijawab benar.' },
+    matrix_strict: { label: 'Wajib semua benar', desc: 'Poin penuh hanya jika seluruh pernyataan dijawab benar.' }
 };
 
-const hasContent = (html) => (html || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
+const LETTER_KEYS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+/**
+ * Opsi soal datang dalam beberapa bentuk depending sumbernya:
+ * - object map dari DB : { "A": "<p>benar</p>" }
+ * - array dari API     : [{ originalKey: "A", text: "<p>benar</p>" }]
+ * - nilai legacy       : { "A": { text: "<p>benar</p>" } }
+ * Semuanya dinormalkan ke [{ key, value }] (string) supaya form edit tidak
+ * pernah menerima objek mentah - objek itulah yang bikin hasContent() meledak
+ * dan editor menampilkan kosong.
+ */
+const toOptionList = (rawOptions) => {
+    let parsed = rawOptions;
+    if (typeof parsed === 'string') {
+        try { parsed = JSON.parse(parsed || '{}'); } catch { parsed = {}; }
+    }
+    if (!parsed) return [];
+
+    const readValue = (value) => {
+        if (value && typeof value === 'object') {
+            return String(value.text ?? value.label ?? value.value ?? '');
+        }
+        return String(value ?? '');
+    };
+
+    if (Array.isArray(parsed)) {
+        return parsed
+            .map((opt, index) => {
+                const key = String(
+                    (opt && typeof opt === 'object')
+                        ? (opt.originalKey ?? opt.key ?? LETTER_KEYS[index])
+                        : LETTER_KEYS[index]
+                );
+                return { key, value: readValue(opt) };
+            })
+            .filter(opt => /^[A-Za-z0-9_-]+$/.test(opt.key));
+    }
+
+    if (typeof parsed !== 'object') return [];
+
+    return Object.entries(parsed)
+        .filter(([, value]) => value !== null && value !== undefined)
+        .map(([key, value]) => ({ key: String(key), value: readValue(value) }));
+};
+
+const hasContent = (html) => String(html ?? '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
 
 const EDIT_INPUT_CLASS =
     'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all';
@@ -168,20 +227,21 @@ function ModalShell({ title, description, onClose, children, footer, size = 'md'
     );
 }
 
-const useJoditConfig = () => {
+const useJoditConfig = (placeholder) => {
     return useMemo(() => ({
         readonly: false,
         height: 'auto',
         minHeight: 140,
         insertImageAsBase64URL: true,
         hidePoweredByJodit: true,
+        ...(placeholder ? { placeholder } : {}),
         buttons: 'bold,italic,underline,strikethrough,|,ul,ol,|,outdent,indent,|,font,fontsize,brush,paragraph,|,image,video,table,link,|,align,undo,redo,\n,cut,hr,eraser,copyformat,|,symbol,fullsize,print,about'
-    }), []);
+    }), [placeholder]);
 };
 
-const JoditEditorWithUpload = ({ value, onBlur }) => {
+const JoditEditorWithUpload = ({ value = '', onChange, onBlur, placeholder }) => {
     const editor = useRef(null);
-    const editorConfig = useJoditConfig();
+    const editorConfig = useJoditConfig(placeholder);
 
     const handleFileSelect = (event) => {
         const file = event.target.files[0];
@@ -198,13 +258,23 @@ const JoditEditorWithUpload = ({ value, onBlur }) => {
         event.target.value = null;
     };
 
+    // WAJIB listen ke 'change', bukan hanya 'blur':
+    // 'blur' baru kepicu saat user pindah fokus, jadi selama masih mengetik
+    // state React masih kosong dan form sempat_report "pertanyaan/pilihan
+    // jawaban masih kosong" padahal editor sudah berisi.
+    const syncValue = (newContent) => {
+        if (onChange) onChange(newContent);
+        else if (onBlur) onBlur(newContent);
+    };
+
     return (
         <div className="space-y-2">
             <JoditEditor
                 ref={editor}
                 value={value}
                 config={editorConfig}
-                onBlur={newContent => onBlur(newContent)}
+                onChange={syncValue}
+                onBlur={syncValue}
             />
             <div>
                 <label className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-all shadow-xs">
@@ -222,22 +292,103 @@ const JoditEditorWithUpload = ({ value, onBlur }) => {
     );
 };
 
+// --- Kartu pilihan cara menghitung nilai (PGK / esai / tabel matrix) ---
+const STRATEGY_GROUPS = {
+    pgk: ['pgk_partial', 'pgk_strict', 'pgk_any', 'pgk_additive'],
+    essay: ['essay_manual', 'essay_keywords', 'essay_any_keyword', 'essay_strict_keywords'],
+    matrix: ['matrix_partial', 'matrix_strict'],
+};
+
+const strategyGroupFor = (questionType) => {
+    if (questionType === MATRIX_TYPE) return 'matrix';
+    if (questionType === 'essay') return 'essay';
+    return 'pgk';
+};
+
+const ScoringStrategyCard = ({ questionType, scoringStrategy, onChange, namePrefix = 'strategy' }) => {
+    const group = strategyGroupFor(questionType);
+    const options = STRATEGY_GROUPS[group];
+
+    return (
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4.5 shadow-sm space-y-3">
+            <p className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Cara Menghitung Nilai</p>
+            <div className="space-y-2">
+                {options.map(value => {
+                    const meta = SCORING_LABELS[value];
+                    const active = scoringStrategy === value;
+                    return (
+                        <label
+                            key={value}
+                            className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all duration-200 ${active
+                                ? 'border-blue-500 dark:border-blue-400 bg-blue-50/60 dark:bg-blue-950/30 ring-1 ring-blue-500/20'
+                                : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                                }`}
+                        >
+                            <input
+                                type="radio"
+                                name={`${namePrefix}_scoring_strategy`}
+                                className="sr-only"
+                                checked={active}
+                                onChange={() => onChange(value)}
+                            />
+                            <span className={`shrink-0 mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${active
+                                ? 'border-blue-600 bg-blue-600 dark:border-blue-500 dark:bg-blue-500'
+                                : 'border-slate-300 dark:border-slate-600'
+                                }`}>
+                                {active && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                            </span>
+                            <span className="min-w-0">
+                                <span className="block text-xs font-bold text-slate-900 dark:text-white">{meta.label}</span>
+                                <span className="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">{meta.desc}</span>
+                            </span>
+                        </label>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+// --- Section Baris + Kolom untuk tipe true_false_matrix ---
+const MatrixSection = ({ columns, items, keys, onColumnsChange, onItemsChange, onKeysChange }) => (
+    <section className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4.5 shadow-sm space-y-4">
+        <div className="h-1 absolute top-0 left-0 right-0 bg-gradient-to-r from-cyan-500 to-sky-500" aria-hidden="true" />
+        <div className="flex items-start gap-2 pt-1">
+            <span className="grid place-items-center w-6 h-6 rounded-lg bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 text-xs font-extrabold tabular-nums shrink-0">
+                3
+            </span>
+            <div>
+                <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Tabel Pernyataan & Kunci</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Nama kolom bebas (misal Benar/Salah, Ya/Tidak/Tidak Tahu). Tiap pernyataan hanya boleh memilih satu kolom.
+                </p>
+            </div>
+        </div>
+
+        <MatrixEditor
+            columns={columns}
+            onColumnsChange={onColumnsChange}
+            items={items}
+            onItemsChange={onItemsChange}
+            correctKeys={keys}
+            onCorrectKeysChange={onKeysChange}
+            Editor={JoditEditorWithUpload}
+            isEmptyStatement={(text) => !hasContent(text)}
+        />
+    </section>
+);
+
 // --- Modal Sunting Soal (UI/UX "Mahal" & Sangat Nyaman) ---
 const EditQuestionForm = ({ question, onSave, onCancel }) => {
-    const [questionText, setQuestionText] = useState(question.question_text);
+    const [questionText, setQuestionText] = useState(question.question_text || '');
 
     const initialOptions = useMemo(() => {
-        let parsedOpts = {};
-        try {
-            parsedOpts = typeof question.options === 'string' ? JSON.parse(question.options) : (question.options || {});
-        } catch (e) { console.error("Failed to parse options for editing:", e) }
-
         if (question.question_type === 'matching') return [];
 
-        return Object.entries(parsedOpts).map(([key, value], index) => ({
+        return toOptionList(question.options).map((opt, index) => ({
             id: index + 1,
-            key,
-            value
+            key: opt.key,
+            value: opt.value
         }));
     }, [question.options, question.question_type]);
 
@@ -276,6 +427,28 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
     const nextOptionId = useRef(options.length > 0 ? Math.max(...options.map(o => o.id)) + 1 : 1);
     const nextPairId = useRef(matchingPairs.length > 0 ? Math.max(...matchingPairs.map(p => p.id)) + 1 : 1);
 
+    const isMatrix = questionType === MATRIX_TYPE;
+
+    const initialMatrix = useMemo(() => {
+        // Sama seperti di bank: kolom hanya diambil dari options kalau tipe
+        // soalnya memang tabel. Untuk PG biasa, options = teks pilihan jawaban
+        // dan sama sekali tidak layak jadi nama kolom.
+        const fromQuestion = question.question_type === MATRIX_TYPE;
+        const columns = fromQuestion
+            ? normalizeMatrixColumns(question.options)
+            : normalizeMatrixColumns(DEFAULT_MATRIX_COLUMNS);
+        const items = fromQuestion ? normalizeMatrixItems(question.matrix_items) : [];
+        return {
+            columns,
+            items,
+            keys: normalizeMatrixKeys(getMatrixKeys(question.scoring_metadata), items.length, columns),
+        };
+    }, [question.options, question.matrix_items, question.scoring_metadata, question.question_type]);
+
+    const [matrixColumns, setMatrixColumns] = useState(initialMatrix.columns);
+    const [matrixItems, setMatrixItems] = useState(initialMatrix.items);
+    const [matrixKeys, setMatrixKeys] = useState(initialMatrix.keys);
+
     const handleOptionChange = (id, value) => {
         setOptions(prev => prev.map(opt => opt.id === id ? { ...opt, value } : opt));
     };
@@ -289,13 +462,20 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
 
     const removeOption = (id) => {
         const optionToRemove = options.find(opt => opt.id === id);
+        // Kunci harus dialihkan ke pilihan yang BENAR-BENAR tersisa. Kalau
+        // masih memakai array lama, kunci bisa menunjuk opsi yang sudah dihapus
+        // lalu validasi sempat mengeluh "pilihan jawaban masih kosong".
+        const remaining = options.filter(opt => opt.id !== id);
+        const fallbackKey = remaining[0]?.key || '';
+
         if (optionToRemove) {
-            if (correctOption === optionToRemove.key) {
-                setCorrectOption(options[0]?.key || 'A');
-            }
-            setCorrectOptions(prev => prev.filter(k => k !== optionToRemove.key));
+            if (correctOption === optionToRemove.key) setCorrectOption(fallbackKey);
+            setCorrectOptions(prev => {
+                const kept = prev.filter(k => k !== optionToRemove.key);
+                return kept.length > 0 ? kept : [fallbackKey];
+            });
         }
-        setOptions(prev => prev.filter(opt => opt.id !== id));
+        setOptions(remaining);
     };
 
     const handleTypeChange = (type) => {
@@ -335,6 +515,22 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
             setCorrectOption('MATCHING');
             setCorrectOptions(['MATCHING']);
             setScoringStrategy('standard');
+        } else if (type === MATRIX_TYPE) {
+            setOptions([]);
+            setCorrectOption(MATRIX_SENTINEL);
+            setCorrectOptions([MATRIX_SENTINEL]);
+            setScoringStrategy('matrix_partial');
+            if (matrixItems.length === 0) {
+                const freshItems = [
+                    { id: 'r1', text: '' },
+                    { id: 'r2', text: '' },
+                    { id: 'r3', text: '' },
+                    { id: 'r4', text: '' },
+                ];
+                setMatrixItems(freshItems);
+                setMatrixKeys(freshItems.map(() => 'A'));
+            }
+            if (matrixColumns.length === 0) setMatrixColumns(normalizeMatrixColumns(DEFAULT_MATRIX_COLUMNS));
         }
     };
 
@@ -361,12 +557,29 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                 setError('Ada pasangan yang belum lengkap.');
                 return;
             }
+        } else if (questionType === MATRIX_TYPE) {
+            if (matrixColumns.some(c => !c.label.trim())) {
+                setError(unlabeledColumnError(matrixColumns));
+                return;
+            }
+            if (matrixItems.length === 0 || matrixItems.some(item => !hasContent(item.text))) {
+                setError('Ada pernyataan yang masih kosong.');
+                return;
+            }
         } else if (questionType !== 'essay' && options.some(o => !hasContent(o.value))) {
             setError('Ada pilihan jawaban yang masih kosong.');
             return;
         }
 
-        if (questionType === 'multiple_choice' && !hasContent(options.find(o => o.key === correctOption)?.value)) {
+        // Kunci yang menunjuk opsi yang SUDAH DIHAPUS diperbaiki diam-diam ke opsi
+        // pertama yang berisi teks. Yang benar-benar kosong (masih ada di form) tetap
+        // jadi error, karena itu memang perlu diperbaiki user.
+        const keyedOption = options.find(o => o.key === correctOption);
+        let resolvedCorrectOption = correctOption;
+        if (!keyedOption && questionType !== 'essay' && questionType !== 'matching' && questionType !== MATRIX_TYPE) {
+            resolvedCorrectOption = options.find(o => hasContent(o.value))?.key || correctOption;
+            setCorrectOption(resolvedCorrectOption);
+        } else if (questionType === 'multiple_choice' && !hasContent(keyedOption?.value)) {
             setError('Kunci jawaban menunjuk ke pilihan yang masih kosong.');
             return;
         }
@@ -388,6 +601,11 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                     }))
                 );
                 optionsForApi = { pairs: processedPairs };
+            } else if (questionType === MATRIX_TYPE) {
+                optionsForApi = matrixColumns.reduce((acc, col) => {
+                    acc[col.key] = col.label.trim();
+                    return acc;
+                }, {});
             } else {
                 const processedOptions = await Promise.all(
                     options.map(async (opt) => ({
@@ -401,19 +619,29 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                 }, {});
             }
 
+            const processedMatrixItems = questionType === MATRIX_TYPE
+                ? await Promise.all(matrixItems.map(async (item) => ({
+                    id: item.id,
+                    text: await uploadBase64Images(item.text),
+                })))
+                : null;
+
             const finalCorrectOption = questionType === 'multiple_choice_complex' 
-                ? correctOptions.sort().join(',') 
-                : (questionType === 'matching' ? 'MATCHING' : correctOption);
+                ? [...new Set(correctOptions.filter(k => options.some(o => o.key === k)))].sort().join(',') 
+                : (questionType === 'matching' ? 'MATCHING' : (questionType === MATRIX_TYPE ? MATRIX_SENTINEL : resolvedCorrectOption));
 
             await onSave({
                 id: question.id,
                 questionText: processedQuestionText,
                 options: optionsForApi,
+                matrixItems: processedMatrixItems,
                 correctOption: finalCorrectOption,
                 questionType,
                 points,
                 scoringStrategy,
-                scoringMetadata: questionType === 'essay' ? { keywords: keywords.split(',').map(k => k.trim()).filter(k => k) } : null
+                scoringMetadata: questionType === 'essay'
+                    ? { keywords: keywords.split(',').map(k => k.trim()).filter(k => k) }
+                    : (questionType === MATRIX_TYPE ? { matrixKeys: normalizeMatrixKeys(matrixKeys, matrixItems.length, matrixColumns) } : null)
             });
         } catch (err) {
             setError('Terjadi kesalahan saat menyimpan: ' + err.message);
@@ -424,7 +652,12 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
 
     const hasError = !hasContent(questionText)
         || (questionType === 'matching' && matchingPairs.some(p => !hasContent(p.p) || !hasContent(p.r)))
-        || (questionType !== 'essay' && questionType !== 'matching' && options.some(o => !hasContent(o.value)));
+        || (questionType === MATRIX_TYPE && (
+            matrixColumns.some(c => !c.label.trim())
+            || matrixItems.length === 0
+            || matrixItems.some(item => !hasContent(item.text))
+        ))
+        || (questionType !== 'essay' && questionType !== 'matching' && questionType !== MATRIX_TYPE && options.some(o => !hasContent(o.value)));
 
     const typeMeta = QUESTION_TYPE_META[questionType] || QUESTION_TYPE_META.multiple_choice;
     const tone = TONE[typeMeta.toneKey];
@@ -476,7 +709,7 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                             <span className="text-xs text-slate-400 font-medium hidden sm:inline">— Menyesuaikan bentuk soal & cara penilaian</span>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                             {Object.keys(QUESTION_TYPE_LABEL).map(type => {
                                 const active = questionType === type;
                                 const meta = QUESTION_TYPE_META[type];
@@ -530,7 +763,8 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
 
                                 <JoditEditorWithUpload
                                     value={questionText}
-                                    onBlur={newContent => setQuestionText(newContent)}
+                                    placeholder="Tulis pertanyaan di sini…"
+                                    onChange={newContent => setQuestionText(newContent)}
                                 />
                                 {!hasContent(questionText) && hasError && (
                                     <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">Pertanyaan masih kosong.</p>
@@ -538,7 +772,7 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                             </section>
 
                             {/* Langkah 3: Opsi & Kunci Jawaban (Lifted Option Cards) */}
-                            {questionType !== 'essay' && questionType !== 'matching' && (
+                            {questionType !== 'essay' && questionType !== 'matching' && questionType !== MATRIX_TYPE && (
                                 <section className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4.5 shadow-sm space-y-4">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex items-center gap-2">
@@ -627,7 +861,7 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                                                                     {opt.value}
                                                                 </div>
                                                             ) : (
-                                                                <JoditEditorWithUpload value={opt.value} onBlur={newContent => handleOptionChange(opt.id, newContent)} />
+                                                                <JoditEditorWithUpload value={opt.value || ''} placeholder={`Isi pilihan ${opt.key}`} onChange={newContent => handleOptionChange(opt.id, newContent)} />
                                                             )}
                                                         </div>
 
@@ -694,16 +928,28 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                                                 </div>
 
                                                 <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-3">
-                                                    <JoditEditorWithUpload value={pair.p} onBlur={newContent => handlePairChange(pair.id, 'p', newContent)} />
+                                                    <JoditEditorWithUpload value={pair.p || ''} placeholder="Pernyataan" onChange={newContent => handlePairChange(pair.id, 'p', newContent)} />
                                                     <span className="hidden sm:grid place-items-center w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
                                                         <GitCompareArrows size={16} />
                                                     </span>
-                                                    <JoditEditorWithUpload value={pair.r} onBlur={newContent => handlePairChange(pair.id, 'r', newContent)} />
+                                                    <JoditEditorWithUpload value={pair.r || ''} placeholder="Pasangannya" onChange={newContent => handlePairChange(pair.id, 'r', newContent)} />
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 </section>
+                            )}
+
+                            {/* Langkah 3: Tabel Pernyataan (true_false_matrix) */}
+                            {isMatrix && (
+                                <MatrixSection
+                                    columns={matrixColumns}
+                                    items={matrixItems}
+                                    keys={matrixKeys}
+                                    onColumnsChange={setMatrixColumns}
+                                    onItemsChange={setMatrixItems}
+                                    onKeysChange={setMatrixKeys}
+                                />
                             )}
                         </div>
 
@@ -744,47 +990,14 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
                                 </div>
                             )}
 
-                            {/* Card Cara Menghitung Nilai */}
-                            {(questionType === 'multiple_choice_complex' || questionType === 'essay') && (
-                                <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4.5 shadow-sm space-y-3">
-                                    <p className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Cara Menghitung Nilai</p>
-                                    <div className="space-y-2">
-                                        {(['essay_manual', 'essay_keywords', 'essay_any_keyword', 'essay_strict_keywords'].includes(scoringStrategy)
-                                            ? ['essay_manual', 'essay_keywords', 'essay_any_keyword', 'essay_strict_keywords']
-                                            : ['pgk_partial', 'pgk_strict', 'pgk_any', 'pgk_additive']
-                                        ).map(value => {
-                                            const meta = SCORING_LABELS[value];
-                                            const active = scoringStrategy === value;
-                                            return (
-                                                <label
-                                                    key={value}
-                                                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all duration-200 ${active
-                                                        ? 'border-blue-500 dark:border-blue-400 bg-blue-50/60 dark:bg-blue-950/30 ring-1 ring-blue-500/20'
-                                                        : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                                                        }`}
-                                                >
-                                                    <input
-                                                        type="radio"
-                                                        name="edit_scoring_strategy"
-                                                        className="sr-only"
-                                                        checked={active}
-                                                        onChange={() => setScoringStrategy(value)}
-                                                    />
-                                                    <span className={`shrink-0 mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${active
-                                                        ? 'border-blue-600 bg-blue-600 dark:border-blue-500 dark:bg-blue-500'
-                                                        : 'border-slate-300 dark:border-slate-600'
-                                                        }`}>
-                                                        {active && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-                                                    </span>
-                                                    <span className="min-w-0">
-                                                        <span className="block text-xs font-bold text-slate-900 dark:text-white">{meta.label}</span>
-                                                        <span className="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">{meta.desc}</span>
-                                                    </span>
-                                                </label>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
+{/* Card Cara Menghitung Nilai */}
+                            {(questionType === 'multiple_choice_complex' || questionType === 'essay' || questionType === MATRIX_TYPE) && (
+                                <ScoringStrategyCard
+                                    questionType={questionType}
+                                    scoringStrategy={scoringStrategy}
+                                    onChange={setScoringStrategy}
+                                    namePrefix="edit"
+                                />
                             )}
 
                             {/* Live Summary Card */}
@@ -852,10 +1065,17 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
     const [scoringStrategy, setScoringStrategy] = useState('standard');
     const [keywords, setKeywords] = useState('');
     const [matchingPairs, setMatchingPairs] = useState([{ id: 1, p: '', r: '' }]);
+    const [matrixColumns, setMatrixColumns] = useState(normalizeMatrixColumns(DEFAULT_MATRIX_COLUMNS));
+    const [matrixItems, setMatrixItems] = useState([
+        { id: 'r1', text: '' }, { id: 'r2', text: '' }, { id: 'r3', text: '' }, { id: 'r4', text: '' },
+    ]);
+    const [matrixKeys, setMatrixKeys] = useState(['A', 'A', 'A', 'A']);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const nextOptionId = useRef(3);
     const nextPairId = useRef(2);
+
+    const isMatrix = questionType === MATRIX_TYPE;
 
     const handleOptionChange = (id, value) => {
         setOptions(prevOptions =>
@@ -872,10 +1092,19 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
 
     const removeOption = (id) => {
         const optionToRemove = options.find(opt => opt.id === id);
+        // Sama seperti di form sunting: kunci pindah ke opsi yang tersisa,
+        // bukan ke opsi yang barusan dihapus.
+        const remaining = options.filter(opt => opt.id !== id);
         if (optionToRemove && correctOption === optionToRemove.key) {
-            setCorrectOption(options[0]?.key || 'A');
+            setCorrectOption(remaining[0]?.key || '');
         }
-        setOptions(prev => prev.filter(opt => opt.id !== id));
+        if (optionToRemove) {
+            setCorrectOptions(prev => {
+                const kept = prev.filter(k => k !== optionToRemove.key);
+                return kept.length > 0 ? kept : [remaining[0]?.key || ''];
+            });
+        }
+        setOptions(remaining);
     };
 
     const resetForm = () => {
@@ -893,6 +1122,9 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
         setKeywords('');
         setMatchingPairs([{ id: 1, p: '', r: '' }]);
         nextPairId.current = 2;
+        setMatrixColumns(normalizeMatrixColumns(DEFAULT_MATRIX_COLUMNS));
+        setMatrixItems([{ id: 'r1', text: '' }, { id: 'r2', text: '' }, { id: 'r3', text: '' }, { id: 'r4', text: '' }]);
+        setMatrixKeys(['A', 'A', 'A', 'A']);
     };
 
     const handleTypeChange = (type) => {
@@ -930,6 +1162,11 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
             setMatchingPairs([{ id: 1, p: '', r: '' }]);
             setCorrectOption('MATCHING');
             setScoringStrategy('standard');
+        } else if (type === MATRIX_TYPE) {
+            setOptions([]);
+            setCorrectOption(MATRIX_SENTINEL);
+            setCorrectOptions([MATRIX_SENTINEL]);
+            setScoringStrategy('matrix_partial');
         }
     };
 
@@ -956,12 +1193,29 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                 setError('Ada pasangan yang belum lengkap.');
                 return;
             }
+        } else if (questionType === MATRIX_TYPE) {
+            if (matrixColumns.some(c => !c.label.trim())) {
+                setError(unlabeledColumnError(matrixColumns));
+                return;
+            }
+            if (matrixItems.length === 0 || matrixItems.some(item => !hasContent(item.text))) {
+                setError('Ada pernyataan yang masih kosong.');
+                return;
+            }
         } else if (questionType !== 'essay' && options.some(o => !hasContent(o.value))) {
             setError('Ada pilihan jawaban yang masih kosong.');
             return;
         }
 
-        if (questionType === 'multiple_choice' && !hasContent(options.find(o => o.key === correctOption)?.value)) {
+        // Kunci yang menunjuk opsi yang SUDAH DIHAPUS diperbaiki diam-diam ke opsi
+        // pertama yang berisi teks. Yang benar-benar kosong (masih ada di form) tetap
+        // jadi error, karena itu memang perlu diperbaiki user.
+        const keyedOption = options.find(o => o.key === correctOption);
+        let resolvedCorrectOption = correctOption;
+        if (!keyedOption && questionType !== 'essay' && questionType !== 'matching' && questionType !== MATRIX_TYPE) {
+            resolvedCorrectOption = options.find(o => hasContent(o.value))?.key || correctOption;
+            setCorrectOption(resolvedCorrectOption);
+        } else if (questionType === 'multiple_choice' && !hasContent(keyedOption?.value)) {
             setError('Kunci jawaban menunjuk ke pilihan yang masih kosong.');
             return;
         }
@@ -983,6 +1237,11 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                     }))
                 );
                 optionsForApi = { pairs: processedPairs };
+            } else if (questionType === MATRIX_TYPE) {
+                optionsForApi = matrixColumns.reduce((acc, col) => {
+                    acc[col.key] = col.label.trim();
+                    return acc;
+                }, {});
             } else {
                 const processedOptions = await Promise.all(
                     options.map(async (opt) => ({
@@ -996,9 +1255,16 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                 }, {});
             }
 
+            const processedMatrixItems = questionType === MATRIX_TYPE
+                ? await Promise.all(matrixItems.map(async (item) => ({
+                    id: item.id,
+                    text: await uploadBase64Images(item.text),
+                })))
+                : null;
+
             const finalCorrectOption = questionType === 'multiple_choice_complex' 
-                ? correctOptions.sort().join(',') 
-                : (questionType === 'matching' ? 'MATCHING' : correctOption);
+                ? [...new Set(correctOptions.filter(k => options.some(o => o.key === k)))].sort().join(',') 
+                : (questionType === 'matching' ? 'MATCHING' : (questionType === MATRIX_TYPE ? MATRIX_SENTINEL : resolvedCorrectOption));
 
             const res = await fetch('/api/exams/questions', {
                 method: 'POST',
@@ -1007,11 +1273,14 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                     examId, 
                     questionText: processedQuestionText, 
                     options: optionsForApi, 
+                    matrixItems: processedMatrixItems,
                     correctOption: finalCorrectOption,
                     questionType,
                     points,
                     scoringStrategy,
-                    scoringMetadata: questionType === 'essay' ? { keywords: keywords.split(',').map(k => k.trim()).filter(k => k) } : null
+                    scoringMetadata: questionType === 'essay'
+                        ? { keywords: keywords.split(',').map(k => k.trim()).filter(k => k) }
+                        : (questionType === MATRIX_TYPE ? { matrixKeys: normalizeMatrixKeys(matrixKeys, matrixItems.length, matrixColumns) } : null)
                 }),
             });
             if (!res.ok) throw new Error((await res.json()).message || 'Failed to add question');
@@ -1028,7 +1297,12 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
 
     const hasError = !hasContent(questionText)
         || (questionType === 'matching' && matchingPairs.some(p => !hasContent(p.p) || !hasContent(p.r)))
-        || (questionType !== 'essay' && questionType !== 'matching' && options.some(o => !hasContent(o.value)));
+        || (questionType === MATRIX_TYPE && (
+            matrixColumns.some(c => !c.label.trim())
+            || matrixItems.length === 0
+            || matrixItems.some(item => !hasContent(item.text))
+        ))
+        || (questionType !== 'essay' && questionType !== 'matching' && questionType !== MATRIX_TYPE && options.some(o => !hasContent(o.value)));
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -1041,7 +1315,7 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                     <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Pilih Tipe Soal</h3>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                     {Object.keys(QUESTION_TYPE_LABEL).map(type => {
                         const active = questionType === type;
                         const meta = QUESTION_TYPE_META[type];
@@ -1088,14 +1362,15 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                         </div>
                         <JoditEditorWithUpload
                             value={questionText}
-                            onBlur={newContent => setQuestionText(newContent)}
+                            placeholder="Tulis pertanyaan di sini…"
+                            onChange={newContent => setQuestionText(newContent)}
                         />
                         {!hasContent(questionText) && hasError && (
                             <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">Pertanyaan masih kosong.</p>
                         )}
                     </section>
 
-                    {questionType !== 'essay' && questionType !== 'matching' && (
+                    {questionType !== 'essay' && questionType !== 'matching' && questionType !== MATRIX_TYPE && (
                         <section className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4.5 shadow-sm space-y-4">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex items-center gap-2">
@@ -1165,7 +1440,7 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                                                             {opt.value}
                                                         </div>
                                                     ) : (
-                                                        <JoditEditorWithUpload value={opt.value} onBlur={newContent => handleOptionChange(opt.id, newContent)} />
+                                                        <JoditEditorWithUpload value={opt.value || ''} placeholder={`Isi pilihan ${opt.key}`} onChange={newContent => handleOptionChange(opt.id, newContent)} />
                                                     )}
                                                 </div>
 
@@ -1224,16 +1499,27 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                                             )}
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-3">
-                                            <JoditEditorWithUpload value={pair.p} onBlur={newContent => handlePairChange(pair.id, 'p', newContent)} />
+                                            <JoditEditorWithUpload value={pair.p || ''} placeholder="Pernyataan" onChange={newContent => handlePairChange(pair.id, 'p', newContent)} />
                                             <span className="hidden sm:grid place-items-center w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
                                                 <GitCompareArrows size={16} />
                                             </span>
-                                            <JoditEditorWithUpload value={pair.r} onBlur={newContent => handlePairChange(pair.id, 'r', newContent)} />
+                                            <JoditEditorWithUpload value={pair.r || ''} placeholder="Pasangannya" onChange={newContent => handlePairChange(pair.id, 'r', newContent)} />
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         </section>
+                    )}
+
+                    {isMatrix && (
+                        <MatrixSection
+                            columns={matrixColumns}
+                            items={matrixItems}
+                            keys={matrixKeys}
+                            onColumnsChange={setMatrixColumns}
+                            onItemsChange={setMatrixItems}
+                            onKeysChange={setMatrixKeys}
+                        />
                     )}
                 </div>
 
@@ -1265,6 +1551,12 @@ const ManualInputForm = ({ examId, onQuestionAdded }) => {
                                 value={keywords}
                                 onChange={(e) => setKeywords(e.target.value)}
                                 className={EDIT_INPUT_CLASS}
+                            />
+                        <ScoringStrategyCard
+                                questionType={questionType}
+                                scoringStrategy={scoringStrategy}
+                                onChange={setScoringStrategy}
+                                namePrefix="manual"
                             />
                         </div>
                     )}
@@ -1714,7 +2006,9 @@ export default function ManageQuestionsPage() {
                     optionsObject = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || {});
                 } catch { optionsObject = {} }
 
-                if (q.question_type === 'matching') {
+// MenjoDohkan & tabel pernyataan sudah punya "key" yang bermakna
+                // (id pasangan / huruf kolom) - jangan di-re-key ke A/B/C.
+                if (q.question_type === 'matching' || q.question_type === MATRIX_TYPE) {
                     return { ...q, options: optionsObject };
                 }
 
@@ -2477,6 +2771,16 @@ function QuestionAnswerPreview({ question }) {
         return (
             <span className="block text-xs text-slate-400 font-medium">
                 Tipe esai — siswa menjawab bebas, penilaian oleh pengawas.
+            </span>
+        );
+    }
+
+    if (q.question_type === MATRIX_TYPE) {
+        const items = normalizeMatrixItems(q.matrix_items);
+        const columns = normalizeMatrixColumns(q.options);
+        return (
+            <span className="block text-xs text-cyan-700 dark:text-cyan-300 font-semibold">
+                {items.length} pernyataan &middot; kolom: {columns.map(c => c.label).join(' / ')}
             </span>
         );
     }

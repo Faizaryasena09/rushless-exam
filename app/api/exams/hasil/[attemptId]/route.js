@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
 import { query } from '@/app/lib/db';
 import { validateUserSession } from '@/app/lib/auth';
+import { MATRIX_TYPE, normalizeMatrixItems, getMatrixKeys } from '@/app/lib/matrix';
 
 export async function GET(request, { params }) {
   const cookieStore = await cookies();
@@ -74,7 +75,7 @@ export async function GET(request, { params }) {
 
     // Always fetch questions and answers to compute stats
     const questions = await query({
-        query: `SELECT id as question_id, question_text, options, correct_option, points, question_type FROM rhs_exam_questions WHERE exam_id = ?`,
+        query: `SELECT id as question_id, question_text, options, matrix_items, correct_option, scoring_metadata, points, question_type FROM rhs_exam_questions WHERE exam_id = ?`,
         values: [attempt.exam_id]
     });
 
@@ -150,6 +151,8 @@ export async function GET(request, { params }) {
                 id: q.question_id,
                 question_text: q.question_text,
                 options: optionsParsed,
+                matrix_items: q.question_type === MATRIX_TYPE ? normalizeMatrixItems(q.matrix_items) : null,
+                matrix_keys: q.question_type === MATRIX_TYPE ? getMatrixKeys(q.scoring_metadata) : null,
                 correct_option: q.correct_option,
                 question_type: q.question_type,
                 student_option: studentAnswerRecord ? studentAnswerRecord.selected_option : null,

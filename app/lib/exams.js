@@ -221,7 +221,10 @@ export async function getExamSettings(examId, forceFresh = false) {
  * Fetches exam questions (standardized for Redis and DB)
  */
 export async function getExamQuestions(examId, forceFresh = false) {
-    const cacheKey = `exam:data:${examId}`;
+    // Versi key: naikkan kalau bentuk data soal berubah (mis. kolom matrix_items
+    // ditambah), supaya entry lama yang tidak punya field itu langsung dianggap
+    // basi — bukan menunggu TTL 1 jam sambil menyodorkan soal kosong.
+    const cacheKey = `exam:data:v2:${examId}`;
 
     if (!forceFresh && isRedisReady()) {
         const cached = await redis.get(cacheKey).catch(() => null);
@@ -239,7 +242,7 @@ export async function getExamQuestions(examId, forceFresh = false) {
     // 2. Fetch all questions
     const questions = await query({
         query: `
-            SELECT id, exam_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata
+            SELECT id, exam_id, question_text, options, matrix_items, correct_option, question_type, points, scoring_strategy, scoring_metadata
             FROM rhs_exam_questions 
             WHERE exam_id = ?
             ORDER BY sort_order ASC, id ASC
@@ -270,7 +273,9 @@ export async function invalidateExamCache(examId) {
         // Clear specific exam data
         if (examId) {
             pipeline.del(`exam:settings-full:${examId}`);
+            // Hapus v1 (lama) dan v2 (sekarang) supaya tidak ada entry yatim.
             pipeline.del(`exam:data:${examId}`);
+            pipeline.del(`exam:data:v2:${examId}`);
         }
 
         // 1. Get all tracked list keys from the Set

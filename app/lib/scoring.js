@@ -2,6 +2,8 @@
  * Shared scoring logic for questions
  */
 
+import { MATRIX_TYPE, getMatrixKeys } from './matrix';
+
 export function calculateQuestionScore(qInfo, studentAnswer) {
     if (studentAnswer === undefined || studentAnswer === null || studentAnswer === '') {
         return 0;
@@ -142,6 +144,45 @@ export function calculateQuestionScore(qInfo, studentAnswer) {
         } catch (e) {
             console.error("Scoring error for matching question:", e);
             earnedForThisQuestion = 0;
+        }
+    } else if (qInfo.type === MATRIX_TYPE) {
+        // Kunci per baris disimpan di scoring_metadata.matrixKeys (index = urutan baris).
+        // Jawaban siswa disimpan sebagai JSON string { itemId: columnKey }.
+        // matrixItemIds needed untuk menyelaraskan key jawaban dengan baris yang benar,
+        // karena index baris bisa berubah bila admin menambah/menghapus pernyataan.
+        const correctKeys = getMatrixKeys(qInfo.metadata);
+        const itemIds = Array.isArray(qInfo.metadata.matrixItemIds) ? qInfo.metadata.matrixItemIds : [];
+        const totalRows = correctKeys.length;
+
+        if (totalRows > 0) {
+            let studentChoices = {};
+            try {
+                studentChoices = typeof studentAnswer === 'string' ? JSON.parse(studentAnswer) : (studentAnswer || {});
+                if (typeof studentChoices === 'string') {
+                    studentChoices = JSON.parse(studentChoices);
+                }
+            } catch {
+                studentChoices = {};
+            }
+            if (!studentChoices || typeof studentChoices !== 'object' || Array.isArray(studentChoices)) {
+                studentChoices = {};
+            }
+
+            let matches = 0;
+            correctKeys.forEach((correctKey, index) => {
+                const itemId = itemIds[index];
+                // Tanpa itemIds (mis. data lama) fallback ke index baris.
+                if (itemId && studentChoices[itemId] === correctKey) {
+                    matches++;
+                }
+            });
+
+            if (qInfo.strategy === 'matrix_strict') {
+                // Semua baris harus benar, kalau tidak 0.
+                earnedForThisQuestion = matches >= totalRows ? qInfo.points : 0;
+            } else {
+                earnedForThisQuestion = (matches / totalRows) * qInfo.points;
+            }
         }
     } else {
         // multiple_choice or true_false

@@ -6,6 +6,7 @@ import { query } from '@/app/lib/db';
 import { seededShuffle } from '@/app/lib/utils';
 import { validateUserSession } from '@/app/lib/auth';
 import { recalculateExamScores, distributeExamPoints, invalidateExamCache, getExamQuestions } from '@/app/lib/exams';
+import { MATRIX_TYPE, normalizeMatrixItems } from '@/app/lib/matrix';
 import redis, { isRedisReady } from '@/app/lib/redis';
 
 async function getSession(request) {
@@ -68,6 +69,7 @@ export async function GET(request) {
       }
 
       let resultOptions;
+      let resultMatrixItems = null;
       if (question.question_type === 'matching') {
         // For matching, options is an object { pairs: [{ id, p, r }, ...] }
         const pairs = [...(parsedOptions.pairs || [])]; // Shallow clone for safe shuffling
@@ -109,11 +111,17 @@ export async function GET(request) {
           text,
         }));
 
-        if (shuffle_answers && isStudent) {
+        if (shuffle_answers && isStudent && question.question_type !== MATRIX_TYPE) {
           const answerSeed = seed + '-q' + question.id;
           seededShuffle(optionsArray, answerSeed);
         }
         resultOptions = optionsArray;
+
+        if (question.question_type === MATRIX_TYPE) {
+          // Baris pernyataan = isi soal, jadi tetap dikirim ke siswa.
+          // Yang disembunyikan hanya kunci jawabannya (matrixKeys, lihat staffFields).
+          resultMatrixItems = normalizeMatrixItems(question.matrix_items);
+        }
       }
 
       // Sisipkan kunci jawaban hanya untuk pengajar/admin.
@@ -128,6 +136,7 @@ export async function GET(request) {
         exam_id: question.exam_id,
         question_text: question.question_text,
         options: resultOptions,
+        ...(resultMatrixItems ? { matrix_items: resultMatrixItems } : {}),
         question_type: question.question_type,
         points: question.points,
         scoring_strategy: question.scoring_strategy,
@@ -156,17 +165,18 @@ export async function POST(request) {
   }
 
   try {
-    const { examId, questionText, options, correctOption, questionType, points, scoringStrategy, scoringMetadata } = await request.json();
+    const { examId, questionText, options, correctOption, questionType, points, scoringStrategy, scoringMetadata, matrixItems } = await request.json();
     if (!examId || !questionText || (!options && questionType !== 'essay') || (!correctOption && questionType !== 'essay')) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
     const result = await query({
-      query: 'INSERT INTO rhs_exam_questions (exam_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      query: 'INSERT INTO rhs_exam_questions (exam_id, question_text, options, matrix_items, correct_option, question_type, points, scoring_strategy, scoring_metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       values: [
         examId,
         questionText,
         JSON.stringify(options || {}),
+        questionType === MATRIX_TYPE ? JSON.stringify(normalizeMatrixItems(matrixItems)) : null,
         correctOption || '',
         questionType || 'multiple_choice',
         (points !== undefined && points !== null) ? points : 1.0,
@@ -257,7 +267,7 @@ export async function PUT(request) {
   }
 
   try {
-    const { id, questionText, options, correctOption, questionType, points, scoringStrategy, scoringMetadata } = await request.json();
+    const { id, questionText, options, correctOption, questionType, points, scoringStrategy, scoringMetadata, matrixItems } = await request.json();
     if (!id || !questionText || (!options && questionType !== 'essay') || (!correctOption && questionType !== 'essay')) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
@@ -269,10 +279,11 @@ export async function PUT(request) {
     });
 
     const result = await query({
-      query: 'UPDATE rhs_exam_questions SET question_text = ?, options = ?, correct_option = ?, question_type = ?, points = ?, scoring_strategy = ?, scoring_metadata = ? WHERE id = ?',
+      query: 'UPDATE rhs_exam_questions SET question_text = ?, options = ?, matrix_items = ?, correct_option = ?, question_type = ?, points = ?, scoring_strategy = ?, scoring_metadata = ? WHERE id = ?',
       values: [
         questionText,
         JSON.stringify(options || {}),
+        questionType === MATRIX_TYPE ? JSON.stringify(normalizeMatrixItems(matrixItems)) : null,
         correctOption || '',
         questionType || 'multiple_choice',
         (points !== undefined && points !== null) ? points : 1.0,

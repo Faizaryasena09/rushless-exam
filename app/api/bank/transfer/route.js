@@ -38,12 +38,13 @@ export async function POST(request) {
             // Insert into bank
             await tQuery({
               query: `INSERT INTO rhs_question_bank (
-                folder_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata, created_by
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                folder_id, question_text, options, matrix_items, correct_option, question_type, points, scoring_strategy, scoring_metadata, created_by
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               values: [
                 folderId,
                 q.question_text,
                 typeof q.options === 'string' ? q.options : JSON.stringify(q.options),
+                q.matrix_items ? (typeof q.matrix_items === 'string' ? q.matrix_items : JSON.stringify(q.matrix_items)) : null,
                 q.correct_option,
                 q.question_type,
                 q.points,
@@ -83,12 +84,13 @@ export async function POST(request) {
             // Insert into exam questions
             await tQuery({
               query: `INSERT INTO rhs_exam_questions (
-                exam_id, question_text, options, correct_option, question_type, points, scoring_strategy, scoring_metadata, sort_order
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                exam_id, question_text, options, matrix_items, correct_option, question_type, points, scoring_strategy, scoring_metadata, sort_order
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               values: [
                 examId,
                 q.question_text,
                 typeof q.options === 'string' ? q.options : JSON.stringify(q.options),
+                q.matrix_items ? (typeof q.matrix_items === 'string' ? q.matrix_items : JSON.stringify(q.matrix_items)) : null,
                 q.correct_option,
                 q.question_type,
                 q.points,

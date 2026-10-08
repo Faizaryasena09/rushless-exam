@@ -12,6 +12,8 @@ import {
 import { toast } from 'sonner';
 import { useLanguage } from '@/app/context/LanguageContext';
 import { wallClockToEpochMs } from '@/app/lib/timezone';
+import MatrixTable from '@/app/components/exam/MatrixTable';
+import { MATRIX_TYPE, normalizeMatrixColumns, parseMatrixAnswer } from '@/app/lib/matrix';
 
 // --- Palette Object (Source of Truth untuk Tema & Status) ---
 const TONE = {
@@ -1451,13 +1453,14 @@ function QuestionReviewCard({ item, innerRef }) {
     const meta = STATUS_META[item.status];
     const isEssay = item.questionType === 'essay';
     const isMatching = item.questionType === 'matching';
+    const isMatrix = item.questionType === MATRIX_TYPE;
 
     let studentChoices = [];
-    if (!isMatching && item.studentAnswer) {
+    if (!isMatching && !isMatrix && item.studentAnswer) {
         studentChoices = String(item.studentAnswer).split(',').map(s => s.trim()).filter(Boolean);
     }
     let correctChoices = [];
-    if (!isMatching && item.correctAnswer) {
+    if (!isMatching && !isMatrix && item.correctAnswer) {
         correctChoices = String(item.correctAnswer).split(',').map(s => s.trim()).filter(Boolean);
     }
 
@@ -1488,7 +1491,16 @@ function QuestionReviewCard({ item, innerRef }) {
             </div>
 
             <div className="px-4 py-3.5 space-y-2.5 bg-slate-50/50 dark:bg-slate-900/40">
-                {isMatching ? (
+                {isMatrix && Array.isArray(item.matrixItems) ? (
+                    <MatrixTable
+                        groupId={`review-${item.questionId}`}
+                        disabled
+                        columns={normalizeMatrixColumns(item.options)}
+                        items={item.matrixItems}
+                        value={parseMatrixAnswer(item.studentAnswer)}
+                        correctKeys={Array.isArray(item.matrixKeys) ? item.matrixKeys : null}
+                    />
+                ) : isMatching ? (
                     <MatchingReview item={item} />
                 ) : isEssay ? (
                     <div className="space-y-2.5">

@@ -12,6 +12,7 @@ import iconv from 'iconv-lite';
 import fs from 'fs/promises';
 import { getExamSettings, getExamQuestions } from '@/app/lib/exams';
 import { isRedisReady } from '@/app/lib/redis';
+import { MATRIX_TYPE, normalizeMatrixColumns, normalizeMatrixItems, normalizeMatrixKeys, getMatrixKeys, describeMatrixKeys } from '@/app/lib/matrix';
 
 async function getSession() {
     const cookieStore = await cookies();
@@ -66,6 +67,17 @@ function parseHtmlTableToDocx(tableHtml) {
     }
     return null;
 }
+
+// Helper untuk header tabel pernyataan (tabel true_false_matrix)
+const headerCell = (text) => new TableCell({
+    shading: { fill: 'E2E8F0' },
+    children: [new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: text || '', bold: true, size: 20, font: 'Arial' })]
+    })]
+});
+
+const statementLabelCell = headerCell('Pernyataan');
 
 // Helper to parse bold, italic, and underline tags into runs
 function parseInlineRuns(html) {
@@ -515,9 +527,9 @@ export async function GET(request) {
                     opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || {});
                 } catch { opts = {}; }
 
-                // Re-key options with A, B, C, ... (if not matching)
+                // Re-key options with A, B, C, ... (kecuali matching & tabel pernyataan)
                 const reKeyedOptions = {};
-                if (q.question_type !== 'matching') {
+                if (q.question_type !== 'matching' && q.question_type !== MATRIX_TYPE) {
                     const optionValues = Object.values(opts);
                     const letterKeys = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
                     optionValues.forEach((val, idx) => {
@@ -687,7 +699,37 @@ export async function GET(request) {
                 await processBlocks(qParts, false, baseQChildren);
 
                 // Process Options / Pairs
-                if (q.question_type === 'matching') {
+                if (q.question_type === MATRIX_TYPE) {
+                    // Tabel pernyataan diekspor sebagai tabel Word sungguhan:
+                    // kolom pertama = pernyataan, kolom berikutnya = kolom aksi.
+                    const items = normalizeMatrixItems(q.matrix_items);
+                    const columns = normalizeMatrixColumns(q.options);
+                    const keys = normalizeMatrixKeys(getMatrixKeys(q.scoring_metadata), items.length, columns);
+
+                    const headerRow = new TableRow({
+                        children: [statementLabelCell, ...columns.map(col => headerCell(col.label))]
+                    });
+
+                    const bodyRows = items.map((item, idx) => new TableRow({
+                        children: [
+                            new TableCell({
+                                children: [new Paragraph({ children: [new TextRun({ text: `${String.fromCharCode(65 + idx)}. ${stripHtml(item.text)}`, size: 20, font: 'Arial' })] })]
+                            }),
+                            ...columns.map(col => new TableCell({
+                                children: [new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: keys[idx] === col.key ? '✓' : '', size: 20, font: 'Arial' })]
+                                })]
+                            })),
+                        ]
+                    }));
+
+                    paragraphsToPush.push(new Table({
+                        width: { size: 100, type: 'pct' },
+                        rows: [headerRow, ...bodyRows],
+                    }));
+                    paragraphsToPush.push(new Paragraph({ text: '', spacing: { after: 120 } }));
+                } else if (q.question_type === 'matching') {
                     const pairs = opts.pairs || [];
                     
                     // List all premises
@@ -736,7 +778,15 @@ export async function GET(request) {
                 // Add Answer line
                 if (mode === 'questions_and_answers' || format === 'rushless') {
                     let ansText = '';
-                    if (q.question_type === 'matching') {
+                    if (q.question_type === MATRIX_TYPE) {
+                        // Kunci per baris ditulis sebagai label kolom, contoh: "Ans: A=Salah, B=Benar"
+                        const answerLine = describeMatrixKeys(
+                            getMatrixKeys(q.scoring_metadata),
+                            q.matrix_items,
+                            q.options
+                        );
+                        ansText = answerLine ? `Ans: ${answerLine}` : '';
+                    } else if (q.question_type === 'matching') {
                         ansText = `Ans: ${q.correct_option}`;
                     } else if (q.question_type === 'essay') {
                         if (q.scoring_strategy !== 'essay_manual') {

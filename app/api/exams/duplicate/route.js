@@ -115,16 +115,22 @@ export async function POST(request) {
             });
 
             if (originalQuestions.length > 0) {
-                const qPlaceholders = originalQuestions.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+                const qPlaceholders = originalQuestions.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
                 const qValues = [];
                 originalQuestions.forEach(q => {
                     const optionsValue = typeof q.options === 'string' ? q.options : JSON.stringify(q.options || {});
                     const metadataValue = typeof q.scoring_metadata === 'string' ? q.scoring_metadata : (q.scoring_metadata ? JSON.stringify(q.scoring_metadata) : null);
+                    // matrix_items wajib ikut, kalau tidak duplikat soal tabel kehilangan
+                    // semua baris pernyataan (kolom & kunci ada tapi isi kosong).
+                    const matrixItemsValue = q.matrix_items
+                        ? (typeof q.matrix_items === 'string' ? q.matrix_items : JSON.stringify(q.matrix_items))
+                        : null;
 
                     qValues.push(
                         newId,
                         q.question_text || '',
                         optionsValue,
+                        matrixItemsValue,
                         q.correct_option || '',
                         q.question_type || 'multiple_choice',
                         q.points !== undefined ? q.points : 1.0,
@@ -136,7 +142,7 @@ export async function POST(request) {
 
                 await txQuery({
                     query: `INSERT INTO rhs_exam_questions (
-                    exam_id, question_text, options, correct_option, 
+                    exam_id, question_text, options, matrix_items, correct_option, 
                     question_type, points, scoring_strategy, scoring_metadata, sort_order
                 ) VALUES ${qPlaceholders}`,
                     values: qValues

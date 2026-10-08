@@ -3,6 +3,8 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import MatrixTable from '@/app/components/exam/MatrixTable';
+import { MATRIX_TYPE, normalizeMatrixColumns, normalizeMatrixItems, parseMatrixAnswer } from '@/app/lib/matrix';
 
 const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
@@ -211,6 +213,10 @@ export default function ExamPreviewPage() {
     };
 
     const currentQuestion = questions[currentQuestionIndex];
+    const previewMatrixChoice = useMemo(
+        () => parseMatrixAnswer(answers[currentQuestion?.id]),
+        [answers, currentQuestion?.id]
+    );
     const progressPercentage = useMemo(() => {
         if (questions.length === 0) return 0;
         const answeredCount = Object.keys(answers).length;
@@ -457,6 +463,27 @@ export default function ExamPreviewPage() {
                                                          );
                                                       })}
                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Tabel Pernyataan (true_false_matrix) */}
+                                            {currentQuestion.question_type === MATRIX_TYPE && (
+                                                <div className="mt-4">
+                                                    <MatrixTable
+                                                        groupId={`preview-q${currentQuestion.id}`}
+                                                        columns={normalizeMatrixColumns(currentQuestion.options)}
+                                                        items={normalizeMatrixItems(currentQuestion.matrix_items)}
+                                                        value={previewMatrixChoice}
+                                                        onChange={(itemId, columnKey) => {
+                                                            const next = { ...previewMatrixChoice };
+                                                            if (next[itemId] === columnKey) delete next[itemId];
+                                                            else next[itemId] = columnKey;
+                                                            handleAnswerSelect(
+                                                                currentQuestion.id,
+                                                                Object.keys(next).length > 0 ? JSON.stringify(next) : ''
+                                                            );
+                                                        }}
+                                                    />
                                                 </div>
                                             )}
                                         </div>

@@ -3,6 +3,8 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@/app/context/LanguageContext';
+import MatrixTable from '@/app/components/exam/MatrixTable';
+import { MATRIX_TYPE, normalizeMatrixColumns, parseMatrixAnswer } from '@/app/lib/matrix';
 
 // Simple Icons
 const Icons = {
@@ -301,7 +303,16 @@ export default function AnalysisPage() {
                         <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-800 dark:text-slate-200" dangerouslySetInnerHTML={{ __html: q.question_text }} />
 
                         <div className="space-y-2">
-                          {q.question_type === 'matching' && q.options?.pairs ? (
+                          {q.question_type === MATRIX_TYPE && Array.isArray(q.matrix_items) ? (
+                            <MatrixTable
+                              groupId={`hasil-${q.id}`}
+                              disabled
+                              columns={normalizeMatrixColumns(q.options)}
+                              items={q.matrix_items}
+                              value={parseMatrixAnswer(q.student_option)}
+                              correctKeys={Array.isArray(q.matrix_keys) ? q.matrix_keys : null}
+                            />
+                          ) : q.question_type === 'matching' && q.options?.pairs ? (
                             <div className="grid grid-cols-1 gap-3">
                               {q.options.pairs.map((pair, pIdx) => {
                                 let studentChoices = {};

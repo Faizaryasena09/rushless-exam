@@ -7,6 +7,68 @@ import { subscribe, unsubscribe } from '@/app/lib/redis-pubsub';
 import redis, { isRedisReady } from '@/app/lib/redis';
 import '@/app/lib/auto-submit-scheduler'; // ensure background auto-submit scanner runs
 
+/**
+ * Kumpulkan jawaban sementara (belum dikumpulkan) untuk semua siswa yang sedang
+ * mengerjakan ujian.
+ *
+ * Menggabungkan MySQL `rhs_temporary_answer` dengan hash Redis
+ * `temp:ans:{userId}:{examId}` memakai aturan yang sama dengan
+ * `collectTempAnswers` di app/lib/auto-submit.js: Redis menang kalau ada
+ * konflik, karena Redis ditulis lebih dulu dan bisa menyimpan jawaban yang
+ * belum sempat sampai ke MySQL.
+ *
+ * Mengembalikan array [{ userId, attemptId, examId, answers, answeredCount }]
+ * agar payload SSE tetap berupa JSON datar yang mudah di-cache browser.
+ */
+async function collectLiveAnswers(processedStudents, redisActive) {
+    const active = processedStudents.filter(s => s.attempt_id && s.exam_id);
+    if (active.length === 0) return [];
+
+    const rows = await query({
+        query: `SELECT user_id, exam_id, question_id, selected_option
+                FROM rhs_temporary_answer
+                WHERE (user_id, exam_id) IN (${active.map(() => '(?,?)').join(',')})`,
+        values: active.flatMap(s => [s.id, s.exam_id]),
+    });
+
+    // key: "userId:examId" -> map question_id -> jawaban
+    const byPair = new Map();
+    active.forEach(s => byPair.set(`${s.id}:${s.exam_id}`, {}));
+
+    rows.forEach(row => {
+        const pairKey = `${row.user_id}:${row.exam_id}`;
+        const bucket = byPair.get(pairKey);
+        if (bucket && row.selected_option !== null && row.selected_option !== '') {
+            bucket[String(row.question_id)] = row.selected_option;
+        }
+    });
+
+    if (redisActive) {
+        await Promise.all(active.map(async s => {
+            try {
+                const hash = await redis.hgetall(`temp:ans:${s.id}:${s.exam_id}`);
+                const bucket = byPair.get(`${s.id}:${s.exam_id}`);
+                Object.entries(hash || {}).forEach(([qid, value]) => {
+                    if (value !== '' && value !== null && value !== undefined) bucket[qid] = value;
+                });
+            } catch (err) {
+                console.error('Redis temp:ans read error:', err);
+            }
+        }));
+    }
+
+    return active.map(s => {
+        const answers = byPair.get(`${s.id}:${s.exam_id}`) || {};
+        return {
+            userId: s.id,
+            attemptId: s.attempt_id,
+            examId: s.exam_id,
+            answers,
+            answeredCount: Object.keys(answers).length,
+        };
+    });
+}
+
 export async function GET(request) {
     const cookieStore = await cookies();
     const session = await getIronSession(cookieStore, sessionOptions);
@@ -17,6 +79,12 @@ export async function GET(request) {
 
     const userId = session.user.id;
     const isTeacher = session.user.roleName === 'teacher';
+
+    // Opt-in: jawaban siswa hanya ikut di-push kalau klien memang memintanya
+    // (?answers=1, yaitu saat modal "Jawaban" terbuka). Tanpa ini, setiap guru
+    // yang terhubung akan menerima seluruh jawaban siswa tiap 3 detik walau
+    // tidak pernah membuka modalnya.
+    const wantsAnswers = new URL(request.url).searchParams.get('answers') === '1';
 
     const encoder = new TextEncoder();
     let intervalId;
@@ -155,13 +223,22 @@ export async function GET(request) {
                             is_online: isOnline,
                             last_activity_seconds_ago: lastActivity ? now - lastActivity : 86400,
                             current_exam: s.exam_name || null,
+                            // exam_id tadinya dibuang di sini, padahal dibutuhkan
+                            // untuk mengelompokkan jawaban siswa per ujian.
+                            exam_id: s.attempt_id ? Number(s.exam_id) : null,
                             attempt_id: s.attempt_id || null,
                             seconds_left,
                             in_progress_count: Number(s.in_progress_count) || 0,
                         };
                     });
 
-                    safeEnqueue(`data: ${JSON.stringify({ students: processedStudents, redisActive })}\n\n`);
+                    const payload = { students: processedStudents, redisActive };
+
+                    if (wantsAnswers) {
+                        payload.answers = await collectLiveAnswers(processedStudents, redisActive);
+                    }
+
+                    safeEnqueue(`data: ${JSON.stringify(payload)}\n\n`);
                 } catch (err) {
                     console.error('Control SSE error:', err);
                 }
@@ -204,6 +281,8 @@ export async function GET(request) {
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache, no-transform',
             'Connection': 'keep-alive',
+            // Tanpa ini, reverse proxy bisa menahan payload dan membuat SSE terasa macet.
+            'X-Accel-Buffering': 'no',
         },
     });
 }

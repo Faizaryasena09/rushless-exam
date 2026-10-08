@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { sessionOptions } from '@/app/lib/session';
+import { MATRIX_TYPE, normalizeMatrixItems, getMatrixKeys } from '@/app/lib/matrix';
 import { query } from '@/app/lib/db';
 import { validateUserSession } from '@/app/lib/auth';
 
@@ -59,7 +60,7 @@ export async function GET(request) {
     // We need the question text and correct option (since this is analysis, we show correct answers)
     const questions = await query({
         query: `
-            SELECT id, question_text, options, correct_option, question_type, points, scoring_strategy 
+            SELECT id, question_text, options, matrix_items, scoring_metadata, correct_option, question_type, points, scoring_strategy 
             FROM rhs_exam_questions 
             WHERE exam_id = ?
             ORDER BY id ASC
@@ -86,11 +87,16 @@ export async function GET(request) {
     // 4. Combine Data
     const analysis = questions.map(q => {
         const studentAns = studentAnswerMap[q.id];
+        const isMatrix = q.question_type === MATRIX_TYPE;
         return {
             questionId: q.id,
             questionText: q.question_text,
             questionType: q.question_type,
             options: JSON.parse(q.options || '{}'),
+            // Untuk tabel pernyataan, baris + kunci per baris ikut dikirim supaya
+            // kartu review bisa menandai jawaban benar per baris.
+            matrixItems: isMatrix ? normalizeMatrixItems(q.matrix_items) : null,
+            matrixKeys: isMatrix ? getMatrixKeys(q.scoring_metadata) : null,
             correctAnswer: q.correct_option,
             studentAnswer: studentAns ? studentAns.selected_option : null,
             isCorrect: studentAns ? Boolean(studentAns.is_correct) : false,
