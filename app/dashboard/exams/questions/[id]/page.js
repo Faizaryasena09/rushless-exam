@@ -1960,6 +1960,7 @@ export default function ManageQuestionsPage() {
     const { id: examId } = useParams();
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [isBankPickerOpen, setIsBankPickerOpen] = useState(false);
     const [isBankExportOpen, setIsBankExportOpen] = useState(false);
     const [error, setError] = useState('');
@@ -1985,8 +1986,21 @@ export default function ManageQuestionsPage() {
     const [showGuide, setShowGuide] = useState(true);
     const [addModal, setAddModal] = useState(null);
 
-    const fetchQuestions = useCallback(async () => {
-        setLoading(true);
+    /**
+     * `silent: true` dipakai untuk refresh setelah edit/hapus/reorder.
+     *
+     * Kalau pakai mode biasa, `loading` mengganti seluruh daftar soal dengan
+     * skeleton dan tinggi halaman mendadak menyusut. Browser langsung clamp
+     * scroll ke atas, jadi user yang sedang di soal nomor 50 tiba-tiba
+     * terdarat di soal nomor 1. Mode ini membuat daftar lama tetap di tempat
+     * (halaman tidak pernah menyusut) dan posisi scroll dipulihkan.
+     */
+    const fetchQuestions = useCallback(async ({ silent = false } = {}) => {
+        const scrollBefore = silent && typeof window !== 'undefined' ? window.scrollY : 0;
+
+        if (silent) setRefreshing(true);
+        else setLoading(true);
+
         try {
             const res = await fetch(`/api/exams/questions?examId=${examId}`);
             const examRes = await fetch(`/api/exams/settings?examId=${examId}`);
@@ -2042,7 +2056,17 @@ export default function ManageQuestionsPage() {
         } catch (err) {
             setError(err.message);
         } finally {
-            setLoading(false);
+            if (silent) {
+                setRefreshing(false);
+                // Pengaman kedua: kalau tinggi halaman sempat berubah (mis. soal
+                // yang diedit jadi jauh lebih pendek atau lebih panjang),
+                // kembalikan user ke posisi scroll yang sama.
+                if (typeof window !== 'undefined' && window.scrollY !== scrollBefore) {
+                    requestAnimationFrame(() => window.scrollTo({ top: scrollBefore, behavior: 'auto' }));
+                }
+            } else {
+                setLoading(false);
+            }
         }
     }, [examId]);
 
@@ -2065,7 +2089,7 @@ export default function ManageQuestionsPage() {
             });
             if (!res.ok) throw new Error('Failed to save settings');
             toast.success('Pengaturan penyekoran berhasil disimpan.');
-            fetchQuestions();
+            fetchQuestions({ silent: true });
         } catch (err) {
             toast.error('Gagal menyimpan: ' + err.message);
         } finally {
@@ -2084,7 +2108,7 @@ export default function ManageQuestionsPage() {
             });
             if (!res.ok) throw new Error('Failed to normalize');
             toast.success('Skor soal telah dinormalisasi secara merata.');
-            fetchQuestions();
+            fetchQuestions({ silent: true });
         } catch (err) {
             toast.error('Gagal normalisasi: ' + err.message);
         } finally {
@@ -2102,7 +2126,7 @@ export default function ManageQuestionsPage() {
             });
             if (!res.ok) throw new Error((await res.json()).message || 'Failed to delete question');
             toast.success('Soal berhasil dihapus.');
-            fetchQuestions();
+            fetchQuestions({ silent: true });
         } catch (err) {
             toast.error('Gagal menghapus soal: ' + err.message);
         }
@@ -2118,7 +2142,7 @@ export default function ManageQuestionsPage() {
             });
             if (!res.ok) throw new Error((await res.json()).message || 'Failed to delete all questions');
             setShowDeleteAllModal(false);
-            fetchQuestions();
+            fetchQuestions({ silent: true });
         } catch (err) {
             setError(err.message);
         } finally {
@@ -2136,7 +2160,7 @@ export default function ManageQuestionsPage() {
             if (!res.ok) throw new Error((await res.json()).message || 'Failed to update question');
             setEditingQuestion(null);
             toast.success('Perubahan soal berhasil disimpan.');
-            fetchQuestions();
+            fetchQuestions({ silent: true });
         } catch (err) {
             toast.error('Gagal menyimpan perubahan: ' + err.message);
         }
@@ -2203,7 +2227,7 @@ export default function ManageQuestionsPage() {
             });
         } catch (err) {
             console.error('Failed to save order:', err);
-            fetchQuestions();
+            fetchQuestions({ silent: true });
         }
     };
 
@@ -2421,6 +2445,12 @@ export default function ManageQuestionsPage() {
                                 <span className="px-2.5 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/50 text-xs font-extrabold tabular-nums">
                                     {questions.length} soal
                                 </span>
+                                {refreshing && (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/70 dark:border-amber-900/50 text-[11px] font-extrabold">
+                                        <span className="w-3 h-3 rounded-full border-2 border-amber-500/30 border-t-amber-600 dark:border-t-amber-400 animate-spin" />
+                                        Menyegarkan
+                                    </span>
+                                )}
                             </div>
 
                             {questions.length > 0 && (
@@ -2477,7 +2507,7 @@ export default function ManageQuestionsPage() {
                             </div>
                         )}
 
-                        <div className="p-3.5 space-y-3">
+                        <div className="p-3.5 space-y-3" aria-busy={refreshing}>
                             {error && (
                                 <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 px-3.5 py-2.5 rounded-xl">{error}</p>
                             )}
@@ -2543,7 +2573,7 @@ export default function ManageQuestionsPage() {
                 isOpen={isBankPickerOpen}
                 onClose={() => setIsBankPickerOpen(false)}
                 examId={examId}
-                onSelect={fetchQuestions}
+                onSelect={() => fetchQuestions({ silent: true })}
             />
 
             {addModal === 'manual' && (
@@ -2557,7 +2587,7 @@ export default function ManageQuestionsPage() {
                         examId={examId}
                         onQuestionAdded={() => {
                             toast.success('Soal berhasil ditambahkan.');
-                            fetchQuestions();
+                            fetchQuestions({ silent: true });
                             setAddModal(null);
                         }}
                     />
@@ -2571,12 +2601,12 @@ export default function ManageQuestionsPage() {
                     size="lg"
                     onClose={() => setAddModal(null)}
                 >
-                    <ImportWordForm
-                        examId={examId}
-                        onQuestionAdded={() => {
-                            fetchQuestions();
-                        }}
-                    />
+<ImportWordForm
+                    examId={examId}
+                    onQuestionAdded={() => {
+                        fetchQuestions({ silent: true });
+                    }}
+                />
                 </ModalShell>
             )}
 
