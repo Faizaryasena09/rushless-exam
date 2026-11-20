@@ -42,6 +42,7 @@ export async function middleware(req) {
     // 1. Bypass static files and essential endpoints
     const isStatic = pathname.startsWith('/_next') || 
                     pathname.startsWith('/public') || 
+                    pathname.startsWith('/api/media') || 
                     pathname.includes('.') || 
                     pathname.startsWith('/api/web-settings') ||
                     pathname.startsWith('/Logo'); // Custom logo paths

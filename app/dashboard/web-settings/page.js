@@ -262,12 +262,17 @@ export default function WebSettingsPage() {
             });
 
             if (res.ok) {
-                setSettings(prev => ({ ...prev, site_logo: base64Image }));
+                const data = await res.json().catch(() => ({}));
+                setSettings(prev => ({ ...prev, site_logo: data.value || base64Image }));
                 setCropImage(null); // Close modal
                 toast.success(t('admin_success_logo_save'));
             } else {
-                const d = await res.json();
-                toast.error(d.message || t('admin_error_logo_save'));
+                const d = await res.json().catch(() => ({}));
+                if (res.status === 401) {
+                    toast.error('Sesi admin tidak valid atau telah berakhir. Silakan login kembali.');
+                } else {
+                    toast.error(d.message || t('admin_error_logo_save'));
+                }
             }
         } catch (err) {
             console.error(err);
@@ -391,7 +396,12 @@ return (
                     <div className="flex items-center gap-4">
                         {settings.site_logo && (
                             <div className="w-16 h-16 shrink-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-1.5">
-                                <img src={settings.site_logo} alt="Logo saat ini" className="max-w-full max-h-full object-contain" />
+                                <img
+                                    src={settings.site_logo}
+                                    alt="Logo saat ini"
+                                    className="max-w-full max-h-full object-contain"
+                                    onError={(e) => { e.currentTarget.src = '/favicon.ico'; }}
+                                />
                             </div>
                         )}
                         <div className="flex items-center gap-2">

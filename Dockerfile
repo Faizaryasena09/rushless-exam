@@ -35,9 +35,6 @@ RUN npm install pm2 -g && \
     apt-get install -y -qq --no-install-recommends redis-server tzdata && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Buat folder untuk upload dan atur izin
-RUN mkdir -p public/uploads
-
 # COPY DARI STAGE "builder" (Harus sesuai dengan nama AS di stage 2)
 COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/standalone ./
@@ -45,6 +42,11 @@ COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
 # Copy ecosystem config
 COPY --chown=node:node ecosystem.config.js ./
+
+# Pastikan folder public/uploads ada, dimiliki user node, dan memiliki izin read-write (rwx) penuh
+RUN mkdir -p /app/public/uploads && \
+    chown -R node:node /app/public/uploads && \
+    chmod -R 777 /app/public/uploads
 
 USER node
 

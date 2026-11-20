@@ -141,7 +141,12 @@ function LoginForm() {
           <div className="px-8 pt-8 pb-7 text-center">
             <div className="flex justify-center mb-4">
               <span className="rl-float grid place-items-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/50 dark:to-violet-950/50 border border-indigo-200 dark:border-indigo-900/60 overflow-hidden">
-                <img src={branding.site_logo} alt="Logo" className="h-9 w-9 object-contain" />
+                <img
+                  src={branding.site_logo}
+                  alt="Logo"
+                  className="h-9 w-9 object-contain"
+                  onError={(e) => { e.currentTarget.src = '/favicon.ico'; }}
+                />
               </span>
             </div>
             <h1

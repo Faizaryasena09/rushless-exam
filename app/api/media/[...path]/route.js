@@ -7,11 +7,6 @@ import { sessionOptions } from '@/app/lib/session';
 
 export async function GET(request, { params }) {
     try {
-        const session = await getIronSession(await cookies(), sessionOptions);
-        if (!session.user) {
-            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-        }
-
         const resolvedParams = await params;
         const filePathArray = resolvedParams.path;
         if (!filePathArray || filePathArray.length === 0) {
@@ -22,6 +17,20 @@ export async function GET(request, { params }) {
         // Security: Prevent directory traversal
         if (relativePath.includes('..')) {
             return NextResponse.json({ message: 'Invalid path' }, { status: 400 });
+        }
+
+        // Public assets like website branding/logo do not require user authentication
+        // (needed on login page and public views before user logs in)
+        const filename = path.basename(relativePath).toLowerCase();
+        const isPublicAsset = filename.startsWith('site-logo') || 
+                              filename.startsWith('logo') || 
+                              filename === 'favicon.ico';
+
+        if (!isPublicAsset) {
+            const session = await getIronSession(await cookies(), sessionOptions);
+            if (!session.user) {
+                return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+            }
         }
 
         const fullPath = path.join(process.cwd(), 'public', 'uploads', relativePath);
@@ -37,6 +46,7 @@ export async function GET(request, { params }) {
                 '.gif': 'image/gif',
                 '.svg': 'image/svg+xml',
                 '.webp': 'image/webp',
+                '.ico': 'image/x-icon',
                 '.pdf': 'application/pdf',
                 '.zip': 'application/zip'
             };
@@ -46,7 +56,9 @@ export async function GET(request, { params }) {
             return new NextResponse(fileBuffer, {
                 headers: {
                     'Content-Type': contentType,
-                    'Cache-Control': 'public, max-age=31536000, immutable',
+                    'Cache-Control': isPublicAsset
+                        ? 'public, max-age=86400, stale-while-revalidate=604800'
+                        : 'public, max-age=31536000, immutable',
                 },
             });
         } catch (err) {

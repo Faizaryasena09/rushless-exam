@@ -8,7 +8,7 @@ import { logFromRequest } from '@/app/lib/logger';
 import redis, { isRedisReady } from '@/app/lib/redis';
 import fs from 'fs/promises';
 import { existsSync, writeFileSync, mkdirSync } from 'fs'; // For sync checks if needed, but we prefer async
-import path from 'fs';
+import path from 'path';
 import { DEFAULT_TIMEZONE, isValidTimezone } from '@/app/lib/timezone';
 
 async function getSession() {
@@ -205,7 +205,7 @@ export async function PUT(request) {
             if (key === 'site_logo' && value.startsWith('data:image')) {
                 try {
                     const matches = value.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-                    if (matches.length !== 3) throw new Error('Invalid base64 string');
+                    if (!matches || matches.length !== 3) throw new Error('Invalid base64 string');
                     const buffer = Buffer.from(matches[2], 'base64');
                     // Ensure public/uploads exists
                     const uploadDir = path.join(process.cwd(), 'public', 'uploads');
